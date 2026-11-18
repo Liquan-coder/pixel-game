@@ -10,8 +10,8 @@ export function gridCanvas(rows, pal) {
   rows.forEach((r, y) => [...r].forEach((ch, x) => { const col = pal[ch]; if (col) { g.fillStyle = col; g.fillRect(x, y, 1, 1); } }));
   return c;
 }
-function weaponFrame(type, ang) {
-  const mirror = Math.cos(ang) < -0.01 ? 1 : 0;
+function weaponFrame(type, ang, mir?: boolean) {
+  const mirror = (mir ?? Math.cos(ang) < -0.01) ? 1 : 0;           // 預設：指向左邊就左右翻（劍這種對稱的武器怎麼翻都一樣）
   const i = ((Math.round(ang / TAU * NROT) % NROT) + NROT) % NROT;
   const set = WROT[type] || (WROT[type] = [[], []]);
   let f = set[mirror][i];
@@ -19,8 +19,9 @@ function weaponFrame(type, ang) {
   return f;
 }
 // weapons and the heroine are drawn with finer pixels: HK world units per art pixel
-export function drawWeapon(c, type, x, y, ang, k = HK) {
-  const f = weaponFrame(type, ang);
+// mir：指定要不要左右翻。斧頭只有一邊有刃，要用這個讓刃永遠朝「揮過去的方向」
+export function drawWeapon(c, type, x, y, ang, k = HK, mir?: boolean) {
+  const f = weaponFrame(type, ang, mir);
   c.drawImage(f.c, snapF(x - f.ox * k), snapF(y - f.oy * k), f.c.width * k, f.c.height * k);
 }
 

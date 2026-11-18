@@ -56,7 +56,7 @@ export interface Player {
   timers: Timer[];
   combo?: number;
   charging?: boolean; charge?: number; chargeLv?: number; chargeHold?: number; chargeArm?: boolean;
-  wHist?: number[][] | null; wRec?: number; wRecD?: number; wFrom?: number; wTy?: number;   // 武器殘影
+  wHist?: number[][] | null; wRec?: number; wRecD?: number; wFrom?: number; wTy?: number; wRot?: number;   // 武器殘影、收招（wRot = 剛剛那一下往哪邊轉）
 
   // 死亡
   dead: boolean;

@@ -88,6 +88,17 @@ function heroAttackPose(pl: Player) {                                           
   if (pl.wRec > 0) return (ANIM[pl.wTy] || ANIM.sword).P.R;
   return null;
 }
+/* 單邊有刃的武器（斧頭）：刃要朝「正在揮過去的方向」，不然會變成用斧背砍。
+   角度往順時針轉（畫面上 y 朝下，角度變大）→ 用翻過的圖，刃在前面；逆時針 → 不翻。
+   rot = +1 順時針 / -1 逆時針：平常跟面向一樣（面右往順時針揮）；反手橫掃（flat）會反過來 */
+const ONE_EDGE = { axe: true };
+function edgeMir(pl: Player, msw, dir) {
+  if (!ONE_EDGE[pl.weapon.type]) return undefined;
+  let rot = dir;
+  if (msw && !msw.ranged) rot = Math.sign(msw.r1 - (msw.rs ?? msw.r0)) * msw.sd || dir;
+  else if (pl.wRec > 0 && pl.wRot) rot = pl.wRot;                    // 收招時維持剛剛那一下的方向，不會突然翻面
+  return rot > 0;
+}
 export function drawPlayer(pl: Player) {
   if (pl.dodge > 0 && !pl.dead) return;                                  // 瞬移中完全隱身
   const blink = pl.iframe > 0 && !pl.dodge && !pl.dash && pl.skillLock <= 0 && !(pl.blinkIn > 0) && Math.floor(G.time * 20) % 2 === 0;
@@ -143,8 +154,8 @@ export function drawPlayer(pl: Player) {
     if (!showW) return;
     if (pl.weapon.type === 'wolfblade') { const [lx2, ly2] = hand(11.5, 48.5); drawWeapon(ctx, 'wolfblade', lx2, ly2, ang + .5 * (flip ? -1 : 1)); }
     if (msw && phase === 'S' && pl.wHist) { const a0 = ctx.globalAlpha;    // 揮刀殘影：前幾格的刀，越舊越淡
-      pl.wHist.forEach((h, i) => { ctx.globalAlpha = a0 * (.12 + .14 * i); drawWeapon(ctx, pl.weapon.type, h[0], h[1], h[2]); }); ctx.globalAlpha = a0; }
-    drawWeapon(ctx, pl.weapon.type, gx, gy, ang);
+      pl.wHist.forEach((h, i) => { ctx.globalAlpha = a0 * (.12 + .14 * i); drawWeapon(ctx, pl.weapon.type, h[0], h[1], h[2], HK, edgeMir(pl, msw, dir)); }); ctx.globalAlpha = a0; }
+    drawWeapon(ctx, pl.weapon.type, gx, gy, ang, HK, edgeMir(pl, msw, dir));
     const hs = HERO.hand, img = white ? (flip ? hs.wf : hs.wn) : (flip ? hs.f : hs.n);   // 拳頭畫在握把上，蓋住刀柄
     ctx.drawImage(img, flip ? HERO_W - 44 : 39, 38, 5, 6, snapF(gx - 2.5 * k), snapF(gy - 2.5 * k), 5 * k, 6 * k);
   };
