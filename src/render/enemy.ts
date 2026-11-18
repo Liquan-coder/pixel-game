@@ -19,7 +19,7 @@ export function drawEnemy(e) {
   ctx.save(); ctx.translate(snapF(e.x + J.shiver), snapF(e.y + 2 - bob - (e.z || 0) - J.lift));   // 以腳底為中心變形
   if (J.rot) ctx.rotate(J.rot);
   ctx.transform(J.sx, 0, -J.lean, J.sy, 0, 0);
-  drawSprite(J.wf >= 0 && sp.walk ? sp.walk[J.wf] : sp, 0, 0, e.flip, white, e.elite && Math.floor(G.time * 4) % 4 !== 0);   // 跑動中 → 換成第 wf 張走路圖
+  drawSprite(J.pose && sp.atk?.[J.pose] || (J.wf >= 0 && sp.walk ? sp.walk[J.wf] : sp), 0, 0, e.flip, white, e.elite && Math.floor(G.time * 4) % 4 !== 0);   // 跑動中 → 換成第 wf 張走路圖
   if (e.boss && G.B && G.B.phase === 2 && sp.eye) { const X = snapF(-sp.w / 2), Y = snapF(-sp.h), ex = (e.flip ? sp.aw - sp.eye[0] - 3 : sp.eye[0]) * HK;
     ctx.fillStyle = '#ff3b3b'; ctx.globalAlpha = .5 + .5 * Math.sin(G.time * 12); ctx.fillRect(X + ex - HK, Y + (sp.eye[1] - 1) * HK, HK * 5, HK * 3); ctx.globalAlpha = 1; }
   ctx.restore();
