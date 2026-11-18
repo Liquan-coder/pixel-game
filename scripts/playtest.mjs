@@ -57,7 +57,7 @@ const pageScript = async () => {
   const { startGame } = await imp('main');
   const menus = await imp('ui/menus');
   const shop = await imp('ui/shop');
-  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns') };
+  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map') };
 
   const step = (n, opts = {}) => {
     for (let i = 0; i < n; i++) {
@@ -155,6 +155,21 @@ const pageScript = async () => {
     if (!m.opened) throw new Error('打倒寶箱怪後寶箱沒算打開');
     save(); const s = loadSave(); m.opened = false; c.opened = false; applySave(s); step(2);
     if (!c.opened || !m.opened) throw new Error('讀檔後寶箱又關起來了');
+  });
+
+  run('主線：目標會跟著進度前進、石碑可以閱讀', () => {
+    const Q = await0.quest, first = Q.current().id;
+    log.push('  主線目前目標：' + Q.current().title + '（星核 ' + Q.cores() + '/' + Q.CORE_N + '）');
+    const t = Q.TAB[0]; tp(t.x, t.y + 6); step(2); if (Q.nearTablet() !== t) throw new Error('站在石碑旁邊卻沒偵測到');
+    Q.readTablet(t); step(2); if (!Q.loreRead.has(t.id)) throw new Error('石碑沒有記下來'); setMenu(null);
+    menus.toggleMap(); document.querySelector('#mapTabs [data-mt=journal]').click(); step(2);
+    if (!document.querySelector('#journal .qsteps li')) throw new Error('旅程分頁是空的'); setMenu(null);
+    if (first === Q.current().id && Q.current().id !== 'end') {
+      for (const s of (await0.story).STEPS) if (s.id === first) { /* 用旗標 / 探索直接完成第一步 */ }
+      (await0.map).discovered.add('晨風鎮'); Q.flags.add('talk:dawn:村長'); step(3);
+      if (Q.current().id === first) throw new Error('完成後目標沒有前進：' + first);
+    }
+    log.push('  完成前兩步後：' + Q.current().title);
   });
 
   run('存檔 → 讀檔', () => {

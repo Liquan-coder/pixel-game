@@ -1,5 +1,6 @@
 import { G } from '../core/state';
 import { updateNPCs } from '../world/towns';
+import { updateQuest } from './quest';
 import { TAU, pick, rr } from '../core/util';
 import { HK, LH, LW, ctx, snapF } from '../core/canvas';
 import { COIN_SP, RAR, SOUL_SP } from '../data/items';
@@ -141,7 +142,7 @@ export function update(dt) {
   for (const pl of G.players) updatePlayer(pl, dt);
   const near = e => G.players.some(pl => Math.abs(e.x - pl.x) < 520 && Math.abs(e.y - pl.y) < 380);   // 只更新任何玩家附近的怪
   for (let i = G.enemies.length - 1; i >= 0; i--) { const e = G.enemies[i]; if (near(e)) updateEnemy(e, dt); }
-  updateNPCs(); updateBoss(dt); updateRegionBosses(dt); separate(); updateProjectiles(dt); updateDrops(dt); updateSpawns(dt);
+  updateNPCs(); updateQuest(); updateBoss(dt); updateRegionBosses(dt); separate(); updateProjectiles(dt); updateDrops(dt); updateSpawns(dt);
   for (let i = G.fx.length - 1; i >= 0; i--) { G.fx[i].t += dt; if (G.fx[i].t >= G.fx[i].d) G.fx.splice(i, 1); }
   for (let i = G.ghosts.length - 1; i >= 0; i--) { G.ghosts[i].life -= dt; if (G.ghosts[i].life <= 0) G.ghosts.splice(i, 1); }
   for (let i = G.parts.length - 1; i >= 0; i--) { const p = G.parts[i]; p.life -= dt; if (p.life <= 0) { G.parts.splice(i, 1); continue; } p.x += p.vx * dt; p.y += p.vy * dt; if (p.g) p.vy += p.g * dt; if (p.drag) { const q = Math.exp(-p.drag * dt); p.vx *= q; p.vy *= q; } }

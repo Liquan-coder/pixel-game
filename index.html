@@ -23,6 +23,7 @@
       <div class="bar"><i id="hpBar"></i></div>
       <div class="bar st"><i id="stBar"></i></div>
       <div class="souls"><span>魂晶 <b id="soulTxt">0</b></span><span class="gold">金幣 <b id="goldTxt">0</b></span><span id="potHud">藥水 <b id="potTxt2">3</b></span></div>
+      <div id="quest" title="點一下顯示 / 隱藏提示"></div>
     </div>
     <div class="tr">
       <canvas id="mini" width="128" height="80"></canvas>
@@ -39,6 +40,7 @@
     <button id="restBtn" type="button" hidden>在營火休息</button>
     <button id="shopBtn" type="button" hidden>和流浪商人交易</button>
     <button id="chestBtn" type="button" hidden>打開寶箱 <small>E</small></button>
+    <button id="readBtn" type="button" hidden>閱讀石碑 <small>E</small></button>
     <div id="pickBox" hidden><div id="pickCard"></div><button id="pickBtn" type="button">撿起 <small>E</small></button></div>
     <div id="zoneHint" hidden></div>
     <div id="talk" hidden></div>
@@ -94,8 +96,16 @@
 
   <div id="mapMenu" class="panel wide" hidden>
     <div class="ph"><h2>世界地圖</h2><button class="sbtn" type="button" data-close>關閉</button></div>
-    <canvas id="bigmap" width="512" height="384"></canvas>
-    <p class="hintp">走過的地方會亮起來。金色方塊是點燃的營火，小黃點是還沒打開的寶箱，綠色是流浪商人，紅色是 boss 的所在地，藍色是你。</p>
+    <div class="tabs" id="mapTabs"><button type="button" data-mt="map" class="on">地圖</button><button type="button" data-mt="journal">旅程</button></div>
+    <div id="mapPane"><canvas id="bigmap" width="512" height="384"></canvas>
+    <p class="hintp">金色菱形是主線的下一個目標。走過的地方會亮起來。金色方塊是點燃的營火，小黃點是還沒打開的寶箱，綠色是流浪商人，紅色是 boss 的所在地，藍色是你。</p></div>
+    <div id="journal" hidden></div>
+  </div>
+
+  <div id="loreMenu" class="panel" hidden>
+    <div class="ph"><h2 id="loreTitle">石碑</h2><button class="sbtn" type="button" data-close>關閉</button></div>
+    <p id="loreText" class="loretext"></p>
+    <p class="hintp">讀過的石碑會收進地圖畫面的「旅程」分頁。</p>
   </div>
 
   <div id="title" class="screen">

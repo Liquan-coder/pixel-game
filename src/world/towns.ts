@@ -8,6 +8,7 @@ import { TOWNS, TS } from './map';
 import { drawArtSprite } from './chunks';
 import { drawShadow } from '../render/player';
 import { moveEnt } from '../game/collision';
+import { flags } from '../game/quest';
 
 type Look = { robe: string[]; hair: string[]; skin?: string[]; beard?: boolean; helm?: boolean; apron?: boolean; hood?: boolean; spear?: boolean; small?: boolean };
 const SKIN = ['#8a5a44', '#c8907a', '#ecc0a4', '#fadcc8'];
@@ -78,7 +79,7 @@ export const nearSmith = () => { const n = nearNPC(); return n && n.smith ? n : 
 let talking = null;
 export function updateNPCs() {
   const n = G.started && !G.paused ? nearNPC(34) : null;
-  for (const m of NPCS) { const was = m.near; m.near = m === n; if (m.near && !was) m.line = (m.line + 1) % m.lines.length; }
+  for (const m of NPCS) { const was = m.near; m.near = m === n; if (m.near && !was) { m.line = (m.line + 1) % m.lines.length; flags.add('talk:' + m.town + ':' + m.name); } }
   if (n) n.flip = G.me.x < n.x;
   for (const pl of G.players) for (const m of NPCS) { const dx = pl.x - m.x, dy = pl.y - m.y, d = Math.hypot(dx, dy), R = 9;   // 居民有體積：走過去會被輕輕推開
     if (d < R && d > .01) { const o = { x: pl.x, y: pl.y, r: pl.r }; moveEnt(o, dx / d * (R - d), dy / d * (R - d)); pl.x = o.x; pl.y = o.y; } }

@@ -80,7 +80,7 @@ body.menu .toast{background:#000d;border:1px solid var(--line);padding:3px 12px}
 #bSkill .cd{position:absolute;inset:0;background:conic-gradient(#000b calc(var(--cd,0)*360deg),transparent 0);pointer-events:none}
 #bSkill span{position:relative;font-size:11px;line-height:1.15;text-align:center;padding:0 6px}
 #bPot b{position:absolute;right:7px;bottom:3px;font-size:11px;color:var(--gold);font-weight:400}
-#keyHint{position:absolute;left:calc(10px + env(safe-area-inset-left,0px));top:calc(80px + env(safe-area-inset-top,0px));font-size:12px;color:var(--muted);text-shadow:1px 1px 0 #000;pointer-events:none}
+#keyHint{position:absolute;left:calc(10px + env(safe-area-inset-left,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));font-size:12px;color:var(--muted);text-shadow:1px 1px 0 #000;pointer-events:none}
 .touch #keyHint{display:none}
 /* 電腦版技能欄：右下角，冷卻時顯示倒數，好了會閃一下 */
 #skillHud{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));width:76px;height:76px;background:#2e2650e6;border:3px solid #7563b0;box-shadow:inset -3px -4px 0 #0006,0 0 0 2px var(--ink);display:grid;place-items:center;overflow:hidden;pointer-events:none;text-shadow:1px 1px 0 #000}
@@ -199,6 +199,27 @@ body:not(.touch) #controls{display:none}
 #zoneHint{position:absolute;left:50%;transform:translateX(-50%);top:calc(96px + env(safe-area-inset-top,0px));background:#000c;border:2px solid #8a3446;padding:5px 14px;font-size:14px;text-align:center;white-space:nowrap;color:var(--gold);text-shadow:1px 1px 0 #000}
 #zoneHint small{display:block;font-size:12px;color:var(--muted)}
 #zoneHint .weak{color:#ff8a7a}
+/* 主線目標：左上角、能力條下方；點一下切換提示文字 */
+#quest{grid-column:1/-1;margin-top:2px;max-width:min(320px,42vw);pointer-events:auto;cursor:pointer;text-shadow:1px 1px 0 #000,-1px 0 0 #000;font-size:13px;line-height:1.35}
+#quest b{display:block;font-weight:400;color:#ffe38a}
+#quest small{display:block;color:var(--text);font-size:12px;opacity:.85}
+#quest i{display:block;font-style:normal;font-size:11px;color:var(--soul)}
+#readBtn{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom,0px));pointer-events:auto;background:#142438;border:3px solid #7ab8e8;color:#dcecff;font-size:15px;padding:8px 18px;box-shadow:inset -3px -3px 0 #0007,0 0 0 2px var(--ink),0 0 18px #7ab8e855}
+#readBtn small{font-size:11px;opacity:.7;margin-left:4px}
+.touch #readBtn small{display:none}
+.loretext{font-size:16px;line-height:1.9;margin:6px 4px 10px;color:var(--text)}
+#journal{max-height:calc(100vh - 130px);overflow:auto}
+#journal .premise{font-size:14px;line-height:1.7;color:var(--text);margin:0 0 10px;padding:8px 10px;background:#0005;border-left:3px solid var(--gold)}
+.qsteps{list-style:none;margin:0;padding:0;display:grid;gap:3px}
+.qsteps li{font-size:14px;padding:4px 8px;background:#0004;border:1px solid #4d416666;color:var(--muted)}
+.qsteps li span{display:inline-block;width:18px;color:var(--muted)}
+.qsteps li.done{color:#8fd88f}.qsteps li.done span{color:#8fd88f}
+.qsteps li.cur{color:#ffe38a;border-color:var(--gold);background:#3a2e1c66}.qsteps li.cur span{color:#ffe38a}
+.qsteps li small{display:block;font-size:12px;color:var(--text);margin-left:18px}
+#journal details{background:#0004;border:1px solid #4d416666;margin-top:4px;padding:4px 8px}
+#journal summary{cursor:pointer;font-size:14px;color:#cdbfff}
+#journal details p{margin:6px 0 2px;font-size:13px;line-height:1.7}
+@media (max-height:500px){#quest{font-size:12px}#quest small{font-size:11px}}
 #talk{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));max-width:min(520px,70vw);background:#0b0814e6;border:2px solid var(--line);box-shadow:0 0 0 2px var(--ink);padding:7px 14px;font-size:14px;line-height:1.5;text-align:left;text-shadow:1px 1px 0 #000;animation:tin .25s steps(3)}
 #talk b{display:block;color:var(--gold);font-weight:400;font-size:12px;letter-spacing:.1em}
 #talk small{display:block;color:var(--muted);font-size:11px;margin-top:2px}

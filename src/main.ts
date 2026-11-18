@@ -32,13 +32,14 @@ import { merchant, openShop, placeMerchant } from './ui/shop';
 import { renderInv, restAt, toggleMap } from './ui/menus';
 import { readInput } from './ui/input';
 import { CHESTS, genChests } from './world/chests';
+import { placeTablets, resetQuest } from './game/quest';
 import { applySave, clearSave, loadSave, save, serialize } from './game/save';
 
 /* ================= FLOW ================= */
 export function startGame(cont) {
   initAudio();
   const d = cont ? loadSave() : null;
-  if (d) applySave(d); else { clearSave(); resetPlayers(); G.coins = []; rbDead.clear(); placeMerchant('start'); G.bossDead = false; G.lost = null; G.lastCamp = 'start'; explored.fill(0); discovered.clear(); redrawMini(); for (const c of CAMPS) c.lit = c.id === 'start'; for (const c of CHESTS) { c.opened = false; c.foe = null; } }
+  if (d) applySave(d); else { clearSave(); resetPlayers(); G.coins = []; rbDead.clear(); placeMerchant('start'); G.bossDead = false; G.lost = null; G.lastCamp = 'start'; explored.fill(0); discovered.clear(); redrawMini(); for (const c of CAMPS) c.lit = c.id === 'start'; for (const c of CHESTS) { c.opened = false; c.foe = null; } resetQuest(); }
   placeAtCamp(G.me, G.lastCamp); restoreWorld();
   G.started = true; $('title').hidden = true; setMenu(null); G.region = ''; save();
   $('keyHint').hidden = false; setTimeout(() => { $('keyHint').hidden = true; }, 15000);
@@ -63,7 +64,7 @@ function frame(ts) {
 }
 
 function boot(data) {
-  genWorld(); genChests(reachable); bakeFullMap();
+  genWorld(); genChests(reachable); placeTablets(); bakeFullMap();
   resetPlayers(); placeAtCamp(G.me, 'start'); respawnAll(); resetBoss();
   resize(); window.addEventListener('resize', resize);
   const s = loadSave(); $('btnContinue').hidden = !s; if (s) $('btnNew').textContent = '重新開始';

@@ -17,6 +17,7 @@ import { addLight, drawCamp, drawDrop, drawEnemy, drawTelegraph } from './enemy'
 import { drawMerchant, merchant } from '../ui/shop';
 import { drawChests } from '../world/chests';
 import { drawNPCs } from '../world/towns';
+import { drawQuestArrow, drawTablets } from '../game/quest';
 import { camDt } from '../main';
 
 export const view = { x: 0, y: 0 };                                  // 畫面左上角在世界的哪裡（給 HTML 介面對齊用）
@@ -80,7 +81,7 @@ export function render() {
   for (const c of CAMPS) if (vis(c.x, c.y)) list.push({ y:c.y, f:() => drawCamp(c) });
   for (const d of G.drops) if (vis(d.x, d.y)) { list.push({ y:d.y - 1, f:() => drawDrop(d) }); addLight(L, d.x, d.y - 8, 16 + d.item.rarity * 7, 3); }
   for (const c of G.coins) if (vis(c.x, c.y)) list.push({ y:c.y, f:() => drawCoin(c) });
-  drawChests(L, vis, addLight, list); drawNPCs(vis, list);
+  drawChests(L, vis, addLight, list); drawNPCs(vis, list); drawTablets(vis, list, L, addLight);
   if (merchant && vis(merchant.x, merchant.y, 60)) { list.push({ y:merchant.y, f:drawMerchant }); addLight(L, merchant.x - 5, merchant.y - 10, 46 + Math.sin(G.time * 6) * 2, 1); }
   // 殘影：衝刺是紫色剪影（最新的疊白光），翻滾是會跟著轉的淡白剪影
   for (const g of G.ghosts) { const k = g.life / g.max, sp = HERO.walk[0], w = sp.w * HK, h = sp.h * HK;
@@ -98,6 +99,7 @@ export function render() {
     list.push({ y:pl.y, f:() => drawPlayer(pl) });
   }
   list.sort((a, b) => a.y - b.y); for (const it of list) it.f();
+  drawQuestArrow();
   for (const p of G.projs) {
     if (p.kind === 'spore') { ctx.fillStyle = OL; ctx.fillRect(Math.round(p.x - 3), Math.round(p.y - 3), 6, 6); ctx.fillStyle = '#c46ad8'; ctx.fillRect(Math.round(p.x - 2), Math.round(p.y - 2), 4, 4); ctx.fillStyle = '#f0c8ff'; ctx.fillRect(Math.round(p.x - 1), Math.round(p.y - 1), 1, 1); addLight(L, p.x, p.y, 20, 2); }
     else if (p.kind === 'bolt') { drawOrb(p.x, p.y, 3.2, ['#6a4ad0', '#b49cff', '#ffffff']); addLight(L, p.x, p.y, 28, 3); }

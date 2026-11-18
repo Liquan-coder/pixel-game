@@ -37,4 +37,5 @@ export const G = {
   campTab: 'lv',
   curCamp: null,
   selItem: null, pick: null,
+  questOpen: true,              // 左上角的主線目標要不要顯示提示文字（點一下切換）
 };

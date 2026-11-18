@@ -8,13 +8,14 @@ import { resetPlayers, recalc } from './player';
 import { openDoor } from './boss';
 import { merchant, placeMerchant } from '../ui/shop';
 import { CHESTS } from '../world/chests';
+import { flags, loreRead, resetQuest } from './quest';
 
 /* ================= SAVE ================= */
 const SAVE_KEY = 'pixel-wilds-save-v3';
 export function serialize() {
   return { v:5, vit:G.me.vit, str:G.me.str, end:G.me.end, dex:G.me.dex, int:G.me.int, luk:G.me.luk, souls:G.me.souls, gold:G.me.gold, inv:G.me.inv, weapon:G.me.weapon, armor:G.me.armor, trinket:G.me.trinket,
     merchant: merchant ? { camp:merchant.camp, stock:merchant.stock } : null, rbDead: [...rbDead], potMax: G.potMax, bossDead: G.bossDead,
-    camps: CAMPS.filter(c => c.lit).map(c => c.id), lastCamp: G.lastCamp, lost: G.lost, uid: G.uid, map: packExplored(), mw: MW, chests: CHESTS.filter(c => c.opened).map(c => c.id), disc: [...discovered] };
+    camps: CAMPS.filter(c => c.lit).map(c => c.id), lastCamp: G.lastCamp, lost: G.lost, uid: G.uid, map: packExplored(), mw: MW, chests: CHESTS.filter(c => c.opened).map(c => c.id), flags: [...flags], lore: [...loreRead], disc: [...discovered] };
 }
 export function save() { if (!G.started) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(serialize())); } catch (e) {} }
 export function loadSave() { try { const s = localStorage.getItem(SAVE_KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
@@ -32,6 +33,7 @@ export function applySave(d) {
   G.lastCamp = d.lastCamp || 'start'; G.lost = d.lost || null;
   discovered.clear(); for (const s of d.disc || []) discovered.add(s);
   if (d.map) unpackExplored(d.map, d.mw || 256);
+  resetQuest(); for (const f of d.flags || []) flags.add(f); for (const l of d.lore || []) loreRead.add(l);
   const opened = new Set(d.chests || []); for (const c of CHESTS) { c.opened = opened.has(c.id); c.foe = null; c.t = 2; }
   if (G.bossDead) openDoor();
   if (d.merchant && CAMPS.some(c => c.id === d.merchant.camp && c.lit) && Array.isArray(d.merchant.stock)) placeMerchant(d.merchant.camp, d.merchant.stock); else placeMerchant(G.lastCamp);

@@ -7,6 +7,7 @@ import { nearCamp } from '../game/playerUpdate';
 import { nearMerchant } from './shop';
 import { nearChest } from '../world/chests';
 import { nearSmith } from '../world/towns';
+import { nearTablet } from '../game/quest';
 import { itemCard } from './menus';
 import { SCALE } from '../core/canvas';
 import { view } from '../render/render';
@@ -31,9 +32,10 @@ export function updateHUD() {
   if (hudCache.pick !== pkKey) { hudCache.pick = pkKey; $('pickBox').hidden = !pk;
     if (pk) $('pickCard').innerHTML = itemCard(pk.item, curEq(G.me)[slotOf(pk.item)]); }   // 跟身上同部位的裝備比較（▲▼）
   if (pk) placePickBox(pk);
-  const chest = !!(!G.paused && G.started && !pk && nearChest(G.me));
+  const chest = !!(!G.paused && G.started && !pk && nearChest(G.me)), tab = !!(!G.paused && G.started && !pk && !chest && nearTablet());
+  if (hudCache.tab !== tab) { hudCache.tab = tab; $('readBtn').hidden = !tab; }
   if (hudCache.chest !== chest) { hudCache.chest = chest; $('chestBtn').hidden = !chest; }
-  if (pk || chest) { show = false; shop = false; }                           // 腳邊有裝備時，E 和下方按鈕都是「撿起」
+  if (pk || chest || tab) { show = false; shop = false; }                           // 腳邊有裝備時，E 和下方按鈕都是「撿起」
   if (hudCache.shop !== shop) { hudCache.shop = shop; $('shopBtn').hidden = !shop; }
   if (hudCache.rest !== (show && !shop)) { hudCache.rest = show && !shop; $('restBtn').hidden = !(show && !shop); }
   setText('goldTxt', String(G.me.gold));
@@ -83,7 +85,7 @@ export function hideBanner() { $('banner').classList.remove('show'); }
 
 export let openMenu = null;
 export function setMenu(name) {
-  openMenu = name; $('campMenu').hidden = name !== 'camp'; $('invMenu').hidden = name !== 'inv'; $('mapMenu').hidden = name !== 'map'; $('shopMenu').hidden = name !== 'shop'; $('veil').hidden = !name; document.body.classList.toggle('menu', !!name);
+  openMenu = name; $('campMenu').hidden = name !== 'camp'; $('invMenu').hidden = name !== 'inv'; $('mapMenu').hidden = name !== 'map'; $('shopMenu').hidden = name !== 'shop'; $('loreMenu').hidden = name !== 'lore'; $('veil').hidden = !name; document.body.classList.toggle('menu', !!name);
   G.paused = !!name || !G.started;
   for (const k in held) held[k] = false;
 }

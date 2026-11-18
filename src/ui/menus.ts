@@ -15,6 +15,7 @@ import { save } from '../game/save';
 import { ATTRS, ATTR_NAME, WSCALE, grade, reqOf, unmet } from '../data/attrs';
 import { HERO, HERO_W } from '../art/hero';
 import { drawWeapon } from '../art/weapon';
+import { renderJournal } from '../game/quest';
 import { pickUp } from '../game/worldUpdate';
 
 export function restAt(c) {
@@ -131,9 +132,12 @@ $('invMenu').addEventListener('click', e => {
   else if (t.dataset.act === 'salv' && idx >= 0) { const it = G.me.inv.splice(idx, 1)[0]; G.me.souls += salvValue(it); G.selItem = null; sfx.pick(); renderInv(); save(); }
   else if (t.id === 'salvAll') { let s = 0; G.me.inv = G.me.inv.filter(it => { if (it.rarity === 0) { s += salvValue(it); return false; } return true; }); G.me.souls += s; if (s) { toast('分解獲得 ' + s + ' 魂晶', '#b49cff'); sfx.pick(); } G.selItem = null; renderInv(); save(); }
 });
-$('mapMenu').addEventListener('click', e => { const t = (e.target as HTMLElement).closest('button'); if (t && t.hasAttribute('data-close')) setMenu(null); });
+let mapTab = 'map';
+function showMapTab() { for (const b of document.querySelectorAll<HTMLElement>('#mapTabs button')) b.classList.toggle('on', b.dataset.mt === mapTab);
+  $('mapPane').hidden = mapTab !== 'map'; $('journal').hidden = mapTab !== 'journal'; if (mapTab === 'journal') renderJournal(); else renderBigMap(); }
+$('mapMenu').addEventListener('click', e => { const t = (e.target as HTMLElement).closest('button'); if (!t) return; if (t.hasAttribute('data-close')) setMenu(null); else if (t.dataset.mt) { mapTab = t.dataset.mt; showMapTab(); } });
 export function toggleInv() { if (openMenu === 'inv') setMenu(null); else if (!openMenu && G.started && !G.me.dead) { G.selItem = null; renderInv(); setMenu('inv'); } }
-export function toggleMap() { if (openMenu === 'map') setMenu(null); else if (!openMenu && G.started && !G.me.dead) { renderBigMap(); setMenu('map'); } }
+export function toggleMap() { if (openMenu === 'map') setMenu(null); else if (!openMenu && G.started && !G.me.dead) { showMapTab(); setMenu('map'); } }
 $('bagBtn').addEventListener('click', toggleInv);
 $('mapBtn').addEventListener('click', toggleMap);
 mini.addEventListener('click', toggleMap);
