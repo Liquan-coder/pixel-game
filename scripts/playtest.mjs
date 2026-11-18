@@ -91,7 +91,7 @@ const pageScript = async () => {
     for (const e of kinds.values()) { tp(e.x - 30, e.y); step(240, { god: true, atkEvery: 12 }); }
   });
 
-  for (const id of ['queen', 'general', 'dragon']) run(`區域 Boss ${id}：一階段 → 二階段 → 擊殺`, () => {
+  for (const id of Object.keys(RB.RBDEF)) run(`區域 Boss ${id}：一階段 → 二階段 → 擊殺`, () => {
     const e = RB.rbs.find(b => b.id === id); if (!e) throw new Error('找不到 ' + id);
     tp(e.def.x, e.def.y + 40); step(200, { god: true });
     if (e.state === 'sleep') throw new Error('Boss 沒有醒來，state=' + e.state);
