@@ -1,5 +1,6 @@
 import { G } from '../core/state';
 import { AT, TT, WT, slotOf } from '../data/items';
+import { migrateAttrs } from '../data/attrs';
 import { CAMPS, MW, discovered } from '../world/map';
 import { rbDead } from '../world/regionBoss';
 import { packExplored, unpackExplored } from '../world/minimap';
@@ -11,7 +12,7 @@ import { CHESTS } from '../world/chests';
 /* ================= SAVE ================= */
 const SAVE_KEY = 'pixel-wilds-save-v3';
 export function serialize() {
-  return { v:4, vit:G.me.vit, str:G.me.str, end:G.me.end, souls:G.me.souls, gold:G.me.gold, inv:G.me.inv, weapon:G.me.weapon, armor:G.me.armor, trinket:G.me.trinket,
+  return { v:5, vit:G.me.vit, str:G.me.str, end:G.me.end, dex:G.me.dex, int:G.me.int, luk:G.me.luk, souls:G.me.souls, gold:G.me.gold, inv:G.me.inv, weapon:G.me.weapon, armor:G.me.armor, trinket:G.me.trinket,
     merchant: merchant ? { camp:merchant.camp, stock:merchant.stock } : null, rbDead: [...rbDead], potMax: G.potMax, bossDead: G.bossDead,
     camps: CAMPS.filter(c => c.lit).map(c => c.id), lastCamp: G.lastCamp, lost: G.lost, uid: G.uid, map: packExplored(), mw: MW, chests: CHESTS.filter(c => c.opened).map(c => c.id), disc: [...discovered] };
 }
@@ -20,7 +21,7 @@ export function loadSave() { try { const s = localStorage.getItem(SAVE_KEY); ret
 export function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
 export function applySave(d) {
   resetPlayers();
-  G.me.vit = d.vit || 1; G.me.str = d.str || 1; G.me.end = d.end || 1; G.me.souls = d.souls || 0;
+  Object.assign(G.me, migrateAttrs(d)); G.me.souls = d.souls || 0;   // 舊存檔的三種能力值會換算成新的六種
   G.me.inv = (Array.isArray(d.inv) ? d.inv : []).filter(it => it && (WT[it.type] || AT[it.type] || TT[it.type]));   // 舊存檔：補上欄位預設值
   for (const it of G.me.inv) { it.slot = slotOf(it); it.aff = it.aff || {}; }
   if (d.weapon && WT[d.weapon.type]) { G.me.weapon = d.weapon; G.me.weapon.slot = 'weapon'; G.me.weapon.aff = G.me.weapon.aff || {}; }

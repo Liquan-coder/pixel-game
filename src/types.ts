@@ -33,6 +33,7 @@ export interface Player {
   // 數值
   hp: number; maxHp: number; st: number; maxSt: number; stDelay: number;
   vit: number; str: number; end: number;          // 體魄 / 力量 / 耐力
+  dex: number; int: number; luk: number;          // 敏捷 / 智識 / 幸運（見 data/attrs.ts）
   souls: number; gold: number; pot: number;
 
   // 裝備
@@ -40,7 +41,7 @@ export interface Player {
   weapon: Item; armor: Item | null; trinket: Item | null;
 
   // recalc() 依照裝備算出來的
-  def: number; defRed: number; crit: number; ls: number; aspd: number; cdr: number;
+  def: number; defRed: number; crit: number; ls: number; aspd: number; cdr: number; atkPow?: number;
 
   // 倒數計時（秒），大於 0 代表還在冷卻/持續中
   atkCd: number; skillCd: number; iframe: number; hurt: number; dodge: number; drink: number;

@@ -5,6 +5,7 @@ import { HERO_FULL, HERO_PAL, HERO_W, WEAP } from '../art/hero';
 import { SH, sculpt } from '../art/monsters';
 import { gridCanvas } from '../art/weapon';
 import type { Item } from '../types';
+import { meets, soft } from './attrs';
 
 /* ================= DATA ================= */
 export const WT = {
@@ -73,8 +74,14 @@ export function makeGear(type: string, ilvl: number, rarity: number): Item {
   return it;
 }
 export const DROP_WEAPONS = ['sword', 'dagger', 'axe', 'spear', 'staff', 'katana', 'hammer', 'scythe'];   // 會從怪物身上掉、商人會賣的武器（狼牙雙刃只有狼王會掉）
+function pickWeaponType(lv) {                                            // 你能裝備的武器類型比較容易掉（權重 3：1）
+  const pl = G.me; if (!pl) return pick(DROP_WEAPONS);
+  const w = DROP_WEAPONS.map(t => meets(pl, { type: t, ilvl: lv } as Item) ? 3 : 1), sum = w.reduce((a, b) => a + b, 0);
+  let r = Math.random() * sum; for (let i = 0; i < w.length; i++) if ((r -= w[i]) < 0) return DROP_WEAPONS[i]; return DROP_WEAPONS[0];
+}
 export function randomLoot(lv, rarity) {
-  const q = Math.random(), type = q < .6 ? pick(DROP_WEAPONS) : q < .85 ? pick(Object.keys(AT)) : pick(Object.keys(TT));
+  if (G.me && rarity < 4 && Math.random() < .012 * soft(G.me.luk)) rarity++;   // 幸運：有機會升一級稀有度
+  const q = Math.random(), type = q < .6 ? pickWeaponType(lv) : q < .85 ? pick(Object.keys(AT)) : pick(Object.keys(TT));
   return makeGear(type, lv, rarity);
 }
 export function bossWeapon() {

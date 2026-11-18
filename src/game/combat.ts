@@ -22,7 +22,7 @@ function autoFace(pl: Player, maxD) { const t = nearestTarget(pl, maxD); if (t) 
 export function updFlip(pl: Player) { const c = Math.cos(pl.face); if (c < -.1) pl.flip = true; else if (c > .1) pl.flip = false; }
 function spendSt(pl: Player, v) { pl.st = Math.max(0, pl.st - v); pl.stDelay = .55; }
 function calcDmg(pl: Player, mult) {
-  let v = pl.weapon.atk * (1 + 0.1 * (pl.str - 1)) * mult * rr(.9, 1.1);
+  let v = (pl.atkPow || pl.weapon.atk) * mult * rr(.9, 1.1);           // atkPow = 武器攻擊 × 能力值加成（recalc 算好的）
   const crit = Math.random() * 100 < pl.crit; if (crit) v *= 1.8;
   return { v: Math.max(1, Math.round(v)), crit };
 }

@@ -63,11 +63,26 @@
     <div id="campBody"></div>
   </div>
 
-  <div id="invMenu" class="panel wide" hidden>
+  <div id="invMenu" class="panel char" hidden>
     <div class="ph"><h2>角色<small id="invCount">0/24</small></h2><button class="sbtn" type="button" data-close>關閉</button></div>
-    <div class="charwrap">
-      <div><div class="lbl">裝備（點一下看詳情）</div><div id="eqSlots"></div><div class="lbl" style="margin-top:8px">屬性<small id="cmpNote" style="letter-spacing:0;margin-left:6px"></small></div><div class="stattbl" id="pStats"></div></div>
-      <div><div class="lbl">背包</div><div id="bagGrid"></div><div id="detail"></div><button id="salvAll" type="button">分解所有「普通」裝備</button></div>
+    <div class="cwrap">
+      <section class="cstats">
+        <div class="keystats" id="keyStats"></div>
+        <div class="lbl">能力值<small class="lvhint">在營火用魂晶升級</small></div>
+        <div id="attrList"></div>
+        <div class="lbl" style="margin-top:8px">詳細屬性<small id="cmpNote" style="letter-spacing:0;margin-left:6px"></small></div>
+        <div class="stattbl" id="pStats"></div>
+      </section>
+      <section class="cdoll">
+        <div class="dollbox"><canvas id="doll" width="171" height="198"></canvas><div class="dolllv" id="dollLv"></div></div>
+        <div id="eqSlots"></div>
+      </section>
+      <section class="cbag">
+        <div class="bagtabs" id="bagTabs"><button type="button" data-f="all" class="on">全部</button><button type="button" data-f="weapon">武器</button><button type="button" data-f="armor">防具</button><button type="button" data-f="trinket">飾品</button></div>
+        <div id="bagGrid"></div>
+        <div id="detail"></div>
+        <button id="salvAll" type="button">分解所有「普通」裝備</button>
+      </section>
     </div>
   </div>
 
