@@ -68,6 +68,7 @@ export function showArea(n, s) {
   clearTimeout(areaTimer); areaTimer = setTimeout(() => el.classList.remove('show'), 2600);
 }
 export function showBanner(t, sub, ms) {
+  $('areaToast').classList.remove('show');                          // 同時出現會疊在一起，大標題優先
   const el = $('banner'); el.innerHTML = t + (sub ? '<small>' + sub + '</small>' : ''); el.classList.add('show');
   el.style.color = t === '力竭倒下' ? '#d8434e' : '#f2c14e';
   clearTimeout(bannerTimer); bannerTimer = setTimeout(hideBanner, ms);
@@ -76,7 +77,7 @@ export function hideBanner() { $('banner').classList.remove('show'); }
 
 export let openMenu = null;
 export function setMenu(name) {
-  openMenu = name; $('campMenu').hidden = name !== 'camp'; $('invMenu').hidden = name !== 'inv'; $('mapMenu').hidden = name !== 'map'; $('shopMenu').hidden = name !== 'shop'; $('veil').hidden = !name;
+  openMenu = name; $('campMenu').hidden = name !== 'camp'; $('invMenu').hidden = name !== 'inv'; $('mapMenu').hidden = name !== 'map'; $('shopMenu').hidden = name !== 'shop'; $('veil').hidden = !name; document.body.classList.toggle('menu', !!name);
   G.paused = !!name || !G.started;
   for (const k in held) held[k] = false;
 }

@@ -9,10 +9,12 @@ export const snapF = v => Math.round(v * F) / F;
 export const isTouch = ('ontouchstart' in window) || (window.matchMedia && matchMedia('(pointer: coarse)').matches);
 if (isTouch) document.body.classList.add('touch');
 // 畫面大約要看得到多少「遊戲像素」高。數字越大 = 鏡頭越遠、角色和特效看起來越小
-// 手機螢幕實際只有筆電的 1/3 高，用同一個數字角色會小到看不清，所以手機鏡頭拉近一點
-const VIEW_H = isTouch ? 160 : 240;
+// 電腦固定 240。觸控裝置看螢幕「短邊」有多長（CSS px 大約對應實際公分）：
+//   手機短邊 ≈ 375–430 → 160（鏡頭拉近，角色才不會小到看不清）
+//   平板短邊 ≈ 768–1024 → 240（螢幕夠大，跟電腦一樣）
+export function viewH(vw: number, vh: number) { return isTouch ? Math.round(Math.max(160, Math.min(240, Math.min(vw, vh) * .4))) : 240; }
 export function resize() {
-  const vw = window.innerWidth, vh = window.innerHeight;
+  const vw = window.innerWidth, vh = window.innerHeight, VIEW_H = viewH(vw, vh);
   const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
   // F = 每個遊戲像素要畫成幾個螢幕實體像素。
   // 普通螢幕（dpr 1）：F 要是 3 的倍數，女巫的細像素（1/3 格）才會整齊。

@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host",
     "playtest": "node scripts/playtest.mjs",
+    "shots": "node scripts/shots.mjs",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
