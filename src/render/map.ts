@@ -5,6 +5,7 @@ import { ARENA, CAMPS, DOOR, MH, MW, OPEN_REGIONS, REGIONS, SUBS, TS, discovered
 import { RBDEF, rbDead } from '../world/regionBoss';
 import { mctx, miniBase, miniFull } from '../world/minimap';
 import { merchant } from '../ui/shop';
+import { CHESTS } from '../world/chests';
 
 /* miniT → 已移到 G（core/state.js） */
 export function renderMini() {
@@ -14,6 +15,7 @@ export function renderMini() {
   for (const c of CAMPS) if (explored[c.ty * MW + c.tx]) { mctx.fillStyle = c.lit ? '#f2c14e' : '#8a869a'; mctx.fillRect(c.tx - ox - 1, c.ty - oy - 1, 3, 3); }
   if (!G.bossDead && explored[ARENA.y1 * MW + DOOR[1]]) { mctx.fillStyle = '#ff3b3b'; mctx.fillRect(189 - ox, 109 - oy, 3, 3); }
   for (const d of Object.values(RBDEF)) if (!rbDead.has(d.id) && explored[d.ty * MW + d.tx]) { mctx.fillStyle = '#ff3b3b'; mctx.fillRect(d.tx - ox - 1, d.ty - oy - 1, 3, 3); }
+  for (const c of CHESTS) if (!c.opened && explored[c.ty * MW + c.tx]) { mctx.fillStyle = '#ffd04a'; mctx.fillRect(c.tx - ox, c.ty - oy, 1, 1); }
   if (merchant) { const mx = Math.floor(merchant.x / TS) - ox, my = Math.floor(merchant.y / TS) - oy; mctx.fillStyle = OL; mctx.fillRect(mx - 2, my - 2, 5, 5); mctx.fillStyle = '#5ae0b0'; mctx.fillRect(mx - 1, my - 1, 3, 3); }
   if (G.lost) { mctx.fillStyle = '#b49cff'; mctx.fillRect(Math.floor(G.lost.x / TS) - ox - 1, Math.floor(G.lost.y / TS) - oy - 1, 3, 3); }
   mctx.fillStyle = Math.floor(G.time * 4) % 2 ? '#ffffff' : '#7fdcff'; mctx.fillRect(px - ox - 1, py - oy - 1, 3, 3);
@@ -29,6 +31,7 @@ export function renderBigMap() {
   for (const c of CAMPS) if (explored[c.ty * MW + c.tx]) { bctx.fillStyle = OL; bctx.fillRect(c.tx * 2 - 4, c.ty * 2 - 4, 8, 8); bctx.fillStyle = c.lit ? '#f2c14e' : '#8a869a'; bctx.fillRect(c.tx * 2 - 3, c.ty * 2 - 3, 6, 6); }
   if (!G.bossDead && explored[ARENA.y1 * MW + DOOR[1]]) { bctx.fillStyle = OL; bctx.fillRect(374, 214, 12, 12); bctx.fillStyle = '#ff3b3b'; bctx.fillRect(376, 216, 8, 8); label('狼王', 380, 210, '#ff8a7a', 11); }
   for (const d of Object.values(RBDEF)) if (!rbDead.has(d.id) && explored[d.ty * MW + d.tx]) { bctx.fillStyle = OL; bctx.fillRect(d.tx * 2 - 6, d.ty * 2 - 6, 12, 12); bctx.fillStyle = '#ff3b3b'; bctx.fillRect(d.tx * 2 - 4, d.ty * 2 - 4, 8, 8); label(d.short, d.tx * 2, d.ty * 2 - 9, '#ff8a7a', 11); }
+  for (const c of CHESTS) if (!c.opened && explored[c.ty * MW + c.tx]) { bctx.fillStyle = OL; bctx.fillRect(c.tx * 2 - 3, c.ty * 2 - 3, 6, 6); bctx.fillStyle = '#ffd04a'; bctx.fillRect(c.tx * 2 - 2, c.ty * 2 - 2, 4, 4); }
   if (merchant) { const mx = Math.floor(merchant.x / TS) * 2, my = Math.floor(merchant.y / TS) * 2; bctx.fillStyle = OL; bctx.fillRect(mx - 4, my - 4, 9, 9); bctx.fillStyle = '#5ae0b0'; bctx.fillRect(mx - 3, my - 3, 7, 7); label('商人', mx, my - 7, '#9af0d0', 11); }
   if (G.lost) { bctx.fillStyle = '#b49cff'; bctx.fillRect(Math.floor(G.lost.x / TS) * 2 - 3, Math.floor(G.lost.y / TS) * 2 - 3, 6, 6); }
   const px = Math.floor(G.me.x / TS) * 2, py = Math.floor(G.me.y / TS) * 2;

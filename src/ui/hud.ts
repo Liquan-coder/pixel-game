@@ -5,6 +5,7 @@ import { fightingRB, nearZone } from '../world/regionBoss';
 import { curEq, held, level } from '../game/player';
 import { nearCamp } from '../game/playerUpdate';
 import { nearMerchant } from './shop';
+import { nearChest } from '../world/chests';
 import { itemCard } from './menus';
 import { SCALE } from '../core/canvas';
 import { view } from '../render/render';
@@ -27,7 +28,9 @@ export function updateHUD() {
   if (hudCache.pick !== pkKey) { hudCache.pick = pkKey; $('pickBox').hidden = !pk;
     if (pk) $('pickCard').innerHTML = itemCard(pk.item, curEq(G.me)[slotOf(pk.item)]); }   // 跟身上同部位的裝備比較（▲▼）
   if (pk) placePickBox(pk);
-  if (pk) { show = false; shop = false; }                           // 腳邊有裝備時，E 和下方按鈕都是「撿起」
+  const chest = !!(!G.paused && G.started && !pk && nearChest(G.me));
+  if (hudCache.chest !== chest) { hudCache.chest = chest; $('chestBtn').hidden = !chest; }
+  if (pk || chest) { show = false; shop = false; }                           // 腳邊有裝備時，E 和下方按鈕都是「撿起」
   if (hudCache.shop !== shop) { hudCache.shop = shop; $('shopBtn').hidden = !shop; }
   if (hudCache.rest !== (show && !shop)) { hudCache.rest = show && !shop; $('restBtn').hidden = !(show && !shop); }
   setText('goldTxt', String(G.me.gold));

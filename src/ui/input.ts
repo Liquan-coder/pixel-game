@@ -8,6 +8,7 @@ import { nearMerchant, openShop } from './shop';
 import { restAt, toggleInv, toggleMap } from './menus';
 import { startGame } from '../main';
 import { pickUp } from '../game/worldUpdate';
+import { nearChest, openChest } from '../world/chests';
 
 /* ================= INPUT ================= */
 const KEYMAP = { KeyW:'up', ArrowUp:'up', KeyS:'down', ArrowDown:'down', KeyA:'left', ArrowLeft:'left', KeyD:'right', ArrowRight:'right',
@@ -53,7 +54,7 @@ export function readInput() {
   if (pressed.inv) toggleInv();
   if (pressed.map) toggleMap();
   if (pressed.esc && openMenu) setMenu(null);
-  if (pressed.rest && !openMenu) { if (G.pick) pickUp(G.me, G.pick); else if (nearMerchant()) openShop(); else { const c = nearCamp(G.me); if (c) restAt(c); } }
+  if (pressed.rest && !openMenu) { if (G.pick) pickUp(G.me, G.pick); else if (nearChest(G.me)) openChest(G.me, nearChest(G.me)); else if (nearMerchant()) openShop(); else { const c = nearCamp(G.me); if (c) restAt(c); } }
   if (pressed.enter && !G.started) startGame(!$('btnContinue').hidden);
 }
 

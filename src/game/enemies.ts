@@ -9,6 +9,7 @@ import { nearestPlayer } from './player';
 import { burst, dropGold, dropSouls, killFx, quakeFx, shake } from './worldUpdate';
 import { toast } from '../ui/hud';
 import type { Enemy } from '../types';
+import { mimicDown, resetMimics } from '../world/chests';
 
 /* ================= ENEMIES ================= */
 export function makeEnemy(kind: string, lv: number, x: number, y: number, sp?): Enemy {
@@ -19,7 +20,7 @@ export function makeEnemy(kind: string, lv: number, x: number, y: number, sp?): 
     wx: x, wy: y, aim:0, leash: sp ? (el ? 300 : 230) : 600, aggro: D.aggro + (el ? 30 : 0), elite: !!el, ename: sp && sp.ename, announced:false };
 }
 export function respawnAll() {
-  G.enemies = [];
+  G.enemies = []; resetMimics();
   for (const sp of spawns) { sp.alive = true; sp.timer = 0; G.enemies.push(makeEnemy(sp.kind, sp.lv, sp.x, sp.y, sp)); }
 }
 /* 石像魔、樹精的砸地：落點在面前一小段距離，範圍是一個圓（跟「雙手舉高往下砸」的動作一致） */
@@ -88,6 +89,7 @@ export function updateEnemy(e, dt) {
 export function killEnemy(e, by) {                                     // by = 打死它的玩家
   const i = G.enemies.indexOf(e); if (i >= 0) G.enemies.splice(i, 1);
   if (e.sp) { e.sp.alive = false; e.sp.timer = e.elite ? Infinity : 45; }
+  if (e.chest) mimicDown(e);
   const D = BEH[e.beh], s = Math.round(D.souls(e.lv) * (e.sp ? 1 : .3) * (e.elite ? 5 : 1));
   dropSouls(e.x, e.y, s, by);
   burst(e.x, e.y - 5, e.elite ? 30 : 14, KIND[e.kind].col, 70); killFx(e);

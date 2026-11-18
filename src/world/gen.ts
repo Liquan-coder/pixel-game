@@ -3,6 +3,7 @@ import { clamp, makeNoise, mulberry32 } from '../core/util';
 import { hash2 } from '../art/monsters';
 import { ARENA, BIGT, BRIDGE, CAMPS, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, LAVA, MH, MW, OPEN_REGIONS, PILLAR, REGIONS, RFLOOR, ROAD, ROADS, ROCK, RWALL, SOLID, TREE, TS, WALKABLE, WATER, braziers, glows, map, reg, shade, spawns, torches } from './map';
 import { RBDEF } from './regionBoss';
+export let reachable: Uint8Array = null;                               // 從起點走得到的格子（genWorld 算好）
 
 export function genWorld() {
   const R = mulberry32(9137);
@@ -102,6 +103,7 @@ export function genWorld() {
   const reach = new Uint8Array(MW * MH), q = [I(CAMPS[0].tx, CAMPS[0].ty + 1)]; reach[q[0]] = 1;
   for (let h = 0; h < q.length; h++) { const i = q[h], x = i % MW, y = (i / MW) | 0;
     for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) { const j = I(x + dx, y + dy); if (!reach[j] && WALKABLE(map[j])) { reach[j] = 1; q.push(j); } } }
+  reachable = reach;                                                   // main.ts 會用它來放寶箱
   // 怪物
   const R2 = mulberry32(99);
   const near = (tx, ty, d) => { for (const s of spawns) if (Math.abs(s.tx - tx) < d && Math.abs(s.ty - ty) < d && Math.hypot(s.tx - tx, s.ty - ty) < d) return true; return false; };

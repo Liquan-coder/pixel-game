@@ -282,12 +282,27 @@ function hdDragon() {                                                  // 熔岩
     for (let k = 0; k < 6; k++) { const x = 46 + k * 7, y = 56 + (k % 2) * 3; a.set(x, y, '#ff8a3a'); a.set(x + 1, y, '#ffb040'); }
     for (const [x, y] of [[60, 50], [72, 48], [84, 52], [96, 42]]) { a.set(x, y, '#c8c0c4'); a.set(x, y - 1, '#8a8084'); }
   }); }
+function hdMimic(ph: number | string = -1) {                          // 寶箱怪：蓋子張開變成嘴，上下兩排牙，蓋子上有一對發光的眼睛
+  const pose = typeof ph === 'string' ? ph : '', hop = typeof ph === 'number' && ph >= 0 ? [0, 2, 3, 1][ph] : 0, gape = pose === 'strike' ? 9 : pose ? 4 : 5;
+  const W = ['#2e1c0e', '#4a3018', '#6a4626', '#86603a', '#a07a4c'], B = ['#2a2834', '#4a4858', '#6e6c86', '#9a98b0'];
+  const by = 30 - hop, ly = by - 13 - gape;
+  return sculpt(40, 40, [
+    { sh: SH.box(20, ly, 15, 5, 7), ramp: W, tex: .2, grp: 1 },
+    { sh: SH.ell(20, by - 7.5, 12, gape * .5 + 2.5), ramp: ['#2a0608', '#4a0c12', '#6a1420'], grp: 2, rim: false },
+    { sh: SH.box(20, by, 15, 7.5, 7), ramp: W, tex: .2, grp: 3 },
+  ], a => {
+    for (let x = 7; x <= 33; x += 4) { a.line(x, by - 8, x + 1.5, by - 11, '#fff6e0'); a.line(x + 3, by - 8, x + 1.5, by - 11, '#d8d0c0'); a.line(x, ly + 5, x + 1.5, ly + 8, '#fff6e0'); }   // 牙齒
+    a.ell(22, by - 7.5, 5, 1.6, '#e0485a'); a.set(20, by - 8, '#ff9aa8');                 // 舌頭
+    for (const bx of [8, 32]) for (let y = by - 7; y < by + 7; y++) if (a.get(bx, y)) a.set(bx, y, B[2]);
+    for (const ex of [14, 26]) { a.ell(ex, ly - 1, 2.6, 2, '#140808'); a.set(ex, ly - 1, '#ffd04a'); a.set(ex + 1, ly - 1, '#fff6a0'); }
+  }, { t: 4 }); }
 function withWalk(build: (ph: number | string) => HTMLCanvasElement, extra?, poses: string[] = []) {   // 站立圖 + 4 張走路圖 + 攻擊動作
   const sp = makeHD(build(-1), extra); sp.walk = [0, 1, 2, 3].map(ph => makeHD(build(ph), extra));
   sp.atk = {}; for (const p of poses) sp.atk[p] = makeHD(build(p), extra); return sp;
 }
 function buildMonsters() { return {
   dragon: makeHD(hdDragon()),
+  mimic: withWalk(hdMimic, undefined, ['strike']),
   general: makeHD(hdGeneral()),
   queen: makeHD(hdQueen()),
   slime: makeHD(hdSlime(RAMP.slime, '#0e2a18', '#a8f0a0')),

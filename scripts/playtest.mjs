@@ -1,5 +1,5 @@
 // 自動試玩測試：開 headless Chrome，直接 import 遊戲模組，把大部分的程式路徑都跑一遍
-// （6 種武器、所有小怪、4 隻 Boss、選單、雙人目標、存讀檔、死亡重生）
+// （所有武器、所有小怪、所有 Boss、選單、寶箱、雙人目標、存讀檔、死亡重生）
 //
 // 用法：npm run playtest
 //   會自己開一個全新的 Vite 伺服器（隨機 port），測完就關掉。
@@ -57,6 +57,7 @@ const pageScript = async () => {
   const { startGame } = await imp('main');
   const menus = await imp('ui/menus');
   const shop = await imp('ui/shop');
+  const await0 = { chests: await imp('world/chests') };
 
   const step = (n, opts = {}) => {
     for (let i = 0; i < n; i++) {
@@ -131,6 +132,23 @@ const pageScript = async () => {
     if (!p2Hurt) throw new Error('p2 沒有被打到');
     log.push('  狼王目標 = ' + G.B.tgt.id + '，p2 有受傷，我的血 ' + G.me.hp + '/' + myHp);
     G.players = [G.me]; step(5);
+  });
+
+  run('寶箱：一般寶箱、寶箱怪、存檔記得打開過', () => {
+    const CH = (await0.chests).CHESTS;
+    log.push('  寶箱數量 ' + CH.length + '（寶箱怪 ' + CH.filter(c => c.mimic).length + '）');
+    const c = CH.find(c => !c.mimic && !c.opened); tp(c.x, c.y + 4); step(2);
+    const coins = G.coins.length, drops = G.drops.length;
+    if (await0.chests.nearChest(G.me) !== c) throw new Error('站在寶箱旁邊卻沒偵測到');
+    await0.chests.openChest(G.me, c); step(5);
+    if (!c.opened) throw new Error('寶箱沒打開');
+    if (G.coins.length <= coins && G.drops.length <= drops) throw new Error('寶箱沒掉東西');
+    const m = CH.find(c => c.mimic); tp(m.x, m.y + 4); step(2); await0.chests.openChest(G.me, m); step(3);
+    if (!m.foe) throw new Error('寶箱怪沒跳出來');
+    m.foe.hp = 1; damageEnemy(G.me, m.foe, 5, G.me.x, G.me.y); step(5);
+    if (!m.opened) throw new Error('打倒寶箱怪後寶箱沒算打開');
+    save(); const s = loadSave(); m.opened = false; c.opened = false; applySave(s); step(2);
+    if (!c.opened || !m.opened) throw new Error('讀檔後寶箱又關起來了');
   });
 
   run('存檔 → 讀檔', () => {

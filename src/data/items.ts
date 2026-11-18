@@ -40,6 +40,7 @@ export const KIND = {
   shroom:{beh:'ranged',name:'毒菇',col:'#c0405f'}, treant:{beh:'heavy',name:'樹精',col:'#6b4a2f'},
   golem:{beh:'heavy',name:'石像魔',col:'#8a85a0'}, golemL:{beh:'heavy',name:'熔岩魔像',col:'#e8743b'},
   wolfS:{beh:'lunge',name:'雪狼',col:'#dce4f0'}, slimeI:{beh:'slime',name:'冰晶史萊姆',col:'#a8dcff'}, golemI:{beh:'heavy',name:'冰霜魔像',col:'#a6b8d8'},
+  mimic:{beh:'lunge',name:'寶箱怪',col:'#a07a4c'},
   skelS:{beh:'lunge',name:'沼澤骷髏',col:'#8a9470'}, shroomP:{beh:'ranged',name:'沼毒菇',col:'#a870d0'}, treantS:{beh:'heavy',name:'沼澤樹妖',col:'#3a4826'},
 };
 /* uid → 已移到 G（core/state.js） */
