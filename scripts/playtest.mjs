@@ -36,7 +36,7 @@ await wait(3000);
 
 const pageScript = async () => {
   const log = [], fails = [];
-  const imp = p => import(`/src/${p}.js`);
+  const imp = p => import(`/src/${p}.ts`);
   const { G } = await imp('core/state');
   const { WT, makeItem } = await imp('data/items');
   const { recalc, pressed, held, input, newPlayer, resetPlayers } = await imp('game/player');
