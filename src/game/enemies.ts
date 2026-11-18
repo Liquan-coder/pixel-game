@@ -1,12 +1,12 @@
 import { G } from '../core/state';
-import { TAU, angDiff, dist, rr } from '../core/util';
+import { TAU, dist, rr } from '../core/util';
 import { BEH, DG, KIND, randomLoot } from '../data/items';
 import { spawns } from '../world/map';
 import { moveEnt, stepToward } from './collision';
 import { sfx } from '../core/audio';
 import { hurtPlayer } from './combat';
 import { nearestPlayer } from './player';
-import { burst, dropGold, dropSouls, killFx, shake } from './worldUpdate';
+import { burst, dropGold, dropSouls, killFx, quakeFx, shake } from './worldUpdate';
 import { toast } from '../ui/hud';
 import type { Enemy } from '../types';
 
@@ -22,6 +22,9 @@ export function respawnAll() {
   G.enemies = [];
   for (const sp of spawns) { sp.alive = true; sp.timer = 0; G.enemies.push(makeEnemy(sp.kind, sp.lv, sp.x, sp.y, sp)); }
 }
+/* 石像魔、樹精的砸地：落點在面前一小段距離，範圍是一個圓（跟「雙手舉高往下砸」的動作一致） */
+export function slamSpot(e) { const off = e.r + (e.elite ? 15 : 12), R = e.elite ? 23 : 19;
+  return { x: e.x + Math.cos(e.aim) * off, y: e.y + Math.sin(e.aim) * off, R }; }
 function startWindup(e, t) { e.state = 'windup'; e.t = e.wt = t; e.aim = Math.atan2(e.tgt.y - e.y, e.tgt.x - e.x); }
 function doEnemyAttack(e) {
   const D = BEH[e.beh];
@@ -29,11 +32,10 @@ function doEnemyAttack(e) {
     const sp = e.beh === 'slime' ? 140 : 250; e.state = 'lunge'; e.t = e.beh === 'slime' ? .2 : .3;
     e.lvx = Math.cos(e.aim) * sp; e.lvy = Math.sin(e.aim) * sp; e.hitDone = false;
   } else if (e.beh === 'heavy') {
-    const d = dist(e, e.tgt), reach = e.elite ? 36 : 30;
-    if (d <= e.r + reach - DG && angDiff(Math.atan2(e.tgt.y - e.y, e.tgt.x - e.x), e.aim) < 1.2 - DG / Math.max(d, 12)) hurtPlayer(e.tgt, e.dmg, e.x, e.y);
-    G.fx.push({ k:'arc', x:e.x, y:e.y - 4, a:e.aim, arc:2.4, r:reach + 4, t:0, d:.22, col:'#e4f5ff' });
-    burst(e.x + Math.cos(e.aim) * 20, e.y + Math.sin(e.aim) * 20, 10, KIND[e.kind].col, 60);
-    e.state = 'recover'; e.t = .9; shake(2, .15);
+    const S = slamSpot(e);
+    for (const pl of G.players) if (!pl.dead && dist(S, pl) <= S.R + pl.r - DG) hurtPlayer(pl, e.dmg, S.x, S.y);   // 圓裡的玩家都會被砸到
+    quakeFx(S.x, S.y, S.R + 4); burst(S.x, S.y - 2, 14, KIND[e.kind].col, 70);
+    e.state = 'recover'; e.t = .9; shake(3.5, .2);
   } else if (e.beh === 'ranged') {
     const n = e.elite ? 3 : 1;
     for (let k = 0; k < n; k++) { const a = e.aim + (k - (n - 1) / 2) * .25; G.projs.push({ x:e.x, y:e.y - 6, vx:Math.cos(a) * 95, vy:Math.sin(a) * 95, r:3, life:2.2, dmg:e.dmg, owner:'e', kind:'spore' }); }

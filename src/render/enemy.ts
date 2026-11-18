@@ -7,6 +7,7 @@ import { ICON, RAR } from '../data/items';
 import { CAMP_SP, drawArtSprite, flame } from '../world/chunks';
 import { level } from '../game/player';
 import { drawNum, drawShadow } from './player';
+import { slamSpot } from '../game/enemies';
 import { artLine, artPath, asn, enemyJuice, fillSpans, shEll, shLane, shSector } from './fx';
 
 export function drawEnemy(e) {
@@ -61,7 +62,7 @@ export function drawTelegraph(e) {
   } else if (e.state === 'windup') {
     const wq = e.wt ? clamp(1 - e.t / e.wt, 0, 1) : .5;
     if (e.beh === 'lunge') teleLane(e.x, e.y - 3, e.aim, 75, 2 * e.r + 8, wq);
-    else if (e.beh === 'heavy') teleSector(e.x, e.y - 4, e.r + (e.elite ? 36 : 30), e.aim, 1.2, wq);
+    else if (e.beh === 'heavy') { const S = slamSpot(e); teleCircle(S.x, S.y, S.R, wq); }   // 砸地：落點一個圓
   }
 }
 export function drawCamp(c) {
