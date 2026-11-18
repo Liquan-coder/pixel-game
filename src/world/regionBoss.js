@@ -13,6 +13,7 @@ import { artDot, artPath, drawOrb } from '../render/fx.js';
 import { teleCircle, teleLane, teleSector, warnMark } from '../render/enemy.js';
 import { showBanner, toast } from '../ui/hud.js';
 import { save } from '../game/save.js';
+import { nearestPlayer } from '../game/player.js';
 
 export const RBDEF = {
   queen: { id:'queen', name:'史萊姆女王・翠凝', short:'史萊姆女王', sub:'翠綠窪地的主人醒了', tx:94, ty:113, tr:8.5, lv:6, hp:950, kind:'queen', ai:'queen',
@@ -35,8 +36,8 @@ export function resetRegionBosses() {
   rbs = Object.values(RBDEF).filter(d => !rbDead.has(d.id)).map(makeRB);
 }
 export const fightingRB = () => rbs.find(e => !e.dead && e.state !== 'sleep');
-export function nearZone() { if (G.P.dead || fightingRB()) return null;
-  for (const e of rbs) { if (e.dead || e.state !== 'sleep') continue; const d = e.def, k = Math.hypot(G.P.x - d.x, G.P.y - d.y); if (k < d.R + 44 && k > d.R - 16) return d; } return null; }
+export function nearZone() { if (G.me.dead || fightingRB()) return null;                  // 給 HUD 用：「我」是否站在結界邊
+  for (const e of rbs) { if (e.dead || e.state !== 'sleep') continue; const d = e.def, k = Math.hypot(G.me.x - d.x, G.me.y - d.y); if (k < d.R + 44 && k > d.R - 16) return d; } return null; }
 export function rbWind(e, st, t, tele) { e.state = st; e.t = e.wt = t; e.tele = tele || null; }
 export function keepIn(o, d, r) { const dx = o.x - d.x, dy = o.y - d.y, L = Math.hypot(dx, dy), m = d.R - r; if (L > m) { o.x = d.x + dx / L * m; o.y = d.y + dy / L * m; } }
 function startRB(e) {
@@ -44,30 +45,33 @@ function startRB(e) {
   showBanner(e.def.name, e.def.sub, 2200); sfx.howl(); shake(5, .6);
   G.fx.push({ k:'warp', x:e.def.x, y:e.def.y, r0:e.def.R * .2, r1:e.def.R, th:4, sy:1, t:0, d:.6, col:e.def.ring[1] });
 }
+// 結界：把在結界裡（或剛好在邊上）的玩家關在裡面；離很遠的隊友不會被吸進來
+function keepPlayersIn(d) { for (const pl of G.players) if (Math.hypot(pl.x - d.x, pl.y - d.y) < d.R + 20) keepIn(pl, d, pl.r + 2); }
 export function updateRegionBosses(dt) {
   for (const e of rbs) {
     if (e.dead) continue; e.anim += dt; if (e.flash > 0) e.flash -= dt; const d = e.def;
-    if (e.state === 'sleep') { if (!G.P.dead && Math.hypot(G.P.x - d.x, G.P.y - d.y) < d.R - 14) startRB(e); continue; }
-    if (e.state === 'intro') { e.t -= dt; keepIn(G.P, d, G.P.r + 2); if (e.t <= 0) { e.state = 'idle'; e.t = .6; } continue; }
-    if (G.P.dead) continue;
+    if (e.state === 'sleep') { if (G.players.some(pl => !pl.dead && Math.hypot(pl.x - d.x, pl.y - d.y) < d.R - 14)) startRB(e); continue; }
+    if (e.state === 'intro') { e.t -= dt; keepPlayersIn(d); if (e.t <= 0) { e.state = 'idle'; e.t = .6; } continue; }
+    e.tgt = nearestPlayer(e.x, e.y);                                  // 每幀瞄準最近的活著的玩家
+    if (e.tgt.dead) continue;
     if (e.phase === 1 && e.hp < e.maxHp * .5) {
       e.phase = 2; toast(d.short + '發怒了！', '#ff6a5a'); G.hitStop = Math.max(G.hitStop, .25); shake(6, .5);
       G.fx.push({ k:'flash', col:d.aura[0], a:.3, t:0, d:.45 });
       for (const dl of [0, .1, .2]) G.fx.push({ k:'warp', x:e.x, y:e.y, r0:8, r1:70, th:5, delay:dl, t:0, d:.5 + dl, col:d.aura[0] });
     }
     if (e.splitT > 0) e.splitT -= dt;
-    const dx = G.P.x - e.x, dy = G.P.y - e.y, dist2 = Math.hypot(dx, dy);
+    const dx = e.tgt.x - e.x, dy = e.tgt.y - e.y, dist2 = Math.hypot(dx, dy);
     AI[d.ai](e, dt, dist2, dx, dy);
-    keepIn(G.P, d, G.P.r + 2); if (!(e.z > 0)) keepIn(e, d, e.r);
+    keepPlayersIn(d); if (!(e.z > 0)) keepIn(e, d, e.r);
     if (e.phase === 2 && Math.random() < .4) G.parts.push({ x:e.x + rr(-16, 16), y:e.y - rr(4, 26), vx:rr(-5, 5), vy:-rr(20, 40), life:.6, max:.6, col:pick(d.aura), star:rr(.5, 1.4), drag:1 });
   }
 }
-export function regionBossDie(e) {
+export function regionBossDie(e, by) {                                  // by = 打死它的玩家
   const d = e.def; e.dead = true; rbDead.add(d.id); G.enemies = G.enemies.filter(x => x.rbAdd !== d.id); $('bossBar').hidden = true;
   G.hitStop = Math.max(G.hitStop, .4); G.fx.push({ k:'flash', col:'#ffffff', a:.7, t:0, d:.6 });
   for (const dl of [0, .12, .24]) G.fx.push({ k:'warp', x:e.x, y:e.y, r0:6, r1:90, th:5, delay:dl, t:0, d:.6 + dl, col:dl ? '#f2c14e' : d.aura[0] });
   for (let i = 0; i < 40; i++) G.parts.push({ x:e.x + rr(-12, 12), y:e.y - rr(0, 24), vx:rr(-15, 15), vy:-rr(40, 140), life:rr(.7, 1.4), max:1.4, col:pick(d.aura.concat(['#f2c14e', '#b49cff'])), star:rr(1, 3), drag:1 });
-  G.P.souls += d.souls; G.nums.push({ x:e.x, y:e.y - 30, txt:'+' + d.souls, col:'#b49cff', t:0, d:1.6, big:true });
+  by.souls += d.souls; G.nums.push({ x:e.x, y:e.y - 30, txt:'+' + d.souls, col:'#b49cff', t:0, d:1.6, big:true });
   const it = d.reward(); dropItem(it, e.x, e.y); dropGold(e.x, e.y, d.gold);
   sfx.win(); shake(8, .8); showBanner('強敵已擊敗', '獲得：' + it.name, 3200); save();
 }
@@ -82,7 +86,7 @@ export function drawBarrier(e, faint) {                                       //
   if (Math.random() < .5) { const a = rr(0, TAU); G.parts.push({ x:d.x + Math.cos(a) * d.R, y:d.y + Math.sin(a) * d.R, vx:0, vy:-20, life:.6, max:.6, col:d.ring[1], star:rr(.6, 1.5), drag:1 }); }
 }
 /* RB_L → 已移到 G（core/state.js） */
-const vis2 = (x, y) => Math.abs(x - G.P.x) < 260 && Math.abs(y - G.P.y) < 180;
+const vis2 = (x, y) => Math.abs(x - G.me.x) < 260 && Math.abs(y - G.me.y) < 180;   // 畫面附近才畫
 export function drawRBTele(e) {
   const q = e.wt ? clamp(1 - e.t / e.wt, 0, 1) : 0;
   if (/Wind$/.test(e.state)) warnMark(e.x, e.y - SPR[e.kind].h - 6 - (e.z || 0));

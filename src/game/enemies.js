@@ -5,6 +5,7 @@ import { spawns } from '../world/map.js';
 import { moveEnt, stepToward } from './collision.js';
 import { sfx } from '../core/audio.js';
 import { hurtPlayer } from './combat.js';
+import { nearestPlayer } from './player.js';
 import { burst, dropGold, killFx, shake } from './worldUpdate.js';
 import { toast } from '../ui/hud.js';
 
@@ -20,15 +21,15 @@ export function respawnAll() {
   G.enemies = [];
   for (const sp of spawns) { sp.alive = true; sp.timer = 0; G.enemies.push(makeEnemy(sp.kind, sp.lv, sp.x, sp.y, sp)); }
 }
-function startWindup(e, t) { e.state = 'windup'; e.t = e.wt = t; e.aim = Math.atan2(G.P.y - e.y, G.P.x - e.x); }
+function startWindup(e, t) { e.state = 'windup'; e.t = e.wt = t; e.aim = Math.atan2(e.tgt.y - e.y, e.tgt.x - e.x); }
 function doEnemyAttack(e) {
   const D = BEH[e.beh];
   if (e.beh === 'slime' || e.beh === 'lunge') {
     const sp = e.beh === 'slime' ? 140 : 250; e.state = 'lunge'; e.t = e.beh === 'slime' ? .2 : .3;
     e.lvx = Math.cos(e.aim) * sp; e.lvy = Math.sin(e.aim) * sp; e.hitDone = false;
   } else if (e.beh === 'heavy') {
-    const d = dist(e, G.P), reach = e.elite ? 36 : 30;
-    if (d <= e.r + reach - DG && angDiff(Math.atan2(G.P.y - e.y, G.P.x - e.x), e.aim) < 1.2 - DG / Math.max(d, 12)) hurtPlayer(e.dmg, e.x, e.y);
+    const d = dist(e, e.tgt), reach = e.elite ? 36 : 30;
+    if (d <= e.r + reach - DG && angDiff(Math.atan2(e.tgt.y - e.y, e.tgt.x - e.x), e.aim) < 1.2 - DG / Math.max(d, 12)) hurtPlayer(e.tgt, e.dmg, e.x, e.y);
     G.fx.push({ k:'arc', x:e.x, y:e.y - 4, a:e.aim, arc:2.4, r:reach + 4, t:0, d:.22, col:'#e4f5ff' });
     burst(e.x + Math.cos(e.aim) * 20, e.y + Math.sin(e.aim) * 20, 10, KIND[e.kind].col, 60);
     e.state = 'recover'; e.t = .9; shake(2, .15);
@@ -43,24 +44,25 @@ export function updateEnemy(e, dt) {
   e.anim += dt; if (e.flash > 0) e.flash -= dt;
   if (Math.abs(e.kx) + Math.abs(e.ky) > 2) { moveEnt(e, e.kx * dt, e.ky * dt); const k = Math.pow(0.002, dt); e.kx *= k; e.ky *= k; } else { e.kx = e.ky = 0; }
   if (e.stun > 0) { e.stun -= dt; return; }
-  const D = BEH[e.beh], dx = G.P.x - e.x, dy = G.P.y - e.y, d = Math.hypot(dx, dy), homeD = Math.hypot(e.x - e.hx, e.y - e.hy);
+  e.tgt = nearestPlayer(e.x, e.y);                                   // 每幀選最近的玩家當目標
+  const D = BEH[e.beh], dx = e.tgt.x - e.x, dy = e.tgt.y - e.y, d = Math.hypot(dx, dy), homeD = Math.hypot(e.x - e.hx, e.y - e.hy);
   e.atkCd -= dt;
   switch (e.state) {
     case 'idle':
       e.t -= dt;
       if (e.t <= 0) { e.t = rr(1.5, 3.5); const a = rr(0, TAU), r = rr(8, 40); e.wx = e.hx + Math.cos(a) * r; e.wy = e.hy + Math.sin(a) * r; }
       stepToward(e, e.wx, e.wy, e.spd * .35, dt);
-      if (!G.P.dead && d < e.aggro) { e.state = 'chase'; G.nums.push({ x:e.x, y:e.y - 20, txt:'!', col:'#ffd04a', t:0, d:.6 });
+      if (!e.tgt.dead && d < e.aggro) { e.state = 'chase'; G.nums.push({ x:e.x, y:e.y - 20, txt:'!', col:'#ffd04a', t:0, d:.6 });
         if (e.elite && !e.announced) { e.announced = true; toast('精英敵人：' + e.ename + '（Lv ' + e.lv + '）', '#f2c14e'); } }
       break;
     case 'chase':
-      if (G.P.dead || homeD > e.leash) { e.state = 'return'; e.t = 0; break; }
+      if (e.tgt.dead || homeD > e.leash) { e.state = 'return'; e.t = 0; break; }
       if (e.beh === 'ranged') {
         if (d < 55) { stepToward(e, e.x - dx, e.y - dy, e.spd, dt); e.flip = dx < 0; }
-        else if (d > 115) stepToward(e, G.P.x, G.P.y, e.spd, dt);
+        else if (d > 115) stepToward(e, e.tgt.x, e.tgt.y, e.spd, dt);
         if (e.atkCd <= 0 && d < 150) startWindup(e, D.wind);
       } else {
-        if (d > D.reach * .8) stepToward(e, G.P.x, G.P.y, e.spd, dt);
+        if (d > D.reach * .8) stepToward(e, e.tgt.x, e.tgt.y, e.spd, dt);
         e.flip = dx < 0;
         if (d <= D.reach + (e.elite ? 4 : 0) && e.atkCd <= 0) startWindup(e, D.wind * (e.elite ? .85 : 1));
       }
@@ -69,7 +71,7 @@ export function updateEnemy(e, dt) {
       e.t -= dt; if (e.t <= 0) doEnemyAttack(e); break;
     case 'lunge':
       e.t -= dt; moveEnt(e, e.lvx * dt, e.lvy * dt);
-      if (!e.hitDone && d < e.r + 4 - DG) { e.hitDone = true; hurtPlayer(e.dmg, e.x, e.y); }
+      if (!e.hitDone && d < e.r + 4 - DG) { e.hitDone = true; hurtPlayer(e.tgt, e.dmg, e.x, e.y); }
       if (e.t <= 0) { e.state = 'recover'; e.t = rr(.5, .9); }
       break;
     case 'recover':
@@ -80,11 +82,11 @@ export function updateEnemy(e, dt) {
       break;
   }
 }
-export function killEnemy(e) {
+export function killEnemy(e, by) {                                     // by = 打死它的玩家
   const i = G.enemies.indexOf(e); if (i >= 0) G.enemies.splice(i, 1);
   if (e.sp) { e.sp.alive = false; e.sp.timer = e.elite ? Infinity : 45; }
   const D = BEH[e.beh], s = Math.round(D.souls(e.lv) * (e.sp ? 1 : .3) * (e.elite ? 5 : 1));
-  G.P.souls += s; G.nums.push({ x:e.x, y:e.y - 12, txt:'+' + s, col:'#b49cff', t:0, d:1, big:e.elite });
+  by.souls += s; G.nums.push({ x:e.x, y:e.y - 12, txt:'+' + s, col:'#b49cff', t:0, d:1, big:e.elite });
   burst(e.x, e.y - 5, e.elite ? 30 : 14, KIND[e.kind].col, 70); killFx(e);
   sfx.kill();
   dropGold(e.x, e.y, Math.round((3 + e.lv * 1.6) * rr(.7, 1.3) * (e.elite ? 8 : 1) * (e.sp ? 1 : .3)));

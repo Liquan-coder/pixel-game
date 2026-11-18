@@ -28,7 +28,7 @@ export function drawEnemy(e) {
     ctx.fillStyle = OL; ctx.fillRect(Math.round(e.x - w / 2 - 1), y - 1, w + 2, 3);
     ctx.fillStyle = e.elite ? '#f2c14e' : '#d8434e'; ctx.fillRect(Math.round(e.x - w / 2), y, Math.max(1, Math.round(w * e.hp / e.maxHp)), 1);
   }
-  if (!e.boss && e.state !== 'idle') drawNum(String(e.lv), e.x + (e.elite ? 15 : 11), e.y - sp.h - 6, e.lv > level() + 2 ? '#ff6a5a' : '#cfc8dc');
+  if (!e.boss && e.state !== 'idle') drawNum(String(e.lv), e.x + (e.elite ? 15 : 11), e.y - sp.h - 6, e.lv > level(G.me) + 2 ? '#ff6a5a' : '#cfc8dc');
 }
 const TELE = ['#ff3b3b', '#ff3b3b', '#ffd0d0'];
 function teleDraw(y0, y1, sh, prog, inner, extra) {                    // 預警：淡紅區域 + 依進度填滿的深紅 + 亮邊

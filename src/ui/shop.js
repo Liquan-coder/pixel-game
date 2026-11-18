@@ -28,7 +28,7 @@ export function moveMerchant() {
   const lit = CAMPS.filter(c => c.lit && (!merchant || c.id !== merchant.camp)), c = lit.length ? pick(lit) : CAMPS.find(c => c.id === (merchant ? merchant.camp : 'start'));
   placeMerchant(c.id);
 }
-export const nearMerchant = () => merchant && !G.P.dead && Math.abs(merchant.x - G.P.x) < 26 && Math.hypot(merchant.x - G.P.x, merchant.y - G.P.y) < 26;
+export const nearMerchant = () => merchant && !G.me.dead && Math.abs(merchant.x - G.me.x) < 26 && Math.hypot(merchant.x - G.me.x, merchant.y - G.me.y) < 26;
 export function drawMerchant() {
   const m = merchant, bob = Math.floor(G.time * 2) % 2 ? HK : 0;
   drawShadow(m.x, m.y + 1, 14); drawArtSprite(MERCH_SP, m.x, m.y + 3 - bob);
@@ -39,22 +39,22 @@ function shopRow(icon, name, sub, price, col, key, dis) {
   return '<button type="button" class="shoprow' + (shopSel === key ? ' sel' : '') + '" data-s="' + key + '"' + (dis ? ' disabled' : '') + '><img alt="" src="' + ICON_URL[icon] + '"><span style="color:' + (col || 'var(--text)') + '">' + name + '<small>' + sub + '</small></span><b class="pr">' + price + '</b></button>';
 }
 function renderShop() {
-  $('shopGold').textContent = '金幣 ' + G.P.gold;
+  $('shopGold').textContent = '金幣 ' + G.me.gold;
   for (const b of document.querySelectorAll('#shopMenu .tabs button')) b.classList.toggle('on', b.dataset.stab === shopTab);
   const body = $('shopBody');
   if (shopTab === 'buy') {
-    const rows = merchant.stock.map((o, i) => o.kind === 'pot' ? shopRow('potion', '藥水', '補 1 瓶（目前 ' + G.P.pot + '/' + G.potMax + '）', o.price, null, i, G.P.pot >= G.potMax)
+    const rows = merchant.stock.map((o, i) => o.kind === 'pot' ? shopRow('potion', '藥水', '補 1 瓶（目前 ' + G.me.pot + '/' + G.potMax + '）', o.price, null, i, G.me.pot >= G.potMax)
       : o.kind === 'potUp' ? shopRow('potUp', '藥水上限 +1', '剩 ' + o.left + ' 個 · 永久增加', o.price, '#f2c14e', i, !o.left || G.potMax >= 8)
       : shopRow(o.item.type, o.item.name, RAR[o.item.rarity].n + ' · ' + SLOTN[slotOf(o.item)] + ' · 等級 ' + o.item.ilvl, o.sold ? '售出' : o.price, RAR[o.item.rarity].c, i, o.sold));
     const o = merchant.stock[shopSel];
     let det = '';
-    if (o && o.kind === 'item' && !o.sold) det = itemCard(o.item, G.P[slotOf(o.item)]) + '<div class="acts"><button type="button" class="pri" data-buy="' + shopSel + '"' + (G.P.gold < o.price || G.P.inv.length >= 24 ? ' disabled' : '') + '>買下（' + o.price + ' 金幣）</button></div>';
-    else if (o && o.kind !== 'item') det = '<div class="acts"><button type="button" class="pri" data-buy="' + shopSel + '"' + (G.P.gold < o.price ? ' disabled' : '') + '>買下（' + o.price + ' 金幣）</button></div>';
+    if (o && o.kind === 'item' && !o.sold) det = itemCard(o.item, G.me[slotOf(o.item)]) + '<div class="acts"><button type="button" class="pri" data-buy="' + shopSel + '"' + (G.me.gold < o.price || G.me.inv.length >= 24 ? ' disabled' : '') + '>買下（' + o.price + ' 金幣）</button></div>';
+    else if (o && o.kind !== 'item') det = '<div class="acts"><button type="button" class="pri" data-buy="' + shopSel + '"' + (G.me.gold < o.price ? ' disabled' : '') + '>買下（' + o.price + ' 金幣）</button></div>';
     body.innerHTML = '<div class="shoplist">' + rows.join('') + '</div><div id="shopDet" style="margin-top:8px">' + det + '</div><p class="hintp">商品會在你下次休息時刷新，商人也會走到別的營火。地區越深入，賣的裝備越好。</p>';
   } else {
-    const it = G.P.inv.find(x => x.id === shopSel);
-    body.innerHTML = (G.P.inv.length ? '<div class="baggrid">' + G.P.inv.map(x => '<button type="button" class="slot' + (shopSel === x.id ? ' sel' : '') + '" data-sid="' + x.id + '" style="border-color:' + RAR[x.rarity].c + '"><img alt="" src="' + ICON_URL[x.type] + '"><i style="color:' + RAR[x.rarity].c + '">' + x.ilvl + '</i></button>').join('') + '</div>'
-      : '<div class="empty">背包是空的。</div>') + (it ? '<div style="margin-top:8px">' + itemCard(it, G.P[slotOf(it)]) + '<div class="acts"><button type="button" class="pri" data-sell="' + it.id + '">賣出（+' + sellPrice(it) + ' 金幣）</button></div></div>' : '') +
+    const it = G.me.inv.find(x => x.id === shopSel);
+    body.innerHTML = (G.me.inv.length ? '<div class="baggrid">' + G.me.inv.map(x => '<button type="button" class="slot' + (shopSel === x.id ? ' sel' : '') + '" data-sid="' + x.id + '" style="border-color:' + RAR[x.rarity].c + '"><img alt="" src="' + ICON_URL[x.type] + '"><i style="color:' + RAR[x.rarity].c + '">' + x.ilvl + '</i></button>').join('') + '</div>'
+      : '<div class="empty">背包是空的。</div>') + (it ? '<div style="margin-top:8px">' + itemCard(it, G.me[slotOf(it)]) + '<div class="acts"><button type="button" class="pri" data-sell="' + it.id + '">賣出（+' + sellPrice(it) + ' 金幣）</button></div></div>' : '') +
       '<p class="hintp">賣給商人拿金幣；在角色面板分解則是拿魂晶（數量比較多）。</p>';
   }
 }
@@ -64,12 +64,12 @@ $('shopMenu').addEventListener('click', e => {
   if (t.dataset.stab) { shopTab = t.dataset.stab; shopSel = null; renderShop(); return; }
   if (t.dataset.s !== undefined) { shopSel = +t.dataset.s === shopSel ? null : +t.dataset.s; renderShop(); return; }
   if (t.dataset.sid) { shopSel = +t.dataset.sid === shopSel ? null : +t.dataset.sid; renderShop(); return; }
-  if (t.dataset.buy !== undefined) { const o = merchant.stock[+t.dataset.buy]; if (!o || G.P.gold < o.price) return;
-    if (o.kind === 'pot') { if (G.P.pot >= G.potMax) return; G.P.pot++; }
-    else if (o.kind === 'potUp') { if (!o.left || G.potMax >= 8) return; o.left--; G.potMax++; G.P.pot++; o.price = 250 * (G.potMax - 2); toast('藥水上限 +1（現在 ' + G.potMax + ' 瓶）', '#f2c14e'); }
-    else { if (o.sold || G.P.inv.length >= 24) return; o.sold = true; G.P.inv.push(o.item); toast('買到 ' + o.item.name, RAR[o.item.rarity].c); shopSel = null; }
-    G.P.gold -= o.price; sfx.buy(); renderShop(); save(); return; }
-  if (t.dataset.sell) { const i = G.P.inv.findIndex(x => x.id === +t.dataset.sell); if (i < 0) return; const it = G.P.inv.splice(i, 1)[0];
-    G.P.gold += sellPrice(it); sfx.coin(); shopSel = null; renderShop(); save(); }
+  if (t.dataset.buy !== undefined) { const o = merchant.stock[+t.dataset.buy]; if (!o || G.me.gold < o.price) return;
+    if (o.kind === 'pot') { if (G.me.pot >= G.potMax) return; G.me.pot++; }
+    else if (o.kind === 'potUp') { if (!o.left || G.potMax >= 8) return; o.left--; G.potMax++; G.me.pot++; o.price = 250 * (G.potMax - 2); toast('藥水上限 +1（現在 ' + G.potMax + ' 瓶）', '#f2c14e'); }
+    else { if (o.sold || G.me.inv.length >= 24) return; o.sold = true; G.me.inv.push(o.item); toast('買到 ' + o.item.name, RAR[o.item.rarity].c); shopSel = null; }
+    G.me.gold -= o.price; sfx.buy(); renderShop(); save(); return; }
+  if (t.dataset.sell) { const i = G.me.inv.findIndex(x => x.id === +t.dataset.sell); if (i < 0) return; const it = G.me.inv.splice(i, 1)[0];
+    G.me.gold += sellPrice(it); sfx.coin(); shopSel = null; renderShop(); save(); }
 });
 $('shopBtn').addEventListener('click', () => { if (nearMerchant()) openShop(); });

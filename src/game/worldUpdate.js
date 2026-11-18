@@ -14,6 +14,7 @@ import { aoeHit, damageEnemy, hurtPlayer, targets } from './combat.js';
 import { updatePlayer } from './playerUpdate.js';
 import { STARC, asn } from '../render/fx.js';
 import { toast } from '../ui/hud.js';
+import { nearestPlayer } from './player.js';
 
 /* ================= WORLD UPDATE ================= */
 function updateProjectiles(dt) {
@@ -28,21 +29,21 @@ function updateProjectiles(dt) {
       G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:-p.vx * .1 + rr(-15, 15), vy:-p.vy * .1 + rr(-15, 15), life:rr(.2, .4), max:.4, col:pick(p.kind === 'wave' && p.cols ? [p.cols[1], '#ffffff'] : STARC), star:rr(.6, p.kind === 'orb' ? 2.4 : 1.6), drag:3 });
     if (p.kind === 'spore' && Math.random() < .3) G.parts.push({ x:p.x, y:p.y, vx:0, vy:-5, life:.4, max:.4, col:'#c46ad8', s:1 });
     if (!dead && p.owner === 'e') {
-      if (Math.hypot(G.P.x - p.x, G.P.y - 6 - p.y) < p.r + G.P.r - 4) { hurtPlayer(p.dmg, p.x, p.y); dead = true; }
+      for (const pl of G.players) if (!dead && Math.hypot(pl.x - p.x, pl.y - 6 - p.y) < p.r + pl.r - 4) { hurtPlayer(pl, p.dmg, p.x, p.y); dead = true; }   // 打到哪個玩家就傷哪個
     } else if (!dead && p.owner === 'p') {
-      for (const e of targets()) if (Math.hypot(e.x - p.x, e.y - 6 - p.y) < p.r + e.r) {
-        if (p.pierce) { if (p.hit.has(e)) continue; p.hit.add(e); damageEnemy(e, p.mult, p.x, p.y, { heavy:true }); continue; }
-        if (p.kind === 'fire') explode(p); else if (p.kind === 'orb') explodeOrb(p); else damageEnemy(e, p.mult, p.x, p.y);
+      for (const e of targets(p.by)) if (Math.hypot(e.x - p.x, e.y - 6 - p.y) < p.r + e.r) {
+        if (p.pierce) { if (p.hit.has(e)) continue; p.hit.add(e); damageEnemy(p.by, e, p.mult, p.x, p.y, { heavy:true }); continue; }
+        if (p.kind === 'fire') explode(p); else if (p.kind === 'orb') explodeOrb(p); else damageEnemy(p.by, e, p.mult, p.x, p.y);
         dead = true; p.exploded = true; break; }
     }
     if (dead) { if (p.kind === 'fire' && !p.exploded) explode(p); if (p.kind === 'orb' && !p.exploded) explodeOrb(p); G.projs.splice(i, 1); }
   }
 }
 function explodeOrb(p) {                                              // 星爆：大光圈 + 魔法陣 + 星光（滿蓄力分裂成六顆小魔彈）
-  p.exploded = true; aoeHit(p.x, p.y + 6, p.rad, p.mult, { heavy:true });
+  p.exploded = true; aoeHit(p.by, p.x, p.y + 6, p.rad, p.mult, { heavy:true });
   G.fx.push({ k:'warp', x:p.x, y:p.y + 6, r0:4, r1:p.rad, th:5, t:0, d:.4, col:'#b49cff' }); G.fx.push({ k:'rune', x:p.x, y:p.y + 6, r:p.rad * .6, t:0, d:.5, rot:rr(0, TAU) });
   for (let i = 0; i < 18; i++) { const a = rr(0, TAU), sp = rr(60, 160); G.parts.push({ x:p.x, y:p.y, vx:Math.cos(a) * sp, vy:Math.sin(a) * sp * .7, life:rr(.3, .6), max:.6, col:pick(STARC), star:rr(1, 3), drag:4 }); }
-  if (p.split) for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + .3; G.projs.push({ x:p.x, y:p.y, vx:Math.cos(a) * 220, vy:Math.sin(a) * 220, r:3, life:.45, mult:.7, owner:'p', kind:'bolt' }); }
+  if (p.split) for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + .3; G.projs.push({ x:p.x, y:p.y, vx:Math.cos(a) * 220, vy:Math.sin(a) * 220, r:3, life:.45, mult:.7, owner:'p', by:p.by, kind:'bolt' }); }
   sfx.boom(); shake(5, .22);
 }
 export function quakeFx(x, y, R, red) {                                            // 震地：擴散的震波 + 放射狀裂痕 + 碎石
@@ -58,7 +59,7 @@ export function killFx(e) {                                                    /
   G.fx.push({ k:'warp', x:e.x, y:e.y, r0:3, r1:e.elite ? 26 : 16, th:3, t:0, d:.35, col:'#b49cff' });
   for (let i = 0; i < (e.elite ? 16 : 8); i++) G.parts.push({ x:e.x + rr(-6, 6), y:e.y - rr(2, 12), vx:rr(-12, 12), vy:-rr(30, 70), life:rr(.5, .9), max:.9, col:pick(['#b49cff', '#e8dcff', '#9a7cff']), star:rr(.8, 2), drag:1.5 });
 }
-function explode(p) { p.exploded = true; aoeHit(p.x, p.y + 6, 40, p.mult); G.fx.push({ k:'ring', x:p.x, y:p.y, r0:6, r1:42, t:0, d:.35, col:'#f2c14e' }); burst(p.x, p.y, 26, '#e8743b', 100); sfx.boom(); shake(4, .2); }
+function explode(p) { p.exploded = true; aoeHit(p.by, p.x, p.y + 6, 40, p.mult); G.fx.push({ k:'ring', x:p.x, y:p.y, r0:6, r1:42, t:0, d:.35, col:'#f2c14e' }); burst(p.x, p.y, 26, '#e8743b', 100); sfx.boom(); shake(4, .2); }
 /* ---- 金幣：掉在地上，靠近會自己飛過來 ---- */
 /* coins → 已移到 G（core/state.js） */
 export function dropGold(x, y, v) { if (v <= 0) return; const n = Math.min(6, 1 + Math.floor(v / 10));
@@ -67,10 +68,11 @@ export function dropGold(x, y, v) { if (v <= 0) return; const n = Math.min(6, 1 
 function updateCoins(dt) {
   for (let i = G.coins.length - 1; i >= 0; i--) { const c = G.coins[i]; c.t += dt;
     if (!c.mag && (c.z > 0 || c.vz > 0)) { c.z += c.vz * dt; c.vz -= 300 * dt; const o = { x:c.x, y:c.y, r:2 }; moveEnt(o, c.vx * dt, c.vy * dt); c.x = o.x; c.y = o.y; if (c.z <= 0) { c.z = 0; c.vz = 0; } }
-    const dx = G.P.x - c.x, dy = G.P.y - 6 - c.y, d = Math.hypot(dx, dy);
-    if (!G.P.dead && c.t > .35 && d < 52) c.mag = true;
+    const pl = c.to || nearestPlayer(c.x, c.y);                     // 吸向最近的玩家，吸住後就鎖定他
+    const dx = pl.x - c.x, dy = pl.y - 6 - c.y, d = Math.hypot(dx, dy);
+    if (!pl.dead && c.t > .35 && d < 52) { c.mag = true; c.to = pl; }
     if (c.mag) { const sp = 140 + 500 * Math.min(1, c.t); c.x += dx / (d || 1) * sp * dt; c.y += dy / (d || 1) * sp * dt; c.z = Math.max(0, c.z - 60 * dt);
-      if (d < 7) { G.P.gold += c.v; G.coins.splice(i, 1); sfx.coin(); G.parts.push({ x:G.P.x + rr(-3, 3), y:G.P.y - 12, vx:rr(-10, 10), vy:-30, life:.3, max:.3, col:'#fff0a8', star:1.2, drag:3 }); } } }
+      if (d < 7) { pl.gold += c.v; G.coins.splice(i, 1); sfx.coin(); G.parts.push({ x:pl.x + rr(-3, 3), y:pl.y - 12, vx:rr(-10, 10), vy:-30, life:.3, max:.3, col:'#fff0a8', star:1.2, drag:3 }); } } }
 }
 export function drawCoin(c) { const sp = COIN_SP[Math.floor(c.t * 10) % 4], w = sp.width * HK, h = sp.height * HK;
   ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(asn(c.x - 1.5), asn(c.y), 3, HK);
@@ -80,21 +82,22 @@ function updateDrops(dt) {
   for (let i = G.drops.length - 1; i >= 0; i--) {
     const d = G.drops[i]; d.t += dt;
     if (d.z > 0 || d.vz > 0) { d.z += d.vz * dt; d.vz -= 260 * dt; const o = { x:d.x, y:d.y, r:3 }; moveEnt(o, d.vx * dt, d.vy * dt); d.x = o.x; d.y = o.y; if (d.z <= 0) { d.z = 0; d.vz = 0; } }
-    if (d.z === 0 && Math.hypot(d.x - G.P.x, d.y - G.P.y) < 13 && !G.P.dead) {
-      if (G.P.inv.length >= 24) { if (!d.warned) { toast('背包滿了，先去分解一些裝備', '#ff8a8a'); d.warned = true; } continue; }
-      G.P.inv.push(d.item); G.drops.splice(i, 1);
-      const R = RAR[d.item.rarity]; toast('獲得 ' + R.n + '・' + d.item.name, R.c); sfx.pick();
+    const pl = d.z === 0 && G.players.find(pl => !pl.dead && Math.hypot(d.x - pl.x, d.y - pl.y) < 13);   // 誰走過去誰撿
+    if (pl) {
+      if (pl.inv.length >= 24) { if (!d.warned && pl === G.me) { toast('背包滿了，先去分解一些裝備', '#ff8a8a'); d.warned = true; } continue; }
+      pl.inv.push(d.item); G.drops.splice(i, 1);
+      if (pl === G.me) { const R = RAR[d.item.rarity]; toast('獲得 ' + R.n + '・' + d.item.name, R.c); sfx.pick(); }
     }
   }
 }
 function updateSpawns(dt) {
   for (const sp of spawns) if (!sp.alive) {
     sp.timer -= dt;
-    if (sp.timer <= 0 && Math.hypot(sp.x - G.P.x, sp.y - G.P.y) > 240) { sp.alive = true; G.enemies.push(makeEnemy(sp.kind, sp.lv, sp.x, sp.y, sp)); }
+    if (sp.timer <= 0 && G.players.every(pl => Math.hypot(sp.x - pl.x, sp.y - pl.y) > 240)) { sp.alive = true; G.enemies.push(makeEnemy(sp.kind, sp.lv, sp.x, sp.y, sp)); }
   }
 }
 function separate() {
-  const list = targets().filter(e => Math.abs(e.x - G.P.x) < 260 && Math.abs(e.y - G.P.y) < 200);
+  const list = targets(G.me).filter(e => Math.abs(e.x - G.me.x) < 260 && Math.abs(e.y - G.me.y) < 200);
   for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
     const a = list[i], b = list[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), m = a.r + b.r;
     if (d > 0 && d < m) { const push = (m - d) / 2, nx = dx / d, ny = dy / d;
@@ -114,8 +117,9 @@ export function updateMotes(dt) {
 
 export function update(dt) {
   G.time += dt;
-  updatePlayer(dt);
-  for (let i = G.enemies.length - 1; i >= 0; i--) { const e = G.enemies[i]; if (Math.abs(e.x - G.P.x) < 520 && Math.abs(e.y - G.P.y) < 380) updateEnemy(e, dt); }
+  for (const pl of G.players) updatePlayer(pl, dt);
+  const near = e => G.players.some(pl => Math.abs(e.x - pl.x) < 520 && Math.abs(e.y - pl.y) < 380);   // 只更新任何玩家附近的怪
+  for (let i = G.enemies.length - 1; i >= 0; i--) { const e = G.enemies[i]; if (near(e)) updateEnemy(e, dt); }
   updateBoss(dt); updateRegionBosses(dt); separate(); updateProjectiles(dt); updateDrops(dt); updateSpawns(dt);
   for (let i = G.fx.length - 1; i >= 0; i--) { G.fx[i].t += dt; if (G.fx[i].t >= G.fx[i].d) G.fx.splice(i, 1); }
   for (let i = G.ghosts.length - 1; i >= 0; i--) { G.ghosts[i].life -= dt; if (G.ghosts[i].life <= 0) G.ghosts.splice(i, 1); }

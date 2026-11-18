@@ -11,21 +11,21 @@ const hudCache = {};
 function setText(id, v) { if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } }
 function setScale(id, v) { v = Math.round(clamp(v, 0, 1) * 200) / 200; if (hudCache[id] !== v) { hudCache[id] = v; $(id).style.transform = 'scaleX(' + v + ')'; } }
 export function updateHUD() {
-  setText('lvTxt', String(level())); setScale('hpBar', G.P.hp / G.P.maxHp); setScale('stBar', G.P.st / G.P.maxSt);
-  setText('soulTxt', String(G.P.souls)); setText('potTxt', String(G.P.pot)); setText('potTxt2', G.P.pot + '/' + G.potMax);
-  const cd = G.P.skillCd > 0 ? G.P.skillCd / (WT[G.P.weapon.type].scd * (1 - G.P.cdr)) : 0;
+  setText('lvTxt', String(level(G.me))); setScale('hpBar', G.me.hp / G.me.maxHp); setScale('stBar', G.me.st / G.me.maxSt);
+  setText('soulTxt', String(G.me.souls)); setText('potTxt', String(G.me.pot)); setText('potTxt2', G.me.pot + '/' + G.potMax);
+  const cd = G.me.skillCd > 0 ? G.me.skillCd / (WT[G.me.weapon.type].scd * (1 - G.me.cdr)) : 0;
   const cdv = Math.round(cd * 50) / 50; if (hudCache.cd !== cdv) { hudCache.cd = cdv; $('bSkill').style.setProperty('--cd', cdv); $('skillHud').style.setProperty('--cd', cdv); }
-  const sec = G.P.skillCd > 0 ? (G.P.skillCd >= 1 ? String(Math.ceil(G.P.skillCd)) : G.P.skillCd.toFixed(1)) : '';   // 剩幾秒
+  const sec = G.me.skillCd > 0 ? (G.me.skillCd >= 1 ? String(Math.ceil(G.me.skillCd)) : G.me.skillCd.toFixed(1)) : '';   // 剩幾秒
   if (hudCache.sec !== sec) { if (hudCache.sec && !sec) { const h = $('skillHud'); h.classList.remove('ready'); void h.offsetWidth; h.classList.add('ready'); }   // 冷卻好了閃一下
     hudCache.sec = sec; $('skillHud').classList.toggle('cool', !!sec); for (const id of ['skillHudSec', 'bSkillSec']) { $(id).hidden = !sec; $(id).textContent = sec; } }
-  const show = !!((!G.paused && G.started) ? nearCamp() : null);
+  const show = !!((!G.paused && G.started) ? nearCamp(G.me) : null);
   const shop = !!(!G.paused && G.started && nearMerchant());
   if (hudCache.shop !== shop) { hudCache.shop = shop; $('shopBtn').hidden = !shop; }
   if (hudCache.rest !== (show && !shop)) { hudCache.rest = show && !shop; $('restBtn').hidden = !(show && !shop); }
-  setText('goldTxt', String(G.P.gold));
-  const zn = (!G.paused && G.started) ? nearZone() : null, zk = zn ? zn.id + (level() < zn.lv - 2 ? 'w' : '') : '';      // 靠近 boss 場地時的提示
+  setText('goldTxt', String(G.me.gold));
+  const zn = (!G.paused && G.started) ? nearZone() : null, zk = zn ? zn.id + (level(G.me) < zn.lv - 2 ? 'w' : '') : '';      // 靠近 boss 場地時的提示
   if (hudCache.zone !== zk) { hudCache.zone = zk; $('zoneHint').hidden = !zn;
-    if (zn) $('zoneHint').innerHTML = zn.short + '的領域・建議等級 ' + zn.lv + (level() < zn.lv - 2 ? ' <span class="weak">（你目前偏弱）</span>' : '') + '<small>再往前走就會開打，打贏之前離不開結界</small>'; }
+    if (zn) $('zoneHint').innerHTML = zn.short + '的領域・建議等級 ' + zn.lv + (level(G.me) < zn.lv - 2 ? ' <span class="weak">（你目前偏弱）</span>' : '') + '<small>再往前走就會開打，打贏之前離不開結界</small>'; }
   if (G.B && !G.bossDead && G.B.state !== 'sleep') setScale('bossHp', G.B.hp / G.B.maxHp);
   const frb = fightingRB(); if (frb) setScale('bossHp', frb.hp / frb.maxHp);
 }

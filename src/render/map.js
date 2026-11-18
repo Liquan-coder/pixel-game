@@ -8,7 +8,7 @@ import { merchant } from '../ui/shop.js';
 
 /* miniT → 已移到 G（core/state.js） */
 export function renderMini() {
-  const px = Math.floor(G.P.x / TS), py = Math.floor(G.P.y / TS), ox = clamp(px - 64, 0, MW - 128), oy = clamp(py - 40, 0, MH - 80);
+  const px = Math.floor(G.me.x / TS), py = Math.floor(G.me.y / TS), ox = clamp(px - 64, 0, MW - 128), oy = clamp(py - 40, 0, MH - 80);
   mctx.fillStyle = '#07060b'; mctx.fillRect(0, 0, 128, 80);
   mctx.drawImage(miniBase, ox, oy, 128, 80, 0, 0, 128, 80);
   for (const c of CAMPS) if (explored[c.ty * MW + c.tx]) { mctx.fillStyle = c.lit ? '#f2c14e' : '#8a869a'; mctx.fillRect(c.tx - ox - 1, c.ty - oy - 1, 3, 3); }
@@ -31,7 +31,7 @@ export function renderBigMap() {
   for (const d of Object.values(RBDEF)) if (!rbDead.has(d.id) && explored[d.ty * MW + d.tx]) { bctx.fillStyle = OL; bctx.fillRect(d.tx * 2 - 6, d.ty * 2 - 6, 12, 12); bctx.fillStyle = '#ff3b3b'; bctx.fillRect(d.tx * 2 - 4, d.ty * 2 - 4, 8, 8); label(d.short, d.tx * 2, d.ty * 2 - 9, '#ff8a7a', 11); }
   if (merchant) { const mx = Math.floor(merchant.x / TS) * 2, my = Math.floor(merchant.y / TS) * 2; bctx.fillStyle = OL; bctx.fillRect(mx - 4, my - 4, 9, 9); bctx.fillStyle = '#5ae0b0'; bctx.fillRect(mx - 3, my - 3, 7, 7); label('商人', mx, my - 7, '#9af0d0', 11); }
   if (G.lost) { bctx.fillStyle = '#b49cff'; bctx.fillRect(Math.floor(G.lost.x / TS) * 2 - 3, Math.floor(G.lost.y / TS) * 2 - 3, 6, 6); }
-  const px = Math.floor(G.P.x / TS) * 2, py = Math.floor(G.P.y / TS) * 2;
+  const px = Math.floor(G.me.x / TS) * 2, py = Math.floor(G.me.y / TS) * 2;
   bctx.fillStyle = OL; bctx.fillRect(px - 4, py - 4, 9, 9); bctx.fillStyle = '#7fdcff'; bctx.fillRect(px - 3, py - 3, 7, 7); bctx.fillStyle = '#ffffff'; bctx.fillRect(px - 1, py - 1, 3, 3);
 }
 

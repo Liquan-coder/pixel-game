@@ -13,7 +13,7 @@ export function miniPix(i) {
   mbx.fillStyle = col || '#000'; mbx.fillRect(i % MW, (i / MW) | 0, 1, 1);
 }
 export function reveal() {
-  const px = Math.floor(G.P.x / TS), py = Math.floor(G.P.y / TS), R = 12;
+  const px = Math.floor(G.me.x / TS), py = Math.floor(G.me.y / TS), R = 12;
   for (let y = py - R; y <= py + R; y++) for (let x = px - R; x <= px + R; x++) {
     if (x < 0 || y < 0 || x >= MW || y >= MH || (x - px) ** 2 + (y - py) ** 2 > R * R) continue;
     const i = y * MW + x; if (!explored[i]) { explored[i] = 1; miniPix(i); }

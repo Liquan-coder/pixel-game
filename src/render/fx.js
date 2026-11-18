@@ -93,7 +93,8 @@ function shPoly(pts) {                                                  // 凸�
 export const fxCols = c => [(!c || c === '#ffffff') ? '#8fb0ff' : c, '#e8e2ff', '#ffffff'];
 export function drawSmear(f) {                                                // 新月刀光：刀頭粗、刀尾細，揮完從尾巴往前收
   const T = f.t - (f.delay || 0); if (T < 0) return;
-  const cx = f.follow ? G.P.x + (G.P.leanX || 0) : f.x, cy = f.follow ? G.P.y - 7 + (G.P.leanY || 0) : f.y, sgn = Math.sign(f.a1 - f.a0) || 1, full = Math.abs(f.a1 - f.a0);
+  // f.follow = 這道刀光要跟著哪個玩家（null = 停在原地）
+  const P = f.follow, cx = P ? P.x + (P.leanX || 0) : f.x, cy = P ? P.y - 7 + (P.leanY || 0) : f.y, sgn = Math.sign(f.a1 - f.a0) || 1, full = Math.abs(f.a1 - f.a0);
   const ph = Math.min(1, T / f.sw), head = 1 - (1 - ph) * (1 - ph), pt = Math.min(1, Math.max(0, (T - f.sw * .3) / (f.sw * .7 + f.hold))), tail = pt * pt * (3 - 2 * pt);
   const hA = full * head, tA = full * tail, span = hA - tA; if (span < .03) return;
   const fade = T > f.sw ? Math.max(0, 1 - (T - f.sw) / f.hold) : 1, r = f.r, w = f.w * (.55 + .45 * fade), sy = f.sy || .8, rin = Math.max(0, r - w - 1);
@@ -109,7 +110,7 @@ export function drawSmear(f) {                                                //
 export function drawLance(f) {                                                // 槍芒：細長、尖端收尖，從手邊往前射出
   const T = f.t - (f.delay || 0); if (T < 0) return;
   const g = Math.min(1, T / (f.d * .3)), len = f.len * (1 - (1 - g) * (1 - g)), fade = 1 - Math.max(0, (T - f.d * .3) / (f.d * .7));
-  const c = Math.cos(f.a), s = Math.sin(f.a), x0 = f.follow ? G.P.x + c * 6 : f.x, y0 = f.follow ? G.P.y - 7 + s * 6 : f.y, W = f.w * (.4 + .6 * fade), tail = len * (1 - fade) * .7;
+  const c = Math.cos(f.a), s = Math.sin(f.a), x0 = f.follow ? f.follow.x + c * 6 : f.x, y0 = f.follow ? f.follow.y - 7 + s * 6 : f.y, W = f.w * (.4 + .6 * fade), tail = len * (1 - fade) * .7;
   const pt = (al, w) => [x0 + c * al - s * w, y0 + s * al + c * w];
   const poly = m => { const hw0 = W / 2 * (.3 + .7 * tail / len / .78) * m, hwm = W / 2 * m; return shPoly([pt(tail, -hw0), pt(len * .78, -hwm), pt(len, 0), pt(len * .78, hwm), pt(tail, hw0)]); };
   const ys = [y0 + s * tail - W, y0 + s * tail + W, y0 + s * len - W, y0 + s * len + W];

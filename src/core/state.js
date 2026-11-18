@@ -7,7 +7,8 @@ export const G = {
   bossDead: false,
   RB_L: [],
   frameNo: 0,
-  P: undefined,
+  players: [],    // 所有玩家（單機時只有 1 個）
+  me: null,       // 這台裝置操作的玩家：鏡頭、HUD、背包、存檔都看他
   enemies: [],
   projs: [],
   drops: [],
@@ -22,7 +23,6 @@ export const G = {
   paused: true,
   started: false,
   time: 0,
-  deathT: 0,
   shakeT: 0,
   shakeMag: 0,
   hitStop: 0,

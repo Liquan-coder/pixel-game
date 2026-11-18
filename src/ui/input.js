@@ -52,7 +52,7 @@ export function readInput() {
   if (pressed.inv) toggleInv();
   if (pressed.map) toggleMap();
   if (pressed.esc && openMenu) setMenu(null);
-  if (pressed.rest && !openMenu) { if (nearMerchant()) openShop(); else { const c = nearCamp(); if (c) restAt(c); } }
+  if (pressed.rest && !openMenu) { if (nearMerchant()) openShop(); else { const c = nearCamp(G.me); if (c) restAt(c); } }
   if (pressed.enter && !G.started) startGame(!$('btnContinue').hidden);
 }
 

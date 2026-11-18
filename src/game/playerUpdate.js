@@ -15,99 +15,99 @@ import { hideBanner, showArea, toast } from '../ui/hud.js';
 import { save } from './save.js';
 
 /* ================= PLAYER UPDATE ================= */
-export function updatePlayer(dt) {
-  if (G.P.dead) { G.deathT += dt; if (G.deathT > 2.6) respawn(); return; }
-  for (const k of ['atkCd','skillCd','iframe','hurt','aimLock','spin','thrust','slam','comboT','blinkIn']) if (G.P[k] > 0) G.P[k] -= dt;
-  if (G.P.lunge) { G.P.lunge.t -= dt; moveEnt(G.P, G.P.lunge.vx * dt, G.P.lunge.vy * dt); G.ghosts.push({ x:G.P.x, y:G.P.y, flip:G.P.flip, life:.2, max:.2 }); if (G.P.lunge.t <= 0) G.P.lunge = null; }
-  if (G.P.skillLock > 0) G.P.skillLock -= dt;
-  for (let i = G.P.timers.length - 1; i >= 0; i--) { const tm = G.P.timers[i]; tm.t -= dt; if (tm.t <= 0) { G.P.timers.splice(i, 1); tm.fn(); } }
-  if (G.P.stDelay > 0) G.P.stDelay -= dt; else G.P.st = Math.min(G.P.maxSt, G.P.st + (G.P.drink > 0 ? 15 : 48) * dt);
-  if (G.P.swing) { const s = G.P.swing; s.t += dt; if (s.t >= s.d) { if (s.anim) { const g = s.f + s.r1 * s.sd; G.P.wFrom = s.ranged ? g : Math.atan2(Math.sin(g) * s.sy, Math.cos(g)); G.P.wRec = G.P.wRecD = s.back; G.P.wTy = s.ty; } G.P.swing = null; } }
-  if (G.P.wRec > 0) G.P.wRec -= dt;
-  if (Math.abs(G.P.kx) + Math.abs(G.P.ky) > 2) { moveEnt(G.P, G.P.kx * dt, G.P.ky * dt); const k = Math.pow(0.001, dt); G.P.kx *= k; G.P.ky *= k; } else G.P.kx = G.P.ky = 0;
-  if (G.P.drink > 0) { G.P.drink -= dt; if (G.P.drink <= 0) { const h = Math.round(G.P.maxHp * .5); G.P.hp = Math.min(G.P.maxHp, G.P.hp + h);
-    G.nums.push({ x:G.P.x, y:G.P.y - 28, txt:'+' + h, col:'#7dff8a', t:0, d:.8 }); burst(G.P.x, G.P.y - 6, 12, '#7dff8a', 40); } }
+export function updatePlayer(pl, dt) {
+  if (pl.dead) { pl.deathT += dt; if (pl.deathT > 2.6) respawn(pl); return; }
+  for (const k of ['atkCd','skillCd','iframe','hurt','aimLock','spin','thrust','slam','comboT','blinkIn']) if (pl[k] > 0) pl[k] -= dt;
+  if (pl.lunge) { pl.lunge.t -= dt; moveEnt(pl, pl.lunge.vx * dt, pl.lunge.vy * dt); G.ghosts.push({ x:pl.x, y:pl.y, flip:pl.flip, life:.2, max:.2 }); if (pl.lunge.t <= 0) pl.lunge = null; }
+  if (pl.skillLock > 0) pl.skillLock -= dt;
+  for (let i = pl.timers.length - 1; i >= 0; i--) { const tm = pl.timers[i]; tm.t -= dt; if (tm.t <= 0) { pl.timers.splice(i, 1); tm.fn(); } }
+  if (pl.stDelay > 0) pl.stDelay -= dt; else pl.st = Math.min(pl.maxSt, pl.st + (pl.drink > 0 ? 15 : 48) * dt);
+  if (pl.swing) { const s = pl.swing; s.t += dt; if (s.t >= s.d) { if (s.anim) { const g = s.f + s.r1 * s.sd; pl.wFrom = s.ranged ? g : Math.atan2(Math.sin(g) * s.sy, Math.cos(g)); pl.wRec = pl.wRecD = s.back; pl.wTy = s.ty; } pl.swing = null; } }
+  if (pl.wRec > 0) pl.wRec -= dt;
+  if (Math.abs(pl.kx) + Math.abs(pl.ky) > 2) { moveEnt(pl, pl.kx * dt, pl.ky * dt); const k = Math.pow(0.001, dt); pl.kx *= k; pl.ky *= k; } else pl.kx = pl.ky = 0;
+  if (pl.drink > 0) { pl.drink -= dt; if (pl.drink <= 0) { const h = Math.round(pl.maxHp * .5); pl.hp = Math.min(pl.maxHp, pl.hp + h);
+    G.nums.push({ x:pl.x, y:pl.y - 28, txt:'+' + h, col:'#7dff8a', t:0, d:.8 }); burst(pl.x, pl.y - 6, 12, '#7dff8a', 40); } }
   const m = Math.hypot(input.mx, input.my);
-  if (G.P.dash) {
-    G.P.dash.t -= dt; moveEnt(G.P, G.P.dash.vx * dt, G.P.dash.vy * dt);
-    const D = G.P.dash, back = G.P.face + Math.PI;
-    D.streak.x1 = G.P.x; D.streak.y1 = G.P.y - 8; D.streak.t = 0;             // 光帶跟著人走，衝完才淡出
-    G.ghosts.push({ x:G.P.x, y:G.P.y, flip:G.P.flip, life:.28, max:.28 });       // 每幀留一個殘影
-    G.fx.push({ k:'aline', x:G.P.x + rr(-6, 6), y:G.P.y - 8 + rr(-9, 9), a:back, len:rr(12, 26), t:0, d:.14, col:'#ffffff' }); // 細速度線
+  if (pl.dash) {
+    pl.dash.t -= dt; moveEnt(pl, pl.dash.vx * dt, pl.dash.vy * dt);
+    const D = pl.dash, back = pl.face + Math.PI;
+    D.streak.x1 = pl.x; D.streak.y1 = pl.y - 8; D.streak.t = 0;             // 光帶跟著人走，衝完才淡出
+    G.ghosts.push({ x:pl.x, y:pl.y, flip:pl.flip, life:.28, max:.28 });       // 每幀留一個殘影
+    G.fx.push({ k:'aline', x:pl.x + rr(-6, 6), y:pl.y - 8 + rr(-9, 9), a:back, len:rr(12, 26), t:0, d:.14, col:'#ffffff' }); // 細速度線
     for (let i = 0; i < 2; i++) { const a = back + rr(-.6, .6), s = rr(20, 70);                                       // 一路灑下的星屑
-      G.parts.push({ x:G.P.x + rr(-5, 5), y:G.P.y - rr(2, 16), vx:Math.cos(a) * s, vy:Math.sin(a) * s + 10, life:rr(.3, .55), max:.55, col:pick(STARC), star:rr(.8, 2.4), drag:3 }); }
-    for (const e of targets()) if (!D.hit.has(e) && Math.hypot(e.x - G.P.x, e.y - G.P.y) < e.r + G.P.r + 8) { D.hit.add(e); damageEnemy(e, 2.5, G.P.x, G.P.y);
+      G.parts.push({ x:pl.x + rr(-5, 5), y:pl.y - rr(2, 16), vx:Math.cos(a) * s, vy:Math.sin(a) * s + 10, life:rr(.3, .55), max:.55, col:pick(STARC), star:rr(.8, 2.4), drag:3 }); }
+    for (const e of targets(pl)) if (!D.hit.has(e) && Math.hypot(e.x - pl.x, e.y - pl.y) < e.r + pl.r + 8) { D.hit.add(e); damageEnemy(pl, e, 2.5, pl.x, pl.y);
       // 命中：兩道交叉的新月斬痕 + 炸開的星光 + 一下重震
-      G.fx.push({ k:'cres', x:e.x, y:e.y - 7, a:G.P.face - Math.PI / 2 + .55, r:15, t:0, d:.24 });
-      G.fx.push({ k:'cres', x:e.x, y:e.y - 7, a:G.P.face + Math.PI / 2 - .55, r:15, t:0, d:.24, late:.04 });
+      G.fx.push({ k:'cres', x:e.x, y:e.y - 7, a:pl.face - Math.PI / 2 + .55, r:15, t:0, d:.24 });
+      G.fx.push({ k:'cres', x:e.x, y:e.y - 7, a:pl.face + Math.PI / 2 - .55, r:15, t:0, d:.24, late:.04 });
       for (let i = 0; i < 9; i++) { const a = i / 9 * TAU + rr(-.2, .2), s = rr(70, 140);
         G.parts.push({ x:e.x, y:e.y - 7, vx:Math.cos(a) * s, vy:Math.sin(a) * s, life:rr(.25, .45), max:.45, col:pick(STARC), star:rr(1.5, 3.2), drag:6 }); }
       shake(3, .12); }
     if (D.t <= 0) {
-      G.P.dash = null;
-      G.fx.push({ k:'rune', x:G.P.x, y:G.P.y, r:11, t:0, d:.35, rot:rr(0, TAU) });   // 落地：小魔法陣 + 一圈星光
+      pl.dash = null;
+      G.fx.push({ k:'rune', x:pl.x, y:pl.y, r:11, t:0, d:.35, rot:rr(0, TAU) });   // 落地：小魔法陣 + 一圈星光
       for (let i = 0; i < 8; i++) { const a = i / 8 * TAU, s = rr(40, 70);
-        G.parts.push({ x:G.P.x, y:G.P.y - 4, vx:Math.cos(a) * s, vy:Math.sin(a) * s * .5, life:.35, max:.35, col:pick(STARC), star:rr(1, 2), drag:5 }); }
+        G.parts.push({ x:pl.x, y:pl.y - 4, vx:Math.cos(a) * s, vy:Math.sin(a) * s * .5, life:.35, max:.35, col:pick(STARC), star:rr(1, 2), drag:5 }); }
     }
-  } else if (G.P.dodge > 0) {
-    G.P.dodge -= dt; const ox = G.P.x, oy = G.P.y; moveEnt(G.P, G.P.dvx * dt, G.P.dvy * dt);   // 隱身移動，只留下一道細光和星屑
-    G.fx.push({ k:'aline', x:ox, y:oy - 8 + rr(-5, 5), a:Math.atan2(G.P.y - oy, G.P.x - ox), len:Math.hypot(G.P.x - ox, G.P.y - oy) + 4, t:0, d:.16, col:'#d8c8ff' });
-    if (Math.random() < .7) G.parts.push({ x:G.P.x + rr(-4, 4), y:G.P.y - rr(2, 16), vx:rr(-15, 15), vy:rr(-20, 0), life:rr(.25, .45), max:.45, col:pick(STARC), star:rr(.6, 1.8), drag:3 });
-    if (G.P.dodge <= 0) { blinkFx(G.P.x, G.P.y, false); sfx.blinkIn(); }
+  } else if (pl.dodge > 0) {
+    pl.dodge -= dt; const ox = pl.x, oy = pl.y; moveEnt(pl, pl.dvx * dt, pl.dvy * dt);   // 隱身移動，只留下一道細光和星屑
+    G.fx.push({ k:'aline', x:ox, y:oy - 8 + rr(-5, 5), a:Math.atan2(pl.y - oy, pl.x - ox), len:Math.hypot(pl.x - ox, pl.y - oy) + 4, t:0, d:.16, col:'#d8c8ff' });
+    if (Math.random() < .7) G.parts.push({ x:pl.x + rr(-4, 4), y:pl.y - rr(2, 16), vx:rr(-15, 15), vy:rr(-20, 0), life:rr(.25, .45), max:.45, col:pick(STARC), star:rr(.6, 1.8), drag:3 });
+    if (pl.dodge <= 0) { blinkFx(pl, pl.x, pl.y, false); sfx.blinkIn(); }
   } else if (m > .05) {
-    const spd = 84 * (G.P.drink > 0 ? .45 : 1) * (G.P.skillLock > 0 ? .25 : 1) * (G.P.swing ? .6 : 1) * (G.P.charging ? .45 : 1) * (map[(G.P.y / TS | 0) * MW + (G.P.x / TS | 0)] === ROAD ? 1.12 : 1);
-    moveEnt(G.P, input.mx * spd * dt, input.my * spd * dt);
-    if (G.P.aimLock <= 0) { G.P.face = Math.atan2(input.my, input.mx); updFlip(); }
+    const spd = 84 * (pl.drink > 0 ? .45 : 1) * (pl.skillLock > 0 ? .25 : 1) * (pl.swing ? .6 : 1) * (pl.charging ? .45 : 1) * (map[(pl.y / TS | 0) * MW + (pl.x / TS | 0)] === ROAD ? 1.12 : 1);
+    moveEnt(pl, input.mx * spd * dt, input.my * spd * dt);
+    if (pl.aimLock <= 0) { pl.face = Math.atan2(input.my, input.mx); updFlip(pl); }
   }
-  G.P.moving = m > .05 && !G.P.dodge;
-  if (G.P.moving) G.P.anim += dt;
+  pl.moving = m > .05 && !pl.dodge;
+  if (pl.moving) pl.anim += dt;
 
   const atkDown = held.atk || keys.atk;                               // 點一下 = 普通攻擊；按住 = 蓄力，放開放招
-  if (G.P.atkBuf > 0) { G.P.atkBuf -= dt; if (tryAttack()) G.P.atkBuf = 0; }      // 連點太快時先記住，冷卻一好就出手
-  if (pressed.atk) { if (!tryAttack()) G.P.atkBuf = .25; G.P.chargeArm = true; G.P.chargeHold = 0; G.P.charging = false; G.P.charge = 0; G.P.chargeLv = 0; }
-  if (G.P.chargeArm) {
-    if (!atkDown || G.P.dead) { if (G.P.charging && G.P.chargeLv > 0) releaseCharge(G.P.chargeLv); stopCharge(); }
-    else if (G.P.charging) { if (G.P.dodge > 0 || G.P.drink > 0 || G.P.dash) stopCharge(); else updateCharge(dt); }
-    else { G.P.chargeHold += dt; if (G.P.chargeHold > .22 && !busy() && G.P.st > 0) { G.P.charging = true; G.P.charge = 0; G.P.chargeLv = 0; } }
+  if (pl.atkBuf > 0) { pl.atkBuf -= dt; if (tryAttack(pl)) pl.atkBuf = 0; }      // 連點太快時先記住，冷卻一好就出手
+  if (pressed.atk) { if (!tryAttack(pl)) pl.atkBuf = .25; pl.chargeArm = true; pl.chargeHold = 0; pl.charging = false; pl.charge = 0; pl.chargeLv = 0; }
+  if (pl.chargeArm) {
+    if (!atkDown || pl.dead) { if (pl.charging && pl.chargeLv > 0) releaseCharge(pl, pl.chargeLv); stopCharge(pl); }
+    else if (pl.charging) { if (pl.dodge > 0 || pl.drink > 0 || pl.dash) stopCharge(pl); else updateCharge(pl, dt); }
+    else { pl.chargeHold += dt; if (pl.chargeHold > .22 && !busy(pl) && pl.st > 0) { pl.charging = true; pl.charge = 0; pl.chargeLv = 0; } }
   }
-  if (pressed.dodge) tryDodge();
-  if (pressed.skill) trySkill();
-  if (pressed.pot) tryPot();
+  if (pressed.dodge) tryDodge(pl);
+  if (pressed.skill) trySkill(pl);
+  if (pressed.pot) tryPot(pl);
 
-  if (G.lost && Math.hypot(G.lost.x - G.P.x, G.lost.y - G.P.y) < 14) {
-    G.P.souls += G.lost.amount; toast('取回了 ' + G.lost.amount + ' 魂晶', '#b49cff'); burst(G.lost.x, G.lost.y - 4, 20, '#b49cff', 60); sfx.pick(); G.lost = null;
+  if (G.lost && Math.hypot(G.lost.x - pl.x, G.lost.y - pl.y) < 14) {
+    pl.souls += G.lost.amount; toast('取回了 ' + G.lost.amount + ' 魂晶', '#b49cff'); burst(G.lost.x, G.lost.y - 4, 20, '#b49cff', 60); sfx.pick(); G.lost = null;
   }
-  for (const c of CAMPS) if (!c.lit && Math.abs(c.x - G.P.x) < 48 && Math.hypot(c.x - G.P.x, c.y - G.P.y) < 48) {
+  for (const c of CAMPS) if (!c.lit && Math.abs(c.x - pl.x) < 48 && Math.hypot(c.x - pl.x, c.y - pl.y) < 48) {
     c.lit = true; toast('點燃了「' + c.name + '」，可以在這裡休息和傳送', '#f2c14e'); burst(c.x, c.y - 4, 20, '#f2c14e', 60); sfx.level(); save();
   }
-  const rg = REGIONS[regAt(G.P.x, G.P.y)].key;
-  const tx = G.P.x / TS, ty = G.P.y / TS; let sb = '';
+  const rg = REGIONS[regAt(pl.x, pl.y)].key;
+  const tx = pl.x / TS, ty = pl.y / TS; let sb = '';
   for (const s of SUBS) if (Math.abs(s.x - tx) < s.r && Math.hypot(s.x - tx, s.y - ty) < s.r) { sb = s.name; break; }
   if (rg !== G.region) { G.region = rg; G.sub = sb; showArea(REGIONS.find(r => r.key === rg).name, REGIONS.find(r => r.key === rg).sub); }
   else if (sb !== G.sub) { G.sub = sb; if (sb) { const first = !discovered.has(sb); discovered.add(sb); showArea(sb, first ? '發現新地點' : REGIONS.find(r => r.key === rg).name); if (first) sfx.discover(); } }
 }
-export function nearCamp() {
-  if (G.P.dead) return null;
-  for (const c of CAMPS) if (c.lit && Math.abs(c.x - G.P.x) < 30 && Math.hypot(c.x - G.P.x, c.y - G.P.y) < 30) {
-    if (G.enemies.some(e => e.state !== 'idle' && e.state !== 'return' && Math.abs(e.x - G.P.x) < 140 && dist(e, G.P) < 140)) return null;
+export function nearCamp(pl) {
+  if (pl.dead) return null;
+  for (const c of CAMPS) if (c.lit && Math.abs(c.x - pl.x) < 30 && Math.hypot(c.x - pl.x, c.y - pl.y) < 30) {
+    if (G.enemies.some(e => e.state !== 'idle' && e.state !== 'return' && Math.abs(e.x - pl.x) < 140 && dist(e, pl) < 140)) return null;
     return c;
   }
   return null;
 }
-export function restoreWorld() {
-  G.P.hp = G.P.maxHp; G.P.st = G.P.maxSt; G.P.pot = G.potMax; G.P.timers = []; G.P.dash = null; G.P.dodge = 0;
+export function restoreWorld() {                                       // 營火休息/重生：所有玩家補滿，世界重置
+  for (const pl of G.players) { pl.hp = pl.maxHp; pl.st = pl.maxSt; pl.pot = G.potMax; pl.timers = []; pl.dash = null; pl.dodge = 0; }
   G.projs = []; G.drops = G.drops.filter(d => d.item.rarity >= 2); respawnAll(); resetBoss(); resetRegionBosses();
 }
-export function placeAtCamp(id) {
+export function placeAtCamp(pl, id) {
   const c = CAMPS.find(c => c.id === id) || CAMPS[0];
-  G.P.x = c.x; G.P.y = c.y + 16;
-  if (collides(G.P.x, G.P.y, G.P.r)) G.P.y = c.y - 16;
-  cam.x = G.P.x - LW / 2; cam.y = G.P.y - LH / 2;
+  pl.x = c.x; pl.y = c.y + 16;
+  if (collides(pl.x, pl.y, pl.r)) pl.y = c.y - 16;
+  if (pl === G.me) { cam.x = pl.x - LW / 2; cam.y = pl.y - LH / 2; }   // 鏡頭只跟著「我」
 }
-function respawn() {
-  G.lost = G.P.souls > 0 ? { x:G.P.x, y:G.P.y, amount:G.P.souls } : null;
-  G.P.souls = 0; G.P.dead = false; G.P.kx = G.P.ky = 0;
-  placeAtCamp(G.lastCamp); restoreWorld(); save();
-  G.region = ''; hideBanner();
+function respawn(pl) {
+  G.lost = pl.souls > 0 ? { x:pl.x, y:pl.y, amount:pl.souls } : null;
+  pl.souls = 0; pl.dead = false; pl.kx = pl.ky = 0;
+  placeAtCamp(pl, G.lastCamp); restoreWorld(); save();
+  if (pl === G.me) { G.region = ''; hideBanner(); }
 }
 

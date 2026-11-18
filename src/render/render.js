@@ -21,7 +21,7 @@ export function render() {
   G.frameNo++;
   ctx.setTransform(F, 0, 0, F, 0, 0); ctx.imageSmoothingEnabled = false;
   const sx = G.shakeT > 0 ? rr(-G.shakeMag, G.shakeMag) : 0, sy = G.shakeT > 0 ? rr(-G.shakeMag, G.shakeMag) : 0;
-  const tx = G.P.x - LW / 2, ty = G.P.y - 8 - LH / 2, ck = 1 - Math.pow(.8, Math.min(3, camDt * 60));   // 跟隨速度跟幀率無關（120Hz 手機不會忽快忽慢）
+  const tx = G.me.x - LW / 2, ty = G.me.y - 8 - LH / 2, ck = 1 - Math.pow(.8, Math.min(3, camDt * 60));   // 跟隨速度跟幀率無關（120Hz 手機不會忽快忽慢）
   cam.x += (tx - cam.x) * ck; cam.y += (ty - cam.y) * ck;
   const maxX = Math.max(0, MW * TS - LW), maxY = Math.max(0, MH * TS - LH);
   const cx = snapF(clamp(cam.x + sx, 0, maxX)), cy = snapF(clamp(cam.y + sy, 0, maxY));   // 對齊實體像素，跟角色同一個格子，畫面不會一格一格跳
@@ -34,7 +34,7 @@ export function render() {
   ctx.save(); ctx.translate(-cx, -cy);
   const vis = (x, y, m = 40) => x > cx - m && x < cx + LW + m && y > cy - m && y < cy + LH + m;
   const L = [];
-  addLight(L, G.P.x, G.P.y - 8, 112 + Math.sin(G.time * 9) * 2, 0);
+  addLight(L, G.me.x, G.me.y - 8, 112 + Math.sin(G.time * 9) * 2, 0);
   const tx0 = Math.max(0, Math.floor(cx / TS)), tx1 = Math.min(MW - 1, Math.floor((cx + LW) / TS)), ty0 = Math.max(0, Math.floor(cy / TS)), ty1 = Math.min(MH - 1, Math.floor((cy + LH) / TS));
   const lavaT = [];
   for (let y = ty0; y <= ty1; y++) for (let x = tx0; x <= tx1; x++) {
@@ -68,7 +68,7 @@ export function render() {
     if (Math.random() < .2) G.parts.push({ x:G.lost.x + rr(-3, 3), y:G.lost.y - 4, vx:0, vy:-18, life:.6, max:.6, col:'#b49cff', s:1 }); addLight(L, G.lost.x, G.lost.y - 4, 30, 3); }
   for (const e of G.enemies) if (vis(e.x, e.y)) drawTelegraph(e);
   if (G.B) drawTelegraph(G.B);
-  G.RB_L = L; for (const e of rbs) { if (e.dead) continue; if (e.state !== 'sleep') { drawBarrier(e); drawRBTele(e); } else if (Math.hypot(G.P.x - e.def.x, G.P.y - e.def.y) < e.def.R + 120) drawBarrier(e, true); }
+  G.RB_L = L; for (const e of rbs) { if (e.dead) continue; if (e.state !== 'sleep') { drawBarrier(e); drawRBTele(e); } else if (Math.hypot(G.me.x - e.def.x, G.me.y - e.def.y) < e.def.R + 120) drawBarrier(e, true); }
   const list = [];
   for (const e of G.enemies) if (vis(e.x, e.y)) list.push({ y:e.y, f:() => drawEnemy(e) });
   if (G.B && vis(G.B.x, G.B.y, 60)) list.push({ y:G.B.y, f:() => drawEnemy(G.B) });
@@ -88,8 +88,10 @@ export function render() {
       if (k > .7) { ctx.globalAlpha = .5 * (k - .7) / .3; ctx.drawImage(g.flip ? sp.wf : sp.wn, X, Y, w, h); } }
     ctx.restore(); }
   ctx.globalAlpha = 1;
-  if (G.P.dash) addLight(L, G.P.x, G.P.y - 8, 50, 3);
-  list.push({ y:G.P.y, f:drawPlayer });
+  for (const pl of G.players) {                                       // 每個玩家都畫，跟其他東西一起依 y 排序
+    if (pl.dash) addLight(L, pl.x, pl.y - 8, 50, 3);
+    list.push({ y:pl.y, f:() => drawPlayer(pl) });
+  }
   list.sort((a, b) => a.y - b.y); for (const it of list) it.f();
   for (const p of G.projs) {
     if (p.kind === 'spore') { ctx.fillStyle = OL; ctx.fillRect(Math.round(p.x - 3), Math.round(p.y - 3), 6, 6); ctx.fillStyle = '#c46ad8'; ctx.fillRect(Math.round(p.x - 2), Math.round(p.y - 2), 4, 4); ctx.fillStyle = '#f0c8ff'; ctx.fillRect(Math.round(p.x - 1), Math.round(p.y - 1), 1, 1); addLight(L, p.x, p.y, 20, 2); }
@@ -133,7 +135,7 @@ export function render() {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  const RG = REGIONS[regAt(G.P.x, G.P.y)];
+  const RG = REGIONS[regAt(G.me.x, G.me.y)];
   light.amb += (RG.amb - light.amb) * .03; for (let k = 0; k < 3; k++) light.t[k] += (RG.tint[k] - light.t[k]) * .03;
   if (G.region === 'forest' || light.amb > .25) {
     for (let i = 0; i < 5 && G.region === 'forest'; i++) { const span = LW + 160; const mx = ((i * 137 + G.time * (6 + i * 2) * (i % 2 ? 1 : -1) - cx * .3) % span + span) % span - 80, my = ((i * 61 - cy * .3) % LH + LH) % LH;
@@ -162,6 +164,6 @@ export function render() {
     drawNum(n.txt, n.x - cx, n.y - cy - rise * 10, n.col, sc);
   }
   ctx.globalAlpha = 1;
-  if (G.P.hurt > 0) { ctx.fillStyle = 'rgba(200,30,40,' + (G.P.hurt * .5) + ')'; ctx.fillRect(0, 0, LW, LH); }
-  if (G.P.dead) { ctx.fillStyle = 'rgba(0,0,0,' + Math.min(.75, G.deathT * .4) + ')'; ctx.fillRect(0, 0, LW, LH); }
+  if (G.me.hurt > 0) { ctx.fillStyle = 'rgba(200,30,40,' + (G.me.hurt * .5) + ')'; ctx.fillRect(0, 0, LW, LH); }
+  if (G.me.dead) { ctx.fillStyle = 'rgba(0,0,0,' + Math.min(.75, G.me.deathT * .4) + ')'; ctx.fillRect(0, 0, LW, LH); }
 }
