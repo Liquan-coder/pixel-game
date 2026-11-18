@@ -4,7 +4,7 @@ import { $, mulberry32, pick, rr } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
 import { SH, sculpt } from '../art/monsters';
 import { randomLoot } from '../data/items';
-import { ARENA, CAMPS, GROUND, MH, MW, RFLOOR, ROAD, TS, WALKABLE, map, reg } from './map';
+import { ARENA, CAMPS, GROUND, MH, MW, RFLOOR, ROAD, TOWNS, TS, WALKABLE, map, reg } from './map';
 import { RBDEF } from './regionBoss';
 import { drawArtSprite } from './chunks';
 import { dropItem, makeEnemy } from '../game/enemies';
@@ -40,7 +40,7 @@ export function genChests(reach: Uint8Array) {
     while (n < 8 && tries++ < 20000) {
       const x = 4 + Math.floor(R() * (MW - 8)), y = 4 + Math.floor(R() * (MH - 8));
       if (reg[I(x, y)] !== r || !open(x, y) || blocked(x, y)) continue;
-      if (CAMPS.some(c => Math.hypot(c.tx - x, c.ty - y) < 12)) continue;
+      if (CAMPS.some(c => Math.hypot(c.tx - x, c.ty - y) < 12) || TOWNS.some(T => Math.hypot(T.tx - x, T.ty - y) < T.r + 6)) continue;
       let road = false; for (let dy = -4; dy <= 4 && !road; dy++) for (let dx = -4; dx <= 4; dx++) if (map[I(x + dx, y + dy)] === ROAD) { road = true; break; }
       if (road) continue;                                              // 不要擺在路邊：要稍微探索才找得到
       const q = R(), tier = q < .1 ? 2 : q < .4 ? 1 : 0;

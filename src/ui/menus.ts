@@ -10,11 +10,12 @@ import { burst } from '../game/worldUpdate';
 import { renderBigMap } from '../render/map';
 import { openMenu, setMenu, toast } from './hud';
 import { moveMerchant } from './shop';
+import { restockSmiths } from '../world/towns';
 import { save } from '../game/save';
 import { pickUp } from '../game/worldUpdate';
 
 export function restAt(c) {
-  moveMerchant();
+  moveMerchant(); restockSmiths();
   G.lastCamp = c.id; restoreWorld(); save(); sfx.level();
   burst(G.me.x, G.me.y - 6, 14, '#f2c14e', 40); G.curCamp = c; G.campTab = 'lv'; renderCamp(); setMenu('camp');
 }

@@ -57,7 +57,7 @@ const pageScript = async () => {
   const { startGame } = await imp('main');
   const menus = await imp('ui/menus');
   const shop = await imp('ui/shop');
-  const await0 = { chests: await imp('world/chests') };
+  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns') };
 
   const step = (n, opts = {}) => {
     for (let i = 0; i < n; i++) {
@@ -118,6 +118,12 @@ const pageScript = async () => {
     setMenu(null);
     shop.openShop(); step(2);
     for (const b of document.querySelectorAll('#shopMenu [data-stab], #shopMenu button')) { if (!b.hasAttribute('data-close')) { b.click(); step(1); } }
+    setMenu(null); step(2);
+    const towns = await0.towns; const sm = towns.NPCS.find(n => n.smith); tp(sm.x, sm.y + 12); step(2);
+    if (!towns.nearSmith()) throw new Error('站在鐵匠旁邊卻沒偵測到');
+    shop.openShop(towns.nearSmith()); step(2);
+    if (!sm.stock || sm.stock.length < 5) throw new Error('鐵匠沒有貨');
+    for (const b of document.querySelectorAll('#shopMenu [data-s]')) { b.click(); step(1); }
     setMenu(null); step(2);
   });
 

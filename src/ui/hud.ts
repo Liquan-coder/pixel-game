@@ -6,6 +6,7 @@ import { curEq, held, level } from '../game/player';
 import { nearCamp } from '../game/playerUpdate';
 import { nearMerchant } from './shop';
 import { nearChest } from '../world/chests';
+import { nearSmith } from '../world/towns';
 import { itemCard } from './menus';
 import { SCALE } from '../core/canvas';
 import { view } from '../render/render';
@@ -23,7 +24,9 @@ export function updateHUD() {
   if (hudCache.sec !== sec) { if (hudCache.sec && !sec) { const h = $('skillHud'); h.classList.remove('ready'); void h.offsetWidth; h.classList.add('ready'); }   // 冷卻好了閃一下
     hudCache.sec = sec; $('skillHud').classList.toggle('cool', !!sec); for (const id of ['skillHudSec', 'bSkillSec']) { $(id).hidden = !sec; $(id).textContent = sec; } }
   let show = !!((!G.paused && G.started) ? nearCamp(G.me) : null);
-  let shop = !!(!G.paused && G.started && nearMerchant());
+  const smith = !G.paused && G.started ? nearSmith() : null;
+  let shop = !!(!G.paused && G.started && (smith || nearMerchant()));
+  setText('shopBtn', smith ? '和鐵匠交易' : '和流浪商人交易');
   const pk = !G.paused && G.started ? G.pick : null, pkKey = pk ? pk.item.id + ':' + (curEq(G.me)[slotOf(pk.item)]?.id ?? '') : '';
   if (hudCache.pick !== pkKey) { hudCache.pick = pkKey; $('pickBox').hidden = !pk;
     if (pk) $('pickCard').innerHTML = itemCard(pk.item, curEq(G.me)[slotOf(pk.item)]); }   // 跟身上同部位的裝備比較（▲▼）

@@ -1,6 +1,6 @@
 import { mulberry32 } from '../core/util';
 import { SH, hash2, sculpt } from '../art/monsters';
-import { ARENA, BIGT, BRIDGE, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, LAVA, MW, PILLAR, RFLOOR, ROAD, ROCK, RWALL, TREE, WALKABLE, WATER, map, reg } from './map';
+import { ARENA, BIGT, BRIDGE, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, HOUSE, HOUSES, LAVA, MW, PILLAR, RFLOOR, ROAD, ROCK, RWALL, TREE, WALKABLE, WATER, map, reg } from './map';
 import { CARPU, CRUSTU, ICEW, LAVU, MUDW, NZ0, NZ1, NZ2, RUIN, RUINU, SCU, TA, UL, WATU, WOODU, groundK, hexU, isLavaish, isRoadish, isWallT, isWaterish, nz, tileAt } from './gen';
 
 export function bakeTileHD(buf, CA, tx, ty, ox, oy) {
@@ -277,6 +277,42 @@ function hdBigTree() { const L = SRAMP.leaf, B = SRAMP.bark, R = mulberry32(77);
     for (const [x, y0] of [[72, 130], [84, 150], [76, 168]]) for (let y = y0; y < y0 + 16; y++) a.set(x + Math.round(Math.sin(y * .5) * 1.5), y, B[0]);
     a.ell(80, 150, 5, 7, '#1a0e06'); });
 }
+/* 房子：整棟畫成一張圖，剛好蓋住它佔的格子（上半是屋頂、下半是正面的牆）。snow = 屋頂積雪 + 冰柱、牆是原木 */
+const ROOFS = [['#3a0e10', '#5e1a1c', '#8a2a26', '#b04432', '#d06648'], ['#10203a', '#1c3460', '#2a4a86', '#3e64a8', '#5a82c4'],
+  ['#14301c', '#22482a', '#346638', '#4a8448', '#6aa25c'], ['#2a1a10', '#46301c', '#6a4a2a', '#8a663a', '#a8824e']];
+function hdHouse(wT, hT, roof, snow, smith) {
+  const W = wT * TA, H = hT * TA, R = ROOFS[roof], eave = Math.round(H * .56), WALL = snow ? SRAMP.bark : ['#8a7a5e', '#b0a080', '#cfc0a0', '#e4d8bc', '#f2ead4'];
+  const BEAM = ['#2e1c0e', '#4a3018', '#6a4626'], rng = mulberry32(wT * 31 + hT * 7 + roof);
+  return sculpt(W, H, [
+    { sh: SH.box(W / 2, (eave + H) / 2 - 2, W / 2 - 7, (H - eave) / 2, 9), ramp: WALL, tex: .15, grp: 1 },
+    { sh: SH.poly([[16, 4], [W - 16, 4], [W - 1, eave + 4], [1, eave + 4]]), ramp: R, tex: .12, bias: .1, grp: 2 },
+    { sh: SH.box(W * .72, 12, 7, 12, 9), ramp: ['#2a2834', '#4a4858', '#6e6c86', '#8e8ca6'], tex: .2, grp: 3 },
+  ], a => {
+    for (let y = 8; y < eave + 3; y += 7) for (let x = 0; x < W; x++) if (a.pid(x, y) === 1) a.set(x, y, R[0]);           // 一排一排的瓦片
+    for (let y = 8; y < eave + 3; y += 7) for (let x = ((y / 7) & 1) * 6; x < W; x += 12) for (let k = 1; k < 7; k++) if (a.pid(x, y + k) === 1) a.set(x, y + k, R[1]);
+    for (let x = 0; x < W; x++) if (a.pid(x, eave + 4) === 1 || a.pid(x, eave + 3) === 1) a.set(x, eave + 3, R[0]);
+    const wy = eave + 5, wb = H - 3;
+    if (snow) { for (let y = wy; y < wb; y += 6) for (let x = 8; x < W - 8; x++) if (a.pid(x, y) === 0) a.set(x, y, WALL[0]); }   // 原木牆
+    else { for (const x of [8, W / 2 - 1, W - 10]) for (let y = wy; y < wb; y++) { a.set(x, y, BEAM[1]); a.set(x + 1, y, BEAM[0]); }   // 木頭樑柱
+      for (let x = 8; x < W - 8; x++) { a.set(x, wy, BEAM[1]); a.set(x, wy + 1, BEAM[0]); } }
+    const dw = 18, dx = Math.round(W / 2 - dw / 2) + (wT > 3 ? 14 : 0), dh = Math.min(30, wb - wy - 6);            // 門
+    a.rect(dx - 2, wb - dh - 2, dw + 4, dh + 2, BEAM[0]); a.rect(dx, wb - dh, dw, dh, '#5a3c26');
+    for (let x = dx + 4; x < dx + dw; x += 5) for (let y = wb - dh; y < wb; y++) a.set(x, y, '#3a2414');
+    a.set(dx + dw - 4, wb - dh / 2, '#f2c14e');
+    const winY = wy + 8;                                                                                     // 窗戶：暖黃色的燈光
+    for (const wx of wT > 3 ? [16, dx - 26] : [10]) if (wx > 6) { a.rect(wx - 2, winY - 2, 20, 18, BEAM[0]); a.rect(wx, winY, 16, 14, '#ffd27a');
+      a.rect(wx, winY, 16, 3, '#fff0b0'); a.rect(wx + 7, winY, 2, 14, BEAM[1]); a.rect(wx, winY + 6, 16, 2, BEAM[1]);
+      if (!snow) for (let x = wx - 2; x < wx + 18; x++) { a.set(x, winY + 15, '#6a4626'); if (x % 3) a.set(x, winY + 14, rng() < .5 ? '#f29bb8' : '#f4e27a'); } }   // 花台
+    if (snow) { for (let x = 0; x < W; x++) { let top = -1; for (let y = 0; y < eave + 5; y++) if (a.pid(x, y) === 1) { top = y; break; }   // 屋頂積雪
+        if (top < 0) continue; const d = 10 + Math.round(Math.sin(x * .3) * 3 + rng() * 2); for (let y = top; y < Math.min(eave + 3, top + d); y++) a.set(x, y, y - top < 2 ? '#ffffff' : y - top > d - 3 ? '#b8c8dc' : '#e8f0fa'); }
+      for (let x = 4; x < W - 4; x += 5 + Math.floor(rng() * 4)) { const L = 3 + Math.floor(rng() * 7); for (let k = 0; k < L; k++) a.set(x, eave + 5 + k, k < L - 2 ? '#dcecff' : '#a8c8f0'); } }   // 冰柱
+    if (smith) { const sx = dx + dw + 6, sy = wy + 4;                                                       // 鐵匠鋪：門邊掛鐵砧招牌
+      a.rect(sx, sy, 22, 16, '#3a2414'); a.rect(sx + 1, sy + 1, 20, 14, '#7a5434');
+      a.rect(sx + 5, sy + 5, 12, 3, '#4a4858'); a.rect(sx + 8, sy + 8, 6, 3, '#4a4858'); a.rect(sx + 6, sy + 11, 10, 2, '#4a4858'); a.rect(sx + 5, sy + 5, 12, 1, '#9a98b0'); }
+  });
+}
+const HOUSE_ART = new Map();
+function houseArt(h) { const k = h.w + ',' + h.h + ',' + h.roof + ',' + h.snow + ',' + !!h.smith; if (!HOUSE_ART.has(k)) HOUSE_ART.set(k, hdHouse(h.w, h.h, h.roof, h.snow, h.smith)); return HOUSE_ART.get(k); }
 const SCN = {
   trees: [[hdTreeRound(1, SRAMP.leaf, SRAMP.bark), hdTreeRound(2, SRAMP.leaf, SRAMP.bark), hdTreeRound(3, SRAMP.leaf, SRAMP.bark)],
     [hdPine(4), hdPine(5), hdPine(6)], [hdDead(7, SRAMP.dead), hdDead(8, SRAMP.dead)], [hdSpike(9), hdSpike(10)], [hdDead(11, SRAMP.obs), hdTreeRound(12, SRAMP.leafD, SRAMP.bark)],
@@ -294,6 +330,8 @@ export function bakeObjectHD(g, tx, ty, x, y) {
   else if (t === PILLAR) { shadowEll(g, x + TA / 2, y + TA - 4, 22, 5, .35); blit(SCN.pillars[r], 0, -1); }
   else if (t === CRATE) { shadowEll(g, x + TA / 2, y + TA - 4, 22, 5, .35); blit(SCN.crate, 0, -2); }
   else if (t === GRAVE) blit(SCN.graves[(tx + ty) & 1], 0, -2);
+  else if (t === HOUSE) { const h = HOUSES.find(h => h.tx === tx && h.ty + h.h - 1 === ty);                // 只在房子的左下角那格畫整棟
+    if (h) { shadowEll(g, x + h.w * TA / 2, y + TA - 2, h.w * TA / 2 + 4, 8, .3); g.drawImage(houseArt(h), x, y + TA - h.h * TA); } }
   else if (t === BIGT && tileAt(tx - 1, ty) !== BIGT && tileAt(tx, ty + 1) !== BIGT) {
     shadowEll(g, x + TA, y + TA - 2, 70, 10, .3); g.drawImage(SCN.big, Math.round(x + TA - SCN.big.width / 2), Math.round(y + TA + 4 - SCN.big.height)); }
 }

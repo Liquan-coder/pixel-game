@@ -1,11 +1,11 @@
 import { G } from '../core/state';
 import { $ } from '../core/util';
-import { BIGT, BRIDGE, CLIFF, CRATE, FOG, GRAVE, GROUND, LAVA, MH, MW, PILLAR, RFLOOR, ROAD, ROCK, RWALL, TREE, TS, WATER, explored, map, reg } from './map';
+import { BIGT, BRIDGE, CLIFF, CRATE, FOG, GRAVE, GROUND, HOUSE, LAVA, MH, MW, PILLAR, RFLOOR, ROAD, ROCK, RWALL, TREE, TS, WATER, explored, map, reg } from './map';
 
 export const mini = $<HTMLCanvasElement>('mini'), mctx = mini.getContext('2d');
 export const miniBase = document.createElement('canvas'); miniBase.width = MW; miniBase.height = MH;
 const mbx = miniBase.getContext('2d');
-const MCOL = { [ROAD]:'#b8956a', [WATER]:'#3b6ea8', [LAVA]:'#e8743b', [RWALL]:'#2a2633', [RFLOOR]:'#7a768a', [BRIDGE]:'#8a6038', [TREE]:null, [ROCK]:'#6b6878', [PILLAR]:'#2a2633', [CRATE]:'#7a5434', [FOG]:'#e8e4ff', [GRAVE]:'#8a8696', [BIGT]:'#2a5a26' };
+const MCOL = { [ROAD]:'#b8956a', [WATER]:'#3b6ea8', [LAVA]:'#e8743b', [RWALL]:'#2a2633', [RFLOOR]:'#7a768a', [BRIDGE]:'#8a6038', [TREE]:null, [ROCK]:'#6b6878', [PILLAR]:'#2a2633', [CRATE]:'#7a5434', [FOG]:'#e8e4ff', [GRAVE]:'#8a8696', [BIGT]:'#2a5a26', [HOUSE]:'#a8503a' };
 const MGROUND = ['#5a9a46', '#2f5a3e', '#9a8a6a', '#3a2b2d', '#3a3444', '#c8d4e2', '#2b3822'], MTREE = ['#3a7a30', '#1c4635', '#6a5a44', '#2a1e20', '#3a7a30', '#2a4a5c', '#3a3220'], MCLIFF = ['#3a352e', '#232a22', '#5a4a34', '#1a1214', '#14111b', '#5a667c', '#12160e'];
 const MWATER = { 5: '#8ab4d4', 6: '#2a3a22' };
 export function miniPix(i) {

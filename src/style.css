@@ -169,6 +169,10 @@ body:not(.touch) #controls{display:none}
 #zoneHint{position:absolute;left:50%;transform:translateX(-50%);top:calc(96px + env(safe-area-inset-top,0px));background:#000c;border:2px solid #8a3446;padding:5px 14px;font-size:14px;text-align:center;white-space:nowrap;color:var(--gold);text-shadow:1px 1px 0 #000}
 #zoneHint small{display:block;font-size:12px;color:var(--muted)}
 #zoneHint .weak{color:#ff8a7a}
+#talk{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));max-width:min(520px,70vw);background:#0b0814e6;border:2px solid var(--line);box-shadow:0 0 0 2px var(--ink);padding:7px 14px;font-size:14px;line-height:1.5;text-align:left;text-shadow:1px 1px 0 #000;animation:tin .25s steps(3)}
+#talk b{display:block;color:var(--gold);font-weight:400;font-size:12px;letter-spacing:.1em}
+#talk small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.touch #talk small{display:none}
 #shopBtn{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom,0px));pointer-events:auto;background:#1e3a30;border:3px solid #5ae0b0;color:#c8ffe8;font-size:15px;padding:8px 18px;box-shadow:inset -3px -3px 0 #0007,0 0 0 2px var(--ink),0 0 18px #5ae0b055}
 #chestBtn{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom,0px));pointer-events:auto;background:#3a2a10;border:3px solid #f2c14e;color:#ffe9a8;font-size:15px;padding:8px 18px;box-shadow:inset -3px -3px 0 #0007,0 0 0 2px var(--ink),0 0 18px #f2c14e66;animation:pulse 1.2s steps(4) infinite}
 #chestBtn small{font-size:11px;opacity:.7;margin-left:4px}

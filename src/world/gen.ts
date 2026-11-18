@@ -1,7 +1,7 @@
 import { G } from '../core/state';
 import { clamp, makeNoise, mulberry32 } from '../core/util';
 import { hash2 } from '../art/monsters';
-import { ARENA, BIGT, BRIDGE, CAMPS, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, LAVA, MH, MW, OPEN_REGIONS, PILLAR, REGIONS, RFLOOR, ROAD, ROADS, ROCK, RWALL, SOLID, TREE, TS, WALKABLE, WATER, braziers, glows, map, reg, shade, spawns, torches } from './map';
+import { ARENA, BIGT, BRIDGE, CAMPS, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, HOUSE, HOUSES, LAVA, MH, MW, OPEN_REGIONS, PILLAR, REGIONS, TOWNS, RFLOOR, ROAD, ROADS, ROCK, RWALL, SOLID, TREE, TS, WALKABLE, WATER, braziers, glows, map, reg, shade, spawns, torches } from './map';
 import { RBDEF } from './regionBoss';
 export let reachable: Uint8Array = null;                               // 從起點走得到的格子（genWorld 算好）
 
@@ -81,6 +81,20 @@ export function genWorld() {
     for (let d = 0; d <= L; d += .5) { const t = d / L, nx = -(y1 - y0) / L, ny = (x1 - x0) / L, w = Math.sin((d + k * 13 + s * 7) * .17) * 1.5 * Math.min(1, d / 4, (L - d) / 4);
       const x = Math.round(x0 + (x1 - x0) * t + nx * w), y = Math.round(y0 + (y1 - y0) * t + ny * w);
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) setRoad(x + dx, y + dy); } } });
+  // 城鎮：清出一塊地 → 廣場 + 十字街 → 一圈房子 → 廣場四角的火盆
+  HOUSES.length = 0;
+  for (const T of TOWNS) { const { tx: cx, ty: cy } = T;
+    clearDisk(cx, cy, T.r, false);
+    for (let y = cy - T.r; y <= cy + T.r; y++) for (let x = cx - T.r; x <= cx + T.r; x++) { if (!inb(x, y)) continue; const d = Math.hypot(x - cx, y - cy);
+      if (d <= T.r && (map[I(x, y)] === CLIFF || map[I(x, y)] === WATER)) map[I(x, y)] = GROUND;
+      if (d < 4.6 || (Math.abs(y - cy) <= 1 && Math.abs(x - cx) < T.r - 1) || (Math.abs(x - cx) <= 1 && Math.abs(y - cy) < T.r - 1)) map[I(x, y)] = ROAD; }
+    const LAY = [[-10, -8, 4, 4], [-5, -11, 4, 4], [3, -10, 5, 4], [-10, 3, 4, 4], [4, 3, 5, 4], [-5, 6, 3, 3], [9, -4, 3, 3]];
+    LAY.forEach(([dx, dy, w, h], k) => { const x0 = cx + dx, y0 = cy + dy;
+      for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) if (inb(x, y)) map[I(x, y)] = HOUSE;
+      const door = I(x0 + (w >> 1), y0 + h); if (!WALKABLE(map[door])) map[door] = GROUND;   // 門口一定走得到
+      HOUSES.push({ tx: x0, ty: y0, w, h, roof: (k * 3 + (T.snow ? 1 : 0)) % 4, snow: T.snow, smith: k === 4 }); });
+    for (const [bx, by] of [[-3, -3], [3, -3], [-3, 4], [3, 4]]) braziers.push({ x: (cx + bx) * TS + 8, y: (cy + by) * TS + 12 });
+  }
   // 狼王巢穴
   for (let y = ARENA.y0 - 2; y <= ARENA.y1 + 2; y++) for (let x = ARENA.x0 - 2; x <= ARENA.x1 + 2; x++) {
     const i = I(x, y), inside = x >= ARENA.x0 && x <= ARENA.x1 && y >= ARENA.y0 && y <= ARENA.y1;
@@ -111,6 +125,7 @@ export function genWorld() {
     for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) if (!WALKABLE(map[I(tx + dx, ty + dy)])) return false;
     if (tx >= ARENA.x0 - 3 && tx <= ARENA.x1 + 3 && ty >= ARENA.y0 - 3 && ty <= ARENA.y1 + 3) return false;
     for (const c of CAMPS) if (Math.hypot(c.tx - tx, c.ty - ty) < 10) return false;
+    for (const T of TOWNS) if (Math.hypot(T.tx - tx, T.ty - ty) < T.r + 7) return false;   // 鎮上和鎮外一圈沒有怪
     for (const d of Object.values(RBDEF)) if (Math.hypot(d.tx - tx, d.ty - ty) < d.tr + 5) return false; return true; };
   const TABLE = [
     { n:80, lv:[1,5], anchor:[30,165], kinds:lv => lv <= 2 ? 'slime' : lv >= 4 ? (R2() < .75 ? 'wolf' : 'slime') : (R2() < .5 ? 'wolf' : 'slime') },
