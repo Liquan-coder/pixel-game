@@ -13,7 +13,7 @@ import { updateBoss } from './boss';
 import { aoeHit, damageEnemy, hurtPlayer, targets } from './combat';
 import { updatePlayer } from './playerUpdate';
 import { STARC, asn } from '../render/fx';
-import { toast } from '../ui/hud';
+import { gain, toast } from '../ui/hud';
 import { nearestPlayer } from './player';
 
 /* ================= WORLD UPDATE ================= */
@@ -63,7 +63,7 @@ function explode(p) { p.exploded = true; aoeHit(p.by, p.x, p.y + 6, 40, p.mult);
 /* ---- 金幣：掉在地上，靠近會自己飛過來 ---- */
 /* coins → 已移到 G（core/state.js） */
 export function dropGold(x, y, v) { if (v <= 0) return; const n = Math.min(6, 1 + Math.floor(v / 10));
-  for (let i = 0; i < n; i++) G.coins.push({ x, y, z:2, vz:rr(60, 110), vx:rr(-45, 45), vy:rr(-35, 35), v:Math.max(1, Math.round(v / n)), t:rr(0, 1), mag:false });
+  for (let i = 0; i < n; i++) G.coins.push({ x, y, z:2, vz:rr(60, 110), vx:rr(-45, 45), vy:rr(-35, 35), v:Math.floor(v / n) + (i < v % n ? 1 : 0), t:rr(0, 1), mag:false });   // 平均分，加起來剛好等於 v
   capCoins(); }
 /* ---- 魂晶：打倒敵人時噴出來，落地後自己飛向打倒它的玩家（不用走過去撿，也不會漏掉） ---- */
 export function dropSouls(x, y, v, by) { if (v <= 0) return; const n = Math.min(10, 1 + Math.floor(v / 15));
@@ -82,6 +82,7 @@ function updateCoins(dt) {
     if (c.soul ? c.t > .45 : !pl.dead && c.t > .35 && d < 52) { c.mag = true; c.to = pl; }
     if (c.mag) { const sp = 140 + 500 * Math.min(1, c.t); c.x += dx / (d || 1) * sp * dt; c.y += dy / (d || 1) * sp * dt; c.z = Math.max(0, c.z - 60 * dt);
       if (d < 7) { if (c.soul) { pl.souls += c.v; sfx.soul(); } else { pl.gold += c.v; sfx.coin(); } G.coins.splice(i, 1);
+        if (pl === G.me) c.soul ? gain('soul', '魂晶', c.v, '#b49cff') : gain('gold', '金幣', c.v, '#f2c14e');
         G.parts.push({ x:pl.x + rr(-3, 3), y:pl.y - 12, vx:rr(-10, 10), vy:-30, life:.3, max:.3, col:c.soul ? '#e8dcff' : '#fff0a8', star:1.2, drag:3 }); } } }
 }
 export function drawCoin(c) { const sp = (c.soul ? SOUL_SP : COIN_SP)[Math.floor(c.t * 10) % 4], w = sp.width * HK, h = sp.height * HK;
@@ -92,13 +93,21 @@ function updateDrops(dt) {
   for (let i = G.drops.length - 1; i >= 0; i--) {
     const d = G.drops[i]; d.t += dt;
     if (d.z > 0 || d.vz > 0) { d.z += d.vz * dt; d.vz -= 260 * dt; const o = { x:d.x, y:d.y, r:3 }; moveEnt(o, d.vx * dt, d.vy * dt); d.x = o.x; d.y = o.y; if (d.z <= 0) { d.z = 0; d.vz = 0; } }
-    const pl = d.z === 0 && G.players.find(pl => !pl.dead && Math.hypot(d.x - pl.x, d.y - pl.y) < 13);   // 誰走過去誰撿
-    if (pl) {
-      if (pl.inv.length >= 24) { if (!d.warned && pl === G.me) { toast('背包滿了，先去分解一些裝備', '#ff8a8a'); d.warned = true; } continue; }
-      pl.inv.push(d.item); G.drops.splice(i, 1);
-      if (pl === G.me) { const R = RAR[d.item.rarity]; toast('獲得 ' + R.n + '・' + d.item.name, R.c); sfx.pick(); }
-    }
   }
+  G.pick = G.me && !G.me.dead ? nearDrop(G.me) : null;               // 不會自動撿：靠近時顯示屬性，按 E 才撿
+}
+/* ---- 掉在地上的裝備：找最近的、撿起來 ---- */
+export function nearDrop(pl) {
+  let best = null, bd = 18;
+  for (const d of G.drops) { if (d.z > 0) continue; const dd = Math.hypot(d.x - pl.x, d.y - pl.y); if (dd < bd) { bd = dd; best = d; } }
+  return best;
+}
+export function pickUp(pl, d) {
+  if (pl.inv.length >= 24) { if (pl === G.me) toast('背包滿了，先去分解一些裝備', '#ff8a8a'); return false; }
+  const i = G.drops.indexOf(d); if (i < 0) return false;
+  G.drops.splice(i, 1); pl.inv.push(d.item);
+  if (pl === G.me) { const R = RAR[d.item.rarity]; toast('獲得 ' + R.n + '・' + d.item.name, R.c); sfx.pick(); }
+  return true;
 }
 function updateSpawns(dt) {
   for (const sp of spawns) if (!sp.alive) {

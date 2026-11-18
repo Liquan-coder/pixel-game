@@ -1,10 +1,11 @@
 import { G } from '../core/state';
 import { $, clamp } from '../core/util';
-import { WT } from '../data/items';
+import { WT, slotOf } from '../data/items';
 import { fightingRB, nearZone } from '../world/regionBoss';
-import { held, level } from '../game/player';
+import { curEq, held, level } from '../game/player';
 import { nearCamp } from '../game/playerUpdate';
 import { nearMerchant } from './shop';
+import { itemCard } from './menus';
 
 /* ================= HUD / UI ================= */
 const hudCache: Record<string, unknown> = {};
@@ -18,8 +19,12 @@ export function updateHUD() {
   const sec = G.me.skillCd > 0 ? (G.me.skillCd >= 1 ? String(Math.ceil(G.me.skillCd)) : G.me.skillCd.toFixed(1)) : '';   // 剩幾秒
   if (hudCache.sec !== sec) { if (hudCache.sec && !sec) { const h = $('skillHud'); h.classList.remove('ready'); void h.offsetWidth; h.classList.add('ready'); }   // 冷卻好了閃一下
     hudCache.sec = sec; $('skillHud').classList.toggle('cool', !!sec); for (const id of ['skillHudSec', 'bSkillSec']) { $(id).hidden = !sec; $(id).textContent = sec; } }
-  const show = !!((!G.paused && G.started) ? nearCamp(G.me) : null);
-  const shop = !!(!G.paused && G.started && nearMerchant());
+  let show = !!((!G.paused && G.started) ? nearCamp(G.me) : null);
+  let shop = !!(!G.paused && G.started && nearMerchant());
+  const pk = !G.paused && G.started ? G.pick : null, pkKey = pk ? pk.item.id + ':' + (curEq(G.me)[slotOf(pk.item)]?.id ?? '') : '';
+  if (hudCache.pick !== pkKey) { hudCache.pick = pkKey; $('pickBox').hidden = !pk;
+    if (pk) $('pickCard').innerHTML = itemCard(pk.item, curEq(G.me)[slotOf(pk.item)]); }   // 跟身上同部位的裝備比較（▲▼）
+  if (pk) { show = false; shop = false; }                           // 腳邊有裝備時，E 和下方按鈕都是「撿起」
   if (hudCache.shop !== shop) { hudCache.shop = shop; $('shopBtn').hidden = !shop; }
   if (hudCache.rest !== (show && !shop)) { hudCache.rest = show && !shop; $('restBtn').hidden = !(show && !shop); }
   setText('goldTxt', String(G.me.gold));
@@ -29,10 +34,21 @@ export function updateHUD() {
   if (G.B && !G.bossDead && G.B.state !== 'sleep') setScale('bossHp', G.B.hp / G.B.maxHp);
   const frb = fightingRB(); if (frb) setScale('bossHp', frb.hp / frb.maxHp);
 }
-export function toast(msg, col) {
-  const box = $('toasts'); const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg; if (col) el.style.color = col;
-  box.appendChild(el); while (box.children.length > 4) box.removeChild(box.firstChild);
-  setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 2600);
+/* ---- 畫面上方的播報：最多疊 5 行，每行 2 秒後消失；金幣、魂晶短時間內連續撿到會合併成一行一直往上加 ---- */
+const TOAST_MAX = 5, TOAST_MS = 2000;
+function pushToast(el, col) {
+  const box = $('toasts'); if (col) el.style.color = col;
+  box.appendChild(el); while (box.children.length > TOAST_MAX) box.removeChild(box.firstChild);
+  restartTimer(el);
+}
+function restartTimer(el) { clearTimeout(el._t); el._t = setTimeout(() => el.remove(), TOAST_MS); }
+export function toast(msg, col?) { const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg; pushToast(el, col); }
+const gains: Record<string, { el: HTMLElement & { _t?: any }, n: number }> = {};
+export function gain(key, label, n, col) {                          // 例：gain('gold', '金幣', 3, '#f2c14e') → 「金幣 +3」，再撿到就變「金幣 +6」
+  let g = gains[key];
+  if (g && g.el.isConnected) { g.n += n; $('toasts').appendChild(g.el); g.el.classList.remove('bump'); void g.el.offsetWidth; g.el.classList.add('bump'); restartTimer(g.el); }
+  else { g = gains[key] = { el: document.createElement('div'), n }; g.el.className = 'toast'; pushToast(g.el, col); }
+  g.el.innerHTML = label + ' <b>+' + g.n + '</b>';
 }
 let areaTimer = 0, bannerTimer = 0;
 export function showArea(n, s) {

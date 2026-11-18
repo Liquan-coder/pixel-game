@@ -11,6 +11,7 @@ import { renderBigMap } from '../render/map';
 import { openMenu, setMenu, toast } from './hud';
 import { moveMerchant } from './shop';
 import { save } from '../game/save';
+import { pickUp } from '../game/worldUpdate';
 
 export function restAt(c) {
   moveMerchant();
@@ -98,6 +99,7 @@ export function toggleMap() { if (openMenu === 'map') setMenu(null); else if (!o
 $('bagBtn').addEventListener('click', toggleInv);
 $('mapBtn').addEventListener('click', toggleMap);
 mini.addEventListener('click', toggleMap);
+$('pickBtn').addEventListener('click', () => { if (G.pick) pickUp(G.me, G.pick); });
 $('restBtn').addEventListener('click', () => { const c = nearCamp(G.me); if (c) restAt(c); });
 $('veil').addEventListener('click', () => setMenu(null));
 $('muteBtn').addEventListener('click', () => { G.muted = !G.muted; $('muteBtn').textContent = G.muted ? '音效 關' : '音效 開'; initAudio(); });

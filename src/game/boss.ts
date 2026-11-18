@@ -150,7 +150,7 @@ export function bossDie(by) {                                          // by = �
   dropItem(bossWeapon(), G.B.x, G.B.y); dropGold(G.B.x, G.B.y, 400);
   G.potMax += 1; by.pot = G.potMax;
   sfx.win(); shake(8, .8);
-  showBanner('強敵已擊敗', '獲得：狼牙雙刃 · 藥水上限 +1', 3200);
+  showBanner('強敵已擊敗', '掉落：狼牙雙刃 · 藥水上限 +1', 3200);
   G.B = null; save();
 }
 

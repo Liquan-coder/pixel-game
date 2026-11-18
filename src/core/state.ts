@@ -36,5 +36,5 @@ export const G = {
   miniT: 0,
   campTab: 'lv',
   curCamp: null,
-  selItem: null,
+  selItem: null, pick: null,
 };
