@@ -168,30 +168,36 @@ export function enemyJuice(e, sp) {
         if (e._air) { e._air = false; dustPuff(e.x, e.y, 5, 26); } }
       else { sy = 1 + .05 * Math.sin(A * 3); sx = 1 / sy; }            // 待機：呼吸
       break; }
-    case 'lunge': {                                                     // 狼、骷髏：跑起來往前傾、一顛一顛
-      if (st === 'windup') { lean = -.3 * wk * fl; sy = 1 - .2 * wk; sx = 1 + .12 * wk; }
-      else if (st === 'lunge') { lean = .4 * fl; sx = 1.26; sy = .82; if (Math.random() < .6) dustPuff(e.x - fl * 4, e.y, 1, 20); }
-      else if (st === 'recover') { const k = clamp(e.t / .9, 0, 1); lean = .12 * fl * k; sy = 1 - .06 * k; }
-      else if (moving) { const ph = A * 11; lean = .14 * rel * fl; lift = Math.abs(Math.sin(ph)) * 1.6 * rel; rot = Math.sin(ph) * .05 * rel; }
-      else { sy = 1 + .03 * Math.sin(A * 2.5); }
+    /* 史萊姆以外的怪都是「硬」的：不拉長、不壓扁，只有姿勢（前傾/後仰/抬高），而且姿勢是「一格一格切換」不是平滑晃動 → 動作俐落有力 */
+    case 'lunge': {                                                     // 狼、骷髏：壓低蓄勢 → 猛撲 → 停頓 → 站直
+      if (st === 'windup') { lean = -.28 * fl * Math.min(1, wk * 4); }     // 很快就後仰到底，然後停住發抖
+      else if (st === 'lunge') { lean = .38 * fl; if (Math.random() < .6) dustPuff(e.x - fl * 4, e.y, 1, 20); }
+      else if (st === 'recover') { lean = e.t > .35 ? .16 * fl : 0; }     // 撲完前傾停一下，再一下子站直
+      else if (moving) { const stp = Math.floor(A * 7);                    // 跑步：每一步切一次，腳步落地沒有過渡
+        lean = .12 * fl; lift = stp % 2; }
       break; }
-    case 'heavy': {                                                     // 石像魔、樹精：一步一步重重地踩
-      if (st === 'windup') { lean = -.2 * wk * fl; sy = 1 + .13 * wk; sx = 1 - .05 * wk; lift = 2 * wk; }
-      else if (st === 'recover') { const k = clamp((e.t - .55) / .35, 0, 1); sy = 1 - .2 * k; sx = 1 + .14 * k; lean = .14 * fl * k; }
-      else if (moving) { const ph = A * 3.4, stp = Math.floor(ph); rot = Math.sin(ph * Math.PI) * .1 * Math.min(1, rel); sy = 1 - .07 * Math.abs(Math.cos(ph * Math.PI));
-        if (e._step !== undefined && stp !== e._step) dustPuff(e.x + (stp % 2 ? 4 : -4), e.y, 3, 22); e._step = stp; }
-      else { sy = 1 + .025 * Math.sin(A * 1.8); }
+    case 'heavy': {                                                     // 石像魔、樹精：抬腳 → 重重踩下（地面震動）
+      if (st === 'windup') { const k = Math.min(1, wk * 3); lift = Math.round(3 * k); lean = -.16 * fl * k; }
+      else if (st === 'recover') { lean = e.t > .3 ? .14 * fl : 0; }
+      else if (moving) { const c = A * 1.7, stp = Math.floor(c), f = c - stp;
+        lift = f < .55 ? 0 : f < .85 ? 2 : 1;                            // 大部分時間踩在地上，抬腳一下就落地
+        rot = (stp % 2 ? .05 : -.05) * Math.min(1, rel);                  // 左右腳換邊時身體一下子換方向
+        if (e._step !== undefined && stp !== e._step) { dustPuff(e.x + (stp % 2 ? 4 : -4), e.y, 5, 28);
+          if (G.me && Math.hypot(e.x - G.me.x, e.y - G.me.y) < 90) { G.shakeMag = Math.max(G.shakeMag, .8); G.shakeT = Math.max(G.shakeT, .06); } }
+        e._step = stp; }
       break; }
-    case 'ranged': {                                                    // 毒菇：左右晃，噴之前先鼓起來
-      if (st === 'windup') { sx = 1 + .22 * wk; sy = 1 - .1 * wk + Math.sin(G.time * 40) * .03 * wk; }
-      else if (st === 'recover') { const k = clamp(e.t / .4, 0, 1); sy = 1 + .22 * k; sx = 1 - .1 * k; }
-      else { rot = Math.sin(A * 3) * .1; if (moving) lift = Math.abs(Math.sin(A * 9)) * 1.8 * rel; }
+    case 'ranged': {                                                    // 毒菇：噴之前後仰發抖，噴完被後座力推一下
+      if (st === 'windup') { lean = -.14 * fl * Math.min(1, wk * 3); }
+      else if (st === 'recover') { lean = e.t > .2 ? -.18 * fl : 0; }
+      else { rot = Math.floor(A * 2) % 2 ? .05 : -.05; if (moving) lift = Math.floor(A * 8) % 2; }
       break; }
     default:                                                            // boss：跑動時前傾就好，招式動作交給 boss 自己
       if (rel > .3 && !e.z) lean = .1 * Math.min(1, rel) * fl;
   }
-  if (e.hitT > 0) { const k = e.hitT / .32, w = Math.sin((1 - k) * 22) * k;   // 被打：往後仰 + 果凍般晃一下
-    lean += e.hitDir * .22 * k * k; sx *= 1 + .16 * w; sy *= 1 - .16 * w; }
+  if (e.hitT > 0) { const k = e.hitT / .32;
+    if (e.beh === 'slime' && !e.boss && !e.rb) { const w = Math.sin((1 - k) * 22) * k;   // 史萊姆被打：果凍般晃一下
+      lean += e.hitDir * .22 * k * k; sx *= 1 + .16 * w; sy *= 1 - .16 * w; }
+    else if (k > .6) { lean += e.hitDir * .2; shiver += e.hitDir * 1.5; } }   // 其他怪被打：往後一頓（被推開一點、後仰），然後馬上站回來
   if (e.stun > 0) rot += Math.sin(G.time * 9) * .1;                       // 暈眩：搖搖晃晃
   return { sx, sy, lean, rot, lift, shiver };
 }
