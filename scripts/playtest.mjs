@@ -1,18 +1,23 @@
 // 自動試玩測試：開 headless Chrome，直接 import 遊戲模組，把大部分的程式路徑都跑一遍
 // （6 種武器、所有小怪、4 隻 Boss、選單、雙人目標、存讀檔、死亡重生）
 //
-// 用法：
-//   1. 一個終端機：npm run dev
-//   2. 另一個終端機：npm run playtest
-//
-// ⚠ 改完程式後如果結果怪怪的，先重開 npm run dev：
-//   Vite 會在改過的檔案網址後面加 ?t=時間戳，測試 import 的模組就會跟遊戲用的不是同一份。
+// 用法：npm run playtest
+//   會自己開一個全新的 Vite 伺服器（隨機 port），測完就關掉。
+//   為什麼不用你開著的 npm run dev？跑很久的伺服器在檔案改過後，會在網址加 ?t=時間戳，
+//   測試 import 的模組就跟遊戲用的不是同一份，會出現「找不到 queen」這種假失敗。
+//   也可以指定網址：npm run playtest -- http://localhost:5173/
 import { spawn } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const url = process.argv[2] || 'http://localhost:5173/';
+import { createServer } from 'vite';
+
+let server = null, url = process.argv[2];
+if (!url || url === '-') {                                          // 沒指定網址 → 自己開一個乾淨的伺服器
+  server = await createServer({ logLevel: 'error', server: { port: 0, strictPort: false } });
+  await server.listen(); url = server.resolvedUrls.local[0];
+}
 const port = 9334;
 const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
   '--headless=new', `--remote-debugging-port=${port}`, '--no-first-run', '--mute-audio',
@@ -153,4 +158,4 @@ if (process.argv[3]) {                                              // 第二個
   const shot = await send('Page.captureScreenshot', { format: 'png' });
   writeFileSync(process.argv[3], Buffer.from(shot.result.data, 'base64'));
 }
-ws.close(); chrome.kill(); process.exit(fails.length || pageErrors.length ? 1 : 0);
+ws.close(); chrome.kill(); if (server) await server.close(); process.exit(fails.length || pageErrors.length ? 1 : 0);
