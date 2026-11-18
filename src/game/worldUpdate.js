@@ -1,0 +1,126 @@
+import { G } from '../core/state.js';
+import { TAU, pick, rr } from '../core/util.js';
+import { HK, LH, LW, ctx, snapF } from '../core/canvas.js';
+import { COIN_SP, RAR } from '../data/items.js';
+import { BLOCKP, TS, spawns } from '../world/map.js';
+import { updateRegionBosses } from '../world/regionBoss.js';
+import { tileAt } from '../world/gen.js';
+import { cam } from './player.js';
+import { moveEnt } from './collision.js';
+import { sfx } from '../core/audio.js';
+import { makeEnemy, updateEnemy } from './enemies.js';
+import { updateBoss } from './boss.js';
+import { aoeHit, damageEnemy, hurtPlayer, targets } from './combat.js';
+import { updatePlayer } from './playerUpdate.js';
+import { STARC, asn } from '../render/fx.js';
+import { toast } from '../ui/hud.js';
+
+/* ================= WORLD UPDATE ================= */
+function updateProjectiles(dt) {
+  for (let i = G.projs.length - 1; i >= 0; i--) {
+    const p = G.projs[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
+    let dead = p.life <= 0 || BLOCKP.has(tileAt(Math.floor(p.x / TS), Math.floor((p.y + 6) / TS)));
+    if (p.kind === 'fire' && Math.random() < .8) G.parts.push({ x:p.x, y:p.y, vx:rr(-15, 15), vy:rr(-15, 15), life:.3, max:.3, col: Math.random() < .5 ? '#f2c14e' : '#e8743b', s:2 });
+    if (p.kind === 'ember' && Math.random() < .7) G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:-p.vx * .1, vy:-p.vy * .1 - 10, life:.35, max:.35, col:pick(['#ffb040', '#ff6a2a']), s:1 });
+    if (p.kind === 'glob' && Math.random() < .5) G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:0, vy:10, life:.4, max:.4, col:'#4fbf5a', s:1, g:60 });
+    if (p.kind === 'claw' && Math.random() < .7) G.parts.push({ x:p.x + rr(-3, 3), y:p.y + rr(-3, 3), vx:-p.vx * .1, vy:-p.vy * .1, life:.3, max:.3, col:pick(p.cols ? [p.cols[1], '#ffffff'] : ['#ff5a5a', '#ffd0d0']), star:rr(.6, 1.6), drag:3 });
+    if ((p.kind === 'bolt' && Math.random() < .6) || p.kind === 'orb' || (p.kind === 'wave' && Math.random() < .8))
+      G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:-p.vx * .1 + rr(-15, 15), vy:-p.vy * .1 + rr(-15, 15), life:rr(.2, .4), max:.4, col:pick(p.kind === 'wave' && p.cols ? [p.cols[1], '#ffffff'] : STARC), star:rr(.6, p.kind === 'orb' ? 2.4 : 1.6), drag:3 });
+    if (p.kind === 'spore' && Math.random() < .3) G.parts.push({ x:p.x, y:p.y, vx:0, vy:-5, life:.4, max:.4, col:'#c46ad8', s:1 });
+    if (!dead && p.owner === 'e') {
+      if (Math.hypot(G.P.x - p.x, G.P.y - 6 - p.y) < p.r + G.P.r - 4) { hurtPlayer(p.dmg, p.x, p.y); dead = true; }
+    } else if (!dead && p.owner === 'p') {
+      for (const e of targets()) if (Math.hypot(e.x - p.x, e.y - 6 - p.y) < p.r + e.r) {
+        if (p.pierce) { if (p.hit.has(e)) continue; p.hit.add(e); damageEnemy(e, p.mult, p.x, p.y, { heavy:true }); continue; }
+        if (p.kind === 'fire') explode(p); else if (p.kind === 'orb') explodeOrb(p); else damageEnemy(e, p.mult, p.x, p.y);
+        dead = true; p.exploded = true; break; }
+    }
+    if (dead) { if (p.kind === 'fire' && !p.exploded) explode(p); if (p.kind === 'orb' && !p.exploded) explodeOrb(p); G.projs.splice(i, 1); }
+  }
+}
+function explodeOrb(p) {                                              // 星爆：大光圈 + 魔法陣 + 星光（滿蓄力分裂成六顆小魔彈）
+  p.exploded = true; aoeHit(p.x, p.y + 6, p.rad, p.mult, { heavy:true });
+  G.fx.push({ k:'warp', x:p.x, y:p.y + 6, r0:4, r1:p.rad, th:5, t:0, d:.4, col:'#b49cff' }); G.fx.push({ k:'rune', x:p.x, y:p.y + 6, r:p.rad * .6, t:0, d:.5, rot:rr(0, TAU) });
+  for (let i = 0; i < 18; i++) { const a = rr(0, TAU), sp = rr(60, 160); G.parts.push({ x:p.x, y:p.y, vx:Math.cos(a) * sp, vy:Math.sin(a) * sp * .7, life:rr(.3, .6), max:.6, col:pick(STARC), star:rr(1, 3), drag:4 }); }
+  if (p.split) for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + .3; G.projs.push({ x:p.x, y:p.y, vx:Math.cos(a) * 220, vy:Math.sin(a) * 220, r:3, life:.45, mult:.7, owner:'p', kind:'bolt' }); }
+  sfx.boom(); shake(5, .22);
+}
+export function quakeFx(x, y, R, red) {                                            // 震地：擴散的震波 + 放射狀裂痕 + 碎石
+  const rays = []; for (let i = 0; i < 7; i++) rays.push({ a:i / 7 * TAU + rr(-.3, .3), len:R * rr(.5, .9) });
+  G.fx.push({ k:'quake', x, y, r:R, rays, red, t:0, d:.55 });
+  for (let i = 0; i < 16; i++) { const a = rr(0, TAU), sp = rr(40, 120); G.parts.push({ x:x + Math.cos(a) * 6, y, vx:Math.cos(a) * sp, vy:-rr(60, 140), life:rr(.4, .7), max:.7, col:pick(['#8a7a64', '#5a4a3a', '#c8b496', '#ffb040']), s:1, g:420 }); }
+}
+export function hitSpark(x, y, crit, a) {                                     // 受擊：小光圈 + 順著攻擊方向噴出的星光
+  G.fx.push({ k:'warp', x, y, r0:2, r1:crit ? 12 : 8, th:2, sy:1, t:0, d:.13, col:crit ? '#ffd84a' : '#ffffff' });
+  for (let i = 0; i < (crit ? 7 : 4); i++) { const b = a + rr(-.9, .9), sp = rr(60, 140); G.parts.push({ x, y, vx:Math.cos(b) * sp, vy:Math.sin(b) * sp, life:rr(.15, .3), max:.3, col:crit ? '#ffd84a' : '#ffffff', star:rr(.8, crit ? 2.6 : 1.8), drag:7 }); }
+}
+export function killFx(e) {                                                    // 擊殺：紫色魂光往上飄 + 一圈光
+  G.fx.push({ k:'warp', x:e.x, y:e.y, r0:3, r1:e.elite ? 26 : 16, th:3, t:0, d:.35, col:'#b49cff' });
+  for (let i = 0; i < (e.elite ? 16 : 8); i++) G.parts.push({ x:e.x + rr(-6, 6), y:e.y - rr(2, 12), vx:rr(-12, 12), vy:-rr(30, 70), life:rr(.5, .9), max:.9, col:pick(['#b49cff', '#e8dcff', '#9a7cff']), star:rr(.8, 2), drag:1.5 });
+}
+function explode(p) { p.exploded = true; aoeHit(p.x, p.y + 6, 40, p.mult); G.fx.push({ k:'ring', x:p.x, y:p.y, r0:6, r1:42, t:0, d:.35, col:'#f2c14e' }); burst(p.x, p.y, 26, '#e8743b', 100); sfx.boom(); shake(4, .2); }
+/* ---- 金幣：掉在地上，靠近會自己飛過來 ---- */
+/* coins → 已移到 G（core/state.js） */
+export function dropGold(x, y, v) { if (v <= 0) return; const n = Math.min(6, 1 + Math.floor(v / 10));
+  for (let i = 0; i < n; i++) G.coins.push({ x, y, z:2, vz:rr(60, 110), vx:rr(-45, 45), vy:rr(-35, 35), v:Math.max(1, Math.round(v / n)), t:rr(0, 1), mag:false });
+  if (G.coins.length > 240) G.coins.splice(0, G.coins.length - 240); }
+function updateCoins(dt) {
+  for (let i = G.coins.length - 1; i >= 0; i--) { const c = G.coins[i]; c.t += dt;
+    if (!c.mag && (c.z > 0 || c.vz > 0)) { c.z += c.vz * dt; c.vz -= 300 * dt; const o = { x:c.x, y:c.y, r:2 }; moveEnt(o, c.vx * dt, c.vy * dt); c.x = o.x; c.y = o.y; if (c.z <= 0) { c.z = 0; c.vz = 0; } }
+    const dx = G.P.x - c.x, dy = G.P.y - 6 - c.y, d = Math.hypot(dx, dy);
+    if (!G.P.dead && c.t > .35 && d < 52) c.mag = true;
+    if (c.mag) { const sp = 140 + 500 * Math.min(1, c.t); c.x += dx / (d || 1) * sp * dt; c.y += dy / (d || 1) * sp * dt; c.z = Math.max(0, c.z - 60 * dt);
+      if (d < 7) { G.P.gold += c.v; G.coins.splice(i, 1); sfx.coin(); G.parts.push({ x:G.P.x + rr(-3, 3), y:G.P.y - 12, vx:rr(-10, 10), vy:-30, life:.3, max:.3, col:'#fff0a8', star:1.2, drag:3 }); } } }
+}
+export function drawCoin(c) { const sp = COIN_SP[Math.floor(c.t * 10) % 4], w = sp.width * HK, h = sp.height * HK;
+  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(asn(c.x - 1.5), asn(c.y), 3, HK);
+  ctx.drawImage(sp, snapF(c.x - w / 2), snapF(c.y - h - c.z + Math.sin(c.t * 5) * .6), w, h); }
+function updateDrops(dt) {
+  updateCoins(dt);
+  for (let i = G.drops.length - 1; i >= 0; i--) {
+    const d = G.drops[i]; d.t += dt;
+    if (d.z > 0 || d.vz > 0) { d.z += d.vz * dt; d.vz -= 260 * dt; const o = { x:d.x, y:d.y, r:3 }; moveEnt(o, d.vx * dt, d.vy * dt); d.x = o.x; d.y = o.y; if (d.z <= 0) { d.z = 0; d.vz = 0; } }
+    if (d.z === 0 && Math.hypot(d.x - G.P.x, d.y - G.P.y) < 13 && !G.P.dead) {
+      if (G.P.inv.length >= 24) { if (!d.warned) { toast('背包滿了，先去分解一些裝備', '#ff8a8a'); d.warned = true; } continue; }
+      G.P.inv.push(d.item); G.drops.splice(i, 1);
+      const R = RAR[d.item.rarity]; toast('獲得 ' + R.n + '・' + d.item.name, R.c); sfx.pick();
+    }
+  }
+}
+function updateSpawns(dt) {
+  for (const sp of spawns) if (!sp.alive) {
+    sp.timer -= dt;
+    if (sp.timer <= 0 && Math.hypot(sp.x - G.P.x, sp.y - G.P.y) > 240) { sp.alive = true; G.enemies.push(makeEnemy(sp.kind, sp.lv, sp.x, sp.y, sp)); }
+  }
+}
+function separate() {
+  const list = targets().filter(e => Math.abs(e.x - G.P.x) < 260 && Math.abs(e.y - G.P.y) < 200);
+  for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+    const a = list[i], b = list[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), m = a.r + b.r;
+    if (d > 0 && d < m) { const push = (m - d) / 2, nx = dx / d, ny = dy / d;
+      if (!a.boss) moveEnt(a, -nx * push, -ny * push); if (!b.boss) moveEnt(b, nx * push, ny * push); }
+  }
+}
+export function burst(x, y, n, col, spd) { for (let i = 0; i < n; i++) { const a = rr(0, TAU), s = rr(spd * .3, spd); G.parts.push({ x, y, vx:Math.cos(a) * s, vy:Math.sin(a) * s - 20, life:rr(.25, .6), max:.6, col, s: Math.random() < .3 ? 2 : 1, g:120 }); } }
+export function shake(m, t) { G.shakeMag = Math.max(G.shakeMag, m); G.shakeT = Math.max(G.shakeT, t); }
+const MOTE = { plains:{ col:'#fff4b0', vy:[-3, 3], vx:[4, 10], glow:false, n:16 }, forest:{ col:'#d8ff7a', vy:[-6, 6], vx:[-6, 6], glow:true, n:22 },
+  wastes:{ col:'#d8c8a8', vy:[-2, 4], vx:[10, 22], glow:false, n:30 }, lava:{ col:'#ffb04a', vy:[-22, -10], vx:[-5, 5], glow:true, n:28 }, den:{ col:'#c8c0d8', vy:[-3, 3], vx:[-3, 3], glow:false, n:16 } };
+export function updateMotes(dt) {
+  const M = MOTE[G.region] || MOTE.plains;
+  while (G.motes.length < M.n) G.motes.push({ x:cam.x + rr(0, LW), y:cam.y + rr(0, LH), vx:rr(M.vx[0], M.vx[1]), vy:rr(M.vy[0], M.vy[1]), life:rr(3, 7), t:0, col:M.col, glow:M.glow, ph:rr(0, 9) });
+  for (let i = G.motes.length - 1; i >= 0; i--) { const m = G.motes[i]; m.t += dt; m.x += m.vx * dt; m.y += m.vy * dt;
+    if (m.t > m.life || m.col !== M.col || m.x < cam.x - 20 || m.x > cam.x + LW + 20 || m.y < cam.y - 20 || m.y > cam.y + LH + 20) G.motes.splice(i, 1); }
+}
+
+export function update(dt) {
+  G.time += dt;
+  updatePlayer(dt);
+  for (let i = G.enemies.length - 1; i >= 0; i--) { const e = G.enemies[i]; if (Math.abs(e.x - G.P.x) < 520 && Math.abs(e.y - G.P.y) < 380) updateEnemy(e, dt); }
+  updateBoss(dt); updateRegionBosses(dt); separate(); updateProjectiles(dt); updateDrops(dt); updateSpawns(dt);
+  for (let i = G.fx.length - 1; i >= 0; i--) { G.fx[i].t += dt; if (G.fx[i].t >= G.fx[i].d) G.fx.splice(i, 1); }
+  for (let i = G.ghosts.length - 1; i >= 0; i--) { G.ghosts[i].life -= dt; if (G.ghosts[i].life <= 0) G.ghosts.splice(i, 1); }
+  for (let i = G.parts.length - 1; i >= 0; i--) { const p = G.parts[i]; p.life -= dt; if (p.life <= 0) { G.parts.splice(i, 1); continue; } p.x += p.vx * dt; p.y += p.vy * dt; if (p.g) p.vy += p.g * dt; if (p.drag) { const q = Math.exp(-p.drag * dt); p.vx *= q; p.vy *= q; } }
+  for (let i = G.nums.length - 1; i >= 0; i--) { G.nums[i].t += dt; if (G.nums[i].t >= G.nums[i].d) G.nums.splice(i, 1); }
+  if (G.shakeT > 0) { G.shakeT -= dt; if (G.shakeT <= 0) G.shakeMag = 0; }
+}
+
