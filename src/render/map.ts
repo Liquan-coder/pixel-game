@@ -1,7 +1,7 @@
 import { G } from '../core/state';
 import { $, clamp } from '../core/util';
 import { OL } from '../art/sprite';
-import { ARENA, CAMPS, DOOR, MH, MW, REGIONS, SUBS, TS, discovered, explored } from '../world/map';
+import { ARENA, CAMPS, DOOR, MH, MW, OPEN_REGIONS, REGIONS, SUBS, TS, discovered, explored } from '../world/map';
 import { RBDEF, rbDead } from '../world/regionBoss';
 import { mctx, miniBase, miniFull } from '../world/minimap';
 import { merchant } from '../ui/shop';
@@ -18,13 +18,13 @@ export function renderMini() {
   if (G.lost) { mctx.fillStyle = '#b49cff'; mctx.fillRect(Math.floor(G.lost.x / TS) - ox - 1, Math.floor(G.lost.y / TS) - oy - 1, 3, 3); }
   mctx.fillStyle = Math.floor(G.time * 4) % 2 ? '#ffffff' : '#7fdcff'; mctx.fillRect(px - ox - 1, py - oy - 1, 3, 3);
 }
-const bigmap = $<HTMLCanvasElement>('bigmap'), bctx = bigmap.getContext('2d');
+const bigmap = $<HTMLCanvasElement>('bigmap'), bctx = bigmap.getContext('2d'); bigmap.width = MW * 2; bigmap.height = MH * 2;
 export function renderBigMap() {
   bctx.imageSmoothingEnabled = false;
-  bctx.fillStyle = '#07060b'; bctx.fillRect(0, 0, 512, 384); bctx.globalAlpha = .28; bctx.drawImage(miniFull, 0, 0, 512, 384); bctx.globalAlpha = 1; bctx.drawImage(miniBase, 0, 0, 512, 384);
+  const BW = MW * 2, BH = MH * 2; bctx.fillStyle = '#07060b'; bctx.fillRect(0, 0, BW, BH); bctx.globalAlpha = .28; bctx.drawImage(miniFull, 0, 0, BW, BH); bctx.globalAlpha = 1; bctx.drawImage(miniBase, 0, 0, BW, BH);
   bctx.font = '12px "DotGothic16", "PingFang TC", sans-serif'; bctx.textAlign = 'center'; bctx.lineWidth = 3; bctx.strokeStyle = '#07060b';
   const label = (txt, x, y, col, size) => { bctx.font = size + 'px "DotGothic16", "PingFang TC", sans-serif'; bctx.strokeText(txt, x, y); bctx.fillStyle = col; bctx.fillText(txt, x, y); };
-  for (let k = 0; k < 4; k++) { const [x, y] = REGIONS[k].c; label(REGIONS[k].name, x * 2, y * 2, '#f1e7d0', 16); label(REGIONS[k].sub.replace('建議等級 ', 'Lv '), x * 2, y * 2 + 16, '#a99db8', 11); }
+  for (const k of OPEN_REGIONS) { const [x, y] = REGIONS[k].c; label(REGIONS[k].name, x * 2, y * 2, '#f1e7d0', 16); label(REGIONS[k].sub.replace('建議等級 ', 'Lv '), x * 2, y * 2 + 16, '#a99db8', 11); }
   for (const s of SUBS) if (discovered.has(s.name)) label(s.name, s.x * 2, s.y * 2 + 18, '#c9bfa8', 11);
   for (const c of CAMPS) if (explored[c.ty * MW + c.tx]) { bctx.fillStyle = OL; bctx.fillRect(c.tx * 2 - 4, c.ty * 2 - 4, 8, 8); bctx.fillStyle = c.lit ? '#f2c14e' : '#8a869a'; bctx.fillRect(c.tx * 2 - 3, c.ty * 2 - 3, 6, 6); }
   if (!G.bossDead && explored[ARENA.y1 * MW + DOOR[1]]) { bctx.fillStyle = OL; bctx.fillRect(374, 214, 12, 12); bctx.fillStyle = '#ff3b3b'; bctx.fillRect(376, 216, 8, 8); label('狼王', 380, 210, '#ff8a7a', 11); }

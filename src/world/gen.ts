@@ -1,7 +1,7 @@
 import { G } from '../core/state';
 import { clamp, makeNoise, mulberry32 } from '../core/util';
 import { hash2 } from '../art/monsters';
-import { ARENA, BIGT, BRIDGE, CAMPS, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, LAVA, MH, MW, PILLAR, REGIONS, RFLOOR, ROAD, ROADS, ROCK, RWALL, SOLID, TREE, TS, WALKABLE, WATER, braziers, glows, map, reg, shade, spawns, torches } from './map';
+import { ARENA, BIGT, BRIDGE, CAMPS, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, LAVA, MH, MW, OPEN_REGIONS, PILLAR, REGIONS, RFLOOR, ROAD, ROADS, ROCK, RWALL, SOLID, TREE, TS, WALKABLE, WATER, braziers, glows, map, reg, shade, spawns, torches } from './map';
 import { RBDEF } from './regionBoss';
 
 export function genWorld() {
@@ -10,7 +10,7 @@ export function genWorld() {
   const I = (x, y) => y * MW + x, inb = (x, y) => x >= 3 && y >= 3 && x < MW - 3 && y < MH - 3;
   for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
     const px = x + (nA(x, y) - .5) * 46, py = y + (nB(x, y) - .5) * 46;
-    let best = 0, bd = 1e9; for (let k = 0; k < 4; k++) { const [cx, cy] = REGIONS[k].c; const d = (px - cx) ** 2 + (py - cy) ** 2; if (d < bd) { bd = d; best = k; } }
+    let best = 0, bd = 1e9; for (const k of OPEN_REGIONS) { const [cx, cy] = REGIONS[k].c; const d = (px - cx) ** 2 + (py - cy) ** 2; if (d < bd) { bd = d; best = k; } }
     reg[I(x, y)] = best; shade[I(x, y)] = nC(x, y) > .56 ? 1 : 0;
   }
   map.fill(GROUND);
@@ -25,14 +25,19 @@ export function genWorld() {
     const i = I(x, y); if (reg[i] !== 3 || map[i] !== GROUND) continue;
     if (nE(x * 1.3, y * 1.3) > .7) map[i] = LAVA;
   }
-  for (let x = 150; x < 252; x++) { const yc = Math.round(24 + Math.sin(x * .09) * 5 + (x - 150) * .22); for (let d = -1; d <= 1; d++) { const i = I(x, yc + d); if (inb(x, yc + d) && reg[i] === 3) map[i] = LAVA; } }
+  // 冰封湖（雪原）、沼澤裡一攤一攤的水
+  for (let y = 70; y <= 88; y++) for (let x = 306; x <= 332; x++) if (inb(x, y) && reg[I(x, y)] === 5 && ((x - 318) / 11) ** 2 + ((y - 78) / 6.5) ** 2 < 1 + (nE(x, y) - .5) * .5) map[I(x, y)] = WATER;
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) { const i = I(x, y); if (reg[i] === 6 && map[i] === GROUND && nE(x * 1.6 + 30, y * 1.6) > .66) map[i] = WATER; }
+  for (let x = 150; x < 246; x++) { const yc = Math.round(24 + Math.sin(x * .09) * 5 + (x - 150) * .22); for (let d = -1; d <= 1; d++) { const i = I(x, yc + d); if (inb(x, yc + d) && reg[i] === 3) map[i] = LAVA; } }
   for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
     const i = I(x, y); if (map[i] !== GROUND) continue;
     const r = reg[i], n = nD(x * 1.3 + 90, y * 1.3 + 40), q = R();
     if (r === 0) { if (q < .018 + (n > .7 ? .38 : 0)) map[i] = TREE; else if (q > .99) map[i] = ROCK; }
     else if (r === 1) { if (q < .1 + .55 * Math.max(0, n - .35)) map[i] = TREE; else if (q > .992) map[i] = ROCK; }
     else if (r === 2) { if (q < .014) map[i] = TREE; else if (q > .978) map[i] = ROCK; }
-    else { if (q < .03) map[i] = TREE; else if (q > .984) map[i] = ROCK; }
+    else if (r === 3) { if (q < .03) map[i] = TREE; else if (q > .984) map[i] = ROCK; }
+    else if (r === 5) { if (q < .03 + .3 * Math.max(0, n - .55)) map[i] = TREE; else if (q > .982) map[i] = ROCK; }
+    else if (r === 6) { if (q < .06 + .3 * Math.max(0, n - .5)) map[i] = TREE; else if (q > .99) map[i] = ROCK; }
   }
   const clearDisk = (cx, cy, rad, keepWalls) => { for (let y = cy - rad; y <= cy + rad; y++) for (let x = cx - rad; x <= cx + rad; x++) {
     if (!inb(x, y) || (x - cx) ** 2 + (y - cy) ** 2 > rad * rad) continue; const i = I(x, y), t = map[i];
@@ -106,25 +111,28 @@ export function genWorld() {
     for (const c of CAMPS) if (Math.hypot(c.tx - tx, c.ty - ty) < 10) return false;
     for (const d of Object.values(RBDEF)) if (Math.hypot(d.tx - tx, d.ty - ty) < d.tr + 5) return false; return true; };
   const TABLE = [
-    { n:55, lv:[1,5], anchor:[30,165], kinds:lv => lv <= 2 ? 'slime' : lv >= 4 ? (R2() < .75 ? 'wolf' : 'slime') : (R2() < .5 ? 'wolf' : 'slime') },
-    { n:60, lv:[5,10], anchor:[125,140], kinds:() => { const q = R2(); return q < .35 ? 'shroom' : q < .7 ? 'treant' : 'wolfF'; } },
-    { n:55, lv:[10,15], anchor:[64,96], kinds:() => R2() < .6 ? 'skel' : 'golem' },
-    { n:50, lv:[15,20], anchor:[200,92], kinds:() => { const q = R2(); return q < .3 ? 'slimeM' : q < .7 ? 'skelE' : 'golemL'; } },
+    { n:80, lv:[1,5], anchor:[30,165], kinds:lv => lv <= 2 ? 'slime' : lv >= 4 ? (R2() < .75 ? 'wolf' : 'slime') : (R2() < .5 ? 'wolf' : 'slime') },
+    { n:88, lv:[5,10], anchor:[125,140], kinds:() => { const q = R2(); return q < .35 ? 'shroom' : q < .7 ? 'treant' : 'wolfF'; } },
+    { n:80, lv:[10,15], anchor:[64,96], kinds:() => R2() < .6 ? 'skel' : 'golem' },
+    { n:74, lv:[15,20], anchor:[200,92], kinds:() => { const q = R2(); return q < .3 ? 'slimeM' : q < .7 ? 'skelE' : 'golemL'; } },
+    null,
+    { n:85, lv:[20,25], anchor:[262,72], kinds:() => { const q = R2(); return q < .4 ? 'wolfS' : q < .65 ? 'slimeI' : 'golemI'; } },
+    { n:85, lv:[25,30], anchor:[292,112], kinds:() => { const q = R2(); return q < .35 ? 'skelS' : q < .65 ? 'shroomP' : 'treantS'; } },
   ];
-  TABLE.forEach((T, r) => {
+  TABLE.forEach((T, r) => { if (!T) return;
     let n = 0, tries = 0;
     while (n < T.n && tries++ < 30000) {
       const tx = 3 + Math.floor(R2() * (MW - 6)), ty = 3 + Math.floor(R2() * (MH - 6));
-      if (reg[I(tx, ty)] !== r || !ok(tx, ty) || near(tx, ty, 5)) continue;
+      if (reg[I(tx, ty)] !== r || !ok(tx, ty) || near(tx, ty, 4)) continue;
       const d = Math.hypot(tx - T.anchor[0], ty - T.anchor[1]);
       const lv = clamp(T.lv[0] + Math.round(Math.min(1, d / 95) * (T.lv[1] - T.lv[0])) + (R2() < .3 ? 1 : 0), T.lv[0], T.lv[1]);
       const kind = T.kinds(lv);
       spawns.push({ tx, ty, x:tx * TS + 8, y:ty * TS + 8, kind, lv, alive:false, timer:0 }); n++;
-      if (R2() < .3) for (let k = 0; k < 1 + Math.floor(R2() * 2); k++) { const ax = tx + Math.floor(R2() * 5) - 2, ay = ty + Math.floor(R2() * 5) - 2;
+      if (R2() < .42) for (let k = 0; k < 1 + Math.floor(R2() * 2); k++) { const ax = tx + Math.floor(R2() * 5) - 2, ay = ty + Math.floor(R2() * 5) - 2;
         if ((ax !== tx || ay !== ty) && ok(ax, ay)) spawns.push({ tx:ax, ty:ay, x:ax * TS + 8, y:ay * TS + 8, kind, lv, alive:false, timer:0 }); }
     }
   });
-  for (const [kind, lv, tx, ty, name] of [['wolf',6,92,150,'野狼頭目'],['treant',11,205,169,'古樹守衛'],['skel',13,35,33,'守墓人'],['golem',16,80,40,'遺跡守衛'],['golemL',21,210,40,'熔岩巨像']] as const) {
+  for (const [kind, lv, tx, ty, name] of [['wolf',6,92,150,'野狼頭目'],['treant',11,205,169,'古樹守衛'],['skel',13,35,33,'守墓人'],['golem',16,80,40,'遺跡守衛'],['golemL',21,210,40,'熔岩巨像'],['wolfS',24,300,84,'冰原狼首'],['golemI',25,288,30,'凍土守衛'],['treantS',29,266,160,'沉木古妖'],['skelS',28,318,132,'沼底亡將']] as const) {
     let x = tx, y = ty; for (let k = 0; k < 40 && !WALKABLE(map[I(x, y)]); k++) { x = tx + Math.floor(R2() * 7) - 3; y = ty + Math.floor(R2() * 7) - 3; }
     spawns.push({ tx:x, ty:y, x:x * TS + 8, y:y * TS + 8, kind, lv, elite:true, ename:name, alive:false, timer:0 });
   }
@@ -140,12 +148,15 @@ const GP = [
   { a:'#3a2b2d', b:'#352729', t:'#4a3638', d:'#2a1d1f', road:'#4e4448', road2:'#5a5054', roadE:'#2e2628', top:'#2a1e20', topE:'#4a3436', face:'#4a3a3a', face2:'#3e3030', faceD:'#241a1a' },
   { a:'#2e2934', b:'#332d3b', t:'#3d3747', d:'#201c26', road:'#3a3444', road2:'#443d4f', roadE:'#28232f', top:'#120d13', topE:'#3c2c39', face:'#523c49', face2:'#45313d', faceD:'#2b1f28' },
 ];
+export const ICEW = ['#3a5a80','#4a6e94','#5a82a8','#6a96bc','#8ab4d4','#b8d8ee','#f0f8ff'], MUDW = ['#141c12','#1a2416','#22301c','#2a3a22','#36482c','#4e6640','#7a9060'];
 export const RUIN = [
   { fl:'#6a6678', fl2:'#706c80', gr:'#4e4a5e', hi:'#7c788e', wf:'#76728a', wf2:'#68647c', mo:'#46425a', cap:'#9a96b0', top:'#2e2b38', edge:'#55516a', moss:'#5a8a46' },
   { fl:'#4a5250', fl2:'#4e5856', gr:'#343c3a', hi:'#5a6462', wf:'#56605c', wf2:'#4a5450', mo:'#2e3634', cap:'#76827c', top:'#1a201e', edge:'#3a4440', moss:'#3e7050' },
   { fl:'#a89470', fl2:'#b09c78', gr:'#7e6c4e', hi:'#c0ac88', wf:'#b8a078', wf2:'#a68e68', mo:'#6e5c40', cap:'#d4bc94', top:'#5a4a34', edge:'#8a7454', moss:null },
   { fl:'#3e3236', fl2:'#44383c', gr:'#2a2024', hi:'#4e4044', wf:'#4e3a3c', wf2:'#433133', mo:'#2a1e20', cap:'#6a5254', top:'#1a1214', edge:'#3a2a2c', moss:null },
   { fl:'#34303f', fl2:'#38344a', gr:'#25222d', hi:'#413c51', wf:'#4a4560', wf2:'#3e3953', mo:'#2a2637', cap:'#6c6689', top:'#14111b', edge:'#3b3651', moss:null },
+  { fl:'#8a96aa', fl2:'#929eb2', gr:'#5e6a80', hi:'#b4c0d4', wf:'#9aa6bc', wf2:'#8a96ac', mo:'#5a6478', cap:'#e8f0fa', top:'#6a7890', edge:'#7a869c', moss:null },
+  { fl:'#3a4236', fl2:'#40483a', gr:'#262c22', hi:'#4e5844', wf:'#4a5440', wf2:'#404a38', mo:'#262c22', cap:'#5e6a52', top:'#161a12', edge:'#343c2e', moss:'#4a6a2e' },
 ];
 export const isWallT = t => t === CLIFF || t === RWALL;
 /* ---------- tiles：以 3 倍細像素烘焙（每格 48×48），跟角色同一個像素密度 ---------- */
@@ -174,6 +185,10 @@ export const SCU = [
     face:UL(['#1a1214','#2a1e20','#3a2c2e','#4a3a3c','#5c4a4c']), lip:UL(['#1c1214','#302224','#46353a','#6a5054']), top:UL(['#160e10','#1c1214','#22181a']), bank:UL(['#140c0c','#1e1414','#2a1c1a']), cob:true },
   { g:UL(['#1a1620','#221d2a','#2a2533','#332d3e','#3d3649','#474056']), road:UL(['#231f2b','#2e2938','#3a3446','#463f54','#524a62']),
     face:UL(['#241a22','#33242f','#43303d','#543d4c','#664c5c']), lip:UL(['#1a141e','#2a2533','#3d3649','#5a5068']), top:UL(['#0e0a10','#120d14','#161118']), bank:UL(['#16121a','#1e1824','#262030']) },
+  { g:UL(['#8494ac','#a2b2c8','#bccadc','#d0dcea','#e2eaf4','#f4f8ff']), road:UL(['#56607a','#6e7890','#8690a6','#9ca6ba','#b2bccc']),
+    face:UL(['#2a3244','#404a62','#58647e','#727e9a','#8e9ab4']), lip:UL(['#8a9ab0','#c4d2e2','#e8f0f8','#ffffff']), top:UL(['#5e6a82','#68748c','#727e96']), bank:UL(['#6a7890','#8492aa','#a0aec4']) },
+  { g:UL(['#161c12','#1c2416','#232e1c','#2b3822','#344428','#3e5030']), road:UL(['#251f16','#352d20','#453b2a','#544934','#63573e']),
+    face:UL(['#181c14','#262c20','#363e2e','#46503c','#58644c']), lip:UL(['#121810','#232e1c','#344428','#506838']), top:UL(['#0e120a','#12160e','#161c12']), bank:UL(['#1a160e','#262014','#322a1c']) },
 ];
 export const RUINU = RUIN.map(u => { const o: Record<string, number> = {}; for (const k in u) o[k] = u[k] ? hexU(u[k]) : 0; return o; });
 export const WATU = UL(['#1a3664','#22467e','#2c5892','#3566a2','#4a80ba','#7cb0dc','#d4ecff']);

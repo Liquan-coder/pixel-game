@@ -17,11 +17,11 @@ const itemPrice = it => Math.round(15 * it.ilvl * Math.pow(it.rarity + 1, 1.5));
 const sellPrice = it => 2 * it.ilvl * (it.rarity + 1);                 // 比分解換到的魂晶（3×等級×稀有度）少一些
 function merchantSpot(c) { for (const [ox, oy] of [[42, 6], [-42, 6], [0, 42], [30, -30], [-30, -30]]) { const x = c.x + ox, y = c.y + oy; if (!collides(x, y, 7)) return [x, y]; } return [c.x + 20, c.y + 20]; }
 function rollStock(c) {
-  const r = reg[c.ty * MW + c.tx] % 4, base = [3, 8, 13, 18][r], st: { kind: string; price: number; left?: number; item?: Item }[] = [{ kind:'pot', price:25 }];
+  const R0 = reg[c.ty * MW + c.tx], r = Math.min(4, [0, 1, 2, 3, 1, 4, 4][R0]), base = [3, 8, 13, 18, 4, 23, 28][R0], st: { kind: string; price: number; left?: number; item?: Item }[] = [{ kind:'pot', price:25 }];
   if (G.potMax < 8) st.push({ kind:'potUp', price:250 * (G.potMax - 2), left:1 });
   for (let i = 0; i < 5; i++) { const q = Math.random(), rar = q < .03 + r * .04 ? 3 : q < .2 + r * .08 ? 2 : q < .62 ? 1 : 0;
     const type = i < 2 ? pick(DROP_WEAPONS) : i < 4 ? pick(Object.keys(AT).concat(Object.keys(TT))) : pick(['sword', 'robe', 'leather', 'mail', 'ring', 'amulet']);
-    const it = makeGear(type, clamp(base + ri(-1, 1), 1, 22), rar); st.push({ kind:'item', item:it, price:itemPrice(it) }); }
+    const it = makeGear(type, clamp(base + ri(-1, 1), 1, 32), rar); st.push({ kind:'item', item:it, price:itemPrice(it) }); }
   return st;
 }
 export function placeMerchant(id, stock?) { const c = CAMPS.find(c => c.id === id) || CAMPS[0], [x, y] = merchantSpot(c); merchant = { camp:c.id, x, y, stock: stock || rollStock(c) }; }

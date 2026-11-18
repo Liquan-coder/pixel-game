@@ -71,7 +71,11 @@ const RAMP = {
   stone: ['#262234','#46415a','#6e6986','#9c97b4','#cac6de'], basalt: ['#140e10','#2e2226','#4a3a3e','#6a5458','#8c7478'],
   cap: ['#4a1024','#7d2440','#c0405f','#e86a84','#ffb0c0'], stem: ['#7a6a4a','#a89a7a','#d8ccae','#f4ead2'],
   gill: ['#5a4a36','#8a7a5a','#b8a882'], bark: ['#24160c','#432c1a','#634528','#86643e','#a8865a'],
-  leaf: ['#14301a','#245226','#367434','#549a44','#86c464'], steel: ['#3e3b63','#76739f','#a9a7d0','#dcdcf4'],
+  leaf: ['#14301a','#245226','#367434','#549a44','#86c464'],
+  snowwolf: ['#4a5674','#7e8cac','#b4c0d8','#dce4f0','#ffffff'], ice: ['#1a4a7a','#3a7ac0','#6ab0e8','#a8dcff','#e8f8ff'], iceStone: ['#26304a','#46567a','#7486ac','#a6b8d8','#dceaff'],
+  swampBone: ['#3a4430','#5e6a4c','#8a9470','#b4bc98','#dce0c4'], capP: ['#2a1040','#4a2070','#7a40a8','#a870d0','#d8b0f0'],
+  leafS: ['#141a10','#26301a','#3a4826','#526234','#6e7e48'], barkS: ['#14100a','#2a2216','#403420','#58482c','#706038'],
+  steel: ['#3e3b63','#76739f','#a9a7d0','#dcdcf4'],
 };
 /* 走路：ph = 0~3 是第幾格，-1 = 站著不動。回傳兩組腳的 [往前多少, 往上多少]
    一隻腳：踩在前面 → 踩在正下方 → 蹬到後面 → 抬起來收回前面；另一隻腳剛好差半圈 */
@@ -176,11 +180,11 @@ function hdGolem(R, opt, ph: number | string = -1) {
   if (opt.moss) for (let y = -12; y < 43; y++) for (let x = 0; x < 48; x++) { const p = a.pid(x, y); if (p < 0 || a.pid(x, y - 1) === p) continue;
     if (a.hash(x, y) < .8) { a.set(x, y, opt.moss[2]); a.set(x, y + 1, opt.moss[1]); if (a.hash(y, x) < .4) a.set(x, y + 2, opt.moss[0]); } }
 }, pose === 'raise' ? { t: 7 } : {}); }
-function hdShroom(ph = -1) { const [[ax, ay], [bx, by]] = gait(ph, 1.5, 1.6); return sculpt(36, 34, [
+function hdShroom(ph = -1, CAP = RAMP.cap) { const [[ax, ay], [bx, by]] = gait(ph, 1.5, 1.6); return sculpt(36, 34, [
   { sh: SH.ell(13 + bx, 32 + by, 4, 2), ramp: RAMP.stem, grp: 1 }, { sh: SH.ell(23 + ax, 32 + ay, 4, 2), ramp: RAMP.stem, grp: 1 },
   { sh: SH.box(18, 25, 7, 7.5, 2.5), ramp: RAMP.stem, grp: 2 },
   { sh: SH.ell(18, 15.5, 15, 3.4), ramp: RAMP.gill, grp: 3, rim: false },
-  { sh: SH.ell(18, 13.5, 17, 11.8, (x, y) => y < 15.8), ramp: RAMP.cap, grp: 4 },
+  { sh: SH.ell(18, 13.5, 17, 11.8, (x, y) => y < 15.8), ramp: CAP, grp: 4 },
 ], a => {
   for (const [x, y, rx, ry] of [[8, 9, 3, 2], [17, 5, 3.2, 2], [26.5, 9, 3.4, 2.2], [12, 13, 2, 1.3], [30, 13.5, 1.8, 1]]) { a.ell(x, y, rx, ry, '#fff4f6'); a.ell(x + .6, y + ry * .6, rx * .7, .8, '#e6c2cc'); }
   for (const ex of [20, 25]) { a.rect(ex, 22, 1, 3, '#1a1012'); }
@@ -188,30 +192,30 @@ function hdShroom(ph = -1) { const [[ax, ay], [bx, by]] = gait(ph, 1.5, 1.6); re
   a.line(21, 27, 24, 27, '#5a2a2a'); a.set(20, 26, '#5a2a2a');
 }); }
 /* ph：0~3 走路、-1 站、'raise' = 樹枝手高舉、'strike' = 樹枝手往下砸 */
-function hdTreant(ph: number | string = -1) {
+function hdTreant(ph: number | string = -1, LEAF = RAMP.leaf, BARK = RAMP.bark, EYE = '#f4e04d') {
   const pose = typeof ph === 'string' ? ph : '', [[ax, ay], [bx, by]] = gait(pose ? -1 : +ph, 2, 2.6);
   let LH = [4 + ax * .5, 33 + ax * 1.8], LL = [3.5 + ax * .5, 33.5 + ax * 1.8], RH = [40 - bx * .5, 33 + bx * 1.8], RL = [41.5 - bx * .5, 34 + bx * 1.8];
   if (pose === 'raise') { LH = [1, 13]; LL = [0, 11]; RH = [44, 13]; RL = [45, 11]; }
   if (pose === 'strike') { LH = [10, 43]; LL = [9.5, 44.5]; RH = [35, 43]; RL = [35.5, 44.5]; }
   const arms = [
-    { sh: SH.cap(14, 25, LH[0], LH[1], 2.6, 1.8), ramp: RAMP.bark, bias: -.2, tex: .3, grp: 1 },
-    { sh: SH.ell(LL[0], LL[1], 3.6, 3.2), ramp: RAMP.leaf, tex: .5, grp: 1 },
-    { sh: SH.cap(31, 25, RH[0], RH[1], 2.8, 2), ramp: RAMP.bark, tex: .3, grp: 5 },
-    { sh: SH.ell(RL[0], RL[1], 3.6, 3.2), ramp: RAMP.leaf, tex: .5, grp: 5 }];
+    { sh: SH.cap(14, 25, LH[0], LH[1], 2.6, 1.8), ramp: BARK, bias: -.2, tex: .3, grp: 1 },
+    { sh: SH.ell(LL[0], LL[1], 3.6, 3.2), ramp: LEAF, tex: .5, grp: 1 },
+    { sh: SH.cap(31, 25, RH[0], RH[1], 2.8, 2), ramp: BARK, tex: .3, grp: 5 },
+    { sh: SH.ell(RL[0], RL[1], 3.6, 3.2), ramp: LEAF, tex: .5, grp: 5 }];
   return sculpt(45, 48, [
   ...(pose === 'strike' ? [] : arms.slice(0, 2)),
-  { sh: SH.cap(16, 40, 9 - bx * .5, 47 + by, 3, 2), ramp: RAMP.bark, tex: .3, grp: 2 },
-  { sh: SH.cap(28, 40, 35 + ax * .5, 47 + ay, 3, 2), ramp: RAMP.bark, tex: .3, grp: 2 },
-  { sh: SH.cap(22, 41, 22, 47, 3.2, 2.6), ramp: RAMP.bark, tex: .3, grp: 2 },
-  { sh: SH.box(22, 31, 10, 13, 2.4), ramp: RAMP.bark, tex: .35, grp: 3 },
-  { sh: SH.ell(22, 18, 13, 6.5), ramp: RAMP.leaf, tex: .5, grp: 4 },
-  { sh: SH.ell(13, 13, 10, 8.5), ramp: RAMP.leaf, tex: .5, grp: 4 },
-  { sh: SH.ell(31, 12.5, 11, 9), ramp: RAMP.leaf, tex: .5, grp: 4 },
-  { sh: SH.ell(22, 7, 10, 7), ramp: RAMP.leaf, tex: .5, grp: 4 },
+  { sh: SH.cap(16, 40, 9 - bx * .5, 47 + by, 3, 2), ramp: BARK, tex: .3, grp: 2 },
+  { sh: SH.cap(28, 40, 35 + ax * .5, 47 + ay, 3, 2), ramp: BARK, tex: .3, grp: 2 },
+  { sh: SH.cap(22, 41, 22, 47, 3.2, 2.6), ramp: BARK, tex: .3, grp: 2 },
+  { sh: SH.box(22, 31, 10, 13, 2.4), ramp: BARK, tex: .35, grp: 3 },
+  { sh: SH.ell(22, 18, 13, 6.5), ramp: LEAF, tex: .5, grp: 4 },
+  { sh: SH.ell(13, 13, 10, 8.5), ramp: LEAF, tex: .5, grp: 4 },
+  { sh: SH.ell(31, 12.5, 11, 9), ramp: LEAF, tex: .5, grp: 4 },
+  { sh: SH.ell(22, 7, 10, 7), ramp: LEAF, tex: .5, grp: 4 },
   ...(pose === 'strike' ? arms : arms.slice(2)),                        // 往下砸時兩隻手都在樹幹前面
 ], a => {
-  for (const [x, y0] of [[15, 24], [19, 30], [28, 26], [25, 36]]) for (let y = y0; y < y0 + 7; y++) a.set(x + Math.round(Math.sin(y * .9)), y, RAMP.bark[0]);
-  for (const ex of [19, 26]) { a.ell(ex, 28, 2.2, 1.8, '#120a06'); a.set(ex, 28, '#f4e04d'); a.set(ex + 1, 28, '#fff8a0'); }
+  for (const [x, y0] of [[15, 24], [19, 30], [28, 26], [25, 36]]) for (let y = y0; y < y0 + 7; y++) a.set(x + Math.round(Math.sin(y * .9)), y, BARK[0]);
+  for (const ex of [19, 26]) { a.ell(ex, 28, 2.2, 1.8, '#120a06'); a.set(ex, 28, EYE); a.set(ex + 1, 28, '#fff8a0'); }
   a.ell(22.5, 34, 3, 1.4, '#120a06');
   for (const [x, y] of [[9, 9], [30, 7], [36, 14], [17, 4], [24, 15]]) { a.set(x, y, '#f2a4c8'); a.set(x + 1, y, '#ffd8ea'); }
 }, pose === 'raise' ? { l: 4, r: 4 } : {}); }
@@ -295,6 +299,12 @@ function buildMonsters() { return {
   golem: withWalk(ph => hdGolem(RAMP.stone, { eye: '#7fe8ff', crack: '#262234', moss: ['#2f5a26', '#4f8a3e', '#7ab85a'] }, ph), undefined, ['raise', 'strike']),
   golemL: withWalk(ph => hdGolem(RAMP.basalt, { eye: '#ffcf4a', crack: '#ff6a2a', glowCrack: '#ffcf4a' }, ph), undefined, ['raise', 'strike']),
   shroom: withWalk(hdShroom),
+  wolfS: withWalk(ph => hdWolf(RAMP.snowwolf, 1, { eye: '#4ac8ff' }, ph), undefined, ['strike']),
+  slimeI: makeHD(hdSlime(RAMP.ice, '#0a2040', '#ffffff')),
+  golemI: withWalk(ph => hdGolem(RAMP.iceStone, { eye: '#7fe8ff', crack: '#26304a', moss: ['#a6b8d8', '#e8f0fa', '#ffffff'] }, ph), undefined, ['raise', 'strike']),
+  skelS: withWalk(ph => hdSkel(RAMP.swampBone, '#7aff6a', ph), undefined, ['raise', 'strike']),
+  shroomP: withWalk(ph => hdShroom(+ph, RAMP.capP)),
+  treantS: withWalk(ph => hdTreant(ph, RAMP.leafS, RAMP.barkS, '#9aff6a'), undefined, ['raise', 'strike']),
   treant: withWalk(hdTreant, undefined, ['raise', 'strike']),
   boss: withWalk(ph => hdWolf(RAMP.boss, 1.8, { eye: '#ff3b3b', mane: ['#5c5f76','#8a8ea6','#b4b8cc','#dcdeea','#ffffff'], scar: true, belly: ['#8a8ea6','#c4c8da','#eef0f8'] }, ph), { eye: [Math.round(44 * 1.8), Math.round(9 * 1.8)] }),
 }; }

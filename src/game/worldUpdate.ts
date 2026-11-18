@@ -126,7 +126,8 @@ function separate() {
 export function burst(x, y, n, col, spd) { for (let i = 0; i < n; i++) { const a = rr(0, TAU), s = rr(spd * .3, spd); G.parts.push({ x, y, vx:Math.cos(a) * s, vy:Math.sin(a) * s - 20, life:rr(.25, .6), max:.6, col, s: Math.random() < .3 ? 2 : 1, g:120 }); } }
 export function shake(m, t) { G.shakeMag = Math.max(G.shakeMag, m); G.shakeT = Math.max(G.shakeT, t); }
 const MOTE = { plains:{ col:'#fff4b0', vy:[-3, 3], vx:[4, 10], glow:false, n:16 }, forest:{ col:'#d8ff7a', vy:[-6, 6], vx:[-6, 6], glow:true, n:22 },
-  wastes:{ col:'#d8c8a8', vy:[-2, 4], vx:[10, 22], glow:false, n:30 }, lava:{ col:'#ffb04a', vy:[-22, -10], vx:[-5, 5], glow:true, n:28 }, den:{ col:'#c8c0d8', vy:[-3, 3], vx:[-3, 3], glow:false, n:16 } };
+  wastes:{ col:'#d8c8a8', vy:[-2, 4], vx:[10, 22], glow:false, n:30 }, lava:{ col:'#ffb04a', vy:[-22, -10], vx:[-5, 5], glow:true, n:28 }, den:{ col:'#c8c0d8', vy:[-3, 3], vx:[-3, 3], glow:false, n:16 },
+  snow:{ col:'#ffffff', vy:[14, 26], vx:[-10, 2], glow:false, n:46 }, swamp:{ col:'#9aff6a', vy:[-5, 5], vx:[-5, 5], glow:true, n:26 } };
 export function updateMotes(dt) {
   const M = MOTE[G.region] || MOTE.plains;
   while (G.motes.length < M.n) G.motes.push({ x:cam.x + rr(0, LW), y:cam.y + rr(0, LH), vx:rr(M.vx[0], M.vx[1]), vy:rr(M.vy[0], M.vy[1]), life:rr(3, 7), t:0, col:M.col, glow:M.glow, ph:rr(0, 9) });

@@ -1,7 +1,7 @@
 import { mulberry32 } from '../core/util';
 import { SH, hash2, sculpt } from '../art/monsters';
 import { ARENA, BIGT, BRIDGE, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, LAVA, MW, PILLAR, RFLOOR, ROAD, ROCK, RWALL, TREE, WALKABLE, WATER, map, reg } from './map';
-import { CARPU, CRUSTU, LAVU, NZ0, NZ1, NZ2, RUIN, RUINU, SCU, TA, UL, WATU, WOODU, groundK, hexU, isLavaish, isRoadish, isWallT, isWaterish, nz, tileAt } from './gen';
+import { CARPU, CRUSTU, ICEW, LAVU, MUDW, NZ0, NZ1, NZ2, RUIN, RUINU, SCU, TA, UL, WATU, WOODU, groundK, hexU, isLavaish, isRoadish, isWallT, isWaterish, nz, tileAt } from './gen';
 
 export function bakeTileHD(buf, CA, tx, ty, ox, oy) {
   const i = ty * MW + tx, t = map[i], r = reg[i], S = SCU[r], U = RUINU[r];
@@ -60,8 +60,10 @@ export function bakeTileHD(buf, CA, tx, ty, ox, oy) {
       if (Math.abs(nz(NZ2, ax * .5, ay * 2) - .5) < .025) k = 5;
       let d = 99; if (!isWaterish(lf)) d = Math.min(d, lx); if (!isWaterish(rt)) d = Math.min(d, 47 - lx); if (!isWaterish(dn)) d = Math.min(d, 47 - ly);
       if (d < 2) k = 6; else if (d < 5) k = Math.max(k, 5); else if (d < 10) k = Math.max(k, 4);
-      let c = WATU[k];
-      if (!isWaterish(up)) { if (ly < 7) c = S.bank[ly < 2 ? 2 : (hash2(ax, ay >> 2) < .3 ? 0 : 1)]; else if (ly < 9) c = WATU[6]; else if (ly < 14) c = WATU[Math.max(k, 5)]; }
+      const WP = r === 5 ? ICEU : r === 6 ? MUDU : WATU;                // 雪原是結冰的湖、沼澤是混濁的泥水
+      if (r === 5 && k < 5 && hash2(ax >> 3, ay >> 3) < .05 && Math.abs(((ax + ay * 2) % 13) - 6) < 1) k = 6;   // 冰面裂紋
+      let c = WP[k];
+      if (!isWaterish(up)) { if (ly < 7) c = S.bank[ly < 2 ? 2 : (hash2(ax, ay >> 2) < .3 ? 0 : 1)]; else if (ly < 9) c = WP[6]; else if (ly < 14) c = WP[Math.max(k, 5)]; }
       buf[at(lx, ly)] = c; }
   } else if (t === LAVA || (t === BRIDGE && r === 3)) {                 // 熔岩：流動紋 + 黑色結痂 + 發光邊
     for (let ly = 0; ly < TA; ly++) for (let lx = 0; lx < TA; lx++) { const ax = AX + lx, ay = AY + ly;
@@ -130,7 +132,7 @@ export function bakeTileHD(buf, CA, tx, ty, ox, oy) {
 }
 /* 小裝飾：直接寫進像素緩衝 */
 function stamp(buf, CA, rows, pal, x0, y0) { for (let y = 0; y < rows.length; y++) { const row = rows[y]; for (let x = 0; x < row.length; x++) { const c = pal[row[x]]; if (c) buf[(y0 + y) * CA + x0 + x] = c; } } }
-const DK = hexU('#0e0b14');
+const DK = hexU('#0e0b14'), ICEU = UL(ICEW), MUDU = UL(MUDW);
 const DECO = {
   tuft: ["a...a...a", ".a..a..a.", ".ba.ab.a.", "..bab.ab.", "..bbbbb.."],
   tuft2: [".a...a.", "..a.a..", "a.bab.a", ".bbabb.", "..bbb.."],
@@ -145,7 +147,8 @@ const DECO = {
 };
 const DP = {
   p0: { a:0, b:0 }, flowers: ['#f4e27a', '#ffffff', '#f29bb8', '#9ac8ff', '#c8a0ff'].map(hexU),
-  stone: [UL(['#1a1820','#b0adbb','#8d8a99','#6b6878']), UL(['#0f1712','#8a9a8a','#6a7a6a','#4a5a4a']), UL(['#2a2014','#d8c8a8','#b0a080','#8a7a5a']), UL(['#100a0a','#6a5a5c','#4a3a3c','#2e2224']), UL(['#0e0b14','#6a6478','#4a4558','#34303f'])],
+  stone: [UL(['#1a1820','#b0adbb','#8d8a99','#6b6878']), UL(['#0f1712','#8a9a8a','#6a7a6a','#4a5a4a']), UL(['#2a2014','#d8c8a8','#b0a080','#8a7a5a']), UL(['#100a0a','#6a5a5c','#4a3a3c','#2e2224']), UL(['#0e0b14','#6a6478','#4a4558','#34303f']),
+    UL(['#2a3448','#e8f0fa','#b0bed0','#8494ac']), UL(['#0e120a','#5e6a52','#46503c','#2e3626'])],
 };
 function decoBones(buf, CA, x, y) { stamp(buf, CA, DECO.bone, { w:hexU('#e8e0cc'), k:hexU('#8a8270') }, x, y); }
 function decoGround(buf, CA, r, tx, ty, ox, oy) {
@@ -168,6 +171,15 @@ function decoGround(buf, CA, r, tx, ty, ox, oy) {
     if (R() < .14) P(DECO.ember, { e:hexU('#5a1a0c'), E:hexU('#e8743b'), y:hexU('#ffd27a') });
     if (R() < .08) P(DECO.shard, { k:DK, p:hexU('#4a3a4e'), P:hexU('#2a2030') });
     if (R() < .06) P(DECO.pebble, stoneP);
+  } else if (r === 5) {                                               // 雪原：冰晶、雪堆裡露出來的枯草
+    if (R() < .1) P(DECO.shard, { k:DK, p:hexU('#c8ecff'), P:hexU('#7ab8e8') });
+    if (R() < .12) P(DECO.tuft2, { a:hexU('#b8a880'), b:hexU('#7a6a50') });
+    if (R() < .05) P(DECO.pebble, stoneP);
+  } else if (r === 6) {                                               // 沼澤：紫色毒菇、蘆葦、斷枝
+    if (R() < .3) P(DECO.tuft, { a:hexU('#5a7040'), b:hexU('#2e3a20') });
+    if (R() < .08) P(DECO.mush, { k:DK, r:hexU('#8a4ab0'), w:hexU('#e0c8f0'), S:hexU('#c8b8a0') });
+    if (R() < .1) P(DECO.twig, { n:hexU('#3a2c1c') });
+    if (R() < .05) P(DECO.fern, { a:hexU('#3e5a30'), b:hexU('#22301a') });
   } else {
     if (R() < .07) P(DECO.bone, { w:hexU('#d8d0bc'), k:hexU('#6a6270') });
     if (R() < .08) P(DECO.pebble, stoneP);
@@ -179,7 +191,9 @@ export const SRAMP = {
   leaf: ['#1e4a1e','#2c6428','#3e7e32','#559a42','#74b456','#9ad070'], leafD: ['#163a1a','#225026','#2e6430','#3c7a3c','#52944c'],
   pine: ['#0e2a1e','#163a2a','#1f4c36','#2a6044','#387656'], bark: ['#2a1a0e','#432c1a','#5e3e24','#7a5432','#946a42'],
   dead: ['#2a2018','#3e3226','#54463a','#6c5c4c','#857462'], obs: ['#120c14','#20162a','#30223c','#46344e','#625068'],
-  rock: [['#2a2834','#4a4858','#6b6878','#8d8a99','#b0adbb'], ['#1a261e','#33433a','#4a5a4a','#6a7a6a','#8a9a8a'], ['#4a3c28','#6e5e44','#8a7a5a','#b0a080','#d8c8a8'], ['#140c0c','#241a1a','#3a2c2e','#4a3a3c','#6a5a5c'], ['#1a1822','#2e2a38','#46425a','#5e5a72','#7a7690']],
+  rock: [['#2a2834','#4a4858','#6b6878','#8d8a99','#b0adbb'], ['#1a261e','#33433a','#4a5a4a','#6a7a6a','#8a9a8a'], ['#4a3c28','#6e5e44','#8a7a5a','#b0a080','#d8c8a8'], ['#140c0c','#241a1a','#3a2c2e','#4a3a3c','#6a5a5c'], ['#1a1822','#2e2a38','#46425a','#5e5a72','#7a7690'],
+    ['#3a4458','#5e6a82','#8494ac','#b0bed0','#e8f0fa'], ['#141810','#262c20','#3a4230','#525c44','#6a765a']],
+  pineS: ['#14283a','#1c3648','#26465a','#32586c','#426e80'], leafS: ['#141a10','#1e2616','#2a341e','#384428','#4a5634'], deadS: ['#121008','#22200e','#363218','#4a4422','#5e582e'],
   crate: ['#3a2414','#5a3c26','#7a5434','#9a7048','#b48a5a'], metal: ['#2a2834','#4a4858','#7a788a','#aaa8ba'],
   grave: ['#3a3846','#5e5a6a','#7a7688','#9a96a8','#bab6c6'], dirt: ['#2e2216','#46341f','#5a4a3a','#6e5c48'],
 };
@@ -200,6 +214,15 @@ function hdPine(seed) { const R = mulberry32(seed), P = SRAMP.pine;
     { sh: SH.tri(22, 10, 46, 17, 3), ramp: P, tex: .35, grp: 3, line: P[0] },
     { sh: SH.tri(22, 0, 30, 12, 2.5), ramp: P, tex: .35, grp: 4, line: P[0] },
   ], a => { for (let k = 0; k < 7; k++) { const y = 8 + R() * 50, x = 22 + (R() - .7) * (y * .4); if (a.get(x, y)) { a.set(x, y, P[4]); a.set(x + 1, y + 1, P[3]); } } }); }
+function hdPineSnow(seed) { const R = mulberry32(seed), P = SRAMP.pineS;    // 雪松：每一層樹冠上緣蓋著雪
+  return sculpt(44, 72, [
+    { sh: SH.cap(22, 71, 22, 58, 3.4, 2.8), ramp: SRAMP.bark, tex: .3, grp: 1 },
+    { sh: SH.tri(22, 22, 62, 21, 3), ramp: P, tex: .35, grp: 2 },
+    { sh: SH.tri(22, 10, 46, 17, 3), ramp: P, tex: .35, grp: 3, line: P[0] },
+    { sh: SH.tri(22, 0, 30, 12, 2.5), ramp: P, tex: .35, grp: 4, line: P[0] },
+  ], a => { for (let y = 0; y < 66; y++) for (let x = 0; x < 44; x++) { const p = a.pid(x, y); if (p < 2 || a.pid(x, y - 1) === p) continue;
+      a.set(x, y, '#ffffff'); if (R() < .8) a.set(x, y + 1, '#dce8f4'); if (R() < .35) a.set(x, y + 2, '#b0c4d8'); }
+    for (let k = 0; k < 6; k++) { const x = 8 + R() * 28, y = 14 + R() * 40; if (a.get(x, y)) a.set(x, y, '#e8f0fa'); } }); }
 function hdDead(seed, B) { const R = mulberry32(seed);
   return sculpt(46, 56, [
     { sh: SH.cap(23, 55, 23, 30, 3.6, 2.4), ramp: B, tex: .3, grp: 1 },
@@ -256,8 +279,9 @@ function hdBigTree() { const L = SRAMP.leaf, B = SRAMP.bark, R = mulberry32(77);
 }
 const SCN = {
   trees: [[hdTreeRound(1, SRAMP.leaf, SRAMP.bark), hdTreeRound(2, SRAMP.leaf, SRAMP.bark), hdTreeRound(3, SRAMP.leaf, SRAMP.bark)],
-    [hdPine(4), hdPine(5), hdPine(6)], [hdDead(7, SRAMP.dead), hdDead(8, SRAMP.dead)], [hdSpike(9), hdSpike(10)], [hdDead(11, SRAMP.obs), hdTreeRound(12, SRAMP.leafD, SRAMP.bark)]],
-  rocks: SRAMP.rock.map((Rm, r) => [hdRock(20 + r, Rm, r === 1 ? ['#2e5a36', '#4a8a4e'] : null, r === 3), hdRock(30 + r, Rm, r === 1 ? ['#2e5a36', '#4a8a4e'] : null, false)]),
+    [hdPine(4), hdPine(5), hdPine(6)], [hdDead(7, SRAMP.dead), hdDead(8, SRAMP.dead)], [hdSpike(9), hdSpike(10)], [hdDead(11, SRAMP.obs), hdTreeRound(12, SRAMP.leafD, SRAMP.bark)],
+    [hdPineSnow(13), hdPineSnow(14), hdPineSnow(15)], [hdDead(16, SRAMP.deadS), hdTreeRound(17, SRAMP.leafS, SRAMP.deadS), hdDead(18, SRAMP.deadS)]],
+  rocks: SRAMP.rock.map((Rm, r) => { const moss = r === 1 ? ['#2e5a36', '#4a8a4e'] : r === 5 ? ['#dce8f4', '#ffffff'] : r === 6 ? ['#2e3a1e', '#4a6a2e'] : null; return [hdRock(20 + r, Rm, moss, r === 3), hdRock(30 + r, Rm, moss, false)]; }),
   pillars: RUIN.map(u => hdPillar(u)), crate: hdCrate(), graves: [hdGrave(1), hdGrave(2)], big: hdBigTree(),
 };
 function shadowEll(g, cx, cy, rx, ry, a = .28) { g.fillStyle = 'rgba(0,0,0,' + a + ')'; g.beginPath();
