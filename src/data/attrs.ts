@@ -43,10 +43,10 @@ export function reqOf(it: Item): Partial<Record<AttrKey, number>> {
 export function unmet(pl: Player, it: Item | null): AttrKey[] { if (!it) return []; const r = reqOf(it); return (Object.keys(r) as AttrKey[]).filter(k => (pl[k] ?? ATTR_BASE) < r[k]); }
 export const meets = (pl: Player, it: Item | null) => unmet(pl, it).length === 0;
 
-/* 武器的實際攻擊力：基礎攻擊 ×（1 + Σ 係數 × 5% × 遞減點數）。需求不夠的話只剩 60% */
+/* 武器的實際攻擊力：基礎攻擊 ×（1 + Σ 係數 × 6% × 遞減點數）。需求不夠的話只剩 60% */
 export function weaponAtk(pl: Player, w: Item) {
   const S = WSCALE[w.type] || {}; let bonus = 0;
-  for (const k in S) bonus += S[k] * .05 * soft(pl[k] ?? ATTR_BASE);
+  for (const k in S) bonus += S[k] * .06 * soft(pl[k] ?? ATTR_BASE);
   return Math.round(w.atk * (1 + bonus) * (meets(pl, w) ? 1 : .6));
 }
 /* 舊存檔（只有體魄 / 力量 / 耐力，從 1 開始）→ 新的六種能力值（從 5 開始），等級不變 */
