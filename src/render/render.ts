@@ -17,6 +17,7 @@ import { addLight, drawCamp, drawDrop, drawEnemy, drawTelegraph } from './enemy'
 import { drawMerchant, merchant } from '../ui/shop';
 import { camDt } from '../main';
 
+export const view = { x: 0, y: 0 };                                  // 畫面左上角在世界的哪裡（給 HTML 介面對齊用）
 export function render() {
   G.frameNo++;
   ctx.setTransform(F, 0, 0, F, 0, 0); ctx.imageSmoothingEnabled = false;
@@ -24,6 +25,7 @@ export function render() {
   const tx = G.me.x - LW / 2, ty = G.me.y - 8 - LH / 2, ck = 1 - Math.pow(.8, Math.min(3, camDt * 60));   // 跟隨速度跟幀率無關（120Hz 手機不會忽快忽慢）
   cam.x += (tx - cam.x) * ck; cam.y += (ty - cam.y) * ck;
   const maxX = Math.max(0, MW * TS - LW), maxY = Math.max(0, MH * TS - LH);
+  view.x = clamp(cam.x, 0, maxX); view.y = clamp(cam.y, 0, maxY);
   const cx = snapF(clamp(cam.x + sx, 0, maxX)), cy = snapF(clamp(cam.y + sy, 0, maxY));   // 對齊實體像素，跟角色同一個格子，畫面不會一格一格跳
   ctx.fillStyle = '#07060b'; ctx.fillRect(0, 0, LW, LH);
   for (let gy = Math.floor(cy / CPX); gy <= Math.floor((cy + LH) / CPX); gy++) for (let gx = Math.floor(cx / CPX); gx <= Math.floor((cx + LW) / CPX); gx++) {

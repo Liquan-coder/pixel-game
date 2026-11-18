@@ -38,22 +38,20 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 #banner{position:absolute;left:0;right:0;top:38%;padding:14px 0;text-align:center;font-size:34px;letter-spacing:.3em;opacity:0;transition:opacity .8s;background:linear-gradient(transparent,#000b 30%,#000b 70%,transparent);text-shadow:3px 3px 0 #000}
 #banner.show{opacity:1}
 #banner small{display:block;font-size:13px;letter-spacing:.15em;color:var(--muted);margin-top:6px}
-#toasts{position:absolute;left:50%;top:calc(52px + env(safe-area-inset-top,0px));transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px}
-.toast{background:#000c;border:1px solid var(--line);padding:4px 10px;font-size:13px;white-space:nowrap;animation:tin .25s steps(3)}
+#toasts{position:absolute;left:50%;top:calc(52px + env(safe-area-inset-top,0px));transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:1px}
+.toast{padding:1px 10px;font-size:13px;white-space:nowrap;text-shadow:1px 0 0 #000,-1px 0 0 #000,0 1px 0 #000,0 -1px 0 #000,1px 1px 0 #000;animation:tin .25s steps(3)}
 .toast b{color:#fff;font-weight:400}
 .toast.bump b{display:inline-block;animation:bump .18s steps(2)}
 @keyframes bump{from{transform:scale(1.35)}}
-/* 腳邊裝備的屬性卡：放在畫面最下面、做成「寬而矮」，才不會擋到角色（手機橫拿時畫面很矮） */
-#pickBox{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom,0px));width:min(430px,56vw);display:flex;align-items:flex-end;gap:6px;pointer-events:none}
-#pickCard{flex:1;min-width:0}
-#pickCard .card{background:#0b0814e6;font-size:11px;line-height:1.35;padding:4px 8px;display:grid;grid-template-columns:1fr 1fr;column-gap:10px}
-#pickCard .card>:not(.aff){grid-column:1/-1}
+/* 腳邊裝備的屬性卡：貼在裝備旁邊（位置由 hud.ts 的 placePickBox 每幀算） */
+#pickBox{position:absolute;left:0;top:0;width:min(220px,40vw);display:flex;flex-direction:column;gap:5px;pointer-events:none}
+#pickCard .card{background:#0b0814e6;font-size:11px;line-height:1.35;padding:5px 8px}
 #pickCard .card .iname{font-size:13px;gap:6px}
 #pickCard .card .iname img{width:22px;height:22px}
-#pickCard .card .rar{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pickCard .card .rar{font-size:10px}
 #pickCard .card .atk{font-size:12px;margin-top:1px}
-#pickCard .card .sk{margin-top:2px;padding-top:2px}
-#pickBtn{flex:none;white-space:nowrap;pointer-events:auto;background:#2a1a4a;border:3px solid var(--soul);color:#e8dcff;font-size:15px;padding:8px 12px;box-shadow:inset -3px -3px 0 #0007,0 0 0 2px var(--ink),0 0 18px #b49cff55}
+#pickCard .card .sk{margin-top:3px;padding-top:3px}
+#pickBtn{align-self:center;white-space:nowrap;pointer-events:auto;background:#2a1a4a;border:3px solid var(--soul);color:#e8dcff;font-size:14px;padding:5px 14px;box-shadow:inset -3px -3px 0 #0007,0 0 0 2px var(--ink),0 0 18px #b49cff55}
 #pickBtn small{font-size:11px;opacity:.7;margin-left:4px}
 @keyframes tin{from{transform:translateY(-6px);opacity:0}}
 #bossBar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));width:min(46vw,420px);text-shadow:1px 1px 0 #000}

@@ -6,6 +6,8 @@ import { curEq, held, level } from '../game/player';
 import { nearCamp } from '../game/playerUpdate';
 import { nearMerchant } from './shop';
 import { itemCard } from './menus';
+import { SCALE } from '../core/canvas';
+import { view } from '../render/render';
 
 /* ================= HUD / UI ================= */
 const hudCache: Record<string, unknown> = {};
@@ -24,6 +26,7 @@ export function updateHUD() {
   const pk = !G.paused && G.started ? G.pick : null, pkKey = pk ? pk.item.id + ':' + (curEq(G.me)[slotOf(pk.item)]?.id ?? '') : '';
   if (hudCache.pick !== pkKey) { hudCache.pick = pkKey; $('pickBox').hidden = !pk;
     if (pk) $('pickCard').innerHTML = itemCard(pk.item, curEq(G.me)[slotOf(pk.item)]); }   // 跟身上同部位的裝備比較（▲▼）
+  if (pk) placePickBox(pk);
   if (pk) { show = false; shop = false; }                           // 腳邊有裝備時，E 和下方按鈕都是「撿起」
   if (hudCache.shop !== shop) { hudCache.shop = shop; $('shopBtn').hidden = !shop; }
   if (hudCache.rest !== (show && !shop)) { hudCache.rest = show && !shop; $('restBtn').hidden = !(show && !shop); }
@@ -42,6 +45,13 @@ function pushToast(el, col) {
   restartTimer(el);
 }
 function restartTimer(el) { clearTimeout(el._t); el._t = setTimeout(() => el.remove(), TOAST_MS); }
+function placePickBox(d) {
+  const box = $('pickBox'), w = box.offsetWidth, h = box.offsetHeight, vw = window.innerWidth, vh = window.innerHeight;
+  const sx = (d.x - view.x) * SCALE, sy = (d.y - 8 - view.y) * SCALE, gap = 12 * SCALE;   // 裝備在螢幕上的位置（CSS 像素）
+  const left = G.me.x > d.x ? sx - gap - w : sx + gap;                 // 角色在右 → 卡片放左
+  const x = Math.round(clamp(left, 8, vw - w - 8)), y = Math.round(clamp(sy - h / 2, 8, vh - h - 8));
+  const k = x + ',' + y; if (hudCache.pickPos !== k) { hudCache.pickPos = k; box.style.left = x + 'px'; box.style.top = y + 'px'; }
+}
 export function toast(msg, col?) { const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg; pushToast(el, col); }
 const gains: Record<string, { el: HTMLElement & { _t?: any }, n: number }> = {};
 export function gain(key, label, n, col) {                          // 例：gain('gold', '金幣', 3, '#f2c14e') → 「金幣 +3」，再撿到就變「金幣 +6」
