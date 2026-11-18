@@ -9,7 +9,7 @@ import { sfx } from '../core/audio';
 import { dropItem, makeEnemy } from './enemies';
 import { hurtPlayer } from './combat';
 import { nearestPlayer } from './player';
-import { burst, dropGold, hitSpark, quakeFx, shake } from './worldUpdate';
+import { burst, dropGold, dropSouls, hitSpark, quakeFx, shake } from './worldUpdate';
 import { showBanner, toast } from '../ui/hud';
 import { save } from './save';
 
@@ -146,7 +146,7 @@ export function bossDie(by) {                                          // by = æ
   G.hitStop = Math.max(G.hitStop, .4); G.fx.push({ k:'flash', col:'#ffffff', a:.7, t:0, d:.6 });
   for (const dl of [0, .12, .24]) G.fx.push({ k:'warp', x:G.B.x, y:G.B.y, r0:6, r1:90, th:5, delay:dl, t:0, d:.6 + dl, col:dl ? '#f2c14e' : '#b49cff' });
   for (let i = 0; i < 40; i++) G.parts.push({ x:G.B.x + rr(-10, 10), y:G.B.y - rr(0, 20), vx:rr(-15, 15), vy:-rr(40, 140), life:rr(.7, 1.4), max:1.4, col:pick(['#b49cff', '#e8dcff', '#f2c14e', '#ffffff']), star:rr(1, 3), drag:1 });
-  by.souls += 600; G.nums.push({ x:G.B.x, y:G.B.y - 26, txt:'+600', col:'#b49cff', t:0, d:1.6, big:true });
+  dropSouls(G.B.x, G.B.y, 600, by);
   dropItem(bossWeapon(), G.B.x, G.B.y); dropGold(G.B.x, G.B.y, 400);
   G.potMax += 1; by.pot = G.potMax;
   sfx.win(); shake(8, .8);

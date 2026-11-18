@@ -42,6 +42,7 @@ export const sfx = {
   blinkIn: () => tone(600, .1, 'sine', .035, 900),
   charge: lv => { tone(lv === 2 ? 990 : 660, .12, 'triangle', .045, 220); if (lv === 2) tone(1320, .16, 'triangle', .03, 0, .08); },
   release: lv => { noiseHit(.14, .1, lv === 2 ? 2600 : 1800); tone(lv === 2 ? 220 : 300, .2, 'sawtooth', .04, 420); },
+  soul: () => tone(1180 + Math.random() * 200, .05, 'sine', .03),
   coin: () => { tone(1320, .04, 'square', .025); tone(1760, .06, 'square', .02, 0, .04); },
   buy: () => { [880, 1175].forEach((f, i) => tone(f, .08, 'square', .03, 0, i * .06)); },
   win: () => { [523, 659, 784, 1046, 1318].forEach((f, i) => tone(f, .25, 'square', .045, 0, i * .12)); },

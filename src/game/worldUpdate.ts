@@ -1,7 +1,7 @@
 import { G } from '../core/state';
 import { TAU, pick, rr } from '../core/util';
 import { HK, LH, LW, ctx, snapF } from '../core/canvas';
-import { COIN_SP, RAR } from '../data/items';
+import { COIN_SP, RAR, SOUL_SP } from '../data/items';
 import { BLOCKP, TS, spawns } from '../world/map';
 import { updateRegionBosses } from '../world/regionBoss';
 import { tileAt } from '../world/gen';
@@ -64,17 +64,27 @@ function explode(p) { p.exploded = true; aoeHit(p.by, p.x, p.y + 6, 40, p.mult);
 /* coins → 已移到 G（core/state.js） */
 export function dropGold(x, y, v) { if (v <= 0) return; const n = Math.min(6, 1 + Math.floor(v / 10));
   for (let i = 0; i < n; i++) G.coins.push({ x, y, z:2, vz:rr(60, 110), vx:rr(-45, 45), vy:rr(-35, 35), v:Math.max(1, Math.round(v / n)), t:rr(0, 1), mag:false });
-  if (G.coins.length > 240) G.coins.splice(0, G.coins.length - 240); }
+  capCoins(); }
+/* ---- 魂晶：打倒敵人時噴出來，落地後自己飛向打倒它的玩家（不用走過去撿，也不會漏掉） ---- */
+export function dropSouls(x, y, v, by) { if (v <= 0) return; const n = Math.min(10, 1 + Math.floor(v / 15));
+  for (let i = 0; i < n; i++) G.coins.push({ x, y, z:2, vz:rr(70, 120), vx:rr(-50, 50), vy:rr(-40, 40),
+    v:Math.floor(v / n) + (i < v % n ? 1 : 0),                      // 平均分，餘數分給前幾顆 → 加起來剛好等於 v
+    t:rr(0, .2), mag:false, soul:true, to:by });
+  capCoins(); }
+function capCoins() {                                               // 地上太多就清掉最舊的「金幣」；魂晶不清
+  let extra = G.coins.length - 240;
+  for (let i = 0; i < G.coins.length && extra > 0;) if (!G.coins[i].soul) { G.coins.splice(i, 1); extra--; } else i++; }
 function updateCoins(dt) {
   for (let i = G.coins.length - 1; i >= 0; i--) { const c = G.coins[i]; c.t += dt;
     if (!c.mag && (c.z > 0 || c.vz > 0)) { c.z += c.vz * dt; c.vz -= 300 * dt; const o = { x:c.x, y:c.y, r:2 }; moveEnt(o, c.vx * dt, c.vy * dt); c.x = o.x; c.y = o.y; if (c.z <= 0) { c.z = 0; c.vz = 0; } }
     const pl = c.to || nearestPlayer(c.x, c.y);                     // 吸向最近的玩家，吸住後就鎖定他
     const dx = pl.x - c.x, dy = pl.y - 6 - c.y, d = Math.hypot(dx, dy);
-    if (!pl.dead && c.t > .35 && d < 52) { c.mag = true; c.to = pl; }
+    if (c.soul ? c.t > .45 : !pl.dead && c.t > .35 && d < 52) { c.mag = true; c.to = pl; }
     if (c.mag) { const sp = 140 + 500 * Math.min(1, c.t); c.x += dx / (d || 1) * sp * dt; c.y += dy / (d || 1) * sp * dt; c.z = Math.max(0, c.z - 60 * dt);
-      if (d < 7) { pl.gold += c.v; G.coins.splice(i, 1); sfx.coin(); G.parts.push({ x:pl.x + rr(-3, 3), y:pl.y - 12, vx:rr(-10, 10), vy:-30, life:.3, max:.3, col:'#fff0a8', star:1.2, drag:3 }); } } }
+      if (d < 7) { if (c.soul) { pl.souls += c.v; sfx.soul(); } else { pl.gold += c.v; sfx.coin(); } G.coins.splice(i, 1);
+        G.parts.push({ x:pl.x + rr(-3, 3), y:pl.y - 12, vx:rr(-10, 10), vy:-30, life:.3, max:.3, col:c.soul ? '#e8dcff' : '#fff0a8', star:1.2, drag:3 }); } } }
 }
-export function drawCoin(c) { const sp = COIN_SP[Math.floor(c.t * 10) % 4], w = sp.width * HK, h = sp.height * HK;
+export function drawCoin(c) { const sp = (c.soul ? SOUL_SP : COIN_SP)[Math.floor(c.t * 10) % 4], w = sp.width * HK, h = sp.height * HK;
   ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(asn(c.x - 1.5), asn(c.y), 3, HK);
   ctx.drawImage(sp, snapF(c.x - w / 2), snapF(c.y - h - c.z + Math.sin(c.t * 5) * .6), w, h); }
 function updateDrops(dt) {

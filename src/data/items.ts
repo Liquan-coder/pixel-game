@@ -113,6 +113,10 @@ export const MERCH_SP = sculpt(46, 54, [                                      //
   a.line(14, 50, 30, 50, '#0e2a20'); for (let y = 26; y < 34; y++) a.set(31, y, '#3a2414'); a.rect(26, 30, 10, 2, '#c0862c'); });
 export const COIN_SP = [1, .7, .35, .7].map(w => sculpt(12, 12, [{ sh: SH.ell(6, 6, Math.max(1.2, 5 * w), 5), ramp: ['#7a4a1a', '#c0862c', '#f2c14e', '#fff0a8'], grp: 1 }],
   a => { if (w > .6) { a.set(6, 4, '#7a4a1a'); a.set(6, 5, '#7a4a1a'); a.set(6, 6, '#7a4a1a'); a.set(6, 7, '#7a4a1a'); } }));
+// 魂晶：紫色菱形水晶，跟金幣一樣用「變窄」做出旋轉的感覺
+export const SOUL_SP = [1, .7, .35, .7].map(w => { const hw = Math.max(1, 4.5 * w);
+  return sculpt(12, 16, [{ sh: SH.poly([[6, 1], [6 + hw, 6], [6, 15], [6 - hw, 6]]), ramp: ['#3a2470', '#6a4ad0', '#b49cff', '#f0e8ff'], grp: 1 }],
+    a => { if (w > .6) { a.set(5, 4, '#ffffff'); a.set(5, 5, '#f0e8ff'); } }); });
 (() => { try {
   const sp = makeSprite(HERO_FULL.map(r => r.padEnd(HERO_W, '.')), HERO_PAL);
   const big = document.createElement('canvas'); big.width = sp.w * 3; big.height = sp.h * 3; const bg = big.getContext('2d');

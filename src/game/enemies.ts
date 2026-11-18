@@ -6,7 +6,7 @@ import { moveEnt, stepToward } from './collision';
 import { sfx } from '../core/audio';
 import { hurtPlayer } from './combat';
 import { nearestPlayer } from './player';
-import { burst, dropGold, killFx, shake } from './worldUpdate';
+import { burst, dropGold, dropSouls, killFx, shake } from './worldUpdate';
 import { toast } from '../ui/hud';
 import type { Enemy } from '../types';
 
@@ -87,7 +87,7 @@ export function killEnemy(e, by) {                                     // by = æ
   const i = G.enemies.indexOf(e); if (i >= 0) G.enemies.splice(i, 1);
   if (e.sp) { e.sp.alive = false; e.sp.timer = e.elite ? Infinity : 45; }
   const D = BEH[e.beh], s = Math.round(D.souls(e.lv) * (e.sp ? 1 : .3) * (e.elite ? 5 : 1));
-  by.souls += s; G.nums.push({ x:e.x, y:e.y - 12, txt:'+' + s, col:'#b49cff', t:0, d:1, big:e.elite });
+  dropSouls(e.x, e.y, s, by);
   burst(e.x, e.y - 5, e.elite ? 30 : 14, KIND[e.kind].col, 70); killFx(e);
   sfx.kill();
   dropGold(e.x, e.y, Math.round((3 + e.lv * 1.6) * rr(.7, 1.3) * (e.elite ? 8 : 1) * (e.sp ? 1 : .3)));

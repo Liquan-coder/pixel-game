@@ -8,7 +8,7 @@ import { AI, FIREC } from './bossAI';
 import { flame } from './chunks';
 import { sfx } from '../core/audio';
 import { dropItem } from '../game/enemies';
-import { dropGold, shake } from '../game/worldUpdate';
+import { dropGold, dropSouls, shake } from '../game/worldUpdate';
 import { artDot, artPath, drawOrb } from '../render/fx';
 import { teleCircle, teleLane, teleSector, warnMark } from '../render/enemy';
 import { showBanner, toast } from '../ui/hud';
@@ -71,7 +71,7 @@ export function regionBossDie(e, by) {                                  // by = 
   G.hitStop = Math.max(G.hitStop, .4); G.fx.push({ k:'flash', col:'#ffffff', a:.7, t:0, d:.6 });
   for (const dl of [0, .12, .24]) G.fx.push({ k:'warp', x:e.x, y:e.y, r0:6, r1:90, th:5, delay:dl, t:0, d:.6 + dl, col:dl ? '#f2c14e' : d.aura[0] });
   for (let i = 0; i < 40; i++) G.parts.push({ x:e.x + rr(-12, 12), y:e.y - rr(0, 24), vx:rr(-15, 15), vy:-rr(40, 140), life:rr(.7, 1.4), max:1.4, col:pick(d.aura.concat(['#f2c14e', '#b49cff'])), star:rr(1, 3), drag:1 });
-  by.souls += d.souls; G.nums.push({ x:e.x, y:e.y - 30, txt:'+' + d.souls, col:'#b49cff', t:0, d:1.6, big:true });
+  dropSouls(e.x, e.y, d.souls, by);
   const it = d.reward(); dropItem(it, e.x, e.y); dropGold(e.x, e.y, d.gold);
   sfx.win(); shake(8, .8); showBanner('強敵已擊敗', '獲得：' + it.name, 3200); save();
 }
