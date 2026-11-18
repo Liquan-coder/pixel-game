@@ -1,7 +1,7 @@
 import { G } from '../core/state';
 import { $, clamp, pick, ri } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
-import { AT, COIN_SP, ICON_URL, MERCH_SP, RAR, SLOTN, TT, makeGear, slotOf } from '../data/items';
+import { AT, COIN_SP, DROP_WEAPONS, ICON_URL, MERCH_SP, RAR, SLOTN, TT, makeGear, slotOf } from '../data/items';
 import { CAMPS, MW, reg } from '../world/map';
 import { drawArtSprite } from '../world/chunks';
 import { collides } from '../game/collision';
@@ -20,7 +20,7 @@ function rollStock(c) {
   const r = reg[c.ty * MW + c.tx] % 4, base = [3, 8, 13, 18][r], st: { kind: string; price: number; left?: number; item?: Item }[] = [{ kind:'pot', price:25 }];
   if (G.potMax < 8) st.push({ kind:'potUp', price:250 * (G.potMax - 2), left:1 });
   for (let i = 0; i < 5; i++) { const q = Math.random(), rar = q < .03 + r * .04 ? 3 : q < .2 + r * .08 ? 2 : q < .62 ? 1 : 0;
-    const type = i < 2 ? pick(['sword', 'dagger', 'axe', 'spear', 'staff']) : i < 4 ? pick(Object.keys(AT).concat(Object.keys(TT))) : pick(['sword', 'robe', 'leather', 'mail', 'ring', 'amulet']);
+    const type = i < 2 ? pick(DROP_WEAPONS) : i < 4 ? pick(Object.keys(AT).concat(Object.keys(TT))) : pick(['sword', 'robe', 'leather', 'mail', 'ring', 'amulet']);
     const it = makeGear(type, clamp(base + ri(-1, 1), 1, 22), rar); st.push({ kind:'item', item:it, price:itemPrice(it) }); }
   return st;
 }

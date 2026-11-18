@@ -13,6 +13,9 @@ export const WT = {
   axe:{name:'戰斧',base:21,cd:.72,range:28,arc:140,stam:20,skill:'slam',sn:'裂地重擊',scd:8,trait:'很慢但很痛',sd:'蓄力砸地，前方大範圍傷害（350%）並暈眩敵人'},
   spear:{name:'長槍',base:12,cd:.5,range:42,arc:44,stam:13,skill:'triple',sn:'三連刺',scd:5.5,trait:'攻擊距離長',sd:'快速刺出三槍（每下 140%）'},
   staff:{name:'法杖',base:10,cd:.5,range:150,arc:0,stam:10,ranged:true,skill:'fireball',sn:'火球術',scd:6,trait:'遠程魔法彈',sd:'發射火球，爆炸傷害一整片（300%）'},
+  katana:{name:'太刀',base:13,cd:.34,range:27,arc:110,stam:10,skill:'iai',sn:'居合一閃',scd:6,trait:'出手快、容易暴擊',sd:'瞬間穿過前方一整排敵人（300%），一定會暴擊'},
+  hammer:{name:'戰鎚',base:24,cd:.8,range:27,arc:150,stam:22,skill:'quake',sn:'三重震波',scd:9,trait:'最重的一擊',sd:'連砸三下，震波一圈比一圈大（每圈 200%）並暈眩敵人'},
+  scythe:{name:'鐮刀',base:14,cd:.5,range:33,arc:200,stam:13,skill:'reap',sn:'死神收割',scd:8,trait:'掃一大圈、打中會回血',sd:'把周圍的敵人拉過來一起砍（260%），每打中一隻回 4% 生命'},
   wolfblade:{name:'狼牙雙刃',base:15,cd:.3,range:24,arc:130,stam:9,skill:'wolfrush',sn:'狼影連襲',scd:7,trait:'狼王的獠牙',sd:'化為狼影，連續撲向三個敵人（每下 180%），期間無敵'},
 };
 export const RAR = [
@@ -66,8 +69,9 @@ export function makeGear(type: string, ilvl: number, rarity: number): Item {
   if (isA) { it.def = Math.round(base.def * (1 + .12 * (ilvl - 1)) * R.m * rr(.92, 1.08)); it.hp = Math.round(base.hp * (1 + .1 * (ilvl - 1)) * R.m); }
   return it;
 }
+export const DROP_WEAPONS = ['sword', 'dagger', 'axe', 'spear', 'staff', 'katana', 'hammer', 'scythe'];   // 會從怪物身上掉、商人會賣的武器（狼牙雙刃只有狼王會掉）
 export function randomLoot(lv, rarity) {
-  const q = Math.random(), type = q < .6 ? pick(['sword', 'dagger', 'axe', 'spear', 'staff']) : q < .85 ? pick(Object.keys(AT)) : pick(Object.keys(TT));
+  const q = Math.random(), type = q < .6 ? pick(DROP_WEAPONS) : q < .85 ? pick(Object.keys(AT)) : pick(Object.keys(TT));
   return makeGear(type, lv, rarity);
 }
 export function bossWeapon() {

@@ -91,6 +91,36 @@ const GEN = {
     for (let x = c - 2; x <= c + 2; x++) { wset(g, x, 38, 'F'); wset(g, x, 41, 'G'); } for (let y = 39; y <= 40; y++) { wset(g, c - 2, y, 'f'); wset(g, c + 2, y, 'G'); }
     wset(g, c - 1, 39, 'w'); wset(g, c, 39, 'v'); wset(g, c + 1, 39, 'x'); wset(g, c - 1, 40, 'x'); wset(g, c, 40, 'w'); wset(g, c + 1, 40, 'y');
     return { rows: wrows(g), grip: [c, 34] }; },
+  katana() { const c = 4, g = wgrid(10, 50);                            // 太刀：細長、微彎的刀身 + 圓形刀鐔 + 菱紋刀柄
+    for (let r = 0; r < 32; r++) { const off = Math.round(2.2 * Math.pow(1 - r / 31, 2)), d0 = r < 1 ? 0 : -1, d1 = r < 1 ? 0 : r < 3 ? 1 : 2;   // 刀尖往刀背那側彎
+      for (let d = d0; d <= d1; d++) wset(g, c + off + d, r, d === d0 ? '1' : d === d1 ? (d1 > 1 ? '5' : '3') : d === 0 ? ((r * 7) % 9 < 4 ? '1' : '2') : '3'); }
+    for (let x = c - 1; x <= c + 1; x++) wset(g, x, 32, x < c ? '6' : '7');
+    for (let x = 0; x < 9; x++) { wset(g, x, 33, x === 0 || x === 8 ? '8' : 'K'); wset(g, x, 34, x === 0 || x === 8 ? '9' : 'L'); }
+    wset(g, 1, 33, '7'); wset(g, 7, 34, '8');
+    for (let y = 35; y <= 46; y++) for (let d = -1; d <= 1; d++) wset(g, c + d, y, (y + d) % 3 === 0 ? 'f' : (y + d) % 3 === 1 ? 'K' : 'L');
+    for (let x = c - 1; x <= c + 1; x++) { wset(g, x, 47, '7'); wset(g, x, 48, '8'); } wset(g, c, 49, '9');
+    return { rows: wrows(g), grip: [c, 40] }; },
+  hammer() { const c = 9, g = wgrid(19, 50);                           // 戰鎚：方形鐵鎚頭 + 金箍 + 長柄
+    for (let y = 12; y < 47; y++) { wset(g, c - 1, y, 'n'); wset(g, c, y, 'N'); wset(g, c + 1, y, 'M'); }
+    for (let y = 1; y <= 12; y++) for (let x = 0; x < 19; x++) {
+      const ch = y === 1 ? '1' : y === 12 ? '5' : x === 0 ? '2' : x === 18 ? '5' : x < 3 ? '2' : x > 15 ? '4' : '3';
+      wset(g, x, y, ch); }
+    for (const x of [5, 13]) for (let y = 1; y <= 12; y++) wset(g, x, y, y < 4 ? '6' : y > 9 ? '8' : '7');
+    for (let y = 4; y <= 9; y++) { wset(g, 0, y, '1'); wset(g, 18, y, '4'); }
+    wset(g, c, 0, '2'); wset(g, c - 1, 0, '1'); wset(g, c + 1, 0, '3');
+    gem(g, c, 6, 'B', 'C', 'D', 'E');
+    wrap(g, c, 36, 42, 1, ['p', 'q', 'r']);
+    for (let x = c - 2; x <= c + 2; x++) { wset(g, x, 47, '7'); wset(g, x, 48, '8'); } wset(g, c, 49, '9');
+    return { rows: wrows(g), grip: [c, 39] }; },
+  scythe() { const c = 18, g = wgrid(22, 58);                          // 鐮刀：長柄頂端往一邊彎下去的新月刀
+    for (let y = 3; y < 56; y++) { wset(g, c, y, 'n'); wset(g, c + 1, y, (y % 5 === 0) ? 'M' : 'N'); }
+    for (let x = 0; x <= c; x++) { const u = (c - x) / c, top = Math.round(2 + 13 * Math.pow(u, 1.7)), th = Math.max(1, Math.round(6.5 * Math.pow(1 - u, .8) + .8));
+      for (let k = 0; k <= th; k++) wset(g, x, top + k, k === th ? 'v' : k === th - 1 ? 'w' : k === 0 ? 'L' : k === 1 ? 'K' : 'k'); }
+    for (let x = c - 1; x <= c + 2; x++) { wset(g, x, 1, '7'); wset(g, x, 2, '8'); }
+    gem(g, c, 5, 'v', 'w', 'x', 'y');
+    wrap(g, c, 30, 38, 1, ['K', 'L', 'x']);
+    for (let x = c - 1; x <= c + 2; x++) { wset(g, x, 56, '7'); wset(g, x, 57, '9'); }
+    return { rows: wrows(g), grip: [c, 34] }; },
 };
 export const WEAP = { staff: { rows: STAFF_ART.rows, grip: STAFF_ART.grip, base: STAFF_ART.base, pal: HERO_PAL } };
 for (const k in GEN) { const g = GEN[k](); WEAP[k] = { rows: g.rows, grip: g.grip, base: -Math.PI / 2, pal: WPAL2 }; }
@@ -128,6 +158,9 @@ export const ANIM = {
   axe:      { C:['flatR', 'flat', 'slam'], wu:.2, sw:.13, hold:.16, back:.18, up:-2.8, from:-1.6, to:1.2, lift:7, P:{ C0:[-3, -1, 0], C:[-6, -3, 0], S:[4, 1, 1], H:[7, 4, 1], R:[3, 2, 0] } },
   wolfblade:{ C:['diag', 'flat', 'slam'], wu:.07, sw:.09, hold:.1, back:.13, up:-2.3, from:-1.4, to:.9, lift:4, P:{ C:[-3, -1, 0], S:[5, 0, 1], H:[5, 2, 1], R:[2, 0, 0] } },
   spear:    { wu:.09, sw:.14, hold:.08, back:.14, up:-.15, to:0, lift:0, P:{ C:[-4, 0, 0], S:[7, 0, 1], H:[6, 1, 1], R:[2, 0, 0] } },
+  katana:   { C:['flat', 'diag', 'slam'], wu:.07, sw:.07, hold:.1, back:.12, up:-2.2, from:-1.4, to:.9, lift:4, P:{ C:[-3, -1, 0], S:[6, 1, 1], H:[6, 2, 1], R:[2, 0, 0] } },
+  hammer:   { C:['diag', 'flatR', 'slam'], wu:.22, sw:.13, hold:.18, back:.2, up:-2.9, from:-1.6, to:1.2, lift:8, P:{ C0:[-3, -1, 0], C:[-6, -3, 0], S:[4, 1, 1], H:[7, 4, 1], R:[3, 2, 0] } },
+  scythe:   { C:['flat', 'flatR', 'slam'], wu:.13, sw:.12, hold:.14, back:.16, up:-2.5, from:-1.6, to:1.1, lift:5, P:{ C:[-4, -1, 0], S:[5, 1, 1], H:[5, 2, 1], R:[2, 0, 0] } },
   staff:    { wu:.12, sw:.07, hold:.12, back:.16, up:-2.0, to:.35, lift:4, P:{ C:[-2, -2, 0], S:[5, 0, 1], H:[3, 1, 0], R:[0, 0, 0] } },
 };
 const BACKP = { C:[-2, 2, 0], S:[4, 1, 1], H:[4, -2, 1] };              // 由下往上撩：壓低 → 往上

@@ -91,7 +91,7 @@ function heroAttackPose(pl: Player) {                                           
 /* 單邊有刃的武器（斧頭）：刃要朝「正在揮過去的方向」，不然會變成用斧背砍。
    角度往順時針轉（畫面上 y 朝下，角度變大）→ 用翻過的圖，刃在前面；逆時針 → 不翻。
    rot = +1 順時針 / -1 逆時針：平常跟面向一樣（面右往順時針揮）；反手橫掃（flat）會反過來 */
-const ONE_EDGE = { axe: true };
+const ONE_EDGE = { axe: true, scythe: true };
 function edgeMir(pl: Player, msw, dir) {
   if (!ONE_EDGE[pl.weapon.type]) return undefined;
   let rot = dir;

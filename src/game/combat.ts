@@ -26,9 +26,11 @@ function calcDmg(pl: Player, mult) {
   const crit = Math.random() * 100 < pl.crit; if (crit) v *= 1.8;
   return { v: Math.max(1, Math.round(v)), crit };
 }
-export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: number, opts: { heavy?: boolean; stun?: number } = {}) {
+export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: number, opts: { heavy?: boolean; stun?: number; crit?: boolean; heal?: number } = {}) {
   if (e.hp <= 0) return;
-  const { v, crit } = calcDmg(pl, mult);
+  let { v, crit } = calcDmg(pl, mult);
+  if (opts.crit && !crit) { crit = true; v = Math.round(v * 1.8); }      // 居合：一定暴擊
+  if (opts.heal) pl.hp = Math.min(pl.maxHp, pl.hp + Math.round(pl.maxHp * opts.heal));   // 鐮刀收割：打中一隻回一點血
   e.hp -= v; e.flash = .1; e.hitT = .32; e.hitDir = Math.sign(e.x - sx) || 1;
   G.nums.push({ x:e.x + rr(-3, 3), y:e.y - (e.boss ? 26 : 16), txt:String(v), col: crit ? '#ffd84a' : '#ffffff', t:0, d:.7, big:crit });
   const a = Math.atan2(e.y - sy, e.x - sx);
@@ -63,7 +65,8 @@ export const busy = (pl: Player) => pl.dodge > 0 || pl.drink > 0 || pl.skillLock
 /* ---- 普通攻擊：三段連擊，每一下留下新月刀光 ---- */
 export const WFX = {                                                         // 外層光 / 中層 / 白芯
   sword: ['#4a6ae0', '#a8c0ff', '#ffffff'], dagger: ['#7a4ae0', '#d0b8ff', '#ffffff'], axe: ['#c8401e', '#ffb040', '#fff6d0'],
-  spear: ['#2a8a9a', '#9af0ff', '#ffffff'], staff: ['#6a4ad0', '#b49cff', '#ffffff'], wolfblade: ['#3a2470', '#9a6cff', '#f0e0ff'] };
+  spear: ['#2a8a9a', '#9af0ff', '#ffffff'], staff: ['#6a4ad0', '#b49cff', '#ffffff'], wolfblade: ['#3a2470', '#9a6cff', '#f0e0ff'],
+  katana: ['#a8203a', '#ff8aa0', '#ffffff'], hammer: ['#8a5a1a', '#f2c14e', '#fff6d0'], scythe: ['#1e5a46', '#6ae0b0', '#e0fff0'] };
 const SHADOWBLADE = ['#1a1030', '#6a4ad0', '#e0d0ff'];
 export function wcols(pl: Player, type) { const c = WFX[type].slice(), r = pl.weapon.rarity; if (r >= 3) c[0] = RAR[r].c; return c; }
 function smearFx(pl: Player, a0, a1, r, w, sw, cols, hold = .12, delay = 0, sy = HSY) { G.fx.push({ k:'smear', follow:pl, a0, a1, r, w, sw, hold, delay, t:0, d:delay + sw + hold, cols, sy }); }
@@ -83,10 +86,11 @@ function newSwing(pl: Player, type, A, fin, st, extra) {                        
   const wu = A.wu * F * (st === 'slam' ? 1.2 : 1), sw = A.sw * F;
   return Object.assign({ t:0, wu, sw, d:wu + sw + A.hold, back:A.back, f:pl.face, sd, rR, r0, rs, r1, lift, sy:S.sy || HSY, st, ty:type, fin, anim:true }, extra);
 }
+const TH = { sword:9, dagger:6, axe:13, wolfblade:8, katana:7, hammer:14, scythe:11 };   // 刀光粗細
 const QDAG = Object.assign({}, ANIM.dagger, { wu:.025, sw:.05, hold:.03 });   // 影步連斬用的快速版短刀動作
 const DSEQ = ['diag', 'flat', 'rise', 'flatR'];                        // 斜劈 → 橫掃 → 上撩 → 反橫掃 … 最後一刀重劈
 function swingSmear(pl: Player, s, type, cols, fin) {                               // 跟著角色的刀光（貼在刀身上）
-  const th = { sword:9, dagger:6, axe:13, wolfblade:8 }[type] || 9, R = WT[type].range + (fin ? 6 : 2), tip = HAND_R + REACH + WLEN[type];
+  const th = TH[type] || 9, R = WT[type].range + (fin ? 6 : 2), tip = HAND_R + REACH + WLEN[type];
   const Rv = Math.min(R, tip + (fin ? 9 : 6)), wv = Math.max(th, Rv - (HAND_R + REACH + WLEN[type] * .45)), flat = s.sy < .6;
   smearFx(pl, s.f + s.rs * s.sd, s.f + s.r1 * s.sd, flat ? Rv + 3 : Rv, wv * (flat ? 1.3 : 1), s.sw * .75, cols, .08, s.wu + s.sw * .25, s.sy);
 }
@@ -116,7 +120,7 @@ export function tryAttack(pl: Player) {
     return true;
   }
   const s = pl.swing = newSwing(pl, type, A, fin, st, {});
-  const th = { sword:9, dagger:6, axe:13, wolfblade:8 }[type] || 9, R = W.range + (fin ? 6 : 2);
+  const th = TH[type] || 9, R = W.range + (fin ? 6 : 2);
   const tip = HAND_R + REACH + WLEN[type], Rv = Math.min(R, tip + (fin ? 9 : 6)), wv = Math.max(th, Rv - (HAND_R + REACH + WLEN[type] * .45));
   const as = s.f + s.rs * s.sd, a1 = s.f + s.r1 * s.sd, d0 = s.wu + s.sw * .25, sw2 = s.sw * .75;   // 刀先從頭頂甩到前方（25%），刀光從那裡開始畫
   const flat = s.sy < .6, Rs = flat ? Rv + 3 : Rv;                    // 橫掃：刀光畫成扁扁的一大圈，繞過身體前方
@@ -131,6 +135,7 @@ export function tryAttack(pl: Player) {
     for (let i = 0; i < (fin ? 6 : 3); i++) { const a = pl.face + rr(-.6, .6), v = rr(90, 170);   // 白色星屑往前飛
       G.parts.push({ x:mx, y:my, vx:Math.cos(a) * v, vy:Math.sin(a) * v - 20, life:rr(.3, .45), max:.45, col:'#ffffff', star:rr(1.6, 2.6), drag:4 }); }
     if (fin) { moveEnt(pl, Math.cos(pl.face) * 7, Math.sin(pl.face) * 7);
+      if (type === 'hammer') { quakeFx(pl.x + Math.cos(pl.face) * 18, pl.y + Math.sin(pl.face) * 18, 36); shake(5, .18); G.hitStop = Math.max(G.hitStop, .05); }
       if (type === 'axe') { quakeFx(pl.x + Math.cos(pl.face) * 18, pl.y + Math.sin(pl.face) * 18, 30); shake(4, .15); }
     }
     sfx.swing(); } });
@@ -194,6 +199,27 @@ export function releaseCharge(pl: Player, lv) {
       autoFace(pl, 200); const a = pl.face; pl.swing = { t:0, d:.25, ranged:true };
       G.projs.push({ x:pl.x + Math.cos(a) * 10, y:pl.y - 8 + Math.sin(a) * 10, vx:Math.cos(a) * 190, vy:Math.sin(a) * 190, r:6, life:1.2, mult:2.5 * s, owner:'p', by:pl, kind:'orb', rad:lv >= 2 ? 60 : 46, split:lv >= 2, big:lv >= 2 ? 8 : 6 });
       G.fx.push({ k:'rune', x:pl.x, y:pl.y, r:16, t:0, d:.45, rot:rr(0, TAU) });
+      break; }
+    case 'katana': {                                                  // 燕返：往前一閃，回頭再一閃（兩道交叉的刀光）
+      autoFace(pl, 140); const a = pl.face, L = lv >= 2 ? 90 : 64; pl.skillLock = .34; pl.iframe = Math.max(pl.iframe, .34);
+      const x0 = pl.x, y0 = pl.y; blinkFx(pl, pl.x, pl.y, true); moveEnt(pl, Math.cos(a) * L * .7, Math.sin(a) * L * .7); blinkFx(pl, pl.x, pl.y, false);
+      lanceFx(pl, a + Math.PI, L * .7, 7, cols, .26, false); lineHit(pl, x0, y0, a, L * .7 + 10, 10, 1.6 * s, { heavy:true });
+      pl.timers.push({ t:.16, fn: () => { pl.face = a + Math.PI; updFlip(pl); smearFx(pl, a + Math.PI - 1.4, a + Math.PI + 1.4, 34, 12, .08, cols, .14);
+        meleeHit(pl, 38, 200, 1.5 * s, { heavy:true, crit:lv >= 2 }); sfx.swing(); shake(3, .12); } });
+      sfx.swing(); break; }
+    case 'hammer': {                                                  // 隕星重鎚：跳起來砸，落點炸開大震波（範圍比斧頭大）
+      autoFace(pl, 80); pl.skillLock = .62; pl.slam = .5; pl.iframe = Math.max(pl.iframe, .35);
+      pl.timers.push({ t:.32, fn: () => { const cx = pl.x + Math.cos(pl.face) * 18, cy = pl.y + Math.sin(pl.face) * 18, R = lv >= 2 ? 84 : 62;
+        smearFx(pl, pl.face - 1.8, pl.face + .3, 30, 16, .08, cols, .16);
+        aoeHit(pl, cx, cy, R * .8, 3 * s, { stun:1.6, heavy:true }); quakeFx(cx, cy, R, lv >= 2);
+        for (const dl of [0, .1]) G.fx.push({ k:'warp', x:cx, y:cy, r0:6, r1:R, th:5, delay:dl, t:0, d:.4 + dl, col:dl ? '#ffffff' : '#f2c14e' });
+        sfx.boom(); shake(8, .35); G.hitStop = Math.max(G.hitStop, .09); } });
+      break; }
+    case 'scythe': {                                                  // 新月迴旋：鐮刀轉兩圈，第二圈範圍更大，打中回血
+      const n = lv >= 2 ? 3 : 2; pl.skillLock = n * .17; pl.iframe = Math.max(pl.iframe, n * .15);
+      for (let i = 0; i < n; i++) pl.timers.push({ t:i * .17, fn: () => { pl.spin = .3; const a = rr(0, TAU), R = 36 + i * 8;
+        smearFx(pl, a, a + TAU * .97, R, 11, .15, cols, .1);
+        aoeHit(pl, pl.x, pl.y, R + 2, 1.25 * s, { heal:.02, heavy: i === n - 1 }); sfx.swing(); } });
       break; }
     case 'wolfblade': {                                               // 狼牙迴旋：雙刃轉圈
       const n = lv >= 2 ? 3 : 2; pl.skillLock = n * .15 + .05; pl.iframe = Math.max(pl.iframe, n * .15);
@@ -270,6 +296,37 @@ export function trySkill(pl: Player) {
         G.fx.push({ k:'warp', x:mx, y:my, r0:3, r1:13, th:2.5, sy:1, t:0, d:.22, col:'#ff9a3a' });
         for (let i = 0; i < 16; i++) { const a = pl.face + rr(-1.2, 1.2), v = rr(40, 140); G.parts.push({ x:mx, y:my, vx:Math.cos(a) * v, vy:Math.sin(a) * v - 15, life:rr(.2, .4), max:.4, col:pick(['#ffe08a', '#ffb040', '#ff7a2a', '#ffffff']), star:rr(.8, 2), drag:5 }); } }
       pl.swing = { t:0, d:.2, ranged:true, ty:'staff' }; break;
+    case 'iai': {                                                     // 居合一閃：收刀一瞬 → 消失 → 出現在前方，路上的敵人全被斬（必定暴擊）
+      const m = Math.hypot(input.mx, input.my); if (m > .2 && !nearestTarget(pl, 120)) pl.face = Math.atan2(input.my, input.mx); else autoFace(pl, 120);
+      updFlip(pl); pl.skillLock = .36; pl.iframe = .5; const a = pl.face, x0 = pl.x, y0 = pl.y;
+      G.fx.push({ k:'warp', x:pl.x, y:pl.y, r0:18, r1:3, th:3, t:0, d:.14, col:wc[1] });
+      pl.timers.push({ t:.12, fn: () => {
+        blinkFx(pl, pl.x, pl.y, true); moveEnt(pl, Math.cos(a) * 78, Math.sin(a) * 78); const L = Math.hypot(pl.x - x0, pl.y - y0);
+        G.fx.push({ k:'lance', follow:null, x:x0, y:y0 - 7, a, len:L + 10, w:6, t:0, d:.32, cols:wc });
+        G.fx.push({ k:'line', x:x0, y:y0 - 7, a, len:L + 14, t:0, d:.22, col:'#ffffff' });
+        lineHit(pl, x0, y0, a, L + 12, 12, 3, { crit:true, heavy:true });
+        blinkFx(pl, pl.x, pl.y, false); pl.face = a; updFlip(pl); sfx.crit(); shake(4, .15); G.hitStop = Math.max(G.hitStop, .08);
+        for (let k = 0; k < 18; k++) { const u = Math.random(); G.parts.push({ x:x0 + (pl.x - x0) * u, y:y0 - 7 + (pl.y - y0) * u, vx:rr(-20, 20), vy:rr(-30, 10), life:rr(.3, .6), max:.6, col:pick(['#ff8aa0', '#ffffff', '#ffd0dc']), star:rr(.6, 1.6), drag:2 }); }   // 刀光走過的地方飄下花瓣般的光點
+      } });
+      break; }
+    case 'quake': {                                                   // 三重震波：連砸三下，一圈比一圈大
+      autoFace(pl, 80); pl.skillLock = .95; pl.iframe = Math.max(pl.iframe, .3);
+      for (let i = 0; i < 3; i++) pl.timers.push({ t:.12 + i * .3, fn: () => { pl.slam = .3;
+        const cx = pl.x + Math.cos(pl.face) * 16, cy = pl.y + Math.sin(pl.face) * 16, R = 34 + i * 18;
+        aoeHit(pl, cx, cy, R, 2, { stun:.8, heavy:true }); quakeFx(cx, cy, R, i === 2);
+        G.fx.push({ k:'ring', x:cx, y:cy, r0:6, r1:R + 6, t:0, d:.35, col: i === 2 ? '#ffffff' : '#f2c14e' });
+        burst(cx, cy, 14 + i * 6, '#8a8296', 90 + i * 20); sfx.boom(); shake(4 + i * 2, .2); } });
+      break; }
+    case 'reap': {                                                    // 死神收割：把周圍的敵人拉過來，再轉一大圈砍
+      pl.skillLock = .4; pl.iframe = Math.max(pl.iframe, .3);
+      for (const e of targets(pl)) { const dx = pl.x - e.x, dy = pl.y - e.y, d = Math.hypot(dx, dy); if (d > 90 || d < 20 || e.boss || e.elite) continue;
+        moveEnt(e, dx / d * (d - 20) * .8, dy / d * (d - 20) * .8); }
+      G.fx.push({ k:'warp', x:pl.x, y:pl.y, r0:90, r1:16, th:4, t:0, d:.22, col:wc[1] });
+      pl.timers.push({ t:.14, fn: () => { pl.spin = .3; const a = rr(0, TAU);
+        smearFx(pl, a, a + TAU * .97, 44, 14, .16, wc, .14); smearFx(pl, a + Math.PI, a + Math.PI - TAU * .9, 30, 8, .16, ['#0e2a20', '#2e7a5c', '#a8f0d0'], .12);
+        aoeHit(pl, pl.x, pl.y, 46, 2.6, { heal:.04, heavy:true }); sfx.release(2); shake(4, .15);
+        for (let k = 0; k < 24; k++) { const b = k / 24 * TAU; G.parts.push({ x:pl.x + Math.cos(b) * 40, y:pl.y - 6 + Math.sin(b) * 28, vx:-Math.cos(b) * 60, vy:-Math.sin(b) * 40 - 10, life:.45, max:.45, col:pick(wc), star:rr(.8, 2), drag:3 }); } } });
+      break; }
     case 'wolfrush':
       pl.skillLock = .5; pl.iframe = .6;
       for (let i = 0; i < 3; i++) pl.timers.push({ t: i * .17, fn: () => {
