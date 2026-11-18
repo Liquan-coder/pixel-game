@@ -9,7 +9,8 @@ export const snapF = v => Math.round(v * F) / F;
 export const isTouch = ('ontouchstart' in window) || (window.matchMedia && matchMedia('(pointer: coarse)').matches);
 if (isTouch) document.body.classList.add('touch');
 // 畫面大約要看得到多少「遊戲像素」高。數字越大 = 鏡頭越遠、角色和特效看起來越小
-const VIEW_H = 240;
+// 手機螢幕實際只有筆電的 1/3 高，用同一個數字角色會小到看不清，所以手機鏡頭拉近一點
+const VIEW_H = isTouch ? 160 : 240;
 export function resize() {
   const vw = window.innerWidth, vh = window.innerHeight;
   const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
