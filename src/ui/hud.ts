@@ -52,12 +52,13 @@ function placePickBox(d) {
   const x = Math.round(clamp(left, 8, vw - w - 8)), y = Math.round(clamp(sy - h / 2, 8, vh - h - 8));
   const k = x + ',' + y; if (hudCache.pickPos !== k) { hudCache.pickPos = k; box.style.left = x + 'px'; box.style.top = y + 'px'; }
 }
-export function toast(msg, col?) { const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg; pushToast(el, col); }
+// loot = 撿到東西的提示（武器、金幣、魂晶）：黑底、字大一點；其他提示只有字
+export function toast(msg, col?, loot = false) { const el = document.createElement('div'); el.className = loot ? 'toast loot' : 'toast'; el.textContent = msg; pushToast(el, col); }
 const gains: Record<string, { el: HTMLElement & { _t?: any }, n: number }> = {};
 export function gain(key, label, n, col) {                          // 例：gain('gold', '金幣', 3, '#f2c14e') → 「金幣 +3」，再撿到就變「金幣 +6」
   let g = gains[key];
   if (g && g.el.isConnected) { g.n += n; $('toasts').appendChild(g.el); g.el.classList.remove('bump'); void g.el.offsetWidth; g.el.classList.add('bump'); restartTimer(g.el); }
-  else { g = gains[key] = { el: document.createElement('div'), n }; g.el.className = 'toast'; pushToast(g.el, col); }
+  else { g = gains[key] = { el: document.createElement('div'), n }; g.el.className = 'toast loot'; pushToast(g.el, col); }
   g.el.innerHTML = label + ' <b>+' + g.n + '</b>';
 }
 let areaTimer = 0, bannerTimer = 0;

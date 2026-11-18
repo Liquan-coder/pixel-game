@@ -106,7 +106,7 @@ export function pickUp(pl, d) {
   if (pl.inv.length >= 24) { if (pl === G.me) toast('背包滿了，先去分解一些裝備', '#ff8a8a'); return false; }
   const i = G.drops.indexOf(d); if (i < 0) return false;
   G.drops.splice(i, 1); pl.inv.push(d.item);
-  if (pl === G.me) { const R = RAR[d.item.rarity]; toast('獲得 ' + R.n + '・' + d.item.name, R.c); sfx.pick(); }
+  if (pl === G.me) { const R = RAR[d.item.rarity]; toast('獲得 ' + R.n + '・' + d.item.name, R.c, true); sfx.pick(); }
   return true;
 }
 function updateSpawns(dt) {
