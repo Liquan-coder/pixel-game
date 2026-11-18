@@ -182,10 +182,13 @@ export function releaseCharge(pl: Player, lv) {
         sfx.boom(); shake(7, .3); G.hitStop = Math.max(G.hitStop, .07); } });
       break; }
     case 'spear': {                                                   // 流星突刺：往前衝 + 超長貫穿槍芒
-      autoFace(pl, 130); const a = pl.face, L = lv >= 2 ? 120 : 95;
-      pl.skillLock = .22; pl.iframe = Math.max(pl.iframe, .3); pl.thrust = .2; pl.lunge = { t:.14, vx:Math.cos(a) * 420, vy:Math.sin(a) * 420 };
+      autoFace(pl, 130); const a = pl.face, L = lv >= 2 ? 100 : 80;      // L = 槍芒長度
+      const LT = .14, LV = 250;                                         // 往前衝 0.14 秒 × 速度 250 ≈ 35 像素
+      pl.skillLock = .22; pl.iframe = Math.max(pl.iframe, .3); pl.thrust = .2; pl.lunge = { t:LT, vx:Math.cos(a) * LV, vy:Math.sin(a) * LV };
       lanceFx(pl, a, L, lv >= 2 ? 16 : 12, cols, .3, true);
-      pl.timers.push({ t:.05, fn: () => lineHit(pl, pl.x, pl.y, a, L - 20, 10, 2.4 * s, { heavy:true }) });
+      // 槍芒會跟著角色往前衝，所以傷害範圍從「出發點」一路算到「衝完後槍芒的尖端」，看到的光都打得到
+      const x0 = pl.x, y0 = pl.y, reach = LT * LV + 6 + L;
+      pl.timers.push({ t:.05, fn: () => lineHit(pl, x0, y0, a, reach, 10, 2.4 * s, { heavy:true }) });
       break; }
     case 'staff': {                                                   // 星爆魔彈：大魔力球，爆炸（滿蓄力還會分裂）
       autoFace(pl, 200); const a = pl.face; pl.swing = { t:0, d:.25, ranged:true };
