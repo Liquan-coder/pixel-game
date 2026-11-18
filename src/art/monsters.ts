@@ -123,35 +123,52 @@ function hdWolf(R, s, opt: Record<string, any> = {}, ph: number | string = -1) {
     if (opt.scar) { a.line(S(40), S(5.8), S(43.3), S(11.5), '#c03440'); a.line(S(40.6), S(5.8), S(43.9), S(11.5), '#801a24'); }
   });
 }
-/* ph：0~3 = 走路第幾格、-1 = 站著、'raise' = 舉劍（準備砍）、'strike' = 往前砍 */
+/* 骷髏：硬梆梆的骨頭 —— 有稜角的小頭骨 + 會張開的下顎、一根一根的肋骨、細骨頭四肢 + 突出的關節
+   ph：0~3 = 走路第幾格、-1 = 站著、'raise' = 舉劍（準備砍）、'strike' = 往前砍 */
 function hdSkel(R, eyeC, ph: number | string = -1) {
   const pose = typeof ph === 'string' ? ph : '', [[ax, ay], [bx, by]] = gait(pose ? -1 : +ph, 3, 2.2);
   let fx = -bx * 1.1, fy = -Math.abs(fx) * .4;                          // 後面那隻手的手掌偏移
   let hand = [30 - ax * .8, 32 - Math.abs(ax) * .32], tip = [hand[0] + 4, hand[1] - 20];   // 拿劍的手、劍尖
   if (pose === 'raise') { hand = [29, 6]; tip = [21, -12]; fx = 3; fy = -3; }          // 劍舉過頭、往後拉；另一隻手往前平衡
   if (pose === 'strike') { hand = [32, 26]; tip = [52, 32]; fx = -5; fy = -4; }         // 劍往前劈出去；另一隻手往後甩
+  const jaw = pose ? 1.6 : 0;                                            // 攻擊時下顎張開
   const len = Math.hypot(tip[0] - hand[0], tip[1] - hand[1]), ux = (tip[0] - hand[0]) / len, uy = (tip[1] - hand[1]) / len;
   const base = [hand[0] + ux, hand[1] + uy];
   const pad = pose === 'raise' ? { t: 15 } : pose === 'strike' ? { l: 20, r: 20 } : {};
+  // 一隻手或腳 = 上段骨頭 + 下段骨頭 + 中間突出的關節。bend = 關節往哪邊彎（正 = 往後）
+  const limb = (x0, y0, x1, y1, bend, r, grp) => { const L = Math.hypot(x1 - x0, y1 - y0) || 1, kx = (x0 + x1) / 2 - (y1 - y0) / L * bend, ky = (y0 + y1) / 2 + (x1 - x0) / L * bend;
+    return [{ sh: SH.cap(x0, y0, kx, ky, r, r * .85), ramp: R, bias: -.15, grp }, { sh: SH.cap(kx, ky, x1, y1, r * .85, r * .75), ramp: R, bias: -.15, grp },
+            { sh: SH.ell(kx, ky, r * 1.25, r * 1.25), ramp: R, grp }]; };
+  const foot = (x, y, grp) => ({ sh: SH.cap(x - .5, y, x + 2, y, .9, .8), ramp: R, grp });
+  const ribs = [];
+  for (let k = 0; k < 4; k++) { const y = 22.4 + k * 2.7, w = 5.8 - k * .7;               // 肋骨：一根一根，往下越來越短，中間有空隙
+    ribs.push({ sh: SH.cap(18.5, y, 18.5 - w, y + 1.8, .9, .7), ramp: R, grp: 3 }, { sh: SH.cap(18.5, y, 18.5 + w, y + 1.8, .9, .7), ramp: R, grp: 3 }); }
+  const farFoot = [13 + bx, 50 + by], nearFoot = [23.5 + ax, 50 + ay];
   return sculpt(36, 51, [
-  { sh: SH.cap(12, 22, 8 + fx, 33 + fy, 1.7, 1.5), ramp: R, bias: -.3, grp: 1 },
-  { sh: SH.cap(15, 38, 13 + bx, 50 + by, 2, 1.7), ramp: R, bias: -.25, grp: 2 },
-  { sh: SH.cap(18, 19, 18, 36, 1.6, 1.6), ramp: R, grp: 3 },
-  { sh: SH.ell(18.5, 26, 7.5, 6.2), ramp: R, grp: 3 },
-  { sh: SH.ell(18.5, 36.5, 6.5, 3), ramp: R, grp: 4 },
-  { sh: SH.cap(22, 38, 23.5 + ax, 50 + ay, 2.1, 1.8), ramp: R, grp: 5 },
+  ...limb(13, 21, 8 + fx, 32 + fy, 1, 1, 1),                             // 後面的手
+  ...limb(16, 37, farFoot[0], farFoot[1] - 1, -1.3, 1.3, 2), foot(farFoot[0], farFoot[1] - .5, 2),   // 後面的腳（膝蓋往前彎）
+  { sh: SH.cap(18.5, 15.5, 18.5, 35.5, 1.1, 1.1), ramp: R, grp: 3 },      // 脖子 + 脊椎
+  { sh: SH.cap(12.5, 20.5, 25, 20.5, 1.1, 1.1), ramp: R, grp: 3 },        // 鎖骨
+  ...ribs,
+  { sh: SH.poly([[14, 34], [23, 34], [22, 37.5], [18.5, 38.5], [15, 37.5]]), ramp: R, grp: 4 },   // 骨盆：有稜角
+  ...limb(21, 37, nearFoot[0], nearFoot[1] - 1, -1.3, 1.3, 5), foot(nearFoot[0], nearFoot[1] - .5, 5),
   { sh: SH.cap(base[0], base[1], tip[0], tip[1], 1.3, 1), ramp: RAMP.steel, grp: 9 },
-  { sh: SH.cap(26, 22, hand[0], hand[1], 1.8, 1.6), ramp: R, grp: 6 },
-  { sh: SH.box(20, 18.2, 5.6, 2.4, 4), ramp: R, grp: 7 },
-  { sh: SH.ell(18.5, 11, 8.6, 8.2), ramp: R, grp: 7 },
+  ...limb(25, 21, hand[0], hand[1], 1, 1, 6),                             // 拿劍的手
+  { sh: SH.box(20.5, 15.3 + jaw, 3.8, 1.5, 4), ramp: R, grp: 7 },         // 下顎（攻擊時往下張開）
+  { sh: SH.box(20.6, 11.8, 4.6, 2.4, 3), ramp: R, grp: 8 },               // 顴骨、上顎：方方的
+  { sh: SH.ell(19, 7.6, 6.4, 5.8), ramp: R, grp: 8 },                     // 頭蓋骨
 ], a => {
-  for (const ry of [23.5, 26.5, 29.5]) for (let x = 13; x <= 24; x++) if (a.pid(x, ry) === 3 && x !== 18) a.set(x, ry, R[0]);
-  for (const ex of [16, 22.5]) { a.ell(ex, 11.5, 2.2, 2.4, '#14100c'); a.set(ex, 11.5, eyeC); a.set(ex - .5, 10.5, eyeC); }
-  a.set(19.5, 15, '#14100c'); a.set(20, 14.5, '#14100c');
-  for (let x = 16; x <= 24; x += 2) a.set(x, 18, R[0]); a.line(15.5, 17.2, 25, 17.2, R[0]);
+  for (let y = 20; y <= 34; y += 2) a.set(18.5, y, R[1]);                // 脊椎一節一節
+  // 眼窩：斜斜的、有稜角的黑洞，深處一點紅光
+  for (const [x0, x1] of [[16, 19], [21.5, 24.5]]) { a.rect(x0, 9, x1 - x0, 2, '#0e0a08'); a.set(x0 + (x0 < 20 ? 1 : 0), 8, '#0e0a08'); a.set(x0 + (x0 < 20 ? 1 : 1), 11, '#0e0a08');
+    a.set(x0 + 1, 10, eyeC); }
+  a.set(20.5, 12, '#0e0a08'); a.set(20, 13, '#0e0a08'); a.set(21, 13, '#0e0a08');   // 鼻孔：倒三角
+  for (let x = 17.5; x <= 23.5; x += 1) a.set(x, 14, x % 2 < 1 ? R[0] : R[4]);       // 上排牙齒
+  for (let x = 17.5; x <= 23.5; x += 2) a.set(x, 14.8 + jaw, R[0]);                   // 下排牙齒的縫
+  if (jaw) a.rect(18, 15, 5, Math.round(jaw), '#0e0a08');                             // 嘴張開：中間黑的
+  a.line(14.5, 4, 16.5, 6.5, R[1]); a.line(16.5, 6.5, 16, 8, R[1]);                   // 頭蓋骨裂痕
   a.line(base[0] - uy * 3, base[1] + ux * 3, base[0] + uy * 3, base[1] - ux * 3, '#c0862c');   // 護手：跟劍垂直
   a.rect(hand[0] - 1, hand[1] - 1, 2, 2, '#7a4a1a');                                     // 握柄
-  for (const [x, y] of [[18, 37], [23 + ax / 2, 44 + ay / 2], [14 + bx / 2, 44 + by / 2], [10, 28], [28, 27]]) a.set(x, y, R[1]);
 }, pad); }
 /* ph：0~3 走路、-1 站、'raise' = 雙拳舉過頭、'strike' = 雙拳砸到地上 */
 function hdGolem(R, opt, ph: number | string = -1) {
