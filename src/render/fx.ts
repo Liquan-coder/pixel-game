@@ -155,7 +155,7 @@ export function enemyJuice(e, sp) {
   if (e.hitT > 0) e.hitT -= dt;
   const v = e._v || 0, rel = Math.min(1.4, v / Math.max(20, e.spd || 40)), fl = e.flip ? -1 : 1, A = e.anim || 0, st = e.state;
   const wk = st === 'windup' ? clamp(1 - e.t / (e.wt || .5), 0, 1) : 0;
-  let sx = 1, sy = 1, lean = 0, rot = 0, lift = 0, shiver = st === 'windup' ? Math.sin(G.time * 70) * .6 * wk : 0;
+  let wf = -1, sx = 1, sy = 1, lean = 0, rot = 0, lift = 0, shiver = st === 'windup' ? Math.sin(G.time * 70) * .6 * wk : 0;
   const moving = rel > .15 && (st === 'chase' || st === 'idle' || st === 'return');
   switch (e.boss || e.rb ? '' : e.beh) {
     case 'slime': {                                                     // 史萊姆：一跳一跳，落地壓扁、空中拉長
@@ -173,14 +173,15 @@ export function enemyJuice(e, sp) {
       if (st === 'windup') { lean = -.28 * fl * Math.min(1, wk * 4); }     // 很快就後仰到底，然後停住發抖
       else if (st === 'lunge') { lean = .38 * fl; if (Math.random() < .6) dustPuff(e.x - fl * 4, e.y, 1, 20); }
       else if (st === 'recover') { lean = e.t > .35 ? .16 * fl : 0; }     // 撲完前傾停一下，再一下子站直
-      else if (moving) { const stp = Math.floor(A * 7);                    // 跑步：每一步切一次，腳步落地沒有過渡
-        lean = .12 * fl; lift = stp % 2; }
+      else if (moving) { const stp = Math.floor(A * 9);                    // 跑步：每一格換一張走路圖，腳踩在正下方那兩格身體高一點
+        wf = stp % 4; lean = .12 * fl; lift = stp % 2; }
       break; }
     case 'heavy': {                                                     // 石像魔、樹精：抬腳 → 重重踩下（地面震動）
       if (st === 'windup') { const k = Math.min(1, wk * 3); lift = Math.round(3 * k); lean = -.16 * fl * k; }
       else if (st === 'recover') { lean = e.t > .3 ? .14 * fl : 0; }
       else if (moving) { const c = A * 1.7, stp = Math.floor(c), f = c - stp;
-        lift = f < .55 ? 0 : f < .85 ? 2 : 1;                            // 大部分時間踩在地上，抬腳一下就落地
+        wf = Math.floor(c * 2) % 4;                                       // 走路圖：一步兩張（抬腳 → 踩下），踩下那一刻剛好換步、揚塵
+        lift = f < .55 ? 0 : 1;
         rot = (stp % 2 ? .05 : -.05) * Math.min(1, rel);                  // 左右腳換邊時身體一下子換方向
         if (e._step !== undefined && stp !== e._step) { dustPuff(e.x + (stp % 2 ? 4 : -4), e.y, 5, 28);
           if (G.me && Math.hypot(e.x - G.me.x, e.y - G.me.y) < 90) { G.shakeMag = Math.max(G.shakeMag, .8); G.shakeT = Math.max(G.shakeT, .06); } }
@@ -189,15 +190,15 @@ export function enemyJuice(e, sp) {
     case 'ranged': {                                                    // 毒菇：噴之前後仰發抖，噴完被後座力推一下
       if (st === 'windup') { lean = -.14 * fl * Math.min(1, wk * 3); }
       else if (st === 'recover') { lean = e.t > .2 ? -.18 * fl : 0; }
-      else { rot = Math.floor(A * 2) % 2 ? .05 : -.05; if (moving) lift = Math.floor(A * 8) % 2; }
+      else { rot = Math.floor(A * 2) % 2 ? .05 : -.05; if (moving) { lift = Math.floor(A * 8) % 2; wf = Math.floor(A * 8) % 4; } }
       break; }
-    default:                                                            // boss：跑動時前傾就好，招式動作交給 boss 自己
-      if (rel > .3 && !e.z) lean = .1 * Math.min(1, rel) * fl;
+    default:                                                            // boss：跑動時前傾 + 換腳，招式動作交給 boss 自己
+      if (rel > .3 && !e.z) { lean = .1 * Math.min(1, rel) * fl; if (st === 'chase') wf = Math.floor(A * 9) % 4; }
   }
   if (e.hitT > 0) { const k = e.hitT / .32;
     if (e.beh === 'slime' && !e.boss && !e.rb) { const w = Math.sin((1 - k) * 22) * k;   // 史萊姆被打：果凍般晃一下
       lean += e.hitDir * .22 * k * k; sx *= 1 + .16 * w; sy *= 1 - .16 * w; }
     else if (k > .6) { lean += e.hitDir * .2; shiver += e.hitDir * 1.5; } }   // 其他怪被打：往後一頓（被推開一點、後仰），然後馬上站回來
   if (e.stun > 0) rot += Math.sin(G.time * 9) * .1;                       // 暈眩：搖搖晃晃
-  return { sx, sy, lean, rot, lift, shiver };
+  return { sx, sy, lean, rot, lift, shiver, wf };
 }

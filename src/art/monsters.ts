@@ -71,6 +71,13 @@ const RAMP = {
   gill: ['#5a4a36','#8a7a5a','#b8a882'], bark: ['#24160c','#432c1a','#634528','#86643e','#a8865a'],
   leaf: ['#14301a','#245226','#367434','#549a44','#86c464'], steel: ['#3e3b63','#76739f','#a9a7d0','#dcdcf4'],
 };
+/* 走路：ph = 0~3 是第幾格，-1 = 站著不動。回傳兩組腳的 [往前多少, 往上多少]
+   一隻腳：踩在前面 → 踩在正下方 → 蹬到後面 → 抬起來收回前面；另一隻腳剛好差半圈 */
+function gait(ph, d, L) {
+  if (ph < 0) return [[0, 0], [0, 0]];
+  const G = [[d, 0], [0, 0], [-d, 0], [0, -L]];
+  return [G[ph], G[(ph + 2) % 4]];
+}
 function hdSlime(R, eye, spot) { return sculpt(36, 30, [
   { sh: SH.ell(18, 19, 16.5, 11.6, (x, y) => y < 29.5), ramp: R, rim: false, bias: .12 }], a => {
   a.ell(10.5, 12.5, 3.5, 1.6, R[4]); a.set(7, 15, R[4]); a.set(8, 16, R[3]);
@@ -78,14 +85,15 @@ function hdSlime(R, eye, spot) { return sculpt(36, 30, [
   for (const ex of [22, 28]) { a.rect(ex, 16, 2, 5, eye); a.set(ex, 16, '#ffffff'); a.set(ex + 1, 20, R[1]); }
   a.line(24, 23, 27, 23, eye); a.set(23, 22, eye); a.set(28, 22, eye);
 }); }
-function hdWolf(R, s, opt: Record<string, any> = {}) {
+function hdWolf(R, s, opt: Record<string, any> = {}, ph = -1) {
+  const [[ax, ay], [bx, by]] = gait(ph, 3.4, 2.2);
   const S = v => v * s, W = Math.round(52 * s), H = Math.round(31 * s), belly = opt.belly || R.slice(2), tx = opt.tex ?? .22;
   const parts = [
     { sh: SH.cap(S(12), S(14), S(3), S(7.5), S(3.8), S(2.8)), ramp: R, tex: tx, grp: 1 },
     { sh: SH.ell(S(3), S(7.5), S(2.8), S(2.6)), ramp: belly, grp: 1 },
     { sh: SH.ell(S(15), S(19), S(4.6), S(5.2)), ramp: R, bias: -.35, grp: 2 },
-    { sh: SH.cap(S(14), S(22), S(16), S(29.5), S(2), S(1.6)), ramp: R, bias: -.35, grp: 2 },
-    { sh: SH.cap(S(33), S(19), S(32), S(29.5), S(2.2), S(1.7)), ramp: R, bias: -.35, grp: 3 },
+    { sh: SH.cap(S(14), S(22), S(16 + bx), S(29.5 + by), S(2), S(1.6)), ramp: R, bias: -.35, grp: 2 },
+    { sh: SH.cap(S(33), S(19), S(32 + ax), S(29.5 + ay), S(2.2), S(1.7)), ramp: R, bias: -.35, grp: 3 },
     { sh: SH.ell(S(24), S(16.5), S(13.5), S(7)), ramp: R, tex: tx, grp: 4 },
     { sh: SH.ell(S(24.5), S(20.5), S(10), S(2.4)), ramp: belly, grp: 4, rim: false },
     { sh: SH.ell(S(35.5), S(16), S(6.6), S(7.6)), ramp: R, tex: tx, grp: 4 },
@@ -93,8 +101,8 @@ function hdWolf(R, s, opt: Record<string, any> = {}) {
   if (opt.mane) parts.push({ sh: SH.spiky(S(37), S(13.5), S(10), S(10.5), 11, .32, .3), ramp: opt.mane, tex: .3, grp: 5 });
   parts.push(
     { sh: SH.ell(S(18), S(19.5), S(5), S(5.6)), ramp: R, tex: tx, grp: 6 },
-    { sh: SH.cap(S(17), S(23), S(19.5), S(30), S(2.3), S(1.8)), ramp: R, grp: 6 },
-    { sh: SH.cap(S(37), S(20), S(36.5), S(30), S(2.5), S(2)), ramp: R, grp: 7 },
+    { sh: SH.cap(S(17), S(23), S(19.5 + ax), S(30 + ay), S(2.3), S(1.8)), ramp: R, grp: 6 },
+    { sh: SH.cap(S(37), S(20), S(36.5 + bx), S(30 + by), S(2.5), S(2)), ramp: R, grp: 7 },
     { sh: SH.poly([[S(36.5), S(8)], [S(38.5), S(0)], [S(41.5), S(6)]]), ramp: R, grp: 8 },
     { sh: SH.ell(S(41.5), S(10), S(6.6), S(5.6)), ramp: R, tex: tx * .7, grp: 8 },
     { sh: SH.cap(S(44), S(11.5), S(50), S(13), S(3.3), S(2.1)), ramp: R, grp: 8 },
@@ -106,18 +114,18 @@ function hdWolf(R, s, opt: Record<string, any> = {}) {
     a.ell(S(50.3), S(12.2), Math.max(1, S(1)), Math.max(1, S(1)), '#141018');
     a.line(S(45), S(15), S(50), S(14.5), R[0]);
     for (const t of [46, 48.5]) a.set(S(t), S(15.8), '#f4eee0');
-    for (const lx of [16, 19.5, 32, 36.5]) a.rect(S(lx) - Math.max(1, S(1.2)), S(29.3), Math.max(3, S(2.6)), Math.max(1, S(.8)), R[lx === 16 || lx === 32 ? 2 : 3]);
+    for (const [lx, dx, dy] of [[16, bx, by], [19.5, ax, ay], [32, ax, ay], [36.5, bx, by]]) a.rect(S(lx + dx) - Math.max(1, S(1.2)), S(29.3 + dy), Math.max(3, S(2.6)), Math.max(1, S(.8)), R[lx === 16 || lx === 32 ? 2 : 3]);   // 腳掌
     for (let i = 0; i < 6; i++) { const x = S(14 + i * 3.4), y = S(10.5 + Math.abs(i - 2.5) * .4); a.line(x, y, x + S(1.4), y + S(1.6), R[1]); }
     if (opt.scar) { a.line(S(40), S(5.8), S(43.3), S(11.5), '#c03440'); a.line(S(40.6), S(5.8), S(43.9), S(11.5), '#801a24'); }
   });
 }
-function hdSkel(R, eyeC) { return sculpt(36, 51, [
-  { sh: SH.cap(12, 22, 8, 33, 1.7, 1.5), ramp: R, bias: -.3, grp: 1 },
-  { sh: SH.cap(15, 38, 13, 50, 2, 1.7), ramp: R, bias: -.25, grp: 2 },
+function hdSkel(R, eyeC, ph = -1) { const [[ax, ay], [bx, by]] = gait(ph, 3, 2.2); return sculpt(36, 51, [
+  { sh: SH.cap(12, 22, 8 - bx * .7, 33, 1.7, 1.5), ramp: R, bias: -.3, grp: 1 },
+  { sh: SH.cap(15, 38, 13 + bx, 50 + by, 2, 1.7), ramp: R, bias: -.25, grp: 2 },
   { sh: SH.cap(18, 19, 18, 36, 1.6, 1.6), ramp: R, grp: 3 },
   { sh: SH.ell(18.5, 26, 7.5, 6.2), ramp: R, grp: 3 },
   { sh: SH.ell(18.5, 36.5, 6.5, 3), ramp: R, grp: 4 },
-  { sh: SH.cap(22, 38, 23.5, 50, 2.1, 1.8), ramp: R, grp: 5 },
+  { sh: SH.cap(22, 38, 23.5 + ax, 50 + ay, 2.1, 1.8), ramp: R, grp: 5 },
   { sh: SH.cap(31, 33, 34, 13, 1.3, 1), ramp: RAMP.steel, grp: 9 },
   { sh: SH.cap(26, 22, 30, 32, 1.8, 1.6), ramp: R, grp: 6 },
   { sh: SH.box(20, 18.2, 5.6, 2.4, 4), ramp: R, grp: 7 },
@@ -128,17 +136,17 @@ function hdSkel(R, eyeC) { return sculpt(36, 51, [
   a.set(19.5, 15, '#14100c'); a.set(20, 14.5, '#14100c');
   for (let x = 16; x <= 24; x += 2) a.set(x, 18, R[0]); a.line(15.5, 17.2, 25, 17.2, R[0]);
   a.rect(28, 31, 6, 1, '#c0862c'); a.rect(30, 32, 2, 2, '#7a4a1a');
-  for (const [x, y] of [[18, 37], [23, 44], [14, 44], [10, 28], [28, 27]]) a.set(x, y, R[1]);
+  for (const [x, y] of [[18, 37], [23 + ax / 2, 44 + ay / 2], [14 + bx / 2, 44 + by / 2], [10, 28], [28, 27]]) a.set(x, y, R[1]);
 }); }
-function hdGolem(R, opt) { return sculpt(48, 43, [
-  { sh: SH.ell(9, 22, 6.5, 9), ramp: R, bias: -.25, tex: .4, grp: 1 },
-  { sh: SH.ell(8.5, 32, 5.2, 4.2), ramp: R, bias: -.25, tex: .4, grp: 1 },
-  { sh: SH.box(17, 37, 5.2, 5.8, 3), ramp: R, tex: .4, grp: 2 },
-  { sh: SH.box(31, 37, 5.2, 5.8, 3), ramp: R, tex: .4, grp: 3 },
+function hdGolem(R, opt, ph = -1) { const [[ax, ay], [bx, by]] = gait(ph, 1.6, 3); return sculpt(48, 43, [
+  { sh: SH.ell(9, 22 + ax * .5, 6.5, 9), ramp: R, bias: -.25, tex: .4, grp: 1 },
+  { sh: SH.ell(8.5, 32 + ax, 5.2, 4.2), ramp: R, bias: -.25, tex: .4, grp: 1 },
+  { sh: SH.box(17 - bx * .5, 37 + by, 5.2, 5.8, 3), ramp: R, tex: .4, grp: 2 },
+  { sh: SH.box(31 + ax * .5, 37 + ay, 5.2, 5.8, 3), ramp: R, tex: .4, grp: 3 },
   { sh: SH.box(24, 22, 14.5, 12, 2.6), ramp: R, tex: .45, grp: 4 },
   { sh: SH.box(25, 8.5, 7.2, 5.6, 3), ramp: R, tex: .4, grp: 5 },
-  { sh: SH.ell(40, 22, 6.8, 9.2), ramp: R, tex: .4, grp: 6 },
-  { sh: SH.ell(41, 32.5, 5.8, 4.6), ramp: R, tex: .4, grp: 6 },
+  { sh: SH.ell(40, 22 + bx * .5, 6.8, 9.2), ramp: R, tex: .4, grp: 6 },
+  { sh: SH.ell(41, 32.5 + bx, 5.8, 4.6), ramp: R, tex: .4, grp: 6 },
 ], a => {
   for (const [x0, y0, x1, y1] of [[14, 15, 18, 22], [18, 22, 16, 27], [30, 26, 34, 30], [42, 18, 39, 23], [21, 6, 22, 10]]) a.line(x0, y0, x1, y1, opt.crack);
   if (opt.glowCrack) for (const [x0, y0, x1, y1] of [[14, 15, 18, 22], [30, 26, 34, 30], [42, 18, 39, 23]]) a.line(x0 + 1, y0, x1 + 1, y1, opt.glowCrack);
@@ -147,8 +155,8 @@ function hdGolem(R, opt) { return sculpt(48, 43, [
   if (opt.moss) for (let y = 0; y < 43; y++) for (let x = 0; x < 48; x++) { const p = a.pid(x, y); if (p < 0 || a.pid(x, y - 1) === p) continue;
     if (a.hash(x, y) < .8) { a.set(x, y, opt.moss[2]); a.set(x, y + 1, opt.moss[1]); if (a.hash(y, x) < .4) a.set(x, y + 2, opt.moss[0]); } }
 }); }
-function hdShroom() { return sculpt(36, 34, [
-  { sh: SH.ell(13, 32, 4, 2), ramp: RAMP.stem, grp: 1 }, { sh: SH.ell(23, 32, 4, 2), ramp: RAMP.stem, grp: 1 },
+function hdShroom(ph = -1) { const [[ax, ay], [bx, by]] = gait(ph, 1.5, 1.6); return sculpt(36, 34, [
+  { sh: SH.ell(13 + bx, 32 + by, 4, 2), ramp: RAMP.stem, grp: 1 }, { sh: SH.ell(23 + ax, 32 + ay, 4, 2), ramp: RAMP.stem, grp: 1 },
   { sh: SH.box(18, 25, 7, 7.5, 2.5), ramp: RAMP.stem, grp: 2 },
   { sh: SH.ell(18, 15.5, 15, 3.4), ramp: RAMP.gill, grp: 3, rim: false },
   { sh: SH.ell(18, 13.5, 17, 11.8, (x, y) => y < 15.8), ramp: RAMP.cap, grp: 4 },
@@ -158,19 +166,19 @@ function hdShroom() { return sculpt(36, 34, [
   a.line(19, 21, 21, 21.5, '#5a3a2a'); a.line(24, 21.5, 26, 21, '#5a3a2a');
   a.line(21, 27, 24, 27, '#5a2a2a'); a.set(20, 26, '#5a2a2a');
 }); }
-function hdTreant() { return sculpt(45, 48, [
-  { sh: SH.cap(14, 25, 4, 33, 2.6, 1.8), ramp: RAMP.bark, bias: -.2, tex: .3, grp: 1 },
-  { sh: SH.ell(3.5, 33.5, 3.6, 3.2), ramp: RAMP.leaf, tex: .5, grp: 1 },
-  { sh: SH.cap(16, 40, 9, 47, 3, 2), ramp: RAMP.bark, tex: .3, grp: 2 },
-  { sh: SH.cap(28, 40, 35, 47, 3, 2), ramp: RAMP.bark, tex: .3, grp: 2 },
+function hdTreant(ph = -1) { const [[ax, ay], [bx, by]] = gait(ph, 2, 2.6); return sculpt(45, 48, [
+  { sh: SH.cap(14, 25, 4, 33 + ax, 2.6, 1.8), ramp: RAMP.bark, bias: -.2, tex: .3, grp: 1 },
+  { sh: SH.ell(3.5, 33.5 + ax, 3.6, 3.2), ramp: RAMP.leaf, tex: .5, grp: 1 },
+  { sh: SH.cap(16, 40, 9 - bx * .5, 47 + by, 3, 2), ramp: RAMP.bark, tex: .3, grp: 2 },
+  { sh: SH.cap(28, 40, 35 + ax * .5, 47 + ay, 3, 2), ramp: RAMP.bark, tex: .3, grp: 2 },
   { sh: SH.cap(22, 41, 22, 47, 3.2, 2.6), ramp: RAMP.bark, tex: .3, grp: 2 },
   { sh: SH.box(22, 31, 10, 13, 2.4), ramp: RAMP.bark, tex: .35, grp: 3 },
   { sh: SH.ell(22, 18, 13, 6.5), ramp: RAMP.leaf, tex: .5, grp: 4 },
   { sh: SH.ell(13, 13, 10, 8.5), ramp: RAMP.leaf, tex: .5, grp: 4 },
   { sh: SH.ell(31, 12.5, 11, 9), ramp: RAMP.leaf, tex: .5, grp: 4 },
   { sh: SH.ell(22, 7, 10, 7), ramp: RAMP.leaf, tex: .5, grp: 4 },
-  { sh: SH.cap(31, 25, 40, 33, 2.8, 2), ramp: RAMP.bark, tex: .3, grp: 5 },
-  { sh: SH.ell(41.5, 34, 3.6, 3.2), ramp: RAMP.leaf, tex: .5, grp: 5 },
+  { sh: SH.cap(31, 25, 40, 33 + bx, 2.8, 2), ramp: RAMP.bark, tex: .3, grp: 5 },
+  { sh: SH.ell(41.5, 34 + bx, 3.6, 3.2), ramp: RAMP.leaf, tex: .5, grp: 5 },
 ], a => {
   for (const [x, y0] of [[15, 24], [19, 30], [28, 26], [25, 36]]) for (let y = y0; y < y0 + 7; y++) a.set(x + Math.round(Math.sin(y * .9)), y, RAMP.bark[0]);
   for (const ex of [19, 26]) { a.ell(ex, 28, 2.2, 1.8, '#120a06'); a.set(ex, 28, '#f4e04d'); a.set(ex + 1, 28, '#fff8a0'); }
@@ -240,21 +248,24 @@ function hdDragon() {                                                  // 熔岩
     for (let k = 0; k < 6; k++) { const x = 46 + k * 7, y = 56 + (k % 2) * 3; a.set(x, y, '#ff8a3a'); a.set(x + 1, y, '#ffb040'); }
     for (const [x, y] of [[60, 50], [72, 48], [84, 52], [96, 42]]) { a.set(x, y, '#c8c0c4'); a.set(x, y - 1, '#8a8084'); }
   }); }
+function withWalk(build: (ph: number) => HTMLCanvasElement, extra?) {   // 站立圖 + 4 張走路圖
+  const sp = makeHD(build(-1), extra); sp.walk = [0, 1, 2, 3].map(ph => makeHD(build(ph), extra)); return sp;
+}
 function buildMonsters() { return {
   dragon: makeHD(hdDragon()),
   general: makeHD(hdGeneral()),
   queen: makeHD(hdQueen()),
   slime: makeHD(hdSlime(RAMP.slime, '#0e2a18', '#a8f0a0')),
   slimeM: makeHD(hdSlime(RAMP.slimeM, '#2a0a04', '#fff0a0')),
-  wolf: makeHD(hdWolf(RAMP.wolf, 1)),
-  wolfF: makeHD(hdWolf(RAMP.wolfF, 1)),
-  skel: makeHD(hdSkel(RAMP.bone, '#ff4a4a')),
-  skelE: makeHD(hdSkel(RAMP.ash, '#ff9a3a')),
-  golem: makeHD(hdGolem(RAMP.stone, { eye: '#7fe8ff', crack: '#262234', moss: ['#2f5a26', '#4f8a3e', '#7ab85a'] })),
-  golemL: makeHD(hdGolem(RAMP.basalt, { eye: '#ffcf4a', crack: '#ff6a2a', glowCrack: '#ffcf4a' })),
-  shroom: makeHD(hdShroom()),
-  treant: makeHD(hdTreant()),
-  boss: makeHD(hdWolf(RAMP.boss, 1.8, { eye: '#ff3b3b', mane: ['#5c5f76','#8a8ea6','#b4b8cc','#dcdeea','#ffffff'], scar: true, belly: ['#8a8ea6','#c4c8da','#eef0f8'] }), { eye: [Math.round(44 * 1.8), Math.round(9 * 1.8)] }),
+  wolf: withWalk(ph => hdWolf(RAMP.wolf, 1, {}, ph)),
+  wolfF: withWalk(ph => hdWolf(RAMP.wolfF, 1, {}, ph)),
+  skel: withWalk(ph => hdSkel(RAMP.bone, '#ff4a4a', ph)),
+  skelE: withWalk(ph => hdSkel(RAMP.ash, '#ff9a3a', ph)),
+  golem: withWalk(ph => hdGolem(RAMP.stone, { eye: '#7fe8ff', crack: '#262234', moss: ['#2f5a26', '#4f8a3e', '#7ab85a'] }, ph)),
+  golemL: withWalk(ph => hdGolem(RAMP.basalt, { eye: '#ffcf4a', crack: '#ff6a2a', glowCrack: '#ffcf4a' }, ph)),
+  shroom: withWalk(hdShroom),
+  treant: withWalk(hdTreant),
+  boss: withWalk(ph => hdWolf(RAMP.boss, 1.8, { eye: '#ff3b3b', mane: ['#5c5f76','#8a8ea6','#b4b8cc','#dcdeea','#ffffff'], scar: true, belly: ['#8a8ea6','#c4c8da','#eef0f8'] }, ph), { eye: [Math.round(44 * 1.8), Math.round(9 * 1.8)] }),
 }; }
 Object.assign(SPR, buildMonsters());
 
