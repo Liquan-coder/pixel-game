@@ -62,7 +62,8 @@
   <div id="campMenu" class="panel" hidden>
     <div class="ph"><h2 id="campName">營火</h2><button class="sbtn" type="button" data-close>繼續冒險</button></div>
     <div class="tabs"><button type="button" data-tab="lv" class="on">升級</button><button type="button" data-tab="tp">傳送</button></div>
-    <div id="campBody"></div>
+    <div id="campBody" class="pbody"></div>
+    <div id="campFoot" class="pfoot" hidden></div>
   </div>
 
   <div id="invMenu" class="panel char" hidden>
@@ -91,21 +92,22 @@
   <div id="shopMenu" class="panel" hidden>
     <div class="ph"><h2><span id="shopName">流浪商人</span><small class="goldline" id="shopGold"></small></h2><button class="sbtn" type="button" data-close>離開</button></div>
     <div class="tabs"><button type="button" data-stab="buy" class="on">購買</button><button type="button" data-stab="sell">出售</button></div>
-    <div id="shopBody"></div>
+    <div id="shopBody" class="pbody"></div>
+    <div id="shopFoot" class="pfoot" hidden></div>
   </div>
 
   <div id="mapMenu" class="panel wide" hidden>
     <div class="ph"><h2>世界地圖</h2><button class="sbtn" type="button" data-close>關閉</button></div>
     <div class="tabs" id="mapTabs"><button type="button" data-mt="map" class="on">地圖</button><button type="button" data-mt="journal">旅程</button></div>
-    <div id="mapPane"><canvas id="bigmap" width="512" height="384"></canvas>
+    <div id="mapPane" class="pbody"><canvas id="bigmap" width="512" height="384"></canvas>
     <p class="hintp">金色菱形是主線的下一個目標。走過的地方會亮起來。金色方塊是點燃的營火，小黃點是還沒打開的寶箱，綠色是流浪商人，紅色是 boss 的所在地，藍色是你。</p></div>
-    <div id="journal" hidden></div>
+    <div id="journal" class="pbody" hidden></div>
   </div>
 
   <div id="loreMenu" class="panel" hidden>
     <div class="ph"><h2 id="loreTitle">石碑</h2><button class="sbtn" type="button" data-close>關閉</button></div>
-    <p id="loreText" class="loretext"></p>
-    <p class="hintp">讀過的石碑會收進地圖畫面的「旅程」分頁。</p>
+    <div class="pbody"><p id="loreText" class="loretext"></p>
+    <p class="hintp">讀過的石碑會收進地圖畫面的「旅程」分頁。</p></div>
   </div>
 
   <div id="title" class="screen">

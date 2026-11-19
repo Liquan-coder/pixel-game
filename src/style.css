@@ -95,9 +95,16 @@ body.menu .toast{background:#000d;border:1px solid var(--line);padding:3px 12px}
 #bSkill .sec{position:absolute;inset:0;display:grid;place-items:center;font-size:18px;color:#fff;text-shadow:1px 1px 0 #000;font-style:normal}
 body:not(.touch) #controls{display:none}
 
-#veil{position:absolute;inset:0;background:#05040acc}
-.panel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(600px,calc(100% - 24px));max-height:calc(100% - 20px);overflow:auto;background:var(--panel);border:3px solid var(--line);box-shadow:0 0 0 3px var(--ink),8px 8px 0 #0008;padding:12px 14px 14px;touch-action:pan-y;-webkit-overflow-scrolling:touch}
-.panel.wide{width:min(720px,calc(100% - 24px))}
+#veil{position:absolute;inset:0;background:#05040a99}
+/* 選單面板：四周留邊、看得到後面的遊戲。標題 / 分頁 / 底部按鈕固定，只有中間的 .pbody 會捲動，整頁永遠不會捲
+   --mx / --my = 左右、上下至少留多少邊（會加上瀏海的安全區） */
+.panel{--mx:max(44px,calc(env(safe-area-inset-left,0px) + 16px));--my:max(16px,env(safe-area-inset-top,0px));
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(600px,calc(100% - 2 * var(--mx)));max-height:calc(100% - 2 * var(--my));
+  display:flex;flex-direction:column;overflow:hidden;background:var(--panel);border:3px solid var(--line);box-shadow:0 0 0 3px var(--ink),8px 8px 0 #0008;padding:12px 14px 12px;touch-action:none}
+.panel>*{flex:none}
+.panel.wide{width:min(720px,calc(100% - 2 * var(--mx)))}
+.pbody{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;margin-right:-6px;padding-right:6px}
+.pfoot{display:flex;align-items:center;gap:10px;margin-top:8px;padding-top:8px;border-top:2px solid var(--line)}
 #bigmap{display:block;margin:0 auto;max-width:100%;max-height:calc(100vh - 130px);width:auto;height:auto;image-rendering:pixelated;border:2px solid var(--line);background:#07060b}
 .ph{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}
 .ph h2{margin:0;font-size:20px;font-weight:400;letter-spacing:.12em;color:var(--gold)}
@@ -107,11 +114,22 @@ body:not(.touch) #controls{display:none}
 .tabs button.on{color:var(--text);border-color:var(--gold);background:#3a2e1c}
 .soulline{display:flex;justify-content:space-between;font-size:14px;padding:8px 10px;background:#0005;border:1px solid var(--line);margin-bottom:8px}
 .soulline b{color:var(--soul);font-weight:400}
-.statrow{display:grid;grid-template-columns:1fr auto 44px;gap:10px;align-items:center;padding:7px 10px;border-bottom:1px dashed #4d416688}
+.statrow{display:grid;grid-template-columns:1fr 40px auto 40px;gap:8px;align-items:center;padding:6px 8px;border-bottom:1px dashed #4d416688}
+.statrow .val small{font-size:13px;color:var(--r1)}
+.statrow.pend{background:#2e4a2a33}
+.minus{width:40px;height:34px;background:#3a1d24;border:2px solid #8a3446;font-size:20px}
+.minus:disabled{opacity:.25;filter:grayscale(1)}
+.lvfoot{flex:1;font-size:13px;line-height:1.5;color:var(--muted);min-width:0}
+.lvfoot b{font-weight:400;color:var(--text);font-variant-numeric:tabular-nums}
+.lvfoot b.soulv{color:var(--soul)} .lvfoot b.lvv{color:var(--gold)} .lvfoot i{font-style:normal;margin:0 6px;opacity:.5}
+.lvfoot .gain{display:block;font-size:12px;color:var(--r1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pfoot .pri,.pfoot .sec{padding:8px 16px;font-size:15px;border:2px solid var(--line);background:var(--panel2);white-space:nowrap}
+.pfoot .pri{background:#2e4a2a;border-color:#5f9a52;color:#d8ffd0}
+.pfoot button:disabled{opacity:.4;filter:grayscale(1)}
 .statrow .nm{font-size:15px}
 .statrow .nm small{display:block;font-size:12px;color:var(--muted)}
 .statrow .val{font-size:18px;color:var(--gold);font-variant-numeric:tabular-nums}
-.plus{width:44px;height:36px;background:#2e4a2a;border:2px solid #5f9a52;font-size:20px}
+.plus{width:40px;height:34px;background:#2e4a2a;border:2px solid #5f9a52;font-size:20px}
 .plus:disabled{opacity:.35;filter:grayscale(1)}
 .camplist{display:grid;gap:6px}
 .camplist button{display:flex;justify-content:space-between;background:var(--panel2);border:2px solid var(--line);padding:9px 12px;font-size:15px;text-align:left}
@@ -146,9 +164,11 @@ body:not(.touch) #controls{display:none}
 .acts .warn{background:#3a1d24;border-color:#8a3446}
 .acts button:disabled{opacity:.45;filter:grayscale(1)}
 /* 角色面板：左 = 重點數值 + 能力值，中 = 角色 + 裝備欄，右 = 背包 + 選取的裝備 */
-.panel.char{width:min(980px,calc(100% - 16px));padding:10px 12px 12px}
-.cwrap{display:grid;grid-template-columns:minmax(0,1fr) 200px minmax(0,1fr);gap:12px;align-items:start}
-@media (max-width:600px){.cwrap{grid-template-columns:1fr}.cdoll{order:-1}}
+.panel.char{width:min(980px,calc(100% - 2 * var(--mx)));padding:10px 12px 12px}
+.cwrap{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 200px minmax(0,1fr);gap:12px;align-items:stretch}
+.cwrap>section{min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+.cbag .acts{position:sticky;bottom:0;background:var(--panel);padding:6px 0 2px;margin-top:4px}
+@media (max-width:600px){.cwrap{grid-template-columns:1fr;overflow-y:auto;touch-action:pan-y}.cwrap>section{overflow:visible}.cdoll{order:-1}}
 .keystats{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:8px}
 .keystats div{background:#0006;border:2px solid var(--line);padding:4px 6px;text-align:center}
 .keystats small{display:block;font-size:11px;color:var(--muted);letter-spacing:.1em}
@@ -208,7 +228,6 @@ body:not(.touch) #controls{display:none}
 #readBtn small{font-size:11px;opacity:.7;margin-left:4px}
 .touch #readBtn small{display:none}
 .loretext{font-size:16px;line-height:1.9;margin:6px 4px 10px;color:var(--text)}
-#journal{max-height:calc(100vh - 130px);overflow:auto}
 #journal .premise{font-size:14px;line-height:1.7;color:var(--text);margin:0 0 10px;padding:8px 10px;background:#0005;border-left:3px solid var(--gold)}
 .qsteps{list-style:none;margin:0;padding:0;display:grid;gap:3px}
 .qsteps li{font-size:14px;padding:4px 8px;background:#0004;border:1px solid #4d416666;color:var(--muted)}
@@ -219,7 +238,7 @@ body:not(.touch) #controls{display:none}
 #journal details{background:#0004;border:1px solid #4d416666;margin-top:4px;padding:4px 8px}
 #journal summary{cursor:pointer;font-size:14px;color:#cdbfff}
 #journal details p{margin:6px 0 2px;font-size:13px;line-height:1.7}
-@media (max-height:500px){#quest{font-size:12px}#quest small{font-size:11px}}
+@media (max-height:500px){#quest{font-size:12px}#quest small{font-size:11px}.panel .ph{margin-bottom:6px}.panel .ph h2{font-size:17px}.panel .tabs{margin-bottom:6px}.panel .tabs button{padding:4px}.statrow{padding:4px 8px}.statrow .nm{font-size:14px}}
 #talk{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));max-width:min(520px,70vw);background:#0b0814e6;border:2px solid var(--line);box-shadow:0 0 0 2px var(--ink);padding:7px 14px;font-size:14px;line-height:1.5;text-align:left;text-shadow:1px 1px 0 #000;animation:tin .25s steps(3)}
 #talk b{display:block;color:var(--gold);font-weight:400;font-size:12px;letter-spacing:.1em}
 #talk small{display:block;color:var(--muted);font-size:11px;margin-top:2px}

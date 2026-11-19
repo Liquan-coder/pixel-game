@@ -48,6 +48,7 @@ export function openShop(v?) { vendor = v || merchant; if (!vendor.stock) vendor
 function shopRow(icon, name, sub, price, col, key, dis) {
   return '<button type="button" class="shoprow' + (shopSel === key ? ' sel' : '') + '" data-s="' + key + '"' + (dis ? ' disabled' : '') + '><img alt="" src="' + ICON_URL[icon] + '"><span style="color:' + (col || 'var(--text)') + '">' + name + '<small>' + sub + '</small></span><b class="pr">' + price + '</b></button>';
 }
+function setFoot(btn, name) { const f = $('shopFoot'); f.hidden = !btn; f.innerHTML = btn ? '<span class="lvfoot">' + (name || '') + '</span>' + btn : ''; }
 function renderShop() {
   $('shopGold').textContent = '金幣 ' + G.me.gold;
   for (const b of document.querySelectorAll<HTMLElement>('#shopMenu .tabs button')) b.classList.toggle('on', b.dataset.stab === shopTab);
@@ -57,19 +58,21 @@ function renderShop() {
       : o.kind === 'potUp' ? shopRow('potUp', '藥水上限 +1', '剩 ' + o.left + ' 個 · 永久增加', o.price, '#f2c14e', i, !o.left || G.potMax >= 8)
       : shopRow(o.item.type, o.item.name, RAR[o.item.rarity].n + ' · ' + SLOTN[slotOf(o.item)] + ' · 等級 ' + o.item.ilvl, o.sold ? '售出' : o.price, RAR[o.item.rarity].c, i, o.sold));
     const o = vendor.stock[shopSel];
-    let det = '';
-    if (o && o.kind === 'item' && !o.sold) det = itemCard(o.item, G.me[slotOf(o.item)]) + '<div class="acts"><button type="button" class="pri" data-buy="' + shopSel + '"' + (G.me.gold < o.price || G.me.inv.length >= 24 ? ' disabled' : '') + '>買下（' + o.price + ' 金幣）</button></div>';
-    else if (o && o.kind !== 'item') det = '<div class="acts"><button type="button" class="pri" data-buy="' + shopSel + '"' + (G.me.gold < o.price ? ' disabled' : '') + '>買下（' + o.price + ' 金幣）</button></div>';
+    let det = '', act = '';                                             // det = 商品卡（在捲動區裡），act = 買下按鈕（固定在底部）
+    if (o && o.kind === 'item' && !o.sold) { det = itemCard(o.item, G.me[slotOf(o.item)]); act = '<button type="button" class="pri" data-buy="' + shopSel + '"' + (G.me.gold < o.price || G.me.inv.length >= 24 ? ' disabled' : '') + '>買下（' + o.price + ' 金幣）</button>'; }
+    else if (o && o.kind !== 'item') act = '<button type="button" class="pri" data-buy="' + shopSel + '"' + (G.me.gold < o.price ? ' disabled' : '') + '>買下（' + o.price + ' 金幣）</button>';
     body.innerHTML = '<div class="shoplist">' + rows.join('') + '</div><div id="shopDet" style="margin-top:8px">' + det + '</div><p class="hintp">商品會在你下次休息時刷新，商人也會走到別的營火。地區越深入，賣的裝備越好。</p>';
+    setFoot(act, o && o.kind === 'item' && o.item.name);
   } else {
     const it = G.me.inv.find(x => x.id === shopSel);
     body.innerHTML = (G.me.inv.length ? '<div class="baggrid">' + G.me.inv.map(x => '<button type="button" class="slot' + (shopSel === x.id ? ' sel' : '') + '" data-sid="' + x.id + '" style="border-color:' + RAR[x.rarity].c + '"><img alt="" src="' + ICON_URL[x.type] + '"><i style="color:' + RAR[x.rarity].c + '">' + x.ilvl + '</i></button>').join('') + '</div>'
-      : '<div class="empty">背包是空的。</div>') + (it ? '<div style="margin-top:8px">' + itemCard(it, G.me[slotOf(it)]) + '<div class="acts"><button type="button" class="pri" data-sell="' + it.id + '">賣出（+' + sellPrice(it) + ' 金幣）</button></div></div>' : '') +
+      : '<div class="empty">背包是空的。</div>') + (it ? '<div style="margin-top:8px">' + itemCard(it, G.me[slotOf(it)]) + '</div>' : '') +
       '<p class="hintp">賣給商人拿金幣；在角色面板分解則是拿魂晶（數量比較多）。</p>';
+    setFoot(it ? '<button type="button" class="pri" data-sell="' + it.id + '">賣出（+' + sellPrice(it) + ' 金幣）</button>' : '', it && it.name);
   }
 }
 $('shopMenu').addEventListener('click', e => {
-  const t = (e.target as HTMLElement).closest('button'); if (!t) return;
+  const t = (e.target as HTMLElement).closest('button'); if (!t || (t as HTMLButtonElement).disabled) return;
   if (t.hasAttribute('data-close')) { setMenu(null); return; }
   if (t.dataset.stab) { shopTab = t.dataset.stab; shopSel = null; renderShop(); return; }
   if (t.dataset.s !== undefined) { shopSel = +t.dataset.s === shopSel ? null : +t.dataset.s; renderShop(); return; }

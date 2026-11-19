@@ -114,6 +114,13 @@ const pageScript = async () => {
     for (const b of document.querySelectorAll('#invMenu button')) { b.click(); step(1); }
     menus.toggleInv(); menus.toggleMap(); renderBigMap(); step(2); menus.toggleMap();
     menus.restAt(CAMPS[0]); step(2);
+    const lv0 = G.me.vit + G.me.str, s0 = G.me.souls = 100000;
+    document.querySelector('#campMenu [data-stat=vit]').click(); document.querySelector('#campMenu [data-stat=str]').click(); document.querySelector('#campMenu [data-stat=str]').click();
+    document.querySelector('#campMenu [data-dec=str]').click();
+    if (G.me.souls !== s0 || G.me.vit + G.me.str !== lv0) throw new Error('還沒按確定就扣了魂晶 / 加了點');
+    document.querySelector('#campMenu [data-confirm]').click();
+    if (G.me.vit + G.me.str !== lv0 + 2 || G.me.souls >= s0) throw new Error('按確定後沒有升 2 級：' + (G.me.vit + G.me.str - lv0));
+    log.push('  營火升 2 級花了 ' + (s0 - G.me.souls) + ' 魂晶');
     for (const b of document.querySelectorAll('#campMenu [data-tab], #campMenu button')) { b.click(); step(1); }
     setMenu(null);
     shop.openShop(); step(2);

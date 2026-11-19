@@ -21,22 +21,41 @@ import { pickUp } from '../game/worldUpdate';
 export function restAt(c) {
   moveMerchant(); restockSmiths();
   G.lastCamp = c.id; restoreWorld(); save(); sfx.level();
-  burst(G.me.x, G.me.y - 6, 14, '#f2c14e', 40); G.curCamp = c; G.campTab = 'lv'; renderCamp(); setMenu('camp');
+  burst(G.me.x, G.me.y - 6, 14, '#f2c14e', 40); G.curCamp = c; G.campTab = 'lv'; clearPend(); renderCamp(); setMenu('camp');
 }
+/* 升級：先按 ＋／－ 分配（還沒花魂晶），按「確定」才一次扣掉。離開或切分頁就取消 */
+const pend: Record<string, number> = {};
+const clearPend = () => { for (const a of ATTRS) pend[a.k] = 0; };
+clearPend();
+const pendN = () => ATTRS.reduce((n, a) => n + pend[a.k], 0);
+function pendCost(extra = 0) {                                          // 分配中的 n 點（再多 extra 點）總共要多少魂晶：每一級的價錢都不一樣，要一級一級加
+  const tmp = { ...G.me }, n = pendN() + extra; let c = 0;
+  for (let i = 0; i < n; i++) { c += lvCost(tmp); tmp.vit++; }
+  return c;
+}
+const withPend = () => { const p = { ...G.me }; for (const a of ATTRS) p[a.k] += pend[a.k]; return p; };
 function renderCamp() {
   $('campName').textContent = G.curCamp ? G.curCamp.name : '營火';
   for (const b of document.querySelectorAll<HTMLElement>('#campMenu .tabs button')) b.classList.toggle('on', b.dataset.tab === G.campTab);
-  const body = $('campBody');
+  const body = $('campBody'), foot = $('campFoot');
+  foot.hidden = G.campTab !== 'lv';
   if (G.campTab === 'lv') {
-    const cost = lvCost(G.me), can = G.me.souls >= cost;
-    const now = calcStats(G.me, curEq(G.me)), gain = k => { G.me[k]++; const nx = calcStats(G.me, curEq(G.me)); G.me[k]--;   // 這一點加下去會變多少
+    const nxtCost = pendCost(1), canAdd = G.me.souls >= nxtCost, after = withPend();
+    const now = calcStats(after, curEq(G.me)), gain = k => { after[k]++; const nx = calcStats(after, curEq(G.me)); after[k]--;   // 再加這一點會變多少
       const p = []; if (nx.maxHp !== now.maxHp) p.push('生命 +' + (nx.maxHp - now.maxHp)); if (nx.maxSt !== now.maxSt) p.push('體力 +' + (nx.maxSt - now.maxSt));
       if (nx.atk !== now.atk) p.push('攻擊 +' + (nx.atk - now.atk)); if (nx.def !== now.def) p.push('防禦 +' + (nx.def - now.def)); if (nx.crit !== now.crit) p.push('暴擊 +' + (nx.crit - now.crit) + '%');
       if (Math.abs(nx.aspd - now.aspd) > 1e-6) p.push('攻速 +' + ((nx.aspd - now.aspd) * 100).toFixed(1) + '%'); if (Math.abs(nx.cdr - now.cdr) > 1e-6) p.push('冷卻 -' + ((nx.cdr - now.cdr) * 100).toFixed(1) + '%');
       return p.length ? p.join('、') : '目前的武器用不到'; };
-    body.innerHTML = '<div class="soulline"><span>持有魂晶 <b>' + G.me.souls + '</b></span><span>升到 Lv ' + (level(G.me) + 1) + ' 需要 <b>' + cost + '</b></span></div>' +
-      ATTRS.map(a => '<div class="statrow"><div class="nm">' + a.n + '<small>' + a.d + ' · 下一點：' + gain(a.k) + '</small></div><div class="val">' + G.me[a.k] + '</div><button type="button" class="plus" data-stat="' + a.k + '"' + (can ? '' : ' disabled') + ' aria-label="提升' + a.n + '">+</button></div>').join('') +
-      '<p class="hintp">休息時：生命和藥水補滿，野外的怪物全部復活（精英怪也會）。死掉會從最後休息的營火重來。</p>';
+    body.innerHTML = ATTRS.map(a => '<div class="statrow' + (pend[a.k] ? ' pend' : '') + '"><div class="nm">' + a.n + '<small>' + a.d + ' · 下一點：' + gain(a.k) + '</small></div>' +
+      '<button type="button" class="minus" data-dec="' + a.k + '"' + (pend[a.k] ? '' : ' disabled') + ' aria-label="減少' + a.n + '">−</button>' +
+      '<div class="val">' + (G.me[a.k] + pend[a.k]) + (pend[a.k] ? '<small>+' + pend[a.k] + '</small>' : '') + '</div>' +
+      '<button type="button" class="plus" data-stat="' + a.k + '"' + (canAdd ? '' : ' disabled') + ' aria-label="提升' + a.n + '">+</button></div>').join('') +
+      '<p class="hintp">按 ＋／－ 分配，按「確定」才會花掉魂晶。休息時：生命和藥水補滿，野外的怪物全部復活（精英怪也會）。死掉會從最後休息的營火重來。</p>';
+    const n = pendN(), cost = pendCost(), base = calcStats(G.me, curEq(G.me)), d = [];
+    if (n) { if (now.maxHp !== base.maxHp) d.push('生命 +' + (now.maxHp - base.maxHp)); if (now.maxSt !== base.maxSt) d.push('體力 +' + (now.maxSt - base.maxSt)); if (now.atk !== base.atk) d.push('攻擊 +' + (now.atk - base.atk)); if (now.def !== base.def) d.push('防禦 +' + (now.def - base.def)); }
+    foot.innerHTML = '<div class="lvfoot">魂晶 <b class="soulv">' + (G.me.souls - cost) + '</b>' + (n ? ' <small>(−' + cost + ')</small>' : '') + '<i>|</i>等級 <b class="lvv">' + (level(G.me) + n) + '</b>' + (n ? ' <small>(+' + n + ')</small>' : '') +
+      '<i>|</i>' + (canAdd ? '下一點 <b>' + nxtCost + '</b>' : '下一點要 ' + nxtCost + '，魂晶不夠') + (d.length ? '<span class="gain">' + d.join('、') + '</span>' : '') + '</div>' +
+      '<button type="button" class="sec" data-reset' + (n ? '' : ' disabled') + '>重設</button><button type="button" class="pri" data-confirm' + (n ? '' : ' disabled') + '>確定</button>';
   } else {
     body.innerHTML = '<div class="camplist">' + CAMPS.map(c => '<button type="button" data-tp="' + c.id + '"' + (c.lit && c !== G.curCamp ? '' : ' disabled') + '><span>' + c.name + '<small> · ' + REGIONS[reg[c.ty * MW + c.tx]].name + '</small></span><small>' +
       (c === G.curCamp ? '你在這裡' : c.lit ? '傳送' : '尚未點燃') + '</small></button>').join('') + '</div><p class="hintp">靠近營火就會點燃它，之後就能傳送過去。</p>';
@@ -44,8 +63,12 @@ function renderCamp() {
 }
 $('campMenu').addEventListener('click', e => {
   const t = (e.target as HTMLElement).closest('button'); if (!t) return;
-  if (t.dataset.tab) { G.campTab = t.dataset.tab; renderCamp(); }
-  else if (t.dataset.stat) { const cost = lvCost(G.me); if (G.me.souls < cost) return; G.me.souls -= cost; G.me[t.dataset.stat]++; recalc(G.me); G.me.hp = G.me.maxHp; G.me.st = G.me.maxSt; sfx.level(); renderCamp(); save(); }
+  if (t.dataset.tab) { G.campTab = t.dataset.tab; clearPend(); renderCamp(); }
+  else if (t.dataset.stat) { if (G.me.souls < pendCost(1)) return; pend[t.dataset.stat]++; sfx.pick(); renderCamp(); }
+  else if (t.dataset.dec) { if (pend[t.dataset.dec] > 0) pend[t.dataset.dec]--; renderCamp(); }
+  else if (t.hasAttribute('data-reset')) { clearPend(); renderCamp(); }
+  else if (t.hasAttribute('data-confirm')) { const cost = pendCost(); if (!pendN() || G.me.souls < cost) return;
+    G.me.souls -= cost; for (const a of ATTRS) G.me[a.k] += pend[a.k]; clearPend(); recalc(G.me); G.me.hp = G.me.maxHp; G.me.st = G.me.maxSt; sfx.level(); renderCamp(); save(); }
   else if (t.dataset.tp) { const c = CAMPS.find(c => c.id === t.dataset.tp); G.lastCamp = c.id; placeAtCamp(G.me, c.id); restoreWorld(); save(); setMenu(null); G.region = ''; }
   else if (t.hasAttribute('data-close')) setMenu(null);
 });
