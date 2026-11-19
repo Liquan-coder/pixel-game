@@ -1,13 +1,13 @@
 import { G } from '../core/state';
 import { $, clamp } from '../core/util';
 import { OL } from '../art/sprite';
-import { ARENA, CAMPS, DOOR, MH, MW, OPEN_REGIONS, REGIONS, SUBS, TS, discovered, explored } from '../world/map';
-import { RBDEF, rbDead } from '../world/regionBoss';
+import { CAMPS, MH, MW, OPEN_REGIONS, REGIONS, SUBS, TOWNS, TS, discovered, explored } from '../world/map';
 import { mctx, miniBase, miniFull } from '../world/minimap';
 import { merchant } from '../ui/shop';
-import { CHESTS } from '../world/chests';
-import { flags, mapMarker } from '../game/quest';
-import { DUNGEONS, DZONE, dungeonAt, inDZone } from '../world/dungeons';
+import { current, flags, mapMarker } from '../game/quest';
+import { DUNGEONS, DZONE, dungeonAt } from '../world/dungeons';
+import { POIS } from '../data/poi';
+import { MAP_ICONS, MAP_ICON_SCALE } from '../art/mapIcons';
 
 /* miniT → 已移到 G（core/state.js） */
 export function renderMini() {
@@ -15,9 +15,7 @@ export function renderMini() {
   mctx.fillStyle = '#07060b'; mctx.fillRect(0, 0, 128, 80);
   mctx.drawImage(miniBase, ox, oy, 128, 80, 0, 0, 128, 80);
   for (const c of CAMPS) if (explored[c.ty * MW + c.tx]) { mctx.fillStyle = c.lit ? '#f2c14e' : '#8a869a'; mctx.fillRect(c.tx - ox - 1, c.ty - oy - 1, 3, 3); }
-  if (!G.bossDead && explored[ARENA.y1 * MW + DOOR[1]]) { mctx.fillStyle = '#ff3b3b'; mctx.fillRect(189 - ox, 109 - oy, 3, 3); }
-  for (const d of Object.values(RBDEF)) if (!rbDead.has(d.id) && explored[d.ty * MW + d.tx]) { mctx.fillStyle = '#ff3b3b'; mctx.fillRect(d.tx - ox - 1, d.ty - oy - 1, 3, 3); }
-  for (const c of CHESTS) if (!c.opened && explored[c.ty * MW + c.tx] && !inDZone(c.tx, c.ty)) { mctx.fillStyle = '#ffd04a'; mctx.fillRect(c.tx - ox, c.ty - oy, 1, 1); }
+  // Boss、寶箱不標：讓玩家自己去找
   if (merchant) { const mx = Math.floor(merchant.x / TS) - ox, my = Math.floor(merchant.y / TS) - oy; mctx.fillStyle = OL; mctx.fillRect(mx - 2, my - 2, 5, 5); mctx.fillStyle = '#5ae0b0'; mctx.fillRect(mx - 1, my - 1, 3, 3); }
   if (G.lost) { mctx.fillStyle = '#b49cff'; mctx.fillRect(Math.floor(G.lost.x / TS) - ox - 1, Math.floor(G.lost.y / TS) - oy - 1, 3, 3); }
   mapMarker(mctx, 1, ox, oy);
@@ -38,6 +36,10 @@ function clampView() {                                               // 地圖�
   mv.z = clamp(mv.z, zMin(), zMax); const hw = mv.w / 2 / mv.z, hh = mv.h / 2 / mv.z;
   mv.x = MW <= hw * 2 ? MW / 2 : clamp(mv.x, hw, MW - hw); mv.y = MH <= hh * 2 ? MH / 2 : clamp(mv.y, hh, MH - hh); }
 export let mapSel: string | null = null;                                // 點了哪個營火（等確認傳送）
+/* 地圖上可以點的東西：點了下方會顯示名字和說明（營火還有傳送按鈕） */
+export type MapPick = { kind: string; id: string; name: string; desc: string; tx: number; ty: number };
+let hits: (MapPick & { x: number; y: number })[] = [], pick: MapPick | null = null;
+const seen = (tx: number, ty: number) => !!explored[Math.floor(ty) * MW + Math.floor(tx)];
 export function renderBigMap() {
   const r = bigmap.getBoundingClientRect(), dpr = Math.min(3, window.devicePixelRatio || 1);
   if (!r.width) return;
@@ -49,30 +51,30 @@ export function renderBigMap() {
   g.globalAlpha = .22; g.drawImage(miniFull, x0, y0, W, H); g.globalAlpha = 1; g.drawImage(miniBase, x0, y0, W, H);   // 沒去過的地方淡淡的，去過的亮起來
   { const [zx, zy] = toScr(DZONE.x0 - 1, DZONE.y0 - 1), [zx1, zy1] = toScr(DZONE.x1 + 1, DZONE.y1 + 1); g.fillStyle = '#07060b'; g.fillRect(zx, zy, zx1 - zx, zy1 - zy); }   // 地城裡面是蓋在海上的，地圖上不顯示
   const label = (txt, x, y, col, size) => { g.font = size + 'px "DotGothic16", "PingFang TC", sans-serif'; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = '#07060b'; g.strokeText(txt, x, y); g.fillStyle = col; g.fillText(txt, x, y); };
-  const box = (x, y, n, col) => { g.fillStyle = OL; g.fillRect(Math.round(x - n / 2 - 1), Math.round(y - n / 2 - 1), n + 2, n + 2); g.fillStyle = col; g.fillRect(Math.round(x - n / 2), Math.round(y - n / 2), n, n); };
   const big = mv.z >= 2.2;                                               // 拉近才顯示小地名
   if (mv.z < 5) for (const k of OPEN_REGIONS) { const [x, y] = toScr(REGIONS[k].c[0], REGIONS[k].c[1]); label(REGIONS[k].name, x, y, '#f1e7d0', 16); label(REGIONS[k].sub.replace('建議等級 ', 'Lv '), x, y + 15, '#a99db8', 11); }
   if (big) for (const s of SUBS) if (discovered.has(s.name)) { const [x, y] = toScr(s.x, s.y); label(s.name, x, y + 18, '#c9bfa8', 11); }
-  for (const d of DUNGEONS) if (explored[d.ent[1] * MW + d.ent[0]]) { const [x, y] = toScr(d.ent[0] + .5, d.ent[1] + .5), done = flags.has('dgn:' + d.id);
-    g.fillStyle = OL; g.beginPath(); g.arc(x, y, 6, Math.PI, 0); g.lineTo(x + 6, y + 4); g.lineTo(x - 6, y + 4); g.fill();
-    g.fillStyle = done ? '#8a869a' : '#c8a8ff'; g.beginPath(); g.arc(x, y, 4.5, Math.PI, 0); g.lineTo(x + 4.5, y + 3); g.lineTo(x - 4.5, y + 3); g.fill();
-    g.fillStyle = '#07060b'; g.fillRect(Math.round(x - 1.5), Math.round(y - 2), 3, 5); if (big) label(d.name, x, y - 9, done ? '#a99db8' : '#e0d0ff', 11); }
-  for (const d of DUNGEONS) if (explored[d.ent[1] * MW + d.ent[0]]) { const [x, y] = toScr(d.ent[0] + .5, d.ent[1] + .5), done = flags.has('dgn:' + d.id);
-    g.fillStyle = OL; g.beginPath(); g.arc(x, y, 6, Math.PI, 0); g.lineTo(x + 6, y + 4); g.lineTo(x - 6, y + 4); g.fill();
-    g.fillStyle = done ? '#8a869a' : '#c8a8ff'; g.beginPath(); g.arc(x, y, 4.5, Math.PI, 0); g.lineTo(x + 4.5, y + 3); g.lineTo(x - 4.5, y + 3); g.fill();
-    g.fillStyle = '#07060b'; g.fillRect(Math.round(x - 1.5), Math.round(y - 2), 3, 5); if (big) label(d.name, x, y - 9, done ? '#a99db8' : '#e0d0ff', 11); }
-  for (const c of CHESTS) if (!c.opened && explored[c.ty * MW + c.tx] && !inDZone(c.tx, c.ty)) { const [x, y] = toScr(c.tx + .5, c.ty + .5); box(x, y, 4, '#ffd04a'); }
-  if (!G.bossDead && explored[ARENA.y1 * MW + DOOR[1]]) { const [x, y] = toScr(DOOR[1] + .5, (ARENA.y0 + ARENA.y1) / 2); box(x, y, 8, '#ff3b3b'); label('狼王', x, y - 8, '#ff8a7a', 11); }
-  for (const d of Object.values(RBDEF)) if (!rbDead.has(d.id) && explored[d.ty * MW + d.tx]) { const [x, y] = toScr(d.tx + .5, d.ty + .5); box(x, y, 8, '#ff3b3b'); label(d.short, x, y - 8, '#ff8a7a', 11); }
-  if (merchant) { const [x, y] = toScr(merchant.x / TS, merchant.y / TS); box(x, y, 7, '#5ae0b0'); if (big) label('商人', x, y - 7, '#9af0d0', 11); }
-  if (G.lost) { const [x, y] = toScr(G.lost.x / TS, G.lost.y / TS); box(x, y, 6, '#b49cff'); }
-  for (const c of CAMPS) if (explored[c.ty * MW + c.tx] || c.lit) { const [x, y] = toScr(c.tx + .5, c.ty + .5), sel = c.id === mapSel;
-    if (sel) { g.strokeStyle = '#fff'; g.lineWidth = 2; g.strokeRect(x - 9, y - 9, 18, 18); }
-    box(x, y, c.lit ? 10 : 7, c.lit ? '#f2c14e' : '#8a869a'); if (c.lit) { g.fillStyle = '#e8743b'; g.fillRect(Math.round(x - 2), Math.round(y - 3), 4, 5); }
-    if (big || sel) label(c.name, x, y + 18, c.lit ? '#ffe38a' : '#a99db8', 11); }
+  // 圖示：放大 2 倍的像素圖，中心對準那一格；同時記下位置給「點一下」用
+  hits = [];
+  const S = MAP_ICON_SCALE, icon = (k: string, p: MapPick) => { const c = MAP_ICONS[k], [x, y] = toScr(p.tx + .5, p.ty + .5);
+    g.drawImage(c, Math.round(x - c.width * S / 2), Math.round(y - c.height * S / 2), c.width * S, c.height * S); hits.push({ ...p, x, y }); };
+  for (const T of TOWNS) if (seen(T.tx, T.ty)) icon('town', { kind: 'town', id: T.id, name: T.name, desc: '城鎮 · 有鎮民和鐵匠，可以買賣、強化武器', tx: T.tx, ty: T.ty });
+  for (const p of POIS) if (seen(p.tx, p.ty)) icon(p.kind, { kind: p.kind, id: p.id, name: p.name, desc: p.desc || (p.kind === 'ruin' ? '遺跡 · 通往地底的入口' : p.kind === 'town' ? '城鎮' : '地標'), tx: p.tx, ty: p.ty });
+  for (const d of DUNGEONS) if (seen(d.ent[0], d.ent[1])) { const done = flags.has('dgn:' + d.id);
+    icon(done ? 'dungeonDone' : 'dungeon', { kind: 'dungeon', id: d.id, name: d.name, desc: done ? '地城 · 已經攻略完了' : '地城 · 最深處有守護者看守著寶物', tx: d.ent[0], ty: d.ent[1] }); }
+  if (merchant) icon('merchant', { kind: 'merchant', id: 'merchant', name: '流浪商人', desc: '會在點燃過的營火之間移動，賣藥水、礦石和裝備', tx: merchant.x / TS - .5, ty: merchant.y / TS - .5 });
+  if (G.lost) icon('lost', { kind: 'lost', id: 'lost', name: '掉落的魂晶', desc: '上次倒下時掉的 ' + G.lost.amount + ' 魂晶 · 走過去就能撿回來（再死一次就沒了）', tx: G.lost.x / TS - .5, ty: G.lost.y / TS - .5 });
+  for (const c of CAMPS) if (seen(c.tx, c.ty) || c.lit) icon(c.lit ? 'camp' : 'campOff', { kind: 'camp', id: c.id, name: c.name, desc: '', tx: c.tx, ty: c.ty });
+  { const q = current(); hits.push({ kind: 'quest', id: q.id, name: '主線：' + q.title, desc: '跟著金色箭頭走 · 不一定要照順序', tx: q.tx, ty: q.ty, ...(([x, y]) => ({ x, y }))(toScr(q.tx, q.ty)) }); }
   mapMarker(g, mv.z, mv.x - mv.w / 2 / mv.z, mv.y - mv.h / 2 / mv.z);
-  const dg = dungeonAt(G.me.x, G.me.y), [px, py] = dg ? toScr(dg.ent[0] + .5, dg.ent[1] + 1) : toScr(G.me.x / TS, G.me.y / TS);   // 在地城裡 → 標在入口
-  box(px, py, 7, '#7fdcff'); g.fillStyle = '#ffffff'; g.fillRect(Math.round(px - 1), Math.round(py - 1), 3, 3);
+  // 你：魔女帽 + 一圈閃爍的光（在地城裡 → 標在入口）
+  const dg = dungeonAt(G.me.x, G.me.y), mt = dg ? [dg.ent[0], dg.ent[1] + .5] : [G.me.x / TS - .5, G.me.y / TS - .5];
+  { const [x, y] = toScr(mt[0] + .5, mt[1] + .5), k = .5 + .5 * Math.sin(performance.now() / 160);
+    g.strokeStyle = `rgba(127,220,255,${.35 + .45 * k})`; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 13 + 2 * k, 0, Math.PI * 2); g.stroke();
+    icon('me', { kind: 'me', id: 'me', name: '你在這裡', desc: dg ? '在「' + dg.name + '」裡面' : '', tx: mt[0], ty: mt[1] }); }
+  // 選到的東西：白框 + 名字
+  if (pick) { const h = hits.find(h => h.kind === pick.kind && h.id === pick.id);
+    if (h) { g.strokeStyle = '#ffffff'; g.lineWidth = 2; g.strokeRect(Math.round(h.x - 14), Math.round(h.y - 14), 28, 28); label(h.name, h.x, h.y + 26, '#ffe38a', 12); } }
 }
 /* ---- 手勢 ---- */
 const ptrs = new Map<number, { x: number; y: number }>();
@@ -93,10 +95,12 @@ bigmap.addEventListener('wheel', e => { e.preventDefault(); const p = { x: e.off
 export function zoomAt(sx: number, sy: number, z: number) {                // 縮放時手指下面那一點不動
   const [tx, ty] = toTile(sx, sy); mv.z = clamp(z, zMin(), zMax); mv.x = tx - (sx - mv.w / 2) / mv.z; mv.y = ty - (sy - mv.h / 2) / mv.z; clampView();
 }
-let onPick: (id: string | null) => void = () => {};
-export function onMapPick(f: (id: string | null) => void) { onPick = f; }
-function tapAt(sx: number, sy: number) {                                // 點到營火（12px 內）→ 選它；點空白 → 取消
-  let best = null, bd = 16; for (const c of CAMPS) { if (!explored[c.ty * MW + c.tx] && !c.lit) continue; const [x, y] = toScr(c.tx + .5, c.ty + .5), d = Math.hypot(x - sx, y - sy); if (d < bd) { bd = d; best = c; } }
-  mapSel = best ? best.id : null; onPick(mapSel); renderBigMap();
+let onPick: (p: MapPick | null) => void = () => {};
+export function onMapPick(f: (p: MapPick | null) => void) { onPick = f; }
+function tapAt(sx: number, sy: number) {                                // 點到圖示（16px 內，選最近的）→ 下方顯示是什麼；點空白 → 取消
+  let best = null, bd = 16; for (const h of hits) { const d = Math.hypot(h.x - sx, h.y - sy); if (d < bd) { bd = d; best = h; } }
+  pick = best ? { kind: best.kind, id: best.id, name: best.name, desc: best.desc, tx: best.tx, ty: best.ty } : null;
+  mapSel = pick && pick.kind === 'camp' ? pick.id : null; onPick(pick); renderBigMap();
 }
-export function clearMapSel() { mapSel = null; }
+export function clearMapSel() { mapSel = null; pick = null; }
+export const mapPick = () => pick;

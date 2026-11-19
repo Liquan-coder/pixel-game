@@ -10,7 +10,7 @@ import { calcStats, curEq, level, lvCost, recalc } from '../game/player';
 import { initAudio, sfx } from '../core/audio';
 import { nearCamp, placeAtCamp, restoreWorld } from '../game/playerUpdate';
 import { burst } from '../game/worldUpdate';
-import { centerMap, clearMapSel, mapSel, mv, onMapPick, renderBigMap, zoomAt } from '../render/map';
+import { centerMap, clearMapSel, mapPick, mv, onMapPick, renderBigMap, zoomAt, type MapPick } from '../render/map';
 import { fightingRB } from '../world/regionBoss';
 import { openMenu, setMenu, toast } from './hud';
 import { moveMerchant } from './shop';
@@ -166,15 +166,18 @@ $('invMenu').addEventListener('click', e => {
 });
 export let mapTab = 'map';
 function showMapTab() { for (const b of document.querySelectorAll<HTMLElement>('#mapTabs button')) b.classList.toggle('on', b.dataset.mt === mapTab);
-  $('mapPane').hidden = mapTab !== 'map'; $('journal').hidden = mapTab !== 'journal'; renderMapFoot(mapTab === 'map' ? mapSel : null); if (mapTab === 'journal') renderJournal(); else renderBigMap(); }
+  $('mapPane').hidden = mapTab !== 'map'; $('journal').hidden = mapTab !== 'journal'; renderMapFoot(mapTab === 'map' ? mapPick() : null); if (mapTab === 'journal') renderJournal(); else renderBigMap(); }
 /* 地圖快速傳送：點營火 → 底部出現「傳送」。跟強敵戰鬥中、或附近有正在追你的敵人時不能傳 */
 function travelBlock() {
   if (fightingRB() || (G.B && !G.bossDead && G.B.state !== 'sleep')) return '正在和強敵戰鬥，不能傳送';
   if (G.enemies.some(e => !e.dead && e.state !== 'idle' && e.state !== 'return' && Math.hypot(e.x - G.me.x, e.y - G.me.y) < 160)) return '附近有敵人在追你，不能傳送';
   return '';
 }
-function renderMapFoot(id: string | null) {
-  const f = $('mapFoot'), c = id && CAMPS.find(c => c.id === id); f.hidden = !c; if (!c) return;
+function renderMapFoot(p: MapPick | null) {                              // 點了地圖上的圖示：營火 → 名字 + 傳送；其他 → 名字 + 說明
+  const f = $('mapFoot'); f.hidden = !p; if (!p) return;
+  const rg = REGIONS[reg[Math.floor(p.ty) * MW + Math.floor(p.tx)]];
+  if (p.kind !== 'camp') { f.innerHTML = '<span class="lvfoot"><b>' + p.name + '</b>' + (rg && p.kind !== 'quest' ? ' · ' + rg.name : '') + (p.desc ? '<span class="gain">' + p.desc + '</span>' : '') + '</span><button type="button" class="sec" data-mapx>關閉</button>'; return; }
+  const c = CAMPS.find(c => c.id === p.id); if (!c) { f.hidden = true; return; }
   const blk = !c.lit ? '還沒點燃：走到那裡點燃後才能傳送' : travelBlock();
   f.innerHTML = '<span class="lvfoot"><b>' + c.name + '</b> · ' + REGIONS[reg[c.ty * MW + c.tx]].name + (blk ? '<span class="gain" style="color:#ff8a7a">' + blk + '</span>' : '<span class="gain">傳送後會在營火休息（補滿、怪物復活）</span>') + '</span>' +
     '<button type="button" class="sec" data-mapx>取消</button><button type="button" class="pri" data-travel="' + c.id + '"' + (blk ? ' disabled' : '') + '>傳送</button>';

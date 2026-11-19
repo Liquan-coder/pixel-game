@@ -115,8 +115,6 @@ body:not(.touch) #controls{display:none}
 #bigmap{flex:1 1 auto;min-height:0;width:100%;display:block;border:2px solid var(--line);background:#07060b;touch-action:none;cursor:grab}
 .mapzoom{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:6px}
 .mapzoom .sbtn{width:38px;height:36px;padding:0;font-size:18px}
-.maplegend{margin:5px 2px 0;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.maplegend b{font-weight:400}
 .ph{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}
 .ph h2{margin:0;font-size:20px;font-weight:400;letter-spacing:.12em;color:var(--gold)}
 .ph small{color:var(--muted);font-size:13px;margin-left:6px}
