@@ -2,9 +2,9 @@ import { G } from '../core/state';
 import { AT, TT, WT, fixWeapon, slotOf } from '../data/items';
 import { migrateAttrs } from '../data/attrs';
 import { MAT_KEYS, migrateWeapon } from '../data/forge';
-import { CAMPS, MW, discovered } from '../world/map';
+import { CAMPS, MH, MW, PY, TS, discovered, explored } from '../world/map';
 import { rbDead } from '../world/regionBoss';
-import { packExplored, unpackExplored } from '../world/minimap';
+import { packExplored, redrawMini, unpackExplored } from '../world/minimap';
 import { resetPlayers, recalc } from './player';
 import { openDoor } from './boss';
 import { merchant, placeMerchant } from '../ui/shop';
@@ -14,7 +14,7 @@ import { flags, loreRead, resetQuest } from './quest';
 /* ================= SAVE ================= */
 const SAVE_KEY = 'pixel-wilds-save-v3';
 export function serialize() {
-  return { v:7, mats:G.me.mats, vit:G.me.vit, str:G.me.str, end:G.me.end, dex:G.me.dex, int:G.me.int, luk:G.me.luk, souls:G.me.souls, gold:G.me.gold, inv:G.me.inv, weapon:G.me.weapon, armor:G.me.armor, trinket:G.me.trinket,
+  return { v:8, mats:G.me.mats, vit:G.me.vit, str:G.me.str, end:G.me.end, dex:G.me.dex, int:G.me.int, luk:G.me.luk, souls:G.me.souls, gold:G.me.gold, inv:G.me.inv, weapon:G.me.weapon, armor:G.me.armor, trinket:G.me.trinket,
     merchant: merchant ? { camp:merchant.camp, stock:merchant.stock } : null, rbDead: [...rbDead], potMax: G.potMax, bossDead: G.bossDead,
     camps: CAMPS.filter(c => c.lit).map(c => c.id), lastCamp: G.lastCamp, lost: G.lost, uid: G.uid, map: packExplored(), mw: MW, chests: CHESTS.filter(c => c.opened).map(c => c.id), flags: [...flags], lore: [...loreRead], disc: [...discovered] };
 }
@@ -35,9 +35,19 @@ export function applySave(d) {
   const camp = (id: string) => d.v < 7 && id === 'start' ? 'west' : id;
   if (d.v < 7 && d.merchant) d.merchant.camp = camp(d.merchant.camp);
   for (const c of CAMPS) c.lit = c.id === 'start' || (d.camps || []).map(camp).includes(c.id);
-  G.lastCamp = camp(d.lastCamp || 'start'); G.lost = d.lost || null;   // 舊座標沒有移動，掉在地上的魂晶一樣撿得到
+  G.lastCamp = camp(d.lastCamp || 'start'); G.lost = d.lost || null;
   discovered.clear(); for (const s of d.disc || []) discovered.add(s);
   if (d.map) unpackExplored(d.map, d.mw || 256);
+  /* v8：地圖重排。舊的平原整塊往南移 PY 格；其他地區是重新蓋的，舊座標對不上 → 探索紀錄只留平原的，掉在別處的魂晶移到最後休息的營火 */
+  if (d.v < 8) {
+    const plainsOld = (x: number, y: number) => (y > 206 && x < 262) || (y >= 96 && y <= 206 && x < 128);
+    if (G.lost) { const tx = Math.floor(G.lost.x / TS), ty = Math.floor(G.lost.y / TS), c = CAMPS.find(c => c.id === G.lastCamp) || CAMPS[0];
+      if (plainsOld(tx, ty)) G.lost.y += PY * TS; else { G.lost.x = c.x + 12; G.lost.y = c.y + 6; } }
+    const old = explored.slice(); explored.fill(0);
+    for (let y = 0; y + PY < MH; y++) for (let x = 0; x < MW; x++) if (old[y * MW + x] && plainsOld(x, y)) explored[(y + PY) * MW + x] = 1;
+    redrawMini();
+    d.chests = (d.chests || []).map((id: string) => { const m = /^c(\d+)_(\d+)$/.exec(id); return m && plainsOld(+m[1], +m[2]) ? 'c' + m[1] + '_' + (+m[2] + PY) : id; });
+  }
   resetQuest(); for (const f of d.flags || []) flags.add(f); for (const l of d.lore || []) loreRead.add(l);
   const opened = new Set(d.chests || []); for (const c of CHESTS) { c.opened = opened.has(c.id); c.foe = null; c.t = 2; }
   if (G.bossDead) openDoor();

@@ -12,7 +12,7 @@ import { CLIFF, GROUND, MW, PILLAR, RFLOOR, RWALL, SUBS, TREE, TS, WATER, BRIDGE
 import type { Player } from '../types';
 
 export const DREG = 7;                                                   // 地城的地區編號（REGIONS[7]）
-export const DZONE = { x0: 298, y0: 206, x1: 349, y1: 378 };              // 地城區塊放在這裡（海上，走路到不了，大地圖會蓋掉）
+export const DZONE = { x0: 266, y0: 500, x1: 636, y1: 674 };              // 地城區塊放在這裡（東南邊的海上，走路到不了，大地圖會蓋掉）：一排 7 格、3 排
 export interface Dungeon {
   id: string; name: string; style: 'cave' | 'crypt' | 'grotto';
   ent: [number, number];                                                  // 野外入口：山壁正面那一格（玩家站在它下面一格）
@@ -24,17 +24,17 @@ export interface Dungeon {
   x0?: number; y0?: number; inX?: number; inY?: number; exX?: number; exY?: number;
 }
 export const DUNGEONS: Dungeon[] = [
-  { id: 'moss', name: '苔石洞窟', style: 'cave', ent: [66, 246], lv: 3, kinds: ['slime', 'wolf'], boss: { kind: 'slime', lv: 6, name: '洞窟史萊姆王' }, uq: 'mossfang',
+  { id: 'moss', name: '苔石洞窟', style: 'cave', ent: [66, 462], lv: 3, kinds: ['slime', 'wolf'], boss: { kind: 'slime', lv: 6, name: '洞窟史萊姆王' }, uq: 'mossfang',
     lore: { title: '洞窟深處的刻痕', text: '「牙齒長了苔的那隻狼，是第一個聞到星星味道的。」' } },
-  { id: 'barrow', name: '無名古墓', style: 'crypt', ent: [172, 360], lv: 4, kinds: ['skel', 'skel', 'wolf'], boss: { kind: 'skel', lv: 7, name: '古墓守衛' }, uq: 'barrowblade',
+  { id: 'barrow', name: '無名古墓', style: 'crypt', ent: [172, 576], lv: 4, kinds: ['skel', 'skel', 'wolf'], boss: { kind: 'skel', lv: 7, name: '古墓守衛' }, uq: 'barrowblade',
     lore: { title: '古墓的墓誌銘', text: '「這裡葬著一位無名的劍士。他守的不是墓，是一盞永遠不能熄的燈。」' } },
-  { id: 'grotto', name: '潮音石窟', style: 'grotto', ent: [226, 268], lv: 5, kinds: ['shroom', 'slime', 'wolf'], boss: { kind: 'shroom', lv: 7, name: '潮音毒菇' }, uq: 'tidespear',
+  { id: 'grotto', name: '潮音石窟', style: 'grotto', ent: [226, 484], lv: 5, kinds: ['shroom', 'slime', 'wolf'], boss: { kind: 'shroom', lv: 7, name: '潮音毒菇' }, uq: 'tidespear',
     lore: { title: '石窟裡的貝殼', text: '「把耳朵貼上去，能聽見海浪——還有一首很久以前的搖籃曲。」' } },
 ];
 const SLOT_W = 50, SLOT_H = 54;
-DUNGEONS.forEach((d, k) => { d.x0 = DZONE.x0; d.y0 = DZONE.y0 + k * (SLOT_H + 3); SUBS.push({ name: d.name, x: d.x0 + SLOT_W / 2, y: d.y0 + SLOT_H / 2, r: 27 }); });   // r 不能大過半個區塊，不然會蓋到隔壁的地城
+DUNGEONS.forEach((d, k) => { d.x0 = DZONE.x0 + (k % 7) * (SLOT_W + 3); d.y0 = DZONE.y0 + Math.floor(k / 7) * (SLOT_H + 3); SUBS.push({ name: d.name, x: d.x0 + SLOT_W / 2, y: d.y0 + SLOT_H / 2, r: 27 }); });   // r 不能大過半個區塊，不然會蓋到隔壁的地城
 export const inDZone = (tx: number, ty: number) => tx >= DZONE.x0 && tx <= DZONE.x1 && ty >= DZONE.y0 && ty <= DZONE.y1;
-export const dungeonAt = (x: number, y: number) => { const tx = x / TS, ty = y / TS; return inDZone(tx, ty) ? DUNGEONS.find(d => ty >= d.y0 && ty < d.y0 + SLOT_H) || null : null; };
+export const dungeonAt = (x: number, y: number) => { const tx = x / TS, ty = y / TS; return inDZone(tx, ty) ? DUNGEONS.find(d => ty >= d.y0 && ty < d.y0 + SLOT_H && tx >= d.x0 && tx < d.x0 + SLOT_W) || null : null; };
 
 /* ---- 野外入口：在入口位置堆一座小山（正面就是山壁），前面清出一塊空地 ---- */
 export function stampEntrances(inb: (x: number, y: number) => boolean) {

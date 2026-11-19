@@ -1,97 +1,114 @@
 import { G } from '../core/state';
 import { clamp, makeNoise, mulberry32 } from '../core/util';
 import { hash2 } from '../art/monsters';
-import { ARENA, BIGT, BRIDGE, CAMPS, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, HOUSE, HOUSES, LAVA, MH, MW, OPEN_REGIONS, PILLAR, REGIONS, TOWNS, RFLOOR, ROAD, ROADS, ROCK, RWALL, SOLID, TREE, TS, WALKABLE, WATER, braziers, glows, map, reg, shade, spawns, torches } from './map';
+import { ARENA, BIGT, BRIDGE, CAMPS, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, HOUSE, HOUSES, LAVA, MH, MW, OPEN_REGIONS, PILLAR, PY, REGIONS, TOWNS, RFLOOR, ROAD, ROADS, ROCK, RWALL, STAIRS, SOLID, TREE, TS, WALKABLE, WATER, braziers, glows, map, reg, shade, spawns, torches } from './map';
 import { RBDEF } from './regionBoss';
 import { addDungeonSpawns, stampEntrances } from './dungeons';
+import { buildLandmarks, GLOW_ZONES } from './landmarks';
 export let reachable: Uint8Array = null;                               // 從起點走得到的格子（genWorld 算好）
+
+/* 地圖生成用的小工具（landmarks.ts 也會用） */
+export const I = (x: number, y: number) => y * MW + x;
+export const inb = (x: number, y: number) => x >= 3 && y >= 3 && x < MW - 3 && y < MH - 3;
+export function clearDisk(cx, cy, rad, keepWalls?) { for (let y = cy - rad; y <= cy + rad; y++) for (let x = cx - rad; x <= cx + rad; x++) {
+  if (!inb(x, y) || (x - cx) ** 2 + (y - cy) ** 2 > rad * rad) continue; const i = I(x, y), t = map[i];
+  if (t === TREE || t === ROCK || t === GRAVE || (!keepWalls && (t === CLIFF || t === WATER || t === LAVA))) map[i] = GROUND; } }
+export function wallRect(R, x0, y0, w, h, broken, doorSide) {
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
+    if (!inb(x, y)) continue; const i = I(x, y), edge = x === x0 || y === y0 || x === x0 + w - 1 || y === y0 + h - 1;
+    if (!edge) { map[i] = RFLOOR; continue; }
+    const mx = x0 + (w >> 1), my = y0 + (h >> 1);
+    const isDoor = (doorSide.includes('s') && y === y0 + h - 1 && Math.abs(x - mx) <= 1) || (doorSide.includes('n') && y === y0 && Math.abs(x - mx) <= 1) ||
+      (doorSide.includes('w') && x === x0 && Math.abs(y - my) <= 1) || (doorSide.includes('e') && x === x0 + w - 1 && Math.abs(y - my) <= 1);
+    map[i] = isDoor || R() < broken ? RFLOOR : RWALL;
+  } }
+/* 沿著折線畫一條河（水或熔岩）：w = 半寬 */
+export function river(pts: number[][], w: number, tile: number, only?: (i: number) => boolean) {
+  for (let s = 0; s < pts.length - 1; s++) { const [x0, y0] = pts[s], [x1, y1] = pts[s + 1], L = Math.hypot(x1 - x0, y1 - y0);
+    for (let d = 0; d <= L; d += .5) { const t = d / L, x = x0 + (x1 - x0) * t + Math.sin((d + s * 9) * .21) * 1.6, y = y0 + (y1 - y0) * t + Math.cos((d + s * 5) * .17) * 1.6;
+      for (let dy = -w; dy <= w; dy++) for (let dx = -w; dx <= w; dx++) { const X = Math.round(x + dx), Y = Math.round(y + dy); if (!inb(X, Y) || dx * dx + dy * dy > w * w + .5) continue;
+        const i = I(X, Y); if (!only || only(i)) map[i] = tile; } } }
+}
+
+/* 地區之間的天然屏障（不是牆，是地形）：熔岩高地南緣的斷崖、熔岩和雪原之間的山脊、森林和沼澤之間的深溪。
+   pass = 留缺口的地方（[x, y, 半徑]），道路經過的地方也會自己切開（崖 → 路、水 → 橋） */
+const BARRIERS = [
+  { a: 3, b: 1, tile: CLIFF, pass: [[236, 214, 4], [366, 222, 4]] },
+  { a: 3, b: 5, tile: CLIFF, pass: [[430, 190, 4], [428, 40, 4]] },
+  { a: 1, b: 6, tile: WATER, pass: [[402, 300, 3]] },
+];
 
 export function genWorld() {
   const R = mulberry32(9137);
   const nA = makeNoise(11, 14), nB = makeNoise(23, 14), nC = makeNoise(37, 5), nD = makeNoise(51, 9), nE = makeNoise(77, 7);
-  const I = (x, y) => y * MW + x, inb = (x, y) => x >= 3 && y >= 3 && x < MW - 3 && y < MH - 3;
+  /* ---- 地區：好幾個中心點 + 雜訊扭曲 → 邊界彎彎曲曲 ---- */
+  const centers: [number, number, number][] = []; for (const k of OPEN_REGIONS) for (const [cx, cy] of (REGIONS[k] as any).cs) centers.push([cx, cy, k]);
   for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
     const px = x + (nA(x, y) - .5) * 46, py = y + (nB(x, y) - .5) * 46;
-    let best = 0, bd = 1e9; for (const k of OPEN_REGIONS) for (const [cx, cy] of (REGIONS[k] as any).cs || [REGIONS[k].c]) { const d = (px - cx) ** 2 + (py - cy) ** 2; if (d < bd) { bd = d; best = k; } }
-    if (y > 206) best = 0;                                              // 南半邊全部是平原（不會有一小塊沼澤滲進來）
+    let best = 0, bd = 1e9; for (const [cx, cy, k] of centers) { const d = (px - cx) ** 2 + (py - cy) ** 2; if (d < bd) { bd = d; best = k; } }
+    if (y > 206 + PY && x < 262) best = 0;                              // 南半邊全部是平原
+    if ((x - 34) ** 2 + (y - 322) ** 2 < 24 * 24) best = 0;              // 鏡湖整片算平原
     reg[I(x, y)] = best; shade[I(x, y)] = nC(x, y) > .56 ? 1 : 0;
   }
   map.fill(GROUND);
-  /* 地區之間沒有牆了：交界處只是零星的石頭和樹（地面顏色在 tileArt 裡混色過渡），難度靠「越往外怪越強」來分 */
-  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
-    const r = reg[I(x, y)]; let other = -1;
-    for (let dy = -1; dy <= 1 && other < 0; dy++) for (let dx = -1; dx <= 1; dx++) { const X = x + dx, Y = y + dy; if (X < 0 || Y < 0 || X >= MW || Y >= MH) continue; if (reg[I(X, Y)] !== r) { other = reg[I(X, Y)]; break; } }
-    if (other >= 0 && hash2(x * 7 + 3, y * 13 + 5) < .1) map[I(x, y)] = (r <= 1 && other <= 1) ? TREE : ROCK;
-    if (!inb(x, y)) map[I(x, y)] = CLIFF;
+  /* ---- 海：平原的東岸、南岸、西岸（v7 的形狀，往南移 PY），平原東邊的海灣，森林和沼澤的南岸 ---- */
+  const coastX = oy => 258 + Math.sin(oy * .05) * 12 + (nA(3, oy) - .5) * 24;
+  const forestS = x => 410 + (nB(x, 9) - .5) * 16 + Math.sin(x * .07) * 4;
+  const bayE = y => 404 + Math.sin(y * .07) * 6 + (nA(7, y) - .5) * 14;
+  const swampS = x => 484 + Math.sin(x * .05) * 7 + (nC(x, 11) - .5) * 12;
+  for (let y = 186 + PY - 30; y < MH; y++) for (let x = 0; x < MW; x++) { const i = I(x, y), oy = y - PY;
+    let sea = (x > coastX(oy) + Math.max(0, 200 - oy) * 3 && y > forestS(x)) || oy > 377 - nB(x, 5) * 6 || (oy >= 196 && x < 3 + nC(4, oy) * 4);
+    if (x > bayE(y) && y < swampS(x)) sea = false;                      // 沼澤的陸地
+    if (sea) { map[i] = WATER; reg[i] = 0; } }
+  /* ---- 地區交界：零星的石頭和樹（地面顏色在 tileArt 裡混色過渡）；有些交界是天然屏障 ---- */
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) { const i = I(x, y);
+    if (!inb(x, y)) { map[i] = CLIFF; continue; }
+    if (map[i] !== GROUND) continue;
+    const r = reg[i]; let other = -1;
+    for (let dy = -1; dy <= 1 && other < 0; dy++) for (let dx = -1; dx <= 1; dx++) { const j = I(x + dx, y + dy); if (reg[j] !== r && map[j] !== WATER) { other = reg[j]; break; } }
+    if (other < 0) continue;
+    const bar = BARRIERS.find(b => (b.a === r && b.b === other) || (b.b === r && b.a === other));
+    if (bar && !bar.pass.some(([px, py, pr]) => Math.hypot(x - px, y - py) < pr + (nC(x, y) - .5) * 2)) { map[i] = bar.tile; continue; }
+    if (hash2(x * 7 + 3, y * 13 + 5) < .1) map[i] = (r <= 1 && other <= 1) ? TREE : ROCK;
   }
-  /* 南半邊的平原：東邊是海、南邊是海岸，中間一條河往東流進海裡，還有一座湖和幾塊岩石丘 */
-  const coastX = y => 258 + Math.sin(y * .05) * 12 + (nA(3, y) - .5) * 24;
-  for (let y = 186; y < MH; y++) for (let x = 0; x < MW; x++) { const i = I(x, y);
-    const sea = (y >= 194 && x > coastX(y) - Math.max(0, 200 - y) * -3) || y > MH - 7 - nB(x, 5) * 6 || (y >= 196 && x < 3 + nC(4, y) * 4);
-    if (sea && (y >= 194 || x > 250)) map[i] = WATER;
-    else if (reg[i] === 0 && y > 196 && nE(x * 1.15 + 200, y * 1.15) > .77) map[i] = CLIFF; }
-  for (let pass = 0; pass < 3; pass++) {                                // 岩石丘磨圓：周圍 8 格少於 4 格是岩石就拿掉、多於 5 格就補上 → 不會有一格一格的碎石柱
-    const prev = map.slice();
-    for (let y = 197; y < MH - 4; y++) for (let x = 4; x < MW - 4; x++) { const i = I(x, y); if (reg[i] !== 0 || (prev[i] !== CLIFF && prev[i] !== GROUND)) continue;
-      let n = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && prev[I(x + dx, y + dy)] === CLIFF) n++;
-      if (prev[i] === CLIFF && n < 4) map[i] = GROUND; else if (prev[i] === GROUND && n > 5) map[i] = CLIFF; } }
-  const riverY = x => 300 - (x - 3) * .25 + Math.sin(x * .06) * 8;
+  /* 斷崖、山脊加厚一點（熔岩那一側再多一格），磨掉單格的缺口 */
+  { const prev = map.slice(); for (let y = 4; y < MH - 4; y++) for (let x = 4; x < MW - 4; x++) { const i = I(x, y); if (prev[i] !== GROUND || reg[i] !== 3) continue;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (prev[I(x + dx, y + dy)] === CLIFF && reg[I(x + dx, y + dy)] !== 3) { if (!BARRIERS[0].pass.concat(BARRIERS[1].pass).some(([px, py, pr]) => Math.hypot(x - px, y - py) < pr + 1)) map[i] = CLIFF; break; } } }
+  /* ---- 平原（跟 v7 一樣的地形，往南移 PY）：岩石丘、河、南湖、鏡湖 ---- */
+  for (let y = 196 + PY; y < MH; y++) for (let x = 0; x < 262; x++) { const i = I(x, y); if (reg[i] === 0 && map[i] === GROUND && nE(x * 1.15 + 200, (y - PY) * 1.15) > .77) map[i] = CLIFF; }
+  roundHills(197 + PY, MH - 4, 4, 262, 0);
+  const riverY = x => 300 - (x - 3) * .25 + Math.sin(x * .06) * 8 + PY;
   for (let x = 3; x < 270; x++) { const yc = Math.round(riverY(x)), w = x > 200 ? 2 : 1; for (let d = -w; d <= w; d++) if (inb(x, yc + d)) map[I(x, yc + d)] = WATER; }
-  for (let y = 322; y <= 342; y++) for (let x = 44; x <= 72; x++) if (inb(x, y) && ((x - 58) / 11) ** 2 + ((y - 332) / 7) ** 2 < 1 + (nE(x, y) - .5) * .5) map[I(x, y)] = WATER;
-  for (let y = 100; y <= 124; y++) for (let x = 28; x <= 52; x++) if (inb(x, y) && reg[I(x, y)] === 0 && ((x - 40) / 9) ** 2 + ((y - 112) / 7) ** 2 < 1 + (nE(x, y) - .5) * .5) map[I(x, y)] = WATER;
-  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
-    const i = I(x, y); if (reg[i] !== 3 || map[i] !== GROUND) continue;
-    if (nE(x * 1.3, y * 1.3) > .7) map[i] = LAVA;
-  }
-  // 冰封湖（雪原）、沼澤裡一攤一攤的水
-  for (let y = 70; y <= 88; y++) for (let x = 306; x <= 332; x++) if (inb(x, y) && reg[I(x, y)] === 5 && ((x - 318) / 11) ** 2 + ((y - 78) / 6.5) ** 2 < 1 + (nE(x, y) - .5) * .5) map[I(x, y)] = WATER;
-  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) { const i = I(x, y); if (reg[i] === 6 && map[i] === GROUND && nE(x * 1.6 + 30, y * 1.6) > .66) map[i] = WATER; }
-  for (let x = 150; x < 246; x++) { const yc = Math.round(24 + Math.sin(x * .09) * 5 + (x - 150) * .22); for (let d = -1; d <= 1; d++) { const i = I(x, yc + d); if (inb(x, yc + d) && reg[i] === 3) map[i] = LAVA; } }
+  for (let y = 322 + PY; y <= 342 + PY; y++) for (let x = 44; x <= 72; x++) if (inb(x, y) && ((x - 58) / 11) ** 2 + ((y - 332 - PY) / 7) ** 2 < 1 + (nE(x, y) - .5) * .5) map[I(x, y)] = WATER;
+  /* ---- 各地區的地形 ---- */
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) { const i = I(x, y); if (map[i] !== GROUND) continue; const r = reg[i];
+    if (r === 3 && nE(x * 1.3, y * 1.3) > .75) map[i] = LAVA;                              // 熔岩池
+    else if (r === 6 && nE(x * 1.6 + 30, y * 1.6) > .66) map[i] = WATER;                   // 沼澤的水窪
+    else if (r === 2 && nE(x * 1.1 + 500, y * 1.1 + 90) > .76) map[i] = CLIFF;             // 荒地的紅岩台地
+    else if (r === 5 && nD(x * .9 + 300, y * .9) > .76) map[i] = CLIFF;                    // 雪原的岩山
+    else if (r === 3 && nD(x * 1.2 + 700, y * 1.2 + 50) > .79) map[i] = CLIFF; }           // 熔岩的黑岩
+  roundHills(4, 206 + PY, 4, MW - 4, -1);
+  river([[212, 96], [240, 86], [270, 72], [300, 66], [312, 64]], 1, LAVA, i => reg[i] === 3);                         // 熔岩河：流進燼龍火口
+  river([[348, 62], [380, 54], [400, 64], [418, 92], [424, 130], [410, 160]], 1, LAVA, i => reg[i] === 3);
+  river([[340, 226], [330, 262], [340, 300], [322, 340], [332, 380], [336, 416]], 1, WATER, i => reg[i] === 1 || reg[i] === 3);   // 森林的溪
+  river([[600, 230], [610, 270], [596, 320], [620, 360]], 1, WATER, i => reg[i] === 6);
+  /* ---- 植物 ---- */
   for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
     const i = I(x, y); if (map[i] !== GROUND) continue;
     const r = reg[i], n = nD(x * 1.3 + 90, y * 1.3 + 40), q = R();
-    if (r === 0) { if (q < .018 + (n > .7 ? .38 : 0) + (y > 196 && n > .62 ? .12 : 0)) map[i] = TREE; else if (q > .99) map[i] = ROCK; }
+    if (r === 0) { if (q < .018 + (n > .7 ? .38 : 0) + (y > 196 + PY && n > .62 ? .12 : 0)) map[i] = TREE; else if (q > .99) map[i] = ROCK; }
     else if (r === 1) { if (q < .1 + .55 * Math.max(0, n - .35)) map[i] = TREE; else if (q > .992) map[i] = ROCK; }
     else if (r === 2) { if (q < .014) map[i] = TREE; else if (q > .978) map[i] = ROCK; }
     else if (r === 3) { if (q < .03) map[i] = TREE; else if (q > .984) map[i] = ROCK; }
-    else if (r === 5) { if (q < .03 + .3 * Math.max(0, n - .55)) map[i] = TREE; else if (q > .982) map[i] = ROCK; }
+    else if (r === 5) { if (q < .03 + .45 * Math.max(0, n - .55)) map[i] = TREE; else if (q > .982) map[i] = ROCK; }
     else if (r === 6) { if (q < .06 + .3 * Math.max(0, n - .5)) map[i] = TREE; else if (q > .99) map[i] = ROCK; }
   }
-  const clearDisk = (cx, cy, rad, keepWalls) => { for (let y = cy - rad; y <= cy + rad; y++) for (let x = cx - rad; x <= cx + rad; x++) {
-    if (!inb(x, y) || (x - cx) ** 2 + (y - cy) ** 2 > rad * rad) continue; const i = I(x, y), t = map[i];
-    if (t === TREE || t === ROCK || t === GRAVE || (!keepWalls && (t === CLIFF || t === WATER || t === LAVA))) map[i] = GROUND; } };
-  const wallRect = (x0, y0, w, h, broken, doorSide) => {
-    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
-      if (!inb(x, y)) continue; const i = I(x, y), edge = x === x0 || y === y0 || x === x0 + w - 1 || y === y0 + h - 1;
-      if (!edge) { map[i] = RFLOOR; continue; }
-      const mx = x0 + (w >> 1), my = y0 + (h >> 1);
-      const isDoor = (doorSide.includes('s') && y === y0 + h - 1 && Math.abs(x - mx) <= 1) || (doorSide.includes('n') && y === y0 && Math.abs(x - mx) <= 1) ||
-        (doorSide.includes('w') && x === x0 && Math.abs(y - my) <= 1) || (doorSide.includes('e') && x === x0 + w - 1 && Math.abs(y - my) <= 1);
-      map[i] = isDoor || R() < broken ? RFLOOR : RWALL;
-    } };
-  // 殘破村落
-  clearDisk(88, 150, 15, true);
-  for (const [ox, oy, w, h] of [[-11,-8,7,6],[2,-9,8,6],[-10,4,7,5],[4,4,8,6],[14,-3,6,5]]) {
-    wallRect(88 + ox, 150 + oy, w, h, .2, 's');
-    if (R() < .7) { const x = 88 + ox + 1 + Math.floor(R() * (w - 2)), y = 150 + oy + 1; if (map[I(x, y)] === RFLOOR) map[I(x, y)] = CRATE; }
-  }
-  // 沉沒遺跡
-  clearDisk(80, 40, 18, true);
-  wallRect(66, 30, 28, 20, .28, 'nsew');
-  for (let x = 70; x <= 90; x += 4) { for (const y of [34, 45]) map[I(x, y)] = PILLAR; }
-  wallRect(75, 36, 10, 8, .12, 's');
-  // 骸骨墓地
-  clearDisk(35, 30, 9, true);
-  for (let y = 23; y <= 37; y += 3) for (let x = 28; x <= 42; x += 3) if (((x - 35) ** 2 + (y - 30) ** 2) < 64 && R() < .75) map[I(x, y)] = GRAVE;
-  // 古樹空地
-  clearDisk(205, 165, 10, false);
-  map[I(205, 165)] = BIGT; map[I(206, 165)] = BIGT; map[I(205, 164)] = BIGT; map[I(206, 164)] = BIGT;
+  /* ---- 地標（城堡、火口、祭壇、湖中島……）：landmarks.ts ---- */
+  buildLandmarks(R, nE);
   // 區域 boss 的場地：清空一圈
-  for (const d of Object.values(RBDEF)) clearDisk(d.tx, d.ty, Math.ceil(d.tr) + 1, false);
-  // 蘑菇谷
-  for (let y = 109; y <= 131; y++) for (let x = 154; x <= 176; x++) if (map[I(x, y)] === TREE && ((x - 165) ** 2 + (y - 120) ** 2) < 121 && R() < .7) map[I(x, y)] = GROUND;
+  for (const d of Object.values(RBDEF)) clearDisk(d.tx, d.ty, Math.ceil(d.tr) + 1, true);
   // 道路
-  const setRoad = (x, y) => { if (!inb(x, y)) return; const i = I(x, y), t = map[i]; if (t === BIGT) return;
+  const setRoad = (x, y) => { if (!inb(x, y)) return; const i = I(x, y), t = map[i]; if (t === BIGT || t === STAIRS) return;
     if (t === WATER || t === LAVA) map[i] = BRIDGE; else if (t === RWALL || t === PILLAR || t === CRATE) map[i] = RFLOOR; else if (t !== BRIDGE && t !== RFLOOR) map[i] = ROAD; };
   ROADS.forEach((pts, k) => { for (let s = 0; s < pts.length - 1; s++) {
     const [x0, y0] = pts[s], [x1, y1] = pts[s + 1], L = Math.hypot(x1 - x0, y1 - y0);
@@ -112,23 +129,25 @@ export function genWorld() {
       HOUSES.push({ tx: x0, ty: y0, w, h, roof: (k * 3 + (T.snow ? 1 : 0)) % 4, snow: T.snow, smith: k === 4 }); });
     for (const [bx, by] of [[-3, -3], [3, -3], [-3, 4], [3, 4]]) braziers.push({ x: (cx + bx) * TS + 8, y: (cy + by) * TS + 12 });
   }
-  // 狼王巢穴
-  for (let y = ARENA.y0 - 2; y <= ARENA.y1 + 2; y++) for (let x = ARENA.x0 - 2; x <= ARENA.x1 + 2; x++) {
+  // 狼王巢穴：月嚎岩丘上，一圈岩石中間的石砌巢穴
+  for (let y = ARENA.y0 - 5; y <= ARENA.y1 + 3; y++) for (let x = ARENA.x0 - 5; x <= ARENA.x1 + 5; x++) {
     const i = I(x, y), inside = x >= ARENA.x0 && x <= ARENA.x1 && y >= ARENA.y0 && y <= ARENA.y1;
-    if (inside) { reg[i] = 4; const edge = x === ARENA.x0 || x === ARENA.x1 || y === ARENA.y0 || y === ARENA.y1; map[i] = edge ? RWALL : RFLOOR; }
-    else if (map[i] !== ROAD) map[i] = GROUND;
+    if (inside) { reg[i] = 4; const edge = x === ARENA.x0 || x === ARENA.x1 || y === ARENA.y0 || y === ARENA.y1; map[i] = edge ? RWALL : RFLOOR; continue; }
+    const front = y > ARENA.y1 && Math.abs(x - DOOR[1]) <= 3, ring = Math.max((ARENA.x0 - x) / 5, (x - ARENA.x1) / 5, (ARENA.y0 - y) / 5, (y - ARENA.y1) / 3);
+    if (front) map[i] = map[i] === ROAD ? ROAD : GROUND; else if (ring < .75 + (hash2(x, y) - .5) * .5) map[i] = CLIFF;
   }
-  for (const [px, py] of [[185,106],[195,106],[185,115],[195,115]]) map[I(px, py)] = PILLAR;
+  const ax = ARENA.x0, ay = ARENA.y0;
+  for (const [px, py] of [[4, 4], [14, 4], [4, 13], [14, 13]]) map[I(ax + px, ay + py)] = PILLAR;
   for (const x of DOOR) map[I(x, ARENA.y1)] = FOG;
-  for (const [bx, by] of [[183,104],[197,104],[183,117],[197,117]]) braziers.push({ x:bx * TS + 8, y:by * TS + 12 });
+  for (const [bx, by] of [[2, 2], [16, 2], [2, 15], [16, 15]]) braziers.push({ x:(ax + bx) * TS + 8, y:(ay + by) * TS + 12 });
   stampEntrances(inb); addDungeonSpawns();                              // 地城：野外入口的小山 + 海上的地城區塊（裡面的怪也在這裡放）
   for (const c of CAMPS) clearDisk(c.tx, c.ty, 3, false);
   for (let y = 3; y < MH - 3; y++) for (let x = 3; x < MW - 3; x++) {
     const i = I(x, y);
     if (map[i] === RWALL && map[i + MW] === RFLOOR && reg[i] !== 4 && R() < .25 && !torches.some(t => Math.abs(t.tx - x) + Math.abs(t.ty - y) < 6)) torches.push({ tx:x, ty:y, x:x * TS + 8, y:y * TS + 8, ph:R() * 10 });
-    if (reg[i] === 1 && map[i] === GROUND) {
-      const inValley = ((x - 165) ** 2 + (y - 120) ** 2) < 121;
-      if (R() < (inValley ? .06 : .006) && !glows.some(t => Math.abs(t.tx - x) + Math.abs(t.ty - y) < (inValley ? 2 : 6))) glows.push({ tx:x, ty:y, x:x * TS + 4 + R() * 8, y:y * TS + 6 + R() * 6, ph:R() * 10 });
+    if ((reg[i] === 1 || reg[i] === 6) && map[i] === GROUND) {
+      const z = GLOW_ZONES.find(([gx, gy, gr]) => (x - gx) ** 2 + (y - gy) ** 2 < gr * gr), dense = !!z;
+      if (R() < (dense ? .06 : reg[i] === 1 ? .006 : .003) && !glows.some(t => Math.abs(t.tx - x) + Math.abs(t.ty - y) < (dense ? 2 : 6))) glows.push({ tx:x, ty:y, x:x * TS + 4 + R() * 8, y:y * TS + 6 + R() * 6, ph:R() * 10 });
     }
   }
   // 可到達範圍
@@ -138,39 +157,59 @@ export function genWorld() {
   reachable = reach;                                                   // main.ts 會用它來放寶箱
   // 怪物
   const R2 = mulberry32(99);
-  const near = (tx, ty, d) => { for (const s of spawns) if (Math.abs(s.tx - tx) < d && Math.abs(s.ty - ty) < d && Math.hypot(s.tx - tx, s.ty - ty) < d) return true; return false; };
+  const grid = new Map<number, any[]>(), gk = (tx, ty) => ((tx >> 3) << 12) | (ty >> 3);   // 8×8 格一桶，查「附近有沒有怪」比較快
+  const near = (tx, ty, d) => { for (let gy = (ty - d) >> 3; gy <= (ty + d) >> 3; gy++) for (let gx = (tx - d) >> 3; gx <= (tx + d) >> 3; gx++) for (const s of grid.get((gx << 12) | gy) || []) if (Math.hypot(s.tx - tx, s.ty - ty) < d) return true; return false; };
+  const put = sp => { spawns.push(sp); const k = gk(sp.tx, sp.ty); (grid.get(k) || grid.set(k, []).get(k)).push(sp); };
   const ok = (tx, ty) => { const i = I(tx, ty); if (!reach[i] || reg[i] === 4 || !(map[i] === GROUND || map[i] === ROAD || map[i] === RFLOOR)) return false;
     for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) if (!WALKABLE(map[I(tx + dx, ty + dy)])) return false;
     if (tx >= ARENA.x0 - 3 && tx <= ARENA.x1 + 3 && ty >= ARENA.y0 - 3 && ty <= ARENA.y1 + 3) return false;
-    for (const c of CAMPS) if (Math.hypot(c.tx - tx, c.ty - ty) < 10) return false;
+    for (const c of CAMPS) if (Math.abs(c.tx - tx) < 10 && Math.hypot(c.tx - tx, c.ty - ty) < 10) return false;
     for (const T of TOWNS) if (Math.hypot(T.tx - tx, T.ty - ty) < T.r + 7) return false;   // 鎮上和鎮外一圈沒有怪
     for (const d of Object.values(RBDEF)) if (Math.hypot(d.tx - tx, d.ty - ty) < d.tr + 5) return false; return true; };
+  /* 每個地區：n = 生成點數量（有 42% 會多 1–2 隻同伴），anchor = 從哪一側走進來（離越遠越強），span = 多遠到最高等級 */
   const TABLE = [
-    { n:240, lv:[1,5], anchor:[118,356], span:230, kinds:lv => lv <= 2 ? 'slime' : lv >= 4 ? (R2() < .75 ? 'wolf' : 'slime') : (R2() < .5 ? 'wolf' : 'slime') },   // span：離起點多遠就到最高等級
-    { n:88, lv:[5,10], anchor:[125,140], kinds:() => { const q = R2(); return q < .35 ? 'shroom' : q < .7 ? 'treant' : 'wolfF'; } },
-    { n:80, lv:[10,15], anchor:[64,96], kinds:() => R2() < .6 ? 'skel' : 'golem' },
-    { n:74, lv:[15,20], anchor:[200,92], kinds:() => { const q = R2(); return q < .3 ? 'slimeM' : q < .7 ? 'skelE' : 'golemL'; } },
+    { n:240, lv:[1,5], anchor:[118,572], span:230, kinds:lv => lv <= 2 ? 'slime' : lv >= 4 ? (R2() < .75 ? 'wolf' : 'slime') : (R2() < .5 ? 'wolf' : 'slime') },
+    { n:215, lv:[5,10], anchor:[176,368], span:200, kinds:() => { const q = R2(); return q < .35 ? 'shroom' : q < .7 ? 'treant' : 'wolfF'; } },
+    { n:220, lv:[10,15], anchor:[66,300], span:250, kinds:() => R2() < .6 ? 'skel' : 'golem' },
+    { n:200, lv:[15,20], anchor:[296,222], span:190, kinds:() => { const q = R2(); return q < .3 ? 'slimeM' : q < .7 ? 'skelE' : 'golemL'; } },
     null,
-    { n:85, lv:[20,25], anchor:[262,72], kinds:() => { const q = R2(); return q < .4 ? 'wolfS' : q < .65 ? 'slimeI' : 'golemI'; } },
-    { n:85, lv:[25,30], anchor:[292,112], kinds:() => { const q = R2(); return q < .35 ? 'skelS' : q < .65 ? 'shroomP' : 'treantS'; } },
+    { n:205, lv:[20,25], anchor:[440,114], span:190, kinds:() => { const q = R2(); return q < .4 ? 'wolfS' : q < .65 ? 'slimeI' : 'golemI'; } },
+    { n:215, lv:[25,30], anchor:[482,232], span:220, kinds:() => { const q = R2(); return q < .35 ? 'skelS' : q < .65 ? 'shroomP' : 'treantS'; } },
   ];
   TABLE.forEach((T, r) => { if (!T) return;
     let n = 0, tries = 0;
-    while (n < T.n && tries++ < 30000) {
+    while (n < T.n && tries++ < 120000) {
       const tx = 3 + Math.floor(R2() * (MW - 6)), ty = 3 + Math.floor(R2() * (MH - 6));
       if (reg[I(tx, ty)] !== r || !ok(tx, ty) || near(tx, ty, 4)) continue;
       const d = Math.hypot(tx - T.anchor[0], ty - T.anchor[1]);
-      const lv = clamp(T.lv[0] + Math.round(Math.min(1, d / ((T as any).span || 95)) * (T.lv[1] - T.lv[0])) + (R2() < .3 ? 1 : 0), T.lv[0], T.lv[1]);
+      const lv = clamp(T.lv[0] + Math.round(Math.min(1, d / T.span) * (T.lv[1] - T.lv[0])) + (R2() < .3 ? 1 : 0), T.lv[0], T.lv[1]);
       const kind = T.kinds(lv);
-      spawns.push({ tx, ty, x:tx * TS + 8, y:ty * TS + 8, kind, lv, alive:false, timer:0 }); n++;
+      put({ tx, ty, x:tx * TS + 8, y:ty * TS + 8, kind, lv, alive:false, timer:0 }); n++;
       if (R2() < .42) for (let k = 0; k < 1 + Math.floor(R2() * 2); k++) { const ax = tx + Math.floor(R2() * 5) - 2, ay = ty + Math.floor(R2() * 5) - 2;
-        if ((ax !== tx || ay !== ty) && ok(ax, ay)) spawns.push({ tx:ax, ty:ay, x:ax * TS + 8, y:ay * TS + 8, kind, lv, alive:false, timer:0 }); }
+        if ((ax !== tx || ay !== ty) && ok(ax, ay)) put({ tx:ax, ty:ay, x:ax * TS + 8, y:ay * TS + 8, kind, lv, alive:false, timer:0 }); }
     }
   });
-  for (const [kind, lv, tx, ty, name] of [['slime',3,64,316,'湖畔巨史萊姆'],['wolf',5,206,300,'風車丘狼首'],['wolf',4,70,256,'落石坡狼王'],['wolf',6,92,150,'野狼頭目'],['treant',11,205,169,'古樹守衛'],['skel',13,35,33,'守墓人'],['golem',16,80,40,'遺跡守衛'],['golemL',21,210,40,'熔岩巨像'],['wolfS',24,300,84,'冰原狼首'],['golemI',25,288,30,'凍土守衛'],['treantS',29,266,160,'沉木古妖'],['skelS',28,318,132,'沼底亡將']] as const) {
+  for (const [kind, lv, tx, ty, name] of ELITES) {
     let x = tx, y = ty; for (let k = 0; k < 40 && !WALKABLE(map[I(x, y)]); k++) { x = tx + Math.floor(R2() * 7) - 3; y = ty + Math.floor(R2() * 7) - 3; }
     spawns.push({ tx:x, ty:y, x:x * TS + 8, y:y * TS + 8, kind, lv, elite:true, ename:name, alive:false, timer:0 });
   }
+}
+/* 精英怪（有名字、比較強、打倒後要休息才會復活）：[種類, 等級, x, y, 名字] */
+const ELITES = [
+  ['slime',3,64,532,'湖畔巨史萊姆'],['wolf',5,206,516,'風車丘狼首'],['wolf',4,70,472,'落石坡狼王'],['wolf',6,92,366,'野狼頭目'],['slime',5,94,329,'窪地的老史萊姆'],
+  ['treant',9,368,386,'古樹守衛'],['shroom',8,240,302,'蘑菇谷的老菇'],['wolfF',9,282,350,'林狼頭目'],['treant',10,206,256,'湖畔樹精'],
+  ['skel',13,38,52,'守墓人'],['golem',14,160,66,'遺跡守衛'],['skel',12,30,210,'流沙劍士'],['golem',15,168,176,'紅岩巨像'],['skel',15,100,140,'王城衛兵長'],
+  ['golemL',19,304,170,'黑曜巨像'],['skelE',18,380,178,'熔爐看守'],['slimeM',17,396,60,'裂谷熔漿怪'],['skelE',20,314,92,'火口哨兵'],
+  ['wolfS',24,470,182,'冰原狼首'],['golemI',25,588,64,'凍土守衛'],['slimeI',22,540,150,'冰湖凝膠'],['wolfS',23,620,130,'雪原狼王'],
+  ['treantS',29,452,338,'沉木古妖'],['skelS',28,534,444,'沼底亡將'],['shroomP',27,610,262,'毒霧菇王'],['skelS',30,574,420,'祭壇守衛'],
+] as const;
+/* 岩石丘磨圓：周圍 8 格少於 4 格是岩石就拿掉、多於 5 格就補上 → 不會有一格一格的碎石柱。r = 只處理這個地區（-1 = 平原以外全部） */
+function roundHills(y0, y1, x0, x1, r) {
+  for (let pass = 0; pass < 3; pass++) {
+    const prev = map.slice();
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = I(x, y); if ((r >= 0 ? reg[i] !== r : (reg[i] === 0 || reg[i] === 1 || reg[i] === 6)) || (prev[i] !== CLIFF && prev[i] !== GROUND)) continue;
+      let n = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && prev[I(x + dx, y + dy)] === CLIFF) n++;
+      if (prev[i] === CLIFF && n < 4) map[i] = GROUND; else if (prev[i] === GROUND && n > 5) map[i] = CLIFF; } }
 }
 export const tileAt = (tx, ty) => (tx < 0 || ty < 0 || tx >= MW || ty >= MH) ? CLIFF : map[ty * MW + tx];
 export const solidT = t => SOLID.has(t) || (t === FOG && G.fogLocked);

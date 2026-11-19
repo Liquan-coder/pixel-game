@@ -87,9 +87,10 @@ const pageScript = async () => {
 
   run('每種小怪都打一輪', () => {
     G.me.weapon = makeItem('sword', 30, 4); G.me.weapon.slot = 'weapon'; recalc(G.me);
-    const kinds = new Map(); for (const e of G.enemies) if (!e.rb && !kinds.has(e.kind)) kinds.set(e.kind, e);
-    log.push('  小怪種類: ' + [...kinds.keys()].join(', '));
-    for (const e of kinds.values()) { tp(e.x - 30, e.y); step(240, { god: true, atkEvery: 12 }); }
+    const SP = (await0.map).spawns, kinds = new Map(); for (const sp of SP) if (sp.alive && !kinds.has(sp.kind)) kinds.set(sp.kind, sp);   // 怪物只在玩家附近生成：從生成點找每一種，走過去
+    log.push('  小怪種類: ' + [...kinds.keys()].join(', ') + '（生成點 ' + SP.length + '，目前在場上 ' + G.enemies.length + '）');
+    for (const sp of kinds.values()) { tp(sp.x - 30, sp.y); step(15, { god: true }); if (!sp.ent && sp.alive) throw new Error(sp.kind + '：走到旁邊卻沒有生成'); step(225, { god: true, atkEvery: 12 }); }
+    if (G.enemies.length > 160) throw new Error('場上的怪物太多（沒有只在附近生成）：' + G.enemies.length);
   });
 
   for (const id of Object.keys(RB.RBDEF)) run(`區域 Boss ${id}：一階段 → 二階段 → 擊殺`, () => {
@@ -243,7 +244,7 @@ const pageScript = async () => {
       imp0.input.enterDoor(); step(2);
       if (!D.dungeonAt(G.me.x, G.me.y)) throw new Error(d.id + '：沒有傳送進地城');
       const chest = CH.CHESTS.find(c => c.id === 'd_' + d.id); if (!chest) throw new Error(d.id + '：找不到最深處的寶箱');
-      tp(chest.x, chest.y + 6); CH.openChest(G.me, chest); if (chest.opened) throw new Error(d.id + '：守護者還在，寶箱卻打開了');
+      tp(chest.x, chest.y + 6); step(14); CH.openChest(G.me, chest); if (chest.opened) throw new Error(d.id + '：守護者還在，寶箱卻打開了');
       const boss = G.enemies.find(e => e.sp && e.sp.once === 'dgn:' + d.id); if (!boss) throw new Error(d.id + '：找不到守護者');
       boss.hp = 1; damageEnemy(G.me, boss, 5, G.me.x, G.me.y); step(3);
       if (!Q.flags.has('dgn:' + d.id)) throw new Error(d.id + '：打倒守護者沒有記錄');
@@ -276,11 +277,11 @@ const pageScript = async () => {
     log.push('  存檔大小 ' + before.length + ' bytes');
   });
 
-  run('舊存檔（v6）：舊的起始營火變成西丘營火，位置不變', () => {
+  run('舊存檔（v6）：舊的起始營火變成西丘營火（v8 整塊平原往南移 216 格）', () => {
     save(); const s = loadSave(); s.v = 6; s.lastCamp = 'start'; s.camps = ['start', 'dawn']; s.merchant = { camp: 'start', stock: [] };
     applySave(s); const W = CAMPS.find(c => c.id === 'west'), S0 = CAMPS.find(c => c.id === 'start');
     if (G.lastCamp !== 'west' || !W.lit || !S0.lit) throw new Error('營火沒有換算：' + G.lastCamp + ' west=' + W.lit + ' start=' + S0.lit);
-    if (W.tx !== 30 || W.ty !== 165) throw new Error('西丘營火位置不對');
+    if (W.tx !== 30 || W.ty !== 165 + 216) throw new Error('西丘營火位置不對');
     save(); applySave(loadSave()); step(5);
   });
 

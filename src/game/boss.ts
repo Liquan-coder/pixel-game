@@ -14,7 +14,7 @@ import { showBanner, toast } from '../ui/hud';
 import { save } from './save';
 
 /* ================= BOSS ================= */
-const BOSS_HOME = { x: 190 * TS + 8, y: 109 * TS };
+const BOSS_HOME = { x: DOOR[1] * TS + 8, y: (ARENA.y0 + 7) * TS };
 function makeBoss() {
   return { boss:true, kind:'boss', x:BOSS_HOME.x, y:BOSS_HOME.y, r:13, hp:1500, maxHp:1500, state:'sleep', t:0, phase:1,
     flash:0, kx:0, ky:0, stun:0, flip:false, howlT:0, combo:0, anim:0, aim:0, lvx:0, lvy:0, hitDone:false };

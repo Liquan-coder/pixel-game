@@ -11,7 +11,7 @@ import { tileAt } from '../world/gen';
 import { cam } from './player';
 import { moveEnt } from './collision';
 import { sfx } from '../core/audio';
-import { makeEnemy, updateEnemy } from './enemies';
+import { streamSpawns, updateEnemy } from './enemies';
 import { updateBoss } from './boss';
 import { aoeHit, damageEnemy, hurtPlayer, targets } from './combat';
 import { tickWeaponFx } from './weaponFx';
@@ -121,11 +121,14 @@ export function pickUp(pl, d) {
   if (pl === G.me) { const R = RAR[d.item.rarity]; toast('獲得 ' + R.n + '・' + d.item.name, R.c, true); sfx.pick(); }
   return true;
 }
-function updateSpawns(dt) {
+let spawnAcc = 0;
+function updateSpawns(dt) {                                              // 每 0.2 秒檢查一次：復活計時 + 玩家附近的怪物生成 / 收起（game/enemies.ts 的 streamSpawns）
+  spawnAcc += dt; if (spawnAcc < .2) return; const t = spawnAcc; spawnAcc = 0;
   for (const sp of spawns) if (!sp.alive) {
-    sp.timer -= dt;
-    if (sp.timer <= 0 && G.players.every(pl => Math.hypot(sp.x - pl.x, sp.y - pl.y) > 240)) { sp.alive = true; G.enemies.push(makeEnemy(sp.kind, sp.lv, sp.x, sp.y, sp)); }
+    sp.timer -= t;
+    if (sp.timer <= 0 && G.players.every(pl => Math.hypot(sp.x - pl.x, sp.y - pl.y) > 240)) sp.alive = true;
   }
+  streamSpawns();
 }
 function separate() {
   const list = targets(G.me).filter(e => Math.abs(e.x - G.me.x) < 260 && Math.abs(e.y - G.me.y) < 200);

@@ -36,7 +36,12 @@ export function genChests(reach: Uint8Array) {
   const near = (x0, y0) => { for (let r = 0; r < 8; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const x = x0 + dx, y = y0 + dy;   // 從指定點往外找最近能放的格子
     if (Math.max(Math.abs(dx), Math.abs(dy)) === r && open(x, y) && !blocked(x, y)) return [x, y]; } return null; };
   // 地標寶箱：固定位置、比較好的箱子
-  for (const [x, y, tier, lv] of [[80, 40, 2, 14], [35, 31, 1, 12], [205, 168, 1, 9], [84, 146, 0, 4], [165, 116, 0, 8], [206, 36, 1, 19], [318, 87, 1, 23], [266, 160, 2, 28], [44, 104, 0, 3]]) {
+  for (const [x, y, tier, lv] of [[84, 362, 0, 4], [48, 330, 0, 3], [182, 470, 1, 5], [96, 330, 0, 4],                          // 平原
+    [368, 382, 1, 9], [240, 302, 0, 8], [282, 346, 1, 8], [206, 256, 0, 7],                                                         // 森林
+    [160, 62, 2, 14], [38, 50, 1, 12], [100, 104, 2, 15], [30, 206, 0, 12], [118, 242, 1, 13],                                      // 荒地
+    [380, 163, 2, 19], [304, 168, 1, 18], [396, 62, 1, 19], [252, 96, 1, 17],                                                       // 熔岩
+    [545, 152, 1, 23], [470, 182, 1, 22], [612, 70, 2, 25], [500, 104, 0, 21],                                                      // 雪原
+    [455, 342, 2, 28], [522, 300, 1, 27], [610, 260, 1, 28], [534, 462, 1, 29]]) {                                                 // 沼澤
     const p = near(x, y); if (p) add(p[0], p[1], tier, lv, false); }
   // 地城：岔路房的銀箱 + 最深處的金箱（獨特武器，要先打倒守護者）。地城裡面走路到不了起點，所以直接放
   for (const d of DUNGEONS) { const dd = d as any; if (!dd.bossChest) continue;
@@ -45,7 +50,7 @@ export function genChests(reach: Uint8Array) {
   // 野外隨機寶箱：每個地區 8 個
   for (const r of [0, 1, 2, 3, 5, 6]) {
     let n = 0, tries = 0;
-    while (n < (r === 0 ? 20 : 8) && tries++ < 40000) {                 // 平原變大了，寶箱也多放一些
+    while (n < (r === 0 ? 20 : 17) && tries++ < 120000) {               // 每個地區差不多跟平原一樣大，寶箱也差不多一樣多
       const x = 4 + Math.floor(R() * (MW - 8)), y = 4 + Math.floor(R() * (MH - 8));
       if (reg[I(x, y)] !== r || !open(x, y) || blocked(x, y)) continue;
       if (CAMPS.some(c => Math.hypot(c.tx - x, c.ty - y) < 12) || TOWNS.some(T => Math.hypot(T.tx - x, T.ty - y) < T.r + 6)) continue;

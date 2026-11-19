@@ -24,8 +24,24 @@ export function makeEnemy(kind: string, lv: number, x: number, y: number, sp?): 
 }
 export function respawnAll() {
   G.enemies = []; resetMimics();
-  for (const sp of spawns) { if (sp.once && flags.has(sp.once)) { sp.alive = false; sp.timer = Infinity; continue; }   // 地城守護者：打倒過就不再出現
-    sp.alive = true; sp.timer = 0; G.enemies.push(makeEnemy(sp.kind, sp.lv, sp.x, sp.y, sp)); }
+  for (const sp of spawns) { sp.ent = null; if (sp.once && flags.has(sp.once)) { sp.alive = false; sp.timer = Infinity; continue; }   // 地城守護者：打倒過就不再出現
+    sp.alive = true; sp.timer = 0; }
+  streamSpawns();
+}
+/* 只在玩家附近生成怪物：世界上有兩千多個生成點，全部都放出來太浪費。
+   活著的生成點（sp.alive）走進玩家周圍一圈才真的變成怪物（sp.ent），離得很遠就收起來（下次走近會在原位重新出現，血也是滿的）。
+   被打倒的還是照舊：sp.alive = false，等計時器到了、而且玩家不在旁邊才復活。 */
+const ACT_X = 600, ACT_Y = 440, OFF_X = 900, OFF_Y = 680;
+export function streamSpawns() {
+  let drop = false;
+  for (const sp of spawns) {
+    if (!sp.alive) continue;
+    let nearX = Infinity, nearY = Infinity; for (const pl of G.players) { const dx = Math.abs(sp.x - pl.x), dy = Math.abs(sp.y - pl.y); if (dx + dy < nearX + nearY) { nearX = dx; nearY = dy; } }
+    if (!sp.ent) { if (nearX < ACT_X && nearY < ACT_Y) { sp.ent = makeEnemy(sp.kind, sp.lv, sp.x, sp.y, sp); G.enemies.push(sp.ent); } }
+    else if (sp.ent.dead) sp.ent = null;
+    else if (nearX > OFF_X || nearY > OFF_Y) { sp.ent.gone = true; sp.ent = null; drop = true; }
+  }
+  if (drop) G.enemies = G.enemies.filter(e => !e.gone);
 }
 /* 石像魔、樹精的砸地：落點在面前一小段距離，範圍是一個圓（跟「雙手舉高往下砸」的動作一致） */
 /* 骷髏的揮劍：面前一個扇形（跟劍劈出去的長度一致） */
@@ -103,7 +119,7 @@ export function updateEnemy(e, dt) {
 }
 export function killEnemy(e, by) {                                     // by = 打死它的玩家
   const i = G.enemies.indexOf(e); if (i >= 0) G.enemies.splice(i, 1);
-  if (e.sp) { e.sp.alive = false; e.sp.timer = e.elite ? Infinity : 45; }
+  if (e.sp) { e.sp.alive = false; e.sp.ent = null; e.sp.timer = e.elite ? Infinity : 45; }
   if (e.chest) mimicDown(e);
   const D = BEH[e.beh], s = Math.round(D.souls(e.lv) * (e.sp ? 1 : .3) * (e.elite ? 5 : 1) * (e.soulMul || 1));   // soulMul = 噬魂刻印
   dropSouls(e.x, e.y, s, by);
