@@ -182,7 +182,10 @@ export function enemyJuice(e, sp) {
       else if (st === 'slash') { pose = e.t > .09 ? 'swing' : 'strike'; lean = .14 * fl; }
       else if (st === 'recover') { const k = G.time - (e._rs || 0);       // 劈到底停一下 → 劍垂下來慢慢收 → 站直
         if (k < .16) { pose = 'strike'; lean = .1 * fl; } else if (k < .5) { pose = 'recoil'; lean = .05 * fl; } }
-      else if (moving) { const f = (A * 1.15 * Math.min(1.3, rel + .3)) % 1;   // 6 格、節奏不平均：好腳跨得快、跛腳拖得慢、踩實時停一下
+      else if (moving || (e._mvT || 0) > 0) {                             // 停下來後再多走完 0.2 秒，不會一停一走地閃
+        if (moving) e._mvT = .2; else e._mvT -= dt;
+        e._lp = ((e._lp || 0) + dt * 1.1 * clamp(rel, .5, 1)) % 1;      // 步伐用累加的：速度變了只改快慢，不會突然跳好幾格
+        const f = e._lp;                                                 // 6 格、節奏不平均：好腳跨得快、跛腳拖得慢、踩實時停一下
         const T = [.13, .26, .4, .62, .82, 1]; wf = T.findIndex(t => f < t);
         rot = [-.03, -.02, 0, .05, .08, .03][wf] * fl;                    // 拖跛腳時身體歪向一邊
         if (wf === 4 && e._wf !== 4) dustPuff(e.x + fl * 2, e.y, 2, 14);     // 跛腳踩實揚一點灰
