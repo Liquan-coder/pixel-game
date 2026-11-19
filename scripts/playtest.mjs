@@ -57,7 +57,7 @@ const pageScript = async () => {
   const { startGame } = await imp('main');
   const menus = await imp('ui/menus');
   const shop = await imp('ui/shop');
-  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques') };
+  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies') };
 
   const step = (n, opts = {}) => {
     for (let i = 0; i < n; i++) {
@@ -215,6 +215,17 @@ const pageScript = async () => {
     if (old.uq !== 'wolfblade' || FX.fxOf(old) !== 'bleed') throw new Error('舊狼牙雙刃沒有變成獨特武器：' + JSON.stringify(old));
     for (const k of Object.keys(await0.uq.UQ)) { const u = items.makeUnique(k); if (!u.atk || u.rarity !== 4 || !FX.fxOf(u)) throw new Error('獨特武器 ' + k + ' 不完整'); }
     G.me.weapon = makeItem('sword', 0, 0); recalc(G.me);
+  });
+
+  run('掉落：小怪主要掉魂晶 / 礦石，武器很少', () => {
+    const E = await0.enemies, N = 400; let w = 0, g = 0; const ore0 = { ...G.me.mats }; G.drops = []; G.coins = [];
+    for (let i = 0; i < N; i++) { const e = E.makeEnemy('wolf', 3, G.me.x + 30, G.me.y, { alive: true, timer: 0 }); G.enemies.push(e); E.killEnemy(e, G.me); }
+    for (const d of G.drops) d.item.slot === 'weapon' ? w++ : g++;
+    const ore = G.coins.filter(c => c.mat).length;
+    log.push('  打倒 ' + N + ' 隻野狼：武器 ' + w + '、防具飾品 ' + g + '、礦石 ' + ore);
+    if (w > N * .04) throw new Error('武器掉太多：' + w);
+    if (ore < N * .12) throw new Error('礦石太少：' + ore);
+    G.drops = []; G.coins = [];
   });
 
   run('存檔 → 讀檔', () => {

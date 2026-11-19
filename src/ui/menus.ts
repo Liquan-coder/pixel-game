@@ -146,7 +146,7 @@ export function renderInv() {
   if (bagIt) { const bad = unmet(G.me, bagIt).length > 0;
     $('detail').innerHTML = itemCard(bagIt, eq[slotOf(bagIt)]) + '<div class="acts"><button type="button" class="pri" data-act="equip"' + (bad ? ' disabled' : '') + '>' + (bad ? '能力值不夠' : '裝備') + '</button><button type="button" class="warn" data-act="salv">分解（+' + salvValue(bagIt) + ' 魂晶）</button></div>'; }
   else if (eqIt) $('detail').innerHTML = itemCard(eqIt) + (slotOf(eqIt) !== 'weapon' ? '<div class="acts"><button type="button" data-act="unequip"' + (G.me.inv.length >= 24 ? ' disabled' : '') + '>卸下</button></div>' : '');
-  else $('detail').innerHTML = G.me.inv.length ? '<p class="hintp">點一件裝備看詳細資料、能力值需求，以及跟身上那件的比較。</p>' : '<p class="hintp">還沒有撿到裝備。打倒怪物、打開寶箱都有機會拿到，光柱顏色越亮越稀有。</p>';
+  else $('detail').innerHTML = G.me.inv.length ? '<p class="hintp">點一件裝備看詳細資料、能力值需求，以及跟身上那件的比較。</p>' : '<p class="hintp">還沒有撿到裝備。武器主要在寶箱、地城和 Boss 身上，小怪偶爾才會掉；光柱顏色越亮越稀有。</p>';
 }
 const salvValue = it => Math.round(3 * gearValue(it) * (slotOf(it) === 'weapon' ? .5 : 1));
 export const badge = it => slotOf(it) === 'weapon' ? (it.up ? '+' + it.up : '') : String(it.ilvl);    // 背包格子左上角的小字：武器 = 強化等級，防具 = 物品等級

@@ -6,7 +6,7 @@ import { moveEnt, stepToward } from './collision';
 import { sfx } from '../core/audio';
 import { hurtPlayer } from './combat';
 import { nearestPlayer } from './player';
-import { burst, dropGold, dropMat, dropSouls, killFx, quakeFx, shake } from './worldUpdate';
+import { burst, dropGold, dropMat, dropPot, dropSouls, killFx, quakeFx, shake } from './worldUpdate';
 import { oreForLevel } from '../data/forge';
 import { toast } from '../ui/hud';
 import type { Enemy } from '../types';
@@ -96,12 +96,13 @@ export function killEnemy(e, by) {                                     // by = �
   burst(e.x, e.y - 5, e.elite ? 30 : 14, KIND[e.kind].col, 70); killFx(e);
   sfx.kill();
   dropGold(e.x, e.y, Math.round((3 + e.lv * 1.6) * rr(.7, 1.3) * (e.elite ? 8 : 1) * (e.sp ? 1 : .3)));
+  /* 掉落：小怪主要給魂晶、礦石、藥水；武器很少（主要從地城、Boss、寶箱拿） */
   if (e.sp || e.elite) { const n = e.elite ? 3 : Math.random() < .2 ? 1 : 0; if (n) dropMat(e.x, e.y, oreForLevel(e.lv), n, by); }   // 強化礦石：等級越高的怪掉越高級的
-  if (e.elite) { toast('擊敗了 ' + e.ename, '#f2c14e'); const q = Math.random(); dropItem(randomLoot(e.lv, q < .35 ? 3 : 2), e.x, e.y); }
-  else if (e.sp && Math.random() < D.drop) {
-    const r = Math.random(); const rarity = r < .03 ? 3 : r < .13 ? 2 : r < .4 ? 1 : 0;
-    dropItem(randomLoot(e.lv, rarity), e.x, e.y);
-  }
+  if (by && by.pot < G.potMax && Math.random() < (e.elite ? .6 : e.sp ? .07 : 0)) dropPot(e.x, e.y, by);                          // 藥水：只有喝過才會掉（補一瓶）
+  if (e.elite) { toast('擊敗了 ' + e.ename, '#f2c14e'); const q = Math.random();
+    if (q < .15) dropItem(randomLoot(e.lv, q < .05 ? 3 : 2, 'weapon'), e.x, e.y); else if (q < .45) dropItem(randomLoot(e.lv, q < .25 ? 3 : 2, 'gear'), e.x, e.y); }
+  else if (e.sp) { const q = Math.random(), r = Math.random(), rarity = r < .03 ? 3 : r < .13 ? 2 : r < .4 ? 1 : 0;
+    if (q < .015) dropItem(randomLoot(e.lv, rarity, 'weapon'), e.x, e.y); else if (q < .04) dropItem(randomLoot(e.lv, rarity, 'gear'), e.x, e.y); }
 }
 export function dropItem(item, x, y) {
   G.drops.push({ x, y, z:2, vz:80, vx:rr(-25, 25), vy:rr(-25, 25), item, t:0, warned:false });

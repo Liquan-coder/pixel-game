@@ -33,10 +33,10 @@ const SCALE_AFF = new Set(['hp', 'def', 'st']);
 const rollAff = (k, ilvl) => { let v = ri(AFFIX[k].r[0], AFFIX[k].r[1]); if (SCALE_AFF.has(k)) v = Math.round(v * (1 + (k === 'hp' ? .15 : .1) * (ilvl - 1))); return v; };
 export const DG = 3;                                                       // 判定寬容：腳要踩進紅線內 3px 才算被打到
 export const BEH = {
-  slime:{hp:l=>28+10*l,dmg:l=>5+2*l,spd:30,r:6,aggro:80,reach:16,wind:.4,cd:1.1,souls:l=>4+3*l,drop:.12},
-  lunge:{hp:l=>40+13*l,dmg:l=>8+2.5*l,spd:60,r:7,aggro:100,reach:46,wind:.45,cd:1.5,souls:l=>6+4*l,drop:.16},
-  heavy:{hp:l=>80+20*l,dmg:l=>12+3*l,spd:24,r:9,aggro:85,reach:28,wind:.7,cd:1.8,souls:l=>10+6*l,drop:.2,heavy:true},
-  ranged:{hp:l=>45+13*l,dmg:l=>9+2.6*l,spd:30,r:7,aggro:125,reach:150,wind:.45,cd:2,souls:l=>9+6*l,drop:.2},
+  slime:{hp:l=>28+10*l,dmg:l=>5+2*l,spd:30,r:6,aggro:80,reach:16,wind:.4,cd:1.1,souls:l=>4+3*l},
+  lunge:{hp:l=>40+13*l,dmg:l=>8+2.5*l,spd:60,r:7,aggro:100,reach:46,wind:.45,cd:1.5,souls:l=>6+4*l},
+  heavy:{hp:l=>80+20*l,dmg:l=>12+3*l,spd:24,r:9,aggro:85,reach:28,wind:.7,cd:1.8,souls:l=>10+6*l,heavy:true},
+  ranged:{hp:l=>45+13*l,dmg:l=>9+2.6*l,spd:30,r:7,aggro:125,reach:150,wind:.45,cd:2,souls:l=>9+6*l},
 };
 export const KIND = {
   slime:{beh:'slime',name:'史萊姆',col:'#5ad06a'}, slimeM:{beh:'slime',name:'熔岩史萊姆',col:'#e8743b'},
@@ -110,9 +110,11 @@ function pickWeaponType(lv) {                                            // 你�
   const w = DROP_WEAPONS.map(t => meets(pl, { type: t, ilvl: 0, slot: 'weapon' } as Item) ? 3 : 1), sum = w.reduce((a, b) => a + b, 0);
   let r = Math.random() * sum; for (let i = 0; i < w.length; i++) if ((r -= w[i]) < 0) return DROP_WEAPONS[i]; return DROP_WEAPONS[0];
 }
-export function randomLoot(lv, rarity) {
+/** kind：'weapon' = 一定是武器，'gear' = 防具或飾品，不給 = 寶箱那種混著來 */
+export function randomLoot(lv, rarity, kind?: 'weapon' | 'gear') {
   if (G.me && rarity < 4 && Math.random() < .012 * soft(G.me.luk)) rarity++;   // 幸運：有機會升一級稀有度
-  const q = Math.random(), type = q < .6 ? pickWeaponType(lv) : q < .85 ? pick(Object.keys(AT)) : pick(Object.keys(TT));
+  const q = kind === 'weapon' ? 0 : kind === 'gear' ? .6 + Math.random() * .4 : Math.random();
+  const type = q < .6 ? pickWeaponType(lv) : q < .85 ? pick(Object.keys(AT)) : pick(Object.keys(TT));
   return makeGear(type, lv, rarity);
 }
 export const bossWeapon = () => makeUnique('wolfblade');
