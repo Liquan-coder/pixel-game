@@ -1,6 +1,7 @@
 import { HK } from '../core/canvas';
 import { OL, makeSprite } from './sprite';
 import { ROWS } from './hero';
+import { SKEL_H, SKEL_PAD, SKEL_W, paintSkel } from './skeleton';
 
 export const SPR: Record<string, any> = {
   slime: makeSprite(ROWS.slime, { o:OL, g:'#5ad06a', G:'#2f8f45', w:'#d8ffd8' }),
@@ -127,36 +128,10 @@ function hdWolf(R, s, opt: Record<string, any> = {}, ph: number | string = -1) {
     if (opt.scar) { a.line(S(40), S(5.8), S(43.3), S(11.5), '#c03440'); a.line(S(40.6), S(5.8), S(43.9), S(11.5), '#801a24'); }
   });
 }
-/* ph：0~3 = 走路第幾格、-1 = 站著、'raise' = 舉劍（準備砍）、'strike' = 往前砍 */
+/* 骷髏兵：照參考圖描的（src/art/skeleton.ts）。ph：0~3 走路、-1 站、'raise' 舉劍、'strike' 往前劈 */
 function hdSkel(R, eyeC, ph: number | string = -1) {
-  const pose = typeof ph === 'string' ? ph : '', [[ax, ay], [bx, by]] = gait(pose ? -1 : +ph, 3, 2.2);
-  let fx = -bx * 1.1, fy = -Math.abs(fx) * .4;                          // 後面那隻手的手掌偏移
-  let hand = [30 - ax * .8, 32 - Math.abs(ax) * .32], tip = [hand[0] + 4, hand[1] - 20];   // 拿劍的手、劍尖
-  if (pose === 'raise') { hand = [29, 6]; tip = [21, -12]; fx = 3; fy = -3; }          // 劍舉過頭、往後拉；另一隻手往前平衡
-  if (pose === 'strike') { hand = [32, 26]; tip = [52, 32]; fx = -5; fy = -4; }         // 劍往前劈出去；另一隻手往後甩
-  const len = Math.hypot(tip[0] - hand[0], tip[1] - hand[1]), ux = (tip[0] - hand[0]) / len, uy = (tip[1] - hand[1]) / len;
-  const base = [hand[0] + ux, hand[1] + uy];
-  const pad = pose === 'raise' ? { t: 15 } : pose === 'strike' ? { l: 20, r: 20 } : {};
-  return sculpt(36, 51, [
-  { sh: SH.cap(12, 22, 8 + fx, 33 + fy, 1.7, 1.5), ramp: R, bias: -.3, grp: 1 },
-  { sh: SH.cap(15, 38, 13 + bx, 50 + by, 2, 1.7), ramp: R, bias: -.25, grp: 2 },
-  { sh: SH.cap(18, 19, 18, 36, 1.6, 1.6), ramp: R, grp: 3 },
-  { sh: SH.ell(18.5, 26, 7.5, 6.2), ramp: R, grp: 3 },
-  { sh: SH.ell(18.5, 36.5, 6.5, 3), ramp: R, grp: 4 },
-  { sh: SH.cap(22, 38, 23.5 + ax, 50 + ay, 2.1, 1.8), ramp: R, grp: 5 },
-  { sh: SH.cap(base[0], base[1], tip[0], tip[1], 1.3, 1), ramp: RAMP.steel, grp: 9 },
-  { sh: SH.cap(26, 22, hand[0], hand[1], 1.8, 1.6), ramp: R, grp: 6 },
-  { sh: SH.box(20, 18.2, 5.6, 2.4, 4), ramp: R, grp: 7 },
-  { sh: SH.ell(18.5, 11, 8.6, 8.2), ramp: R, grp: 7 },
-], a => {
-  for (const ry of [23.5, 26.5, 29.5]) for (let x = 13; x <= 24; x++) if (a.pid(x, ry) === 3 && x !== 18) a.set(x, ry, R[0]);
-  for (const ex of [16, 22.5]) { a.ell(ex, 11.5, 2.2, 2.4, '#14100c'); a.set(ex, 11.5, eyeC); a.set(ex - .5, 10.5, eyeC); }
-  a.set(19.5, 15, '#14100c'); a.set(20, 14.5, '#14100c');
-  for (let x = 16; x <= 24; x += 2) a.set(x, 18, R[0]); a.line(15.5, 17.2, 25, 17.2, R[0]);
-  a.line(base[0] - uy * 3, base[1] + ux * 3, base[0] + uy * 3, base[1] - ux * 3, '#c0862c');   // 護手：跟劍垂直
-  a.rect(hand[0] - 1, hand[1] - 1, 2, 2, '#7a4a1a');                                     // 握柄
-  for (const [x, y] of [[18, 37], [23 + ax / 2, 44 + ay / 2], [14 + bx / 2, 44 + by / 2], [10, 28], [28, 27]]) a.set(x, y, R[1]);
-}, pad); }
+  return sculpt(SKEL_W, SKEL_H, [], a => paintSkel(a.set, R, eyeC, ph), typeof ph === 'string' ? SKEL_PAD[ph] || {} : {});
+}
 /* ph：0~3 走路、-1 站、'raise' = 雙拳舉過頭、'strike' = 雙拳砸到地上 */
 function hdGolem(R, opt, ph: number | string = -1) {
   const pose = typeof ph === 'string' ? ph : '', [[ax, ay], [bx, by]] = gait(pose ? -1 : +ph, 1.6, 3);
