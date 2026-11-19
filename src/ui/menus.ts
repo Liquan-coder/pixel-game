@@ -1,6 +1,7 @@
 import { G } from '../core/state';
 import { $ } from '../core/util';
-import { AFFIX, AT, ICON_URL, RAR, SLOTN, TT, WT, slotOf } from '../data/items';
+import { AFFIX, AT, ICON_URL, RAR, SLOTN, TT, UP_MAX, WT, gearValue, itemName, slotOf } from '../data/items';
+import { MATS, MAT_KEYS } from '../data/forge';
 import { CAMPS, MW, REGIONS, reg } from '../world/map';
 import { mini } from '../world/minimap';
 import { calcStats, curEq, level, lvCost, recalc } from '../game/player';
@@ -12,7 +13,7 @@ import { openMenu, setMenu, toast } from './hud';
 import { moveMerchant } from './shop';
 import { restockSmiths } from '../world/towns';
 import { save } from '../game/save';
-import { ATTRS, ATTR_NAME, WSCALE, grade, reqOf, unmet } from '../data/attrs';
+import { ATTRS, ATTR_NAME, grade, reqOf, scaleOf, unmet } from '../data/attrs';
 import { HERO, HERO_W } from '../art/hero';
 import { drawWeapon } from '../art/weapon';
 import { renderJournal } from '../game/quest';
@@ -78,12 +79,12 @@ export function itemCard(it, cmp?) {
   const c = cmp && cmp !== it ? cmp : null;
   const aff = Object.keys(it.aff).map(k => '<div class="aff">＋' + it.aff[k] + AFFIX[k].u + ' ' + AFFIX[k].n + '</div>').join('');
   let head, main, tail = '';
-  if (sl === 'weapon') { const W = WT[it.type], S = WSCALE[it.type] || {}; head = W.trait; main = '攻擊 ' + it.atk + (c ? dv(it.atk, c.atk) : '');
+  if (sl === 'weapon') { const W = WT[it.type], S = scaleOf(it); head = '強化 +' + (it.up || 0) + '/' + UP_MAX; main = '攻擊 ' + it.atk + (c ? dv(it.atk, c.atk) : '') + ' <small style="color:var(--muted)">· ' + W.trait + '</small>';
     tail = '<div class="scal">加成 ' + Object.keys(S).map(k => ATTR_NAME[k] + ' ' + grade(S[k])).join(' · ') + '</div><div class="sk">技能 <b>' + W.sn + '</b>：' + W.sd + '</div>'; }
   else if (sl === 'armor') { head = AT[it.type].d; main = '防禦 ' + it.def + (c ? dv(it.def, c.def || 0) : '') + (it.hp ? ' · 生命 +' + it.hp : ''); }
   else { head = TT[it.type].d; main = TT[it.type].name; }
-  return '<div class="card" style="border-color:' + R.c + '"><div class="iname" style="color:' + R.c + '"><img alt="" src="' + ICON_URL[it.type] + '">' + it.name + '</div>' +
-    '<div class="rar" style="color:' + R.c + '">' + R.n + ' · ' + SLOTN[sl] + ' · 物品等級 ' + it.ilvl + ' · ' + head + '</div>' +
+  return '<div class="card" style="border-color:' + R.c + '"><div class="iname" style="color:' + R.c + '"><img alt="" src="' + ICON_URL[it.type] + '">' + itemName(it) + '</div>' +
+    '<div class="rar" style="color:' + R.c + '">' + R.n + ' · ' + SLOTN[sl] + ' · ' + (sl === 'weapon' ? '' : '物品等級 ' + it.ilvl + ' · ') + head + '</div>' +
     '<div class="atk">' + main + '</div>' + aff + reqLine(it) + tail + '</div>';
 }
 function reqLine(it) {                                                  // 需求：夠的白字、不夠的紅字
@@ -116,7 +117,7 @@ function drawDoll() {                                                   // 中�
   const hs = HERO.hand; g.drawImage(hs.n, 39, 38, 5, 6, hx - 2.5 * S, hy - 2.5 * S, 5 * S, 6 * S);
 }
 export function renderInv() {
-  $('invCount').textContent = G.me.inv.length + '/24';
+  $('invCount').textContent = G.me.inv.length + '/24'; $('matLine').innerHTML = matLine();
   const eq = curEq(G.me);
   const bagIt = G.me.inv.find(x => x.id === G.selItem), eqIt = [eq.weapon, eq.armor, eq.trinket].find(x => x && x.id === G.selItem);
   let preview = null;
@@ -131,10 +132,10 @@ export function renderInv() {
   $('dollLv').textContent = 'Lv ' + level(G.me); drawDoll();
   $('eqSlots').innerHTML = ['weapon', 'armor', 'trinket'].map(sl => { const it = eq[sl];
     return '<button type="button" class="eqslot' + (it && G.selItem === it.id ? ' sel' : '') + (it && unmet(G.me, it).length ? ' bad' : '') + '" data-eq="' + sl + '"' + (it ? ' style="border-color:' + RAR[it.rarity].c + '"' : '') + '>' +
-      (it ? '<img alt="" src="' + ICON_URL[it.type] + '">' : '<div class="ph0">＋</div>') + '<small>' + SLOTN[sl] + '</small><span' + (it ? ' style="color:' + RAR[it.rarity].c + '"' : '') + '>' + (it ? it.name : '空') + '</span></button>'; }).join('');
+      (it ? '<img alt="" src="' + ICON_URL[it.type] + '">' : '<div class="ph0">＋</div>') + '<small>' + SLOTN[sl] + '</small><span' + (it ? ' style="color:' + RAR[it.rarity].c + '"' : '') + '>' + (it ? itemName(it) : '空') + '</span></button>'; }).join('');
   for (const b of document.querySelectorAll<HTMLElement>('#bagTabs button')) b.classList.toggle('on', b.dataset.f === bagFilter);
   const list = G.me.inv.map((it, i) => ({ it, i })).filter(o => bagFilter === 'all' || slotOf(o.it) === bagFilter);
-  const cells = list.map(({ it, i }) => '<button type="button" class="slot' + (G.selItem === it.id ? ' sel' : '') + (unmet(G.me, it).length ? ' bad' : '') + '" data-i="' + i + '" style="border-color:' + RAR[it.rarity].c + '" aria-label="' + it.name + '"><img alt="" src="' + ICON_URL[it.type] + '"><i style="color:' + RAR[it.rarity].c + '">' + it.ilvl + '</i></button>');
+  const cells = list.map(({ it, i }) => '<button type="button" class="slot' + (G.selItem === it.id ? ' sel' : '') + (unmet(G.me, it).length ? ' bad' : '') + '" data-i="' + i + '" style="border-color:' + RAR[it.rarity].c + '" aria-label="' + it.name + '"><img alt="" src="' + ICON_URL[it.type] + '"><i style="color:' + RAR[it.rarity].c + '">' + badge(it) + '</i></button>');
   if (bagFilter === 'all') while (cells.length < 24) cells.push('<div class="slot blank"></div>');      // 空格子也畫出來，一眼看出背包還剩多少
   $('bagGrid').innerHTML = cells.length ? cells.join('') : '<div class="empty">這一類還沒有裝備。</div>';
   if (bagIt) { const bad = unmet(G.me, bagIt).length > 0;
@@ -142,7 +143,9 @@ export function renderInv() {
   else if (eqIt) $('detail').innerHTML = itemCard(eqIt) + (slotOf(eqIt) !== 'weapon' ? '<div class="acts"><button type="button" data-act="unequip"' + (G.me.inv.length >= 24 ? ' disabled' : '') + '>卸下</button></div>' : '');
   else $('detail').innerHTML = G.me.inv.length ? '<p class="hintp">點一件裝備看詳細資料、能力值需求，以及跟身上那件的比較。</p>' : '<p class="hintp">還沒有撿到裝備。打倒怪物、打開寶箱都有機會拿到，光柱顏色越亮越稀有。</p>';
 }
-const salvValue = it => 3 * it.ilvl * (it.rarity + 1);
+const salvValue = it => Math.round(3 * gearValue(it) * (slotOf(it) === 'weapon' ? .5 : 1));
+export const badge = it => slotOf(it) === 'weapon' ? (it.up ? '+' + it.up : '') : String(it.ilvl);    // 背包格子左上角的小字：武器 = 強化等級，防具 = 物品等級
+export const matLine = () => MAT_KEYS.map(k => '<span title="' + MATS[k].d + '" style="color:' + MATS[k].c + '">' + MATS[k].n + ' <b>' + (G.me.mats[k] || 0) + '</b></span>').join('');
 $('invMenu').addEventListener('click', e => {
   const t = (e.target as HTMLElement).closest('button'); if (!t) return;
   if (t.hasAttribute('data-close')) { setMenu(null); return; }
@@ -153,7 +156,7 @@ $('invMenu').addEventListener('click', e => {
   if (t.dataset.act === 'equip' && idx >= 0) { if (unmet(G.me, G.me.inv[idx]).length) { toast('能力值不夠，還不能裝備', '#ff8a8a'); return; } const it = G.me.inv.splice(idx, 1)[0], sl = slotOf(it); if (G.me[sl]) G.me.inv.push(G.me[sl]); G.me[sl] = it; recalc(G.me); G.selItem = null; sfx.pick(); renderInv(); save(); }
   else if (t.dataset.act === 'unequip') { for (const sl of ['armor', 'trinket']) if (G.me[sl] && G.me[sl].id === G.selItem && G.me.inv.length < 24) { G.me.inv.push(G.me[sl]); G.me[sl] = null; } recalc(G.me); G.selItem = null; sfx.pick(); renderInv(); save(); }
   else if (t.dataset.act === 'salv' && idx >= 0) { const it = G.me.inv.splice(idx, 1)[0]; G.me.souls += salvValue(it); G.selItem = null; sfx.pick(); renderInv(); save(); }
-  else if (t.id === 'salvAll') { let s = 0; G.me.inv = G.me.inv.filter(it => { if (it.rarity === 0) { s += salvValue(it); return false; } return true; }); G.me.souls += s; if (s) { toast('分解獲得 ' + s + ' 魂晶', '#b49cff'); sfx.pick(); } G.selItem = null; renderInv(); save(); }
+  else if (t.id === 'salvAll') { let s = 0; G.me.inv = G.me.inv.filter(it => { if (it.rarity === 0 && !it.up) { s += salvValue(it); return false; } return true; });   /* 強化過的不分解 */ G.me.souls += s; if (s) { toast('分解獲得 ' + s + ' 魂晶', '#b49cff'); sfx.pick(); } G.selItem = null; renderInv(); save(); }
 });
 let mapTab = 'map';
 function showMapTab() { for (const b of document.querySelectorAll<HTMLElement>('#mapTabs button')) b.classList.toggle('on', b.dataset.mt === mapTab);

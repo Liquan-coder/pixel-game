@@ -57,7 +57,7 @@ const pageScript = async () => {
   const { startGame } = await imp('main');
   const menus = await imp('ui/menus');
   const shop = await imp('ui/shop');
-  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map') };
+  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge') };
 
   const step = (n, opts = {}) => {
     for (let i = 0; i < n; i++) {
@@ -177,6 +177,23 @@ const pageScript = async () => {
       if (Q.current().id === first) throw new Error('完成後目標沒有前進：' + first);
     }
     log.push('  完成前兩步後：' + Q.current().title);
+  });
+
+  run('強化：鐵匠分頁、礦石 + 金幣 → +1、舊存檔武器換算', () => {
+    const F = await0.forge, towns = await0.towns, sm = towns.NPCS.find(n => n.smith);
+    G.me.weapon = makeItem('sword', 0, 0); recalc(G.me); G.me.mats = { ore1: 5 }; G.me.gold = 1000;
+    const a0 = G.me.weapon.atk, p0 = G.me.atkPow;
+    tp(sm.x, sm.y + 12); step(2); shop.openShop(towns.nearSmith()); step(1);
+    document.querySelector('#forgeTab').click(); document.querySelector('#shopMenu [data-fw]').click(); document.querySelector('#shopMenu [data-forge]').click(); step(1);
+    if (G.me.weapon.up !== 1 || G.me.weapon.atk <= a0 || G.me.atkPow <= p0) throw new Error('強化沒有生效：up=' + G.me.weapon.up + ' atk ' + a0 + '→' + G.me.weapon.atk);
+    if (G.me.mats.ore1 !== 3 || G.me.gold !== 940) throw new Error('沒有扣礦石 / 金幣：' + JSON.stringify(G.me.mats) + ' ' + G.me.gold);
+    G.me.mats = {}; if (F.doUpgrade(G.me, G.me.weapon)) throw new Error('沒有礦石也能強化');
+    setMenu(null);
+    const old = { id: 999, type: 'axe', ilvl: 25, rarity: 3, atk: 120, aff: {}, name: '舊斧頭' }; F.migrateWeapon(old);
+    if (old.up !== 10 || old.ilvl !== 0) throw new Error('舊武器換算錯誤：' + JSON.stringify(old));
+    const mid = { id: 998, type: 'sword', ilvl: 9, rarity: 2, aff: {}, name: '舊劍' }; F.migrateWeapon(mid);
+    log.push('  舊武器換算：25 級史詩斧 → +' + old.up + '，9 級稀有劍 → +' + mid.up + '（攻擊 ' + mid.atk + '）');
+    G.me.weapon = makeItem('sword', 0, 0); recalc(G.me);
   });
 
   run('存檔 → 讀檔', () => {

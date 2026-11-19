@@ -8,7 +8,8 @@ import { ARENA, CAMPS, GROUND, MH, MW, RFLOOR, ROAD, TOWNS, TS, WALKABLE, map, r
 import { RBDEF } from './regionBoss';
 import { drawArtSprite } from './chunks';
 import { dropItem, makeEnemy } from '../game/enemies';
-import { burst, dropGold, dropSouls, shake } from '../game/worldUpdate';
+import { burst, dropGold, dropMat, dropSouls, shake } from '../game/worldUpdate';
+import { oreForLevel } from '../data/forge';
 import { drawShadow } from '../render/player';
 import { sfx } from '../core/audio';
 import { showBanner, toast } from '../ui/hud';
@@ -63,6 +64,7 @@ function giveLoot(c: Chest, pl: Player) {
   const lv = c.lv, T = c.tier;
   dropGold(c.x, c.y, Math.round([20 + lv * 4, 40 + lv * 8, 80 + lv * 15][T] * rr(.85, 1.15)));
   dropSouls(c.x, c.y, [lv * 5, lv * 10, lv * 20][T], pl);
+  dropMat(c.x, c.y, oreForLevel(lv), 2 + T, pl); if (T === 2) dropMat(c.x, c.y, oreForLevel(lv + 10), 1, pl);   // 黃金寶箱多一顆下一級的礦石
   const q = Math.random();
   if (T === 0) { if (q < .65) dropItem(randomLoot(lv, q < .2 ? 2 : 1), c.x, c.y); }
   else if (T === 1) dropItem(randomLoot(lv, q < .3 ? 3 : 2), c.x, c.y);

@@ -8,7 +8,10 @@ export interface Item {
   id: number;
   slot: Slot;
   type: string;                   // WT / AT / TT 的 key，例如 'sword'、'robe'、'ring'
-  ilvl: number;                   // 物品等級
+  ilvl: number;                   // 物品等級（只有防具 / 飾品用；武器是 0）
+  up?: number;                    // 武器強化等級 +0 ～ +10（data/forge.ts）
+  uq?: string;                    // 獨特武器的編號（data/uniques.ts）
+  fx?: string;                    // 刻印效果（史詩以上，game/weaponFx.ts）
   rarity: number;                 // 0 普通 ～ 4 傳說
   name: string;
   aff: Record<string, number>;    // 詞綴，例如 { crit: 5, hp: 20 }
@@ -35,6 +38,7 @@ export interface Player {
   vit: number; str: number; end: number;          // 體魄 / 力量 / 耐力
   dex: number; int: number; luk: number;          // 敏捷 / 智識 / 幸運（見 data/attrs.ts）
   souls: number; gold: number; pot: number;
+  mats: Record<string, number>;   // 強化礦石：{ ore1: 3, ore2: 0, … }
 
   // 裝備
   inv: Item[];

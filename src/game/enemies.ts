@@ -6,7 +6,8 @@ import { moveEnt, stepToward } from './collision';
 import { sfx } from '../core/audio';
 import { hurtPlayer } from './combat';
 import { nearestPlayer } from './player';
-import { burst, dropGold, dropSouls, killFx, quakeFx, shake } from './worldUpdate';
+import { burst, dropGold, dropMat, dropSouls, killFx, quakeFx, shake } from './worldUpdate';
+import { oreForLevel } from '../data/forge';
 import { toast } from '../ui/hud';
 import type { Enemy } from '../types';
 import { mimicDown, resetMimics } from '../world/chests';
@@ -95,6 +96,7 @@ export function killEnemy(e, by) {                                     // by = �
   burst(e.x, e.y - 5, e.elite ? 30 : 14, KIND[e.kind].col, 70); killFx(e);
   sfx.kill();
   dropGold(e.x, e.y, Math.round((3 + e.lv * 1.6) * rr(.7, 1.3) * (e.elite ? 8 : 1) * (e.sp ? 1 : .3)));
+  if (e.sp || e.elite) { const n = e.elite ? 3 : Math.random() < .2 ? 1 : 0; if (n) dropMat(e.x, e.y, oreForLevel(e.lv), n, by); }   // 強化礦石：等級越高的怪掉越高級的
   if (e.elite) { toast('擊敗了 ' + e.ename, '#f2c14e'); const q = Math.random(); dropItem(randomLoot(e.lv, q < .35 ? 3 : 2), e.x, e.y); }
   else if (e.sp && Math.random() < D.drop) {
     const r = Math.random(); const rarity = r < .03 ? 3 : r < .13 ? 2 : r < .4 ? 1 : 0;

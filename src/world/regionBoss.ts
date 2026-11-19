@@ -2,14 +2,15 @@ import { G } from '../core/state';
 import { $, TAU, clamp, pick, rr } from '../core/util';
 import { HK, ctx } from '../core/canvas';
 import { SPR } from '../art/monsters';
-import { makeGear, makeItem } from '../data/items';
+import { makeGear, makeWeapon } from '../data/items';
 import { TS } from './map';
 import { AI, FIREC } from './bossAI';
 import { drawPools } from './bossAI2';
 import { flame } from './chunks';
 import { sfx } from '../core/audio';
 import { dropItem } from '../game/enemies';
-import { dropGold, dropSouls, shake } from '../game/worldUpdate';
+import { oreForLevel } from '../data/forge';
+import { dropGold, dropSouls, shake, dropMat } from '../game/worldUpdate';
 import { artDot, artPath, drawOrb } from '../render/fx';
 import { teleCircle, teleLane, teleSector, warnMark } from '../render/enemy';
 import { showBanner, toast } from '../ui/hud';
@@ -25,16 +26,16 @@ export const RBDEF: Record<string, any> = {
     reward: () => { const it = makeGear('mail', 15, 4); it.name = '朽鋼胸甲'; it.def = Math.round(it.def * 1.15); it.aff = { hp:90, def:10, crit:6 }; return it; } },
   dragon: { id:'dragon', name:'熔岩巨龍・燼翼', short:'熔岩巨龍', sub:'火口深處傳來低吼', tx:222, ty:58, tr:9.5, lv:21, hp:4200, kind:'dragon', ai:'dragon',
     ring:['#ff8a3a', '#fff0a0'], aura:['#ff6a2a', '#ffb040', '#fff0a0'], souls:2000, gold:800,
-    reward: () => { const it = makeItem('staff', 21, 4); it.name = '燼翼法杖'; it.atk = Math.round(it.atk * 1.1); it.aff = { crit:10, cdr:15, speed:10 }; return it; } },
+    reward: () => { const it = makeWeapon('staff', 4); it.name = '燼翼法杖'; it.aff = { crit:10, cdr:15, speed:10 }; return it; } },
   mushking: { id:'mushking', name:'蘑菇王・孢冠', short:'蘑菇王', sub:'森林深處的菌絲在顫動', tx:150, ty:173, tr:8.5, lv:10, hp:1700, kind:'mushking', ai:'mushking',
     ring:['#c46ad8', '#ffffff'], aura:['#c46ad8', '#f0c8ff', '#ffffff'], souls:550, gold:260,
     reward: () => { const it = makeGear('ring', 11, 4); it.name = '孢冠指環'; it.aff = { crit:8, hp:45, lifesteal:3, cdr:10 }; return it; } },
   yeti: { id:'yeti', name:'雪原巨人・霜鬃', short:'雪原巨人', sub:'祭壇上的雪動了起來', tx:326, ty:24, tr:9.5, lv:25, hp:5600, kind:'yeti', ai:'yeti',
     ring:['#a8dcff', '#ffffff'], aura:['#7ab8e8', '#dcecff', '#ffffff'], souls:3000, gold:1100,
-    reward: () => { const it = makeItem('hammer', 26, 4); it.name = '霜鬃巨鎚'; it.atk = Math.round(it.atk * 1.1); it.aff = { crit:8, def:12, hp:120 }; return it; } },
+    reward: () => { const it = makeWeapon('hammer', 4); it.name = '霜鬃巨鎚'; it.aff = { crit:8, def:12, hp:120 }; return it; } },
   lich: { id:'lich', name:'沼澤巫妖・腐沼', short:'沼澤巫妖', sub:'腐沼的主人睜開了眼睛', tx:322, ty:168, tr:9.5, lv:30, hp:7000, kind:'lich', ai:'lich',
     ring:['#6ae04a', '#d0ffb0'], aura:['#3ac83a', '#9aff6a', '#eaffd0'], souls:4200, gold:1500,
-    reward: () => { const it = makeItem('scythe', 31, 4); it.name = '腐沼之鐮'; it.atk = Math.round(it.atk * 1.12); it.aff = { lifesteal:5, cdr:18, speed:12 }; return it; } },
+    reward: () => { const it = makeWeapon('scythe', 4); it.name = '腐沼之鐮'; it.aff = { lifesteal:5, cdr:18, speed:12 }; return it; } },
 };
 for (const d of Object.values(RBDEF)) { d.x = d.tx * TS + 8; d.y = d.ty * TS + 8; d.R = d.tr * TS; }
 export let rbs = [];
@@ -83,6 +84,7 @@ export function regionBossDie(e, by) {                                  // by = 
   for (let i = 0; i < 40; i++) G.parts.push({ x:e.x + rr(-12, 12), y:e.y - rr(0, 24), vx:rr(-15, 15), vy:-rr(40, 140), life:rr(.7, 1.4), max:1.4, col:pick(d.aura.concat(['#f2c14e', '#b49cff'])), star:rr(1, 3), drag:1 });
   dropSouls(e.x, e.y, d.souls, by);
   const it = d.reward(); dropItem(it, e.x, e.y); dropGold(e.x, e.y, d.gold);
+  dropMat(e.x, e.y, oreForLevel(d.lv), 3, by); dropMat(e.x, e.y, 'ore4', 1, by);       // Boss 一定掉礦石，還有一顆強化 +10 用的隕星鐵
   sfx.win(); shake(8, .8); showBanner('強敵已擊敗', '掉落：' + it.name, 3200); save();
 }
 export function drawBarrier(e, faint?) {                                       // 結界：場地邊緣一圈會流動的虛線光（還沒開打時淡淡地顯示）

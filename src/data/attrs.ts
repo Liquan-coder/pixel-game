@@ -28,14 +28,22 @@ export const WSCALE: Record<string, Partial<Record<AttrKey, number>>> = {
 };
 export const grade = (c: number) => c >= 1 ? 'S' : c >= .75 ? 'A' : c >= .5 ? 'B' : c >= .3 ? 'C' : c > 0 ? 'D' : '-';
 
-/* 裝備需求：[基本, 每一物品等級加多少]。越高級的同類裝備需求越高 */
+/* 武器需求：每種武器固定（不會因為在哪裡撿到而改變，強化也不會提高需求）。
+   起始的長劍是 5/5，剛開始就能拿 */
+const REQW: Record<string, Partial<Record<AttrKey, number>>> = {
+  sword: { str: 5, dex: 5 }, dagger: { dex: 8 }, axe: { str: 11 }, spear: { str: 7, dex: 9 }, staff: { int: 9 },
+  katana: { dex: 11, str: 6 }, hammer: { str: 15, end: 8 }, scythe: { dex: 9, int: 9 }, wolfblade: { dex: 12, str: 9 },
+};
+/** 獨特武器可以有自己的需求 / 加成（data/uniques.ts 會填進來） */
+export const UQ_REQ: Record<string, Partial<Record<AttrKey, number>>> = {}, UQ_SCALE: Record<string, Partial<Record<AttrKey, number>>> = {};
+export const scaleOf = (it: Item) => (it.uq && UQ_SCALE[it.uq]) || WSCALE[it.type] || {};
+/* 防具需求：[基本, 每一物品等級加多少]。越高級的防具需求越高 */
 const REQ: Record<string, Partial<Record<AttrKey, [number, number]>>> = {
-  sword: { str: [5, .25], dex: [4, .2] }, dagger: { dex: [5, .32] }, axe: { str: [7, .38] }, hammer: { str: [9, .45], end: [6, .15] },
-  spear: { str: [5, .2], dex: [6, .28] }, katana: { dex: [7, .38], str: [5, .12] }, scythe: { dex: [6, .25], int: [6, .28] },
-  staff: { int: [6, .38] }, wolfblade: { dex: [9, .32], str: [7, .2] },
   mail: { str: [6, .3], end: [5, .15] }, leather: { end: [4, .15] }, robe: { int: [4, .2] },
 };
 export function reqOf(it: Item): Partial<Record<AttrKey, number>> {
+  if (it.uq && UQ_REQ[it.uq]) return { ...UQ_REQ[it.uq] };
+  if (REQW[it.type]) return { ...REQW[it.type] };
   const R = REQ[it.type], out: Partial<Record<AttrKey, number>> = {}; if (!R) return out;
   for (const k in R) out[k] = Math.round(R[k][0] + R[k][1] * (it.ilvl - 1));
   return out;
@@ -45,7 +53,7 @@ export const meets = (pl: Player, it: Item | null) => unmet(pl, it).length === 0
 
 /* 武器的實際攻擊力：基礎攻擊 ×（1 + Σ 係數 × 6% × 遞減點數）。需求不夠的話只剩 60% */
 export function weaponAtk(pl: Player, w: Item) {
-  const S = WSCALE[w.type] || {}; let bonus = 0;
+  const S = scaleOf(w); let bonus = 0;
   for (const k in S) bonus += S[k] * .06 * soft(pl[k] ?? ATTR_BASE);
   return Math.round(w.atk * (1 + bonus) * (meets(pl, w) ? 1 : .6));
 }

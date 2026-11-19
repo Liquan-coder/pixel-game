@@ -1,6 +1,6 @@
 import { G } from '../core/state';
 import { $ } from '../core/util';
-import { WT, makeItem } from '../data/items';
+import { WT, makeWeapon } from '../data/items';
 import { soft, weaponAtk } from '../data/attrs';
 import type { Player } from '../types';
 
@@ -16,11 +16,11 @@ export const input = { mx:0, my:0 };
 
 // 建立一個新玩家（還沒放進 G.players）
 export function newPlayer(id = 'local'): Player {
-  const pl = { id, x:0, y:0, r:5, face:0, flip:false, hp:100, maxHp:100, st:80, maxSt:80, stDelay:0, vit:5, str:5, end:5, dex:5, int:5, luk:5, souls:0,
-    inv:[], weapon: makeItem('sword', 1, 0), armor:null, trinket:null, gold:0, def:0, defRed:0, pot:3, atkCd:0, skillCd:0, iframe:0, hurt:0, dodge:0, dvx:0, dvy:0, drink:0,
+  const pl = { id, x:0, y:0, r:5, face:0, flip:false, hp:100, maxHp:100, st:80, maxSt:80, stDelay:0, vit:5, str:5, end:5, dex:5, int:5, luk:5, souls:0, mats:{},
+    inv:[], weapon: makeWeapon('sword'), armor:null, trinket:null, gold:0, def:0, defRed:0, pot:3, atkCd:0, skillCd:0, iframe:0, hurt:0, dodge:0, dvx:0, dvy:0, drink:0,
     skillLock:0, aimLock:0, swing:null, dash:null, timers:[], kx:0, ky:0, moving:false, dead:false, deathT:0,
     crit:5, ls:0, aspd:1, cdr:0, spin:0, thrust:0, slam:0, anim:0 };
-  pl.weapon.name = '鏽鐵長劍'; pl.weapon.atk = 12;
+  pl.weapon.name = '鏽鐵長劍';
   G.potMax = 3;
   recalc(pl); pl.hp = pl.maxHp; pl.st = pl.maxSt;
   return pl;

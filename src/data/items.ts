@@ -44,25 +44,37 @@ export const KIND = {
   mimic:{beh:'lunge',name:'寶箱怪',col:'#a07a4c'},
   skelS:{beh:'lunge',name:'沼澤骷髏',col:'#8a9470'}, shroomP:{beh:'ranged',name:'沼毒菇',col:'#a870d0'}, treantS:{beh:'heavy',name:'沼澤樹妖',col:'#3a4826'},
 };
-/* uid → 已移到 G（core/state.js） */
-export function makeItem(type: string, ilvl: number, rarity: number): Item {
-  const W = WT[type], R = RAR[rarity];
-  const atk = Math.round(W.base * (1 + 0.13 * (ilvl - 1)) * R.m * rr(.92, 1.08));
-  const keys = Object.keys(AFFIX).sort(() => Math.random() - .5).slice(0, R.a);
+/* ================= 武器 =================
+   攻擊力 = 武器的基礎攻擊（每種武器固定）× 強化倍率。沒有「物品等級」了：
+   一把 +0 長劍不管在哪裡撿到都一樣強，要變強就拿礦石去鐵匠那裡強化（+1 ～ +10，見 data/forge.ts）。
+   稀有度不再加攻擊，而是多詞綴 / 刻印效果（見 rollWeapon）。 */
+export const UP_MAX = 10;
+export const upMult = (up: number) => 1 + .32 * (up || 0);               // +10 ≈ 4.2 倍（舊系統物品等級 30 大約 4.8 倍）
+export const wBase = (it: Item) => WT[it.type].base;
+export const wAtk = (it: Item) => Math.round(wBase(it) * upMult(it.up));
+export const refreshWeapon = (it: Item) => { it.atk = wAtk(it); return it; };
+const WPRE = ['鐵', '精鋼', '秘銀', '星隕'];                               // 名稱前綴只看稀有度
+const WAFF = ['crit', 'lifesteal', 'speed', 'cdr'];                       // 武器只出百分比詞綴（不會隨地區膨脹）
+export function makeWeapon(type: string, rarity = 0, up = 0): Item {
+  const R = RAR[rarity];
   const aff: Record<string, number> = {};
-  for (const k of keys) aff[k] = rollAff(k, ilvl);
-  let name;
-  if (rarity === 3) name = pick(['霜語','烈陽','暮光','裂風','血月','星火']) + W.name;
-  else name = (ilvl <= 3 ? '鏽鐵' : ilvl <= 7 ? '精鋼' : ilvl <= 11 ? '秘銀' : ilvl <= 15 ? '星隕' : '龍骨') + W.name;
-  return { id: G.uid++, slot:'weapon', type, ilvl, rarity, atk, aff, name };
+  for (const k of WAFF.slice().sort(() => Math.random() - .5).slice(0, R.a)) aff[k] = ri(AFFIX[k].r[0], AFFIX[k].r[1]);
+  const name = (rarity === 3 ? pick(['霜語','烈陽','暮光','裂風','血月','星火']) : WPRE[Math.min(rarity, 3)]) + WT[type].name;
+  return refreshWeapon({ id: G.uid++, slot:'weapon', type, ilvl: 0, rarity, up: Math.max(0, Math.min(UP_MAX, up)), aff, name });
 }
+/** 舊名稱相容：makeItem(type, 強化等級, 稀有度) */
+export const makeItem = (type: string, up: number, rarity: number) => makeWeapon(type, rarity, up);
+/** 顯示用名稱：+3 精鋼長劍 */
+export const itemName = (it: Item) => (it.slot === 'weapon' && it.up ? '+' + it.up + ' ' : '') + it.name;
+/** 商店價格、分解魂晶的基準。武器看稀有度和強化，防具飾品還是看物品等級 */
+export const gearValue = (it: Item) => it.slot === 'weapon' || WT[it.type] ? Math.round(12 * Math.pow(it.rarity + 1, 1.6) * (1 + .6 * (it.up || 0))) : it.ilvl * (it.rarity + 1);
 /* ---- 防具與飾品 ---- */
 export const AT = { robe:{ name:'法袍', def:3, hp:12, d:'輕盈，附帶較多生命' }, leather:{ name:'皮甲', def:5, hp:6, d:'防禦和生命平均' }, mail:{ name:'鎖甲', def:8, hp:0, d:'防禦最高' } };
 export const TT = { ring:{ name:'戒指', main:'crit', d:'一定有暴擊詞綴' }, amulet:{ name:'項鍊', main:'hp', d:'一定有生命詞綴' } };
 export const SLOTN = { weapon:'武器', armor:'防具', trinket:'飾品' };
 export const slotOf = it => it.slot || (AT[it.type] ? 'armor' : TT[it.type] ? 'trinket' : 'weapon');
 export function makeGear(type: string, ilvl: number, rarity: number): Item {
-  if (WT[type]) return makeItem(type, ilvl, rarity);
+  if (WT[type]) return makeWeapon(type, rarity);                         // 武器沒有物品等級：一律 +0
   const R = RAR[rarity], isA = !!AT[type], base = isA ? AT[type] : TT[type];
   const keys = Object.keys(AFFIX).filter(k => !(isA && k === 'def')).sort(() => Math.random() - .5).slice(0, R.a + (isA ? 0 : 1));
   if (!isA && !keys.includes(base.main)) keys[0] = base.main;
@@ -76,7 +88,7 @@ export function makeGear(type: string, ilvl: number, rarity: number): Item {
 export const DROP_WEAPONS = ['sword', 'dagger', 'axe', 'spear', 'staff', 'katana', 'hammer', 'scythe'];   // 會從怪物身上掉、商人會賣的武器（狼牙雙刃只有狼王會掉）
 function pickWeaponType(lv) {                                            // 你能裝備的武器類型比較容易掉（權重 3：1）
   const pl = G.me; if (!pl) return pick(DROP_WEAPONS);
-  const w = DROP_WEAPONS.map(t => meets(pl, { type: t, ilvl: lv } as Item) ? 3 : 1), sum = w.reduce((a, b) => a + b, 0);
+  const w = DROP_WEAPONS.map(t => meets(pl, { type: t, ilvl: 0, slot: 'weapon' } as Item) ? 3 : 1), sum = w.reduce((a, b) => a + b, 0);
   let r = Math.random() * sum; for (let i = 0; i < w.length; i++) if ((r -= w[i]) < 0) return DROP_WEAPONS[i]; return DROP_WEAPONS[0];
 }
 export function randomLoot(lv, rarity) {
@@ -85,9 +97,9 @@ export function randomLoot(lv, rarity) {
   return makeGear(type, lv, rarity);
 }
 export function bossWeapon() {
-  return { id: G.uid++, type:'wolfblade', ilvl:9, rarity:4, atk: Math.round(15 * (1 + .13 * 8) * 1.6), aff:{crit:10, lifesteal:4, speed:10}, name:'狼牙雙刃' };
+  const it = makeWeapon('wolfblade', 4); it.name = '狼牙雙刃'; it.aff = { crit:10, lifesteal:4, speed:10 }; return it;
 }
-export const ICON = {}, ICON_URL = {};
+export const ICON: Record<string, HTMLCanvasElement> = {}, ICON_URL: Record<string, string> = {};
 for (const type of Object.keys(WT)) {
   const W = WEAP[type], r = rotGrid(W.rows, W.grip, -Math.PI / 4, false, W.base), c = gridCanvas(r.rows, W.pal); ICON[type] = c;
   const n = Math.max(c.width, c.height) + 4, sq = document.createElement('canvas'); sq.width = sq.height = n * 2;

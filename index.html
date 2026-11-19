@@ -84,14 +84,15 @@
         <div class="bagtabs" id="bagTabs"><button type="button" data-f="all" class="on">全部</button><button type="button" data-f="weapon">武器</button><button type="button" data-f="armor">防具</button><button type="button" data-f="trinket">飾品</button></div>
         <div id="bagGrid"></div>
         <div id="detail"></div>
-        <button id="salvAll" type="button">分解所有「普通」裝備</button>
+        <div class="matline" id="matLine"></div>
+        <button id="salvAll" type="button">分解所有「普通」裝備（強化過的不會）</button>
       </section>
     </div>
   </div>
 
   <div id="shopMenu" class="panel" hidden>
     <div class="ph"><h2><span id="shopName">流浪商人</span><small class="goldline" id="shopGold"></small></h2><button class="sbtn" type="button" data-close>離開</button></div>
-    <div class="tabs"><button type="button" data-stab="buy" class="on">購買</button><button type="button" data-stab="sell">出售</button></div>
+    <div class="tabs"><button type="button" data-stab="buy" class="on">購買</button><button type="button" data-stab="sell">出售</button><button type="button" data-stab="forge" id="forgeTab" hidden>強化</button></div>
     <div id="shopBody" class="pbody"></div>
     <div id="shopFoot" class="pfoot" hidden></div>
   </div>
