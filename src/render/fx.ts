@@ -176,6 +176,16 @@ export function enemyJuice(e, sp) {
       else if (moving) { const stp = Math.floor(A * 9);                    // 跑步：每一格換一張走路圖，腳踩在正下方那兩格身體高一點
         wf = stp % 4; lean = .12 * fl; lift = stp % 2; }
       break; }
+    case 'blade': {                                                     // 骷髏：一拐一拐地走、站在原地舉劍 → 劈下去
+      if (st === 'windup') { lean = -.18 * fl * Math.min(1, wk * 4); pose = 'raise'; }
+      else if (st === 'slash') { lean = .2 * fl; pose = 'strike'; }
+      else if (st === 'recover') { if (e.t > .35) { lean = .1 * fl; pose = 'strike'; } }   // 劈完停在那裡一下，再一下子站直
+      else if (moving) { const f = (A * 1.25 * Math.min(1.3, rel + .3)) % 1;   // 節奏不平均：好腳跨得快、跛腳拖得慢
+        wf = f < .3 ? 0 : f < .45 ? 1 : f < .82 ? 2 : 3;
+        rot = [-.03, 0, .09, .04][wf] * fl;                               // 拖跛腳時身體歪向一邊
+        if (wf === 2 && e._wf !== 2) dustPuff(e.x + fl * 2, e.y, 2, 14);     // 跛腳拖過地面揚一點灰
+        e._wf = wf; }
+      break; }
     case 'heavy': {                                                     // 石像魔、樹精：抬腳 → 重重踩下（地面震動）
       if (st === 'windup') { const k = Math.min(1, wk * 3); lift = Math.round(3 * k); lean = -.16 * fl * k; pose = 'raise'; }   // 雙手舉高
       else if (st === 'recover') { lean = e.t > .3 ? .14 * fl : 0; if (e.t > .6) pose = 'strike'; }   // 砸下去後停在地上一下
@@ -195,6 +205,7 @@ export function enemyJuice(e, sp) {
     default:                                                            // boss：跑動時前傾 + 換腳，招式動作交給 boss 自己
       if (rel > .3 && !e.z) { lean = .1 * Math.min(1, rel) * fl; if (st === 'chase') wf = Math.floor(A * 9) % 4; }
   }
+  if (e.beh === 'blade' && e.hitT > .14 && st !== 'slash' && !e.boss && !e.rb) pose = 'hit';   // 骷髏被打：頭骨彈起來、手甩開，然後拼回去
   if (e.hitT > 0) { const k = e.hitT / .32;
     if (e.beh === 'slime' && !e.boss && !e.rb) { const w = Math.sin((1 - k) * 22) * k;   // 史萊姆被打：果凍般晃一下
       lean += e.hitDir * .22 * k * k; sx *= 1 + .16 * w; sy *= 1 - .16 * w; }

@@ -28,6 +28,8 @@ export function respawnAll() {
     sp.alive = true; sp.timer = 0; G.enemies.push(makeEnemy(sp.kind, sp.lv, sp.x, sp.y, sp)); }
 }
 /* 石像魔、樹精的砸地：落點在面前一小段距離，範圍是一個圓（跟「雙手舉高往下砸」的動作一致） */
+/* 骷髏的揮劍：面前一個扇形（跟劍劈出去的長度一致） */
+export function bladeArc(e) { return { R: e.r + (e.elite ? 17 : 14), half: 1.05 }; }
 export function slamSpot(e) { const off = e.r + (e.elite ? 15 : 12), R = e.elite ? 23 : 19;
   return { x: e.x + Math.cos(e.aim) * off, y: e.y + Math.sin(e.aim) * off, R }; }
 function startWindup(e, t) { e.state = 'windup'; e.t = e.wt = t; e.aim = Math.atan2(e.tgt.y - e.y, e.tgt.x - e.x); }
@@ -36,6 +38,8 @@ function doEnemyAttack(e) {
   if (e.beh === 'slime' || e.beh === 'lunge') {
     const sp = e.beh === 'slime' ? 140 : 250; e.state = 'lunge'; e.t = e.beh === 'slime' ? .2 : .3;
     e.lvx = Math.cos(e.aim) * sp; e.lvy = Math.sin(e.aim) * sp; e.hitDone = false;
+  } else if (e.beh === 'blade') {                                      // 往前踏一小步 + 揮劍（打中扇形裡的玩家）
+    e.state = 'slash'; e.t = .16; e.lvx = Math.cos(e.aim) * 70; e.lvy = Math.sin(e.aim) * 70; e.hitDone = false; sfx.swing();
   } else if (e.beh === 'heavy') {
     const S = slamSpot(e);
     for (const pl of G.players) if (!pl.dead && dist(S, pl) <= S.R + pl.r - DG) hurtPlayer(pl, e.dmg, S.x, S.y);   // 圓裡的玩家都會被砸到
@@ -82,6 +86,13 @@ export function updateEnemy(e, dt) {
       if (!e.hitDone && d < e.r + 4 - DG) { e.hitDone = true; hurtPlayer(e.tgt, e.dmg, e.x, e.y); }
       if (e.t <= 0) { e.state = 'recover'; e.t = rr(.5, .9); }
       break;
+    case 'slash': {
+      e.t -= dt; moveEnt(e, e.lvx * dt, e.lvy * dt);
+      if (!e.hitDone) { const A = bladeArc(e);
+        for (const pl of G.players) { if (pl.dead) continue; const da = Math.abs(((Math.atan2(pl.y - e.y, pl.x - e.x) - e.aim) % TAU + TAU * 1.5) % TAU - Math.PI);
+          if (dist(e, pl) <= A.R + pl.r - DG && da <= A.half) { hurtPlayer(pl, e.dmg, e.x, e.y); e.hitDone = true; } } }
+      if (e.t <= 0) { e.state = 'recover'; e.t = rr(.55, .8); }
+      break; }
     case 'recover':
       e.t -= dt; if (e.t <= 0) e.state = 'chase'; break;
     case 'return':

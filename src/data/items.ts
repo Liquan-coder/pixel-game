@@ -35,18 +35,19 @@ export const DG = 3;                                                       // �
 export const BEH = {
   slime:{hp:l=>28+10*l,dmg:l=>5+2*l,spd:30,r:6,aggro:80,reach:16,wind:.4,cd:1.1,souls:l=>4+3*l},
   lunge:{hp:l=>40+13*l,dmg:l=>8+2.5*l,spd:60,r:7,aggro:100,reach:46,wind:.45,cd:1.5,souls:l=>6+4*l},
+  blade:{hp:l=>40+13*l,dmg:l=>8+2.5*l,spd:50,r:7,aggro:100,reach:22,wind:.5,cd:1.5,souls:l=>6+4*l},   // 骷髏：跛腳走得慢，走到面前原地揮劍（不衝刺）
   heavy:{hp:l=>80+20*l,dmg:l=>12+3*l,spd:24,r:9,aggro:85,reach:28,wind:.7,cd:1.8,souls:l=>10+6*l,heavy:true},
   ranged:{hp:l=>45+13*l,dmg:l=>9+2.6*l,spd:30,r:7,aggro:125,reach:150,wind:.45,cd:2,souls:l=>9+6*l},
 };
 export const KIND = {
   slime:{beh:'slime',name:'史萊姆',col:'#5ad06a'}, slimeM:{beh:'slime',name:'熔岩史萊姆',col:'#e8743b'},
   wolf:{beh:'lunge',name:'野狼',col:'#7d8296'}, wolfF:{beh:'lunge',name:'森狼',col:'#56634f'},
-  skel:{beh:'lunge',name:'骷髏兵',col:'#e8e2d0'}, skelE:{beh:'lunge',name:'灰燼骷髏',col:'#c8b4a0'},
+  skel:{beh:'blade',name:'骷髏兵',col:'#e8e2d0'}, skelE:{beh:'blade',name:'灰燼骷髏',col:'#c8b4a0'},
   shroom:{beh:'ranged',name:'毒菇',col:'#c0405f'}, treant:{beh:'heavy',name:'樹精',col:'#6b4a2f'},
   golem:{beh:'heavy',name:'石像魔',col:'#8a85a0'}, golemL:{beh:'heavy',name:'熔岩魔像',col:'#e8743b'},
   wolfS:{beh:'lunge',name:'雪狼',col:'#dce4f0'}, slimeI:{beh:'slime',name:'冰晶史萊姆',col:'#a8dcff'}, golemI:{beh:'heavy',name:'冰霜魔像',col:'#a6b8d8'},
   mimic:{beh:'lunge',name:'寶箱怪',col:'#a07a4c'},
-  skelS:{beh:'lunge',name:'沼澤骷髏',col:'#8a9470'}, shroomP:{beh:'ranged',name:'沼毒菇',col:'#a870d0'}, treantS:{beh:'heavy',name:'沼澤樹妖',col:'#3a4826'},
+  skelS:{beh:'blade',name:'沼澤骷髏',col:'#8a9470'}, shroomP:{beh:'ranged',name:'沼毒菇',col:'#a870d0'}, treantS:{beh:'heavy',name:'沼澤樹妖',col:'#3a4826'},
 };
 /* ================= 武器 =================
    攻擊力 = 武器的基礎攻擊（每種武器固定）× 強化倍率。沒有「物品等級」了：

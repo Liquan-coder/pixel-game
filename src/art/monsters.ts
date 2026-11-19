@@ -1,7 +1,7 @@
 import { HK } from '../core/canvas';
 import { OL, makeSprite } from './sprite';
 import { ROWS } from './hero';
-import { SKEL_H, SKEL_PAD, SKEL_W, paintSkel } from './skeleton';
+import { SKEL_H, SKEL_PAD, SKEL_POSES, SKEL_W, paintSkel } from './skeleton';
 
 export const SPR: Record<string, any> = {
   slime: makeSprite(ROWS.slime, { o:OL, g:'#5ad06a', G:'#2f8f45', w:'#d8ffd8' }),
@@ -333,15 +333,15 @@ function buildMonsters() { return {
   slimeM: makeHD(hdSlime(RAMP.slimeM, '#2a0a04', '#fff0a0')),
   wolf: withWalk(ph => hdWolf(RAMP.wolf, 1, {}, ph), undefined, ['strike']),
   wolfF: withWalk(ph => hdWolf(RAMP.wolfF, 1, {}, ph), undefined, ['strike']),
-  skel: withWalk(ph => hdSkel(RAMP.bone, '#ff4a4a', ph), undefined, ['raise', 'strike']),
-  skelE: withWalk(ph => hdSkel(RAMP.ash, '#ff9a3a', ph), undefined, ['raise', 'strike']),
+  skel: withWalk(ph => hdSkel(RAMP.bone, '#ff4a4a', ph), undefined, SKEL_POSES),
+  skelE: withWalk(ph => hdSkel(RAMP.ash, '#ff9a3a', ph), undefined, SKEL_POSES),
   golem: withWalk(ph => hdGolem(RAMP.stone, { eye: '#7fe8ff', crack: '#262234', moss: ['#2f5a26', '#4f8a3e', '#7ab85a'] }, ph), undefined, ['raise', 'strike']),
   golemL: withWalk(ph => hdGolem(RAMP.basalt, { eye: '#ffcf4a', crack: '#ff6a2a', glowCrack: '#ffcf4a' }, ph), undefined, ['raise', 'strike']),
   shroom: withWalk(hdShroom),
   wolfS: withWalk(ph => hdWolf(RAMP.snowwolf, 1, { eye: '#4ac8ff' }, ph), undefined, ['strike']),
   slimeI: makeHD(hdSlime(RAMP.ice, '#0a2040', '#ffffff')),
   golemI: withWalk(ph => hdGolem(RAMP.iceStone, { eye: '#7fe8ff', crack: '#26304a', moss: ['#a6b8d8', '#e8f0fa', '#ffffff'] }, ph), undefined, ['raise', 'strike']),
-  skelS: withWalk(ph => hdSkel(RAMP.swampBone, '#7aff6a', ph), undefined, ['raise', 'strike']),
+  skelS: withWalk(ph => hdSkel(RAMP.swampBone, '#7aff6a', ph), undefined, SKEL_POSES),
   shroomP: withWalk(ph => hdShroom(+ph, RAMP.capP)),
   treantS: withWalk(ph => hdTreant(ph, RAMP.leafS, RAMP.barkS, '#9aff6a'), undefined, ['raise', 'strike']),
   treant: withWalk(hdTreant, undefined, ['raise', 'strike']),

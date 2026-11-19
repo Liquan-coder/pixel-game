@@ -24,37 +24,41 @@ function line(set: Set, x0: number, y0: number, x1: number, y1: number, c: strin
   const n = Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0))) || 1;
   for (let i = 0; i <= n; i++) set(Math.round(x0 + (x1 - x0) * i / n), Math.round(y0 + (y1 - y0) * i / n), c);
 }
-/* 走路：一隻腳踩前 → 正下方 → 蹬到後面 → 抬起來；另一隻差半圈（跟其他怪物一樣） */
-function gait(ph: number, d: number, L: number) {
-  if (ph < 0) return [[0, 0], [0, 0]];
-  const G = [[d, 0], [0, 0], [-d, 0], [0, -L]];
-  return [G[ph], G[(ph + 2) % 4]];
-}
+/* 一拐一拐的走路（4 格）：前腳（亮）是好腳，正常跨步；後腳（暗）是跛腳，膝蓋不彎、拖在地上
+   A / B = 前腳 / 後腳的腳掌偏移，BODY_D = 身體（含手）的偏移，HEAD_D = 頭骨再多的偏移（喀一下）
+   0 好腳往前跨 → 1 踩穩、身體撐高 → 2 跛腳拖上來、身體往下沉、頭骨晃一下 → 3 站穩 */
+const LIMP_A = [[6, -1], [3, 0], [-1, 0], [0, 0]], LIMP_B = [[-4, 0], [-4, 0], [1, 0], [1, 0]];
+const LIMP_BODY = [[1, 0], [1, -1], [0, 1], [0, 0]], LIMP_HEAD = [[0, 0], [0, 0], [1, 1], [0, 0]];
 
-/* R：骨頭顏色（暗→亮 5 階）；eye：眼睛的光；ph：0~3 走路、-1 站、'raise' 舉劍、'strike' 往前劈 */
+/* R：骨頭顏色（暗→亮 5 階）；eye：眼睛的光
+   ph：0~3 跛腳走路、-1 站、'raise' 舉劍、'strike' 往前劈、'hit' 被打到（骨頭散開一下） */
 export function paintSkel(set: Set, R: string[], eye: string, ph: number | string = -1) {
   const C: Record<string, string> = { c: R[4], e: R[3], d: R[2], j: R[1], f: CAVITY };
-  const pose = typeof ph === 'string' ? ph : '', [[ax, ay], [bx, by]] = gait(pose ? -1 : +ph, 3, 2.2);
-  // 不拿劍的手（畫面左邊）：手掌位置；拿劍的手：手掌和劍尖
-  let fh = [1 - bx * 1.1, 28 - Math.abs(bx) * .45];
-  let hand = [24 - ax * .8, 25 - Math.abs(ax) * .32], tip = [34.5 - ax * .8, 4.5 - Math.abs(ax) * .32];
+  const pose = typeof ph === 'string' ? ph : '', w = !pose && +ph >= 0 ? +ph : -1;
+  const [ax, ay] = w >= 0 ? LIMP_A[w] : [0, 0], [bx, by] = w >= 0 ? LIMP_B[w] : [0, 0];
+  let [ox, oy] = w >= 0 ? LIMP_BODY[w] : [0, 0], [hx, hy] = w >= 0 ? LIMP_HEAD[w] : [0, 0];
+  // 不拿劍的手（畫面左邊）：手掌位置；拿劍的手：手掌和劍尖（走路時跟著好腳反方向擺）
+  let fh = [1 - ax * .8 + ox, 28 + oy], hand = [24 + ax * .4 + ox, 25 + oy], tip = [34.5 + ax * .4 + ox, 4.5 + oy];
   if (pose === 'raise') { hand = [24, 2]; tip = [14, -18]; fh = [5, 25]; }       // 劍舉過頭往後拉，另一隻手往前平衡
   if (pose === 'strike') { hand = [30, 23]; tip = [51, 29]; fh = [-3, 24]; }     // 劍往前劈出去，另一隻手往後甩
+  if (pose === 'hit') { ox = -1; oy = 0; hx = -1; hy = -3; fh = [-2, 21]; hand = [25, 19]; tip = [37, 1]; }   // 被打：頭骨彈起來離開脖子、手甩開
 
-  // 後腳（暗）
-  bone(set, 15, 31, 17.5 + bx, 44 + by, C.j, C.d);
+  const S: Set = (x, y, c) => set(x + ox, y + oy, c);                          // 畫在「身體」上（跟著身體偏移）
+  // 後腳（暗，跛腳）：從骨盆拉到腳掌，腳掌貼地
+  bone(set, 15 + ox, 31 + oy, 17.5 + bx, 44 + by, C.j, C.d);
   for (let i = 0; i < 4; i++) set(Math.round(17 + bx) + i, Math.round(45 + by), C.j);
   // 不拿劍的手
-  bone(set, 3.5, 15, fh[0], fh[1], C.e, C.c);
+  bone(set, 3.5 + ox, 15 + oy, fh[0], fh[1], C.e, C.c);
   set(Math.round(fh[0]) + 2, Math.round(fh[1]), C.c); set(Math.round(fh[0]), Math.round(fh[1]) + 1, C.e);
-  // 身體（照參考圖描的）
-  BODY.forEach((row, y) => { for (let x = 0; x < row.length; x++) if (row[x] !== '.') set(x, y, C[row[x]]); });
-  for (const [x, y] of [[12, 5], [16, 5]]) set(x, y, eye);                     // 眼窩裡的光
-  // 前腳（亮）
-  bone(set, 8, 31, 4.5 + ax, 44 + ay, C.e, C.c);
+  // 身體（照參考圖描的）：第 0~12 行是頭骨，多一個頭的偏移
+  BODY.forEach((row, y) => { const dx = y < 13 ? hx : 0, dy = y < 13 ? hy : 0;
+    for (let x = 0; x < row.length; x++) if (row[x] !== '.') S(x + dx, y + dy, C[row[x]]); });
+  for (const [x, y] of [[12, 5], [16, 5]]) S(x + hx, y + hy, eye);             // 眼窩裡的光
+  // 前腳（亮，好腳）
+  bone(set, 8 + ox, 31 + oy, 4.5 + ax, 44 + ay, C.e, C.c);
   for (let i = 0; i < 4; i++) set(Math.round(4 + ax) + i, Math.round(45 + ay), i < 2 ? C.e : C.c);
   // 拿劍的手臂
-  bone(set, 17.5, 13.5, hand[0] - 2, hand[1] - 1, C.d, C.e);
+  bone(set, 17.5 + ox, 13.5 + oy, hand[0] - 2, hand[1] - 1, C.d, C.e);
   // 劍：劍身兩格（亮 + 灰）、護手跟劍身垂直、握柄往後
   const L = Math.hypot(tip[0] - hand[0], tip[1] - hand[1]), ux = (tip[0] - hand[0]) / L, uy = (tip[1] - hand[1]) / L, px = -uy, py = ux;
   const g = [hand[0] + ux * 1.5, hand[1] + uy * 1.5];
@@ -66,4 +70,5 @@ export function paintSkel(set: Set, R: string[], eye: string, ph: number | strin
   set(Math.round(hand[0]), Math.round(hand[1]), C.e); set(Math.round(hand[0] + px), Math.round(hand[1] + py), C.e);
 }
 /* 舉劍、劈砍時圖要多留的空間（左右一樣寬 → 中心不變；只加上面 → 腳底不變） */
-export const SKEL_PAD: Record<string, { l?: number, r?: number, t?: number }> = { raise: { t: 20 }, strike: { l: 17, r: 17 } };
+export const SKEL_PAD: Record<string, { l?: number, r?: number, t?: number }> = { raise: { t: 20 }, strike: { l: 17, r: 17 }, hit: { l: 4, r: 4, t: 4 } };
+export const SKEL_POSES = ['raise', 'strike', 'hit'];
