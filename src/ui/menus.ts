@@ -10,7 +10,8 @@ import { calcStats, curEq, level, lvCost, recalc } from '../game/player';
 import { initAudio, sfx } from '../core/audio';
 import { nearCamp, placeAtCamp, restoreWorld } from '../game/playerUpdate';
 import { burst } from '../game/worldUpdate';
-import { renderBigMap } from '../render/map';
+import { centerMap, clearMapSel, mapSel, mv, onMapPick, renderBigMap, zoomAt } from '../render/map';
+import { fightingRB } from '../world/regionBoss';
 import { openMenu, setMenu, toast } from './hud';
 import { moveMerchant } from './shop';
 import { restockSmiths } from '../world/towns';
@@ -163,12 +164,32 @@ $('invMenu').addEventListener('click', e => {
   else if (t.dataset.act === 'salv' && idx >= 0) { const it = G.me.inv.splice(idx, 1)[0]; G.me.souls += salvValue(it); G.selItem = null; sfx.pick(); renderInv(); save(); }
   else if (t.id === 'salvAll') { let s = 0; G.me.inv = G.me.inv.filter(it => { if (it.rarity === 0 && !it.up) { s += salvValue(it); return false; } return true; });   /* 強化過的不分解 */ G.me.souls += s; if (s) { toast('分解獲得 ' + s + ' 魂晶', '#b49cff'); sfx.pick(); } G.selItem = null; renderInv(); save(); }
 });
-let mapTab = 'map';
+export let mapTab = 'map';
 function showMapTab() { for (const b of document.querySelectorAll<HTMLElement>('#mapTabs button')) b.classList.toggle('on', b.dataset.mt === mapTab);
-  $('mapPane').hidden = mapTab !== 'map'; $('journal').hidden = mapTab !== 'journal'; if (mapTab === 'journal') renderJournal(); else renderBigMap(); }
-$('mapMenu').addEventListener('click', e => { const t = (e.target as HTMLElement).closest('button'); if (!t) return; if (t.hasAttribute('data-close')) setMenu(null); else if (t.dataset.mt) { mapTab = t.dataset.mt; showMapTab(); } });
+  $('mapPane').hidden = mapTab !== 'map'; $('journal').hidden = mapTab !== 'journal'; renderMapFoot(mapTab === 'map' ? mapSel : null); if (mapTab === 'journal') renderJournal(); else renderBigMap(); }
+/* 地圖快速傳送：點營火 → 底部出現「傳送」。跟強敵戰鬥中、或附近有正在追你的敵人時不能傳 */
+function travelBlock() {
+  if (fightingRB() || (G.B && !G.bossDead && G.B.state !== 'sleep')) return '正在和強敵戰鬥，不能傳送';
+  if (G.enemies.some(e => !e.dead && e.state !== 'idle' && e.state !== 'return' && Math.hypot(e.x - G.me.x, e.y - G.me.y) < 160)) return '附近有敵人在追你，不能傳送';
+  return '';
+}
+function renderMapFoot(id: string | null) {
+  const f = $('mapFoot'), c = id && CAMPS.find(c => c.id === id); f.hidden = !c; if (!c) return;
+  const blk = !c.lit ? '還沒點燃：走到那裡點燃後才能傳送' : travelBlock();
+  f.innerHTML = '<span class="lvfoot"><b>' + c.name + '</b> · ' + REGIONS[reg[c.ty * MW + c.tx]].name + (blk ? '<span class="gain" style="color:#ff8a7a">' + blk + '</span>' : '<span class="gain">傳送後會在營火休息（補滿、怪物復活）</span>') + '</span>' +
+    '<button type="button" class="sec" data-mapx>取消</button><button type="button" class="pri" data-travel="' + c.id + '"' + (blk ? ' disabled' : '') + '>傳送</button>';
+}
+onMapPick(renderMapFoot);
+$('mapMenu').addEventListener('click', e => { const t = (e.target as HTMLElement).closest('button'); if (!t || (t as HTMLButtonElement).disabled) return;
+  if (t.hasAttribute('data-close')) setMenu(null);
+  else if (t.dataset.mt) { mapTab = t.dataset.mt; showMapTab(); }
+  else if (t.dataset.mz) { if (t.dataset.mz === 'me') centerMap(); else zoomAt(mv.w / 2, mv.h / 2, mv.z * (t.dataset.mz === 'in' ? 1.5 : 1 / 1.5)); renderBigMap(); }
+  else if (t.hasAttribute('data-mapx')) { clearMapSel(); renderMapFoot(null); renderBigMap(); }
+  else if (t.dataset.travel) { const c = CAMPS.find(c => c.id === t.dataset.travel); if (!c || !c.lit || travelBlock()) return;
+    clearMapSel(); G.lastCamp = c.id; placeAtCamp(G.me, c.id); restoreWorld(); save(); setMenu(null); G.region = ''; sfx.level(); burst(G.me.x, G.me.y - 6, 14, '#f2c14e', 40); }
+});
 export function toggleInv() { if (openMenu === 'inv') setMenu(null); else if (!openMenu && G.started && !G.me.dead) { G.selItem = null; renderInv(); setMenu('inv'); } }
-export function toggleMap() { if (openMenu === 'map') setMenu(null); else if (!openMenu && G.started && !G.me.dead) { showMapTab(); setMenu('map'); } }
+export function toggleMap() { if (openMenu === 'map') setMenu(null); else if (!openMenu && G.started && !G.me.dead) { clearMapSel(); mapTab = 'map'; setMenu('map'); showMapTab(); centerMap(); renderBigMap(); } }
 $('bagBtn').addEventListener('click', toggleInv);
 $('mapBtn').addEventListener('click', toggleMap);
 mini.addEventListener('click', toggleMap);

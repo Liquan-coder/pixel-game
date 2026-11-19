@@ -59,6 +59,7 @@ const pageScript = async () => {
   const shop = await imp('ui/shop');
   const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies') };
 
+  const imp0 = { map: await imp('render/map') };
   const step = (n, opts = {}) => {
     for (let i = 0; i < n; i++) {
       if (opts.god && G.me) { G.me.hp = G.me.maxHp; G.me.st = G.me.maxSt; }
@@ -215,6 +216,23 @@ const pageScript = async () => {
     if (old.uq !== 'wolfblade' || FX.fxOf(old) !== 'bleed') throw new Error('舊狼牙雙刃沒有變成獨特武器：' + JSON.stringify(old));
     for (const k of Object.keys(await0.uq.UQ)) { const u = items.makeUnique(k); if (!u.atk || u.rarity !== 4 || !FX.fxOf(u)) throw new Error('獨特武器 ' + k + ' 不完整'); }
     G.me.weapon = makeItem('sword', 0, 0); recalc(G.me);
+  });
+
+  run('世界地圖：拖曳、縮放、點營火快速傳送', () => {
+    const M = imp0.map, cv = document.getElementById('bigmap'); setMenu(null);
+    const dst = CAMPS.find(c => c.id === 'dawn'); dst.lit = true; for (const e of G.enemies) e.state = 'idle'; if (G.B) G.B.state = 'sleep'; tp(CAMPS[0].x, CAMPS[0].y + 16);
+    menus.toggleMap(); step(1);
+    const r = cv.getBoundingClientRect(), ev = (type, x, y, id = 1) => cv.dispatchEvent(new PointerEvent(type, { pointerId: id, clientX: r.left + x, clientY: r.top + y, bubbles: true }));
+    const x0 = M.mv.x; ev('pointerdown', 100, 100); ev('pointermove', 160, 100); ev('pointerup', 160, 100);
+    if (!(M.mv.x < x0)) throw new Error('拖曳沒有移動地圖');
+    const z0 = M.mv.z; cv.dispatchEvent(new WheelEvent('wheel', { deltaY: -300, clientX: r.left + 50, clientY: r.top + 50, bubbles: true })); if (!(M.mv.z > z0)) throw new Error('滾輪沒有放大');
+    M.mv.x = dst.tx + .5; M.mv.y = dst.ty + .5; M.renderBigMap();
+    ev('pointerdown', M.mv.w / 2, M.mv.h / 2, 2); ev('pointerup', M.mv.w / 2, M.mv.h / 2, 2);
+    if (M.mapSel !== 'dawn') throw new Error('點營火沒有選到：' + M.mapSel);
+    const b = document.querySelector('#mapFoot [data-travel]'); if (!b || b.disabled) throw new Error('傳送按鈕不能按：' + document.getElementById('mapFoot').textContent);
+    b.click(); step(2);
+    if (Math.hypot(G.me.x - dst.x, G.me.y - dst.y) > 40) throw new Error('沒有傳送到晨風鎮營火');
+    if (G.lastCamp !== 'dawn') throw new Error('最後休息的營火沒有更新');
   });
 
   run('掉落：小怪主要掉魂晶 / 礦石，武器很少', () => {

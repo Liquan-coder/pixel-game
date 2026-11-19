@@ -100,9 +100,11 @@
   <div id="mapMenu" class="panel wide" hidden>
     <div class="ph"><h2>世界地圖</h2><button class="sbtn" type="button" data-close>關閉</button></div>
     <div class="tabs" id="mapTabs"><button type="button" data-mt="map" class="on">地圖</button><button type="button" data-mt="journal">旅程</button></div>
-    <div id="mapPane" class="pbody"><canvas id="bigmap" width="512" height="384"></canvas>
-    <p class="hintp">金色菱形是主線的下一個目標。走過的地方會亮起來。金色方塊是點燃的營火，小黃點是還沒打開的寶箱，綠色是流浪商人，紅色是 boss 的所在地，藍色是你。</p></div>
+    <div id="mapPane"><canvas id="bigmap"></canvas>
+      <div class="mapzoom"><button type="button" class="sbtn" data-mz="in" aria-label="放大">＋</button><button type="button" class="sbtn" data-mz="out" aria-label="縮小">－</button><button type="button" class="sbtn" data-mz="me" aria-label="回到自己">◎</button></div>
+      <p class="maplegend">拖曳移動 · 雙指或滾輪縮放 · <b style="color:#f2c14e">■</b> 點營火可以傳送 · <b style="color:#ffd04a">◆</b> 主線 · <b style="color:#ff3b3b">■</b> Boss · <b style="color:#ffd04a">▪</b> 寶箱 · <b style="color:#5ae0b0">■</b> 商人 · <b style="color:#7fdcff">■</b> 你</p></div>
     <div id="journal" class="pbody" hidden></div>
+    <div id="mapFoot" class="pfoot" hidden></div>
   </div>
 
   <div id="loreMenu" class="panel" hidden>

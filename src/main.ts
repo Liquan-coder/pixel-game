@@ -26,10 +26,10 @@ import './render/player';
 import { drawSmear, drawWarp } from './render/fx';
 import { teleCircle, teleLane, teleSector } from './render/enemy';
 import { render } from './render/render';
-import { renderMini } from './render/map';
-import { setMenu, toast, updateHUD } from './ui/hud';
+import { renderBigMap, renderMini } from './render/map';
+import { openMenu, setMenu, toast, updateHUD } from './ui/hud';
 import { merchant, openShop, placeMerchant } from './ui/shop';
-import { renderInv, restAt, toggleMap } from './ui/menus';
+import { mapTab, renderInv, restAt, toggleMap } from './ui/menus';
 import { readInput } from './ui/input';
 import { CHESTS, genChests } from './world/chests';
 import { placeTablets, resetQuest } from './game/quest';
@@ -59,7 +59,7 @@ function frame(ts) {
   if (!G.paused) { if (G.hitStop > 0) { G.hitStop -= dt; G.time += dt * .2; } else update(dt); } else G.time += dt;   // 重擊時停頓一下（hit-stop）
   updateMotes(dt);
   render(); updateHUD();
-  G.miniT -= dt; if (G.miniT <= 0) { if (G.started) reveal(); renderMini(); G.miniT = .2; }
+  G.miniT -= dt; if (G.miniT <= 0) { if (G.started) reveal(); renderMini(); if (openMenu === 'map' && mapTab === 'map') renderBigMap(); G.miniT = .2; }   // 地圖開著時也一直更新（主線菱形會閃）
   for (const k in pressed) pressed[k] = false;
 }
 

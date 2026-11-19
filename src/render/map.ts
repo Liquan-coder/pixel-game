@@ -22,22 +22,69 @@ export function renderMini() {
   mapMarker(mctx, 1, ox, oy);
   mctx.fillStyle = Math.floor(G.time * 4) % 2 ? '#ffffff' : '#7fdcff'; mctx.fillRect(px - ox - 1, py - oy - 1, 3, 3);
 }
-const bigmap = $<HTMLCanvasElement>('bigmap'), bctx = bigmap.getContext('2d'); bigmap.width = MW * 2; bigmap.height = MH * 2;
-export function renderBigMap() {
-  bctx.imageSmoothingEnabled = false;
-  const BW = MW * 2, BH = MH * 2; bctx.fillStyle = '#07060b'; bctx.fillRect(0, 0, BW, BH); bctx.globalAlpha = .28; bctx.drawImage(miniFull, 0, 0, BW, BH); bctx.globalAlpha = 1; bctx.drawImage(miniBase, 0, 0, BW, BH);
-  bctx.font = '12px "DotGothic16", "PingFang TC", sans-serif'; bctx.textAlign = 'center'; bctx.lineWidth = 3; bctx.strokeStyle = '#07060b';
-  const label = (txt, x, y, col, size) => { bctx.font = size + 'px "DotGothic16", "PingFang TC", sans-serif'; bctx.strokeText(txt, x, y); bctx.fillStyle = col; bctx.fillText(txt, x, y); };
-  for (const k of OPEN_REGIONS) { const [x, y] = REGIONS[k].c; label(REGIONS[k].name, x * 2, y * 2, '#f1e7d0', 16); label(REGIONS[k].sub.replace('建議等級 ', 'Lv '), x * 2, y * 2 + 16, '#a99db8', 11); }
-  for (const s of SUBS) if (discovered.has(s.name)) label(s.name, s.x * 2, s.y * 2 + 18, '#c9bfa8', 11);
-  for (const c of CAMPS) if (explored[c.ty * MW + c.tx]) { bctx.fillStyle = OL; bctx.fillRect(c.tx * 2 - 4, c.ty * 2 - 4, 8, 8); bctx.fillStyle = c.lit ? '#f2c14e' : '#8a869a'; bctx.fillRect(c.tx * 2 - 3, c.ty * 2 - 3, 6, 6); }
-  if (!G.bossDead && explored[ARENA.y1 * MW + DOOR[1]]) { bctx.fillStyle = OL; bctx.fillRect(374, 214, 12, 12); bctx.fillStyle = '#ff3b3b'; bctx.fillRect(376, 216, 8, 8); label('狼王', 380, 210, '#ff8a7a', 11); }
-  for (const d of Object.values(RBDEF)) if (!rbDead.has(d.id) && explored[d.ty * MW + d.tx]) { bctx.fillStyle = OL; bctx.fillRect(d.tx * 2 - 6, d.ty * 2 - 6, 12, 12); bctx.fillStyle = '#ff3b3b'; bctx.fillRect(d.tx * 2 - 4, d.ty * 2 - 4, 8, 8); label(d.short, d.tx * 2, d.ty * 2 - 9, '#ff8a7a', 11); }
-  for (const c of CHESTS) if (!c.opened && explored[c.ty * MW + c.tx]) { bctx.fillStyle = OL; bctx.fillRect(c.tx * 2 - 3, c.ty * 2 - 3, 6, 6); bctx.fillStyle = '#ffd04a'; bctx.fillRect(c.tx * 2 - 2, c.ty * 2 - 2, 4, 4); }
-  if (merchant) { const mx = Math.floor(merchant.x / TS) * 2, my = Math.floor(merchant.y / TS) * 2; bctx.fillStyle = OL; bctx.fillRect(mx - 4, my - 4, 9, 9); bctx.fillStyle = '#5ae0b0'; bctx.fillRect(mx - 3, my - 3, 7, 7); label('商人', mx, my - 7, '#9af0d0', 11); }
-  if (G.lost) { bctx.fillStyle = '#b49cff'; bctx.fillRect(Math.floor(G.lost.x / TS) * 2 - 3, Math.floor(G.lost.y / TS) * 2 - 3, 6, 6); }
-  mapMarker(bctx, 2);
-  const px = Math.floor(G.me.x / TS) * 2, py = Math.floor(G.me.y / TS) * 2;
-  bctx.fillStyle = OL; bctx.fillRect(px - 4, py - 4, 9, 9); bctx.fillStyle = '#7fdcff'; bctx.fillRect(px - 3, py - 3, 7, 7); bctx.fillStyle = '#ffffff'; bctx.fillRect(px - 1, py - 1, 3, 3);
+/* ================= 世界地圖：拖曳平移、雙指 / 滾輪縮放、點營火快速傳送 =================
+   mv = 地圖鏡頭：(x, y) = 畫面中心是哪一格，z = 每格幾個 CSS 像素 */
+const bigmap = $<HTMLCanvasElement>('bigmap'), bctx = bigmap.getContext('2d');
+export const mv = { x: 0, y: 0, z: 3, w: 0, h: 0 };
+const zMin = () => Math.min(mv.w / MW, mv.h / MH) * .9, zMax = 10;
+export function centerMap() {
+  const r = bigmap.getBoundingClientRect(); if (!r.width) return; mv.w = r.width; mv.h = r.height;
+  mv.x = G.me.x / TS; mv.y = G.me.y / TS; mv.z = clamp(Math.max(zMin(), mv.w / 140), zMin(), zMax);
 }
-
+const toScr = (tx: number, ty: number) => [(tx - mv.x) * mv.z + mv.w / 2, (ty - mv.y) * mv.z + mv.h / 2];
+const toTile = (sx: number, sy: number) => [(sx - mv.w / 2) / mv.z + mv.x, (sy - mv.h / 2) / mv.z + mv.y];
+function clampView() { mv.z = clamp(mv.z, zMin(), zMax); mv.x = clamp(mv.x, 0, MW); mv.y = clamp(mv.y, 0, MH); }
+export let mapSel: string | null = null;                                // 點了哪個營火（等確認傳送）
+export function renderBigMap() {
+  const r = bigmap.getBoundingClientRect(), dpr = Math.min(3, window.devicePixelRatio || 1);
+  if (!r.width) return;
+  if (bigmap.width !== Math.round(r.width * dpr) || bigmap.height !== Math.round(r.height * dpr)) { bigmap.width = Math.round(r.width * dpr); bigmap.height = Math.round(r.height * dpr); }
+  mv.w = r.width; mv.h = r.height; clampView();
+  const g = bctx; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.imageSmoothingEnabled = false;
+  g.fillStyle = '#07060b'; g.fillRect(0, 0, mv.w, mv.h);
+  const [x0, y0] = toScr(0, 0), W = MW * mv.z, H = MH * mv.z;
+  g.globalAlpha = .22; g.drawImage(miniFull, x0, y0, W, H); g.globalAlpha = 1; g.drawImage(miniBase, x0, y0, W, H);   // 沒去過的地方淡淡的，去過的亮起來
+  const label = (txt, x, y, col, size) => { g.font = size + 'px "DotGothic16", "PingFang TC", sans-serif'; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = '#07060b'; g.strokeText(txt, x, y); g.fillStyle = col; g.fillText(txt, x, y); };
+  const box = (x, y, n, col) => { g.fillStyle = OL; g.fillRect(Math.round(x - n / 2 - 1), Math.round(y - n / 2 - 1), n + 2, n + 2); g.fillStyle = col; g.fillRect(Math.round(x - n / 2), Math.round(y - n / 2), n, n); };
+  const big = mv.z >= 2.2;                                               // 拉近才顯示小地名
+  if (mv.z < 5) for (const k of OPEN_REGIONS) { const [x, y] = toScr(REGIONS[k].c[0], REGIONS[k].c[1]); label(REGIONS[k].name, x, y, '#f1e7d0', 16); label(REGIONS[k].sub.replace('建議等級 ', 'Lv '), x, y + 15, '#a99db8', 11); }
+  if (big) for (const s of SUBS) if (discovered.has(s.name)) { const [x, y] = toScr(s.x, s.y); label(s.name, x, y + 18, '#c9bfa8', 11); }
+  for (const c of CHESTS) if (!c.opened && explored[c.ty * MW + c.tx]) { const [x, y] = toScr(c.tx + .5, c.ty + .5); box(x, y, 4, '#ffd04a'); }
+  if (!G.bossDead && explored[ARENA.y1 * MW + DOOR[1]]) { const [x, y] = toScr(DOOR[1] + .5, (ARENA.y0 + ARENA.y1) / 2); box(x, y, 8, '#ff3b3b'); label('狼王', x, y - 8, '#ff8a7a', 11); }
+  for (const d of Object.values(RBDEF)) if (!rbDead.has(d.id) && explored[d.ty * MW + d.tx]) { const [x, y] = toScr(d.tx + .5, d.ty + .5); box(x, y, 8, '#ff3b3b'); label(d.short, x, y - 8, '#ff8a7a', 11); }
+  if (merchant) { const [x, y] = toScr(merchant.x / TS, merchant.y / TS); box(x, y, 7, '#5ae0b0'); if (big) label('商人', x, y - 7, '#9af0d0', 11); }
+  if (G.lost) { const [x, y] = toScr(G.lost.x / TS, G.lost.y / TS); box(x, y, 6, '#b49cff'); }
+  for (const c of CAMPS) if (explored[c.ty * MW + c.tx] || c.lit) { const [x, y] = toScr(c.tx + .5, c.ty + .5), sel = c.id === mapSel;
+    if (sel) { g.strokeStyle = '#fff'; g.lineWidth = 2; g.strokeRect(x - 9, y - 9, 18, 18); }
+    box(x, y, c.lit ? 10 : 7, c.lit ? '#f2c14e' : '#8a869a'); if (c.lit) { g.fillStyle = '#e8743b'; g.fillRect(Math.round(x - 2), Math.round(y - 3), 4, 5); }
+    if (big || sel) label(c.name, x, y + 18, c.lit ? '#ffe38a' : '#a99db8', 11); }
+  mapMarker(g, mv.z, mv.x - mv.w / 2 / mv.z, mv.y - mv.h / 2 / mv.z);
+  const [px, py] = toScr(G.me.x / TS, G.me.y / TS);
+  box(px, py, 7, '#7fdcff'); g.fillStyle = '#ffffff'; g.fillRect(Math.round(px - 1), Math.round(py - 1), 3, 3);
+}
+/* ---- 手勢 ---- */
+const ptrs = new Map<number, { x: number; y: number }>();
+let pinch0 = 0, z0 = 0, tap: { x: number; y: number; t: number } | null = null;
+const local = (e: PointerEvent) => { const r = bigmap.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+bigmap.addEventListener('pointerdown', e => { e.preventDefault(); const p = local(e); ptrs.set(e.pointerId, p); try { bigmap.setPointerCapture(e.pointerId); } catch (err) {}
+  tap = ptrs.size === 1 ? { ...p, t: performance.now() } : null;
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); z0 = mv.z; } });
+bigmap.addEventListener('pointermove', e => { const o = ptrs.get(e.pointerId); if (!o) return; e.preventDefault(); const p = local(e);
+  if (ptrs.size === 1) { mv.x -= (p.x - o.x) / mv.z; mv.y -= (p.y - o.y) / mv.z; if (tap && Math.hypot(p.x - tap.x, p.y - tap.y) > 8) tap = null; }
+  ptrs.set(e.pointerId, p);
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2; zoomAt(mx, my, z0 * d / (pinch0 || d)); }
+  renderBigMap(); });
+const up = (e: PointerEvent) => { if (!ptrs.has(e.pointerId)) return; ptrs.delete(e.pointerId);
+  if (tap && ptrs.size === 0 && performance.now() - tap.t < 450) tapAt(tap.x, tap.y); tap = null; };
+bigmap.addEventListener('pointerup', up); bigmap.addEventListener('pointercancel', up);
+bigmap.addEventListener('wheel', e => { e.preventDefault(); const p = { x: e.offsetX, y: e.offsetY }; zoomAt(p.x, p.y, mv.z * Math.pow(1.0015, -e.deltaY)); renderBigMap(); }, { passive: false });
+export function zoomAt(sx: number, sy: number, z: number) {                // 縮放時手指下面那一點不動
+  const [tx, ty] = toTile(sx, sy); mv.z = clamp(z, zMin(), zMax); mv.x = tx - (sx - mv.w / 2) / mv.z; mv.y = ty - (sy - mv.h / 2) / mv.z; clampView();
+}
+let onPick: (id: string | null) => void = () => {};
+export function onMapPick(f: (id: string | null) => void) { onPick = f; }
+function tapAt(sx: number, sy: number) {                                // 點到營火（12px 內）→ 選它；點空白 → 取消
+  let best = null, bd = 16; for (const c of CAMPS) { if (!explored[c.ty * MW + c.tx] && !c.lit) continue; const [x, y] = toScr(c.tx + .5, c.ty + .5), d = Math.hypot(x - sx, y - sy); if (d < bd) { bd = d; best = c; } }
+  mapSel = best ? best.id : null; onPick(mapSel); renderBigMap();
+}
+export function clearMapSel() { mapSel = null; }
