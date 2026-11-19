@@ -43,7 +43,7 @@ export function startGame(cont) {
   placeAtCamp(G.me, G.lastCamp); restoreWorld();
   G.started = true; $('title').hidden = true; setMenu(null); G.region = ''; save();
   $('keyHint').hidden = false; setTimeout(() => { $('keyHint').hidden = true; }, 15000);
-  if (!cont) setTimeout(() => toast(isTouch ? '左手拖曳移動，右手按攻擊。點小地圖看世界地圖' : 'WASD 移動，J 攻擊，K 翻滾，M 看地圖', '#f1e7d0'), 2800);
+  if (!cont) setTimeout(() => toast(isTouch ? '左下角搖桿移動，右手按攻擊。點小地圖看世界地圖' : 'WASD 移動，J 攻擊，K 翻滾，M 看地圖', '#f1e7d0'), 2800);
 }
 $('btnContinue').addEventListener('click', () => startGame(true));
 $('btnNew').addEventListener('click', () => { if (!$('btnContinue').hidden) { $('confirmNew').hidden = false; return; } startGame(false); });

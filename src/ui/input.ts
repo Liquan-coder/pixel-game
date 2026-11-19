@@ -23,19 +23,20 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) keys[k] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; for (const k in held) held[k] = false; });
 const joyZone = $('joyZone'), joyBase = $('joyBase'), joyKnob = $('joyKnob');
-export function placeJoyIdle() { if (joy.active) return; joyBase.style.left = '90px'; joyBase.style.top = (window.innerHeight * .7 - 90) + 'px'; joyBase.classList.remove('on'); joyKnob.style.transform = ''; }
-joyZone.addEventListener('pointerdown', e => {
-  if (joy.active) return; e.preventDefault(); initAudio();
-  joy.active = true; joy.id = e.pointerId; const r = joyZone.getBoundingClientRect();
-  joy.bx = e.clientX; joy.by = e.clientY; joyBase.style.left = (e.clientX - r.left) + 'px'; joyBase.style.top = (e.clientY - r.top) + 'px'; joyBase.classList.add('on');
-  try { joyZone.setPointerCapture(e.pointerId); } catch (err) {}
-});
-joyZone.addEventListener('pointermove', e => {
-  if (!joy.active || e.pointerId !== joy.id) return; e.preventDefault();
-  let dx = e.clientX - joy.bx, dy = e.clientY - joy.by; const d = Math.hypot(dx, dy), R = 44;
+// 固定搖桿：底座永遠在左下角（位置寫在 CSS），手指按在左下區域任何地方，方向都從底座中心算
+export function placeJoyIdle() { if (joy.active) return; joyBase.classList.remove('on'); joyKnob.style.transform = ''; }
+function joyMove(e: PointerEvent) {
+  let dx = e.clientX - joy.bx, dy = e.clientY - joy.by; const d = Math.hypot(dx, dy), R = 46;
   if (d > R) { dx = dx / d * R; dy = dy / d * R; }
   joy.dx = dx / R; joy.dy = dy / R; joyKnob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+}
+joyZone.addEventListener('pointerdown', e => {
+  if (joy.active) return; e.preventDefault(); initAudio();
+  const r = joyBase.getBoundingClientRect();
+  joy.active = true; joy.id = e.pointerId; joy.bx = r.left + r.width / 2; joy.by = r.top + r.height / 2; joyBase.classList.add('on'); joyMove(e);
+  try { joyZone.setPointerCapture(e.pointerId); } catch (err) {}
 });
+joyZone.addEventListener('pointermove', e => { if (!joy.active || e.pointerId !== joy.id) return; e.preventDefault(); joyMove(e); });
 const joyEnd = e => { if (e.pointerId !== joy.id) return; joy.active = false; joy.id = null; joy.dx = joy.dy = 0; placeJoyIdle(); };
 joyZone.addEventListener('pointerup', joyEnd); joyZone.addEventListener('pointercancel', joyEnd);
 function bindBtn(id, key) {
