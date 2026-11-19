@@ -6,6 +6,7 @@ import type { Player, Enemy } from '../types';
 export const G = {
   uid: 1,
   fogLocked: false,
+  dmgMul: 1,                    // 區域 Boss 的變體：同一套招式，傷害照等級縮放（world/regionBoss.ts 跑 AI 時設定）
   bossDead: false,
   RB_L: [],
   frameNo: 0,

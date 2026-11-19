@@ -372,7 +372,7 @@ export function tryPot(pl: Player) {
 }
 export function hurtPlayer(pl: Player, v, sx, sy) {
   if (pl.iframe > 0 || pl.dead) return false;
-  v = Math.max(1, Math.round(v * (1 - (pl.defRed || 0))));            // 防禦：減少受到的傷害
+  v = Math.max(1, Math.round(v * (G.dmgMul || 1) * (1 - (pl.defRed || 0))));            // 防禦：減少受到的傷害
   pl.hp -= v; pl.hurt = .3; pl.iframe = .4;
   const a = Math.atan2(pl.y - sy, pl.x - sx); pl.kx = Math.cos(a) * 120; pl.ky = Math.sin(a) * 120;
   G.nums.push({ x:pl.x, y:pl.y - 28, txt:String(v), col:'#ff5a5a', t:0, d:.8 });

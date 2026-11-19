@@ -36,6 +36,25 @@ export const RBDEF: Record<string, any> = {
   lich: { id:'lich', name:'沼澤巫妖・腐沼', short:'沼澤巫妖', sub:'腐沼的主人睜開了眼睛', tx:590, ty:442, tr:9.5, lv:30, hp:7000, kind:'lich', ai:'lich',
     ring:['#6ae04a', '#d0ffb0'], aura:['#3ac83a', '#9aff6a', '#eaffd0'], souls:4200, gold:1500,
     reward: () => { return makeUnique('rotscythe'); } },
+  /* ---- 區域 Boss（不是主線）：每個地區一隻，守在地標上。沿用主線 Boss 的招式（ai），dmgMul = 傷害照等級縮放 ---- */
+  mossguard: { id:'mossguard', name:'巨石陣的守衛・苔甲', short:'苔甲守衛', sub:'立石之間，長滿青苔的盔甲站了起來', tx:180, ty:482, tr:8.5, lv:5, hp:800, kind:'generalMoss', ai:'general', dmgMul:.5, region:true,
+    ring:['#8ad86a', '#ffffff'], aura:['#5aa04a', '#c8f0a0', '#ffffff'], souls:260, gold:120,
+    reward: () => { const it = makeGear('leather', 6, 3); it.name = '苔甲護胸'; it.aff = { hp:40, def:5, lifesteal:2 }; return it; } },
+  mistwitch: { id:'mistwitch', name:'霧林女妖・薄暮', short:'霧林女妖', sub:'石環裡的霧，凝成了一個人影', tx:372, ty:252, tr:9.5, lv:9, hp:1500, kind:'lichMist', ai:'lich', dmgMul:.4, region:true,
+    ring:['#a8c8e8', '#ffffff'], aura:['#7a9ab8', '#d0e4f8', '#ffffff'], souls:520, gold:240,
+    reward: () => { const it = makeGear('robe', 10, 3); it.name = '薄暮霧衣'; it.aff = { hp:50, cdr:10, crit:5 }; return it; } },
+  sandgiant: { id:'sandgiant', name:'沙暴巨人・赭鬃', short:'沙暴巨人', sub:'巨獸的骨頭之間，沙子站了起來', tx:118, ty:250, tr:9.5, lv:13, hp:2400, kind:'yetiSand', ai:'yeti', dmgMul:.6, region:true,
+    ring:['#e8c890', '#ffffff'], aura:['#c8a060', '#f0dcb0', '#ffffff'], souls:850, gold:380,
+    reward: () => { const it = makeGear('ring', 14, 3); it.name = '赭鬃指環'; it.aff = { crit:7, hp:60, def:6 }; return it; } },
+  slagmother: { id:'slagmother', name:'熔渣母體・沸', short:'熔渣母體', sub:'熔渣池冒出一個巨大的泡泡', tx:252, ty:108, tr:8.5, lv:18, hp:3400, kind:'queenSlag', ai:'queen', dmgMul:2.1, region:true,
+    ring:['#ff9a4a', '#fff0a0'], aura:['#e8743b', '#ffd27a', '#fff4c0'], souls:1500, gold:620,
+    reward: () => { const it = makeGear('amulet', 19, 3); it.name = '沸騰之心'; it.aff = { hp:90, lifesteal:3, crit:6 }; return it; } },
+  frostwyrm: { id:'frostwyrm', name:'冰霜飛龍・凜翼', short:'冰霜飛龍', sub:'湖心島的冰裂開了', tx:560, ty:174, tr:9.5, lv:23, hp:4800, kind:'dragonFrost', ai:'dragon', dmgMul:1.1, region:true,
+    ring:['#a8dcff', '#ffffff'], aura:['#7ab8e8', '#dcecff', '#ffffff'], souls:2500, gold:950,
+    reward: () => { const it = makeGear('mail', 24, 3); it.name = '凜翼鱗甲'; it.aff = { hp:110, def:12, crit:5 }; return it; } },
+  toxqueen: { id:'toxqueen', name:'毒菇母后・紫冠', short:'毒菇母后', sub:'沉木林的菇全都轉向了你', tx:455, ty:358, tr:8.5, lv:28, hp:6300, kind:'mushToxic', ai:'mushking', dmgMul:2.2, region:true,
+    ring:['#c46ad8', '#ffffff'], aura:['#8a3ab0', '#e0a8ff', '#ffffff'], souls:3800, gold:1300,
+    reward: () => { const it = makeGear('ring', 29, 3); it.name = '紫冠指環'; it.aff = { crit:9, cdr:12, lifesteal:4, hp:80 }; return it; } },
 };
 for (const d of Object.values(RBDEF)) { d.x = d.tx * TS + 8; d.y = d.ty * TS + 8; d.R = d.tr * TS; }
 export let rbs = [];
@@ -72,7 +91,10 @@ export function updateRegionBosses(dt) {
     }
     if (e.splitT > 0) e.splitT -= dt;
     const dx = e.tgt.x - e.x, dy = e.tgt.y - e.y, dist2 = Math.hypot(dx, dy);
+    const n0 = G.projs.length; G.dmgMul = d.dmgMul || 1;
     AI[d.ai](e, dt, dist2, dx, dy);
+    for (let i = n0; i < G.projs.length; i++) if (G.projs[i].owner === 'e' && !G.projs[i].scaled) { G.projs[i].dmg = Math.max(1, Math.round(G.projs[i].dmg * G.dmgMul)); G.projs[i].scaled = true; }
+    G.dmgMul = 1;
     keepPlayersIn(d); if (!(e.z > 0)) keepIn(e, d, e.r);
     if (e.phase === 2 && Math.random() < .4) G.parts.push({ x:e.x + rr(-16, 16), y:e.y - rr(4, 26), vx:rr(-5, 5), vy:-rr(20, 40), life:.6, max:.6, col:pick(d.aura), star:rr(.5, 1.4), drag:1 });
   }

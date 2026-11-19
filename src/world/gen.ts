@@ -106,7 +106,7 @@ export function genWorld() {
   /* ---- 地標（城堡、火口、祭壇、湖中島……）：landmarks.ts ---- */
   buildLandmarks(R, nE);
   // 區域 boss 的場地：清空一圈
-  for (const d of Object.values(RBDEF)) clearDisk(d.tx, d.ty, Math.ceil(d.tr) + 1, true);
+  for (const d of Object.values(RBDEF)) clearDisk(d.tx, d.ty, Math.ceil(d.tr) + 1, false);
   // 道路
   const setRoad = (x, y) => { if (!inb(x, y)) return; const i = I(x, y), t = map[i]; if (t === BIGT || t === STAIRS) return;
     if (t === WATER || t === LAVA) map[i] = BRIDGE; else if (t === RWALL || t === PILLAR || t === CRATE) map[i] = RFLOOR; else if (t !== BRIDGE && t !== RFLOOR) map[i] = ROAD; };

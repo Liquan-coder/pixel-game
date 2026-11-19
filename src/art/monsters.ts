@@ -411,6 +411,20 @@ function hdLich() {                                                   // 沼澤�
     for (let k = 0; k < 14; k++) { const x = 16 + (k * 29) % 54, y = 44 + (k * 17) % 48; if (a.get(x, y)) a.set(x, y, '#4a6a2e'); }
     a.set(66, 12, '#ffffff'); a.set(67, 11, '#ffffff');
   }); }
+/* 換色：每個像素轉成 HSL → 交給 f 改 → 轉回來。黑色描邊（很暗的像素）不動。區域 Boss 的變體用（同一個身體，不同的顏色） */
+type HSL = [number, number, number];
+function recolor(c: HTMLCanvasElement, f: (h: HSL) => HSL) {
+  const o = document.createElement('canvas'); o.width = c.width; o.height = c.height; const g = o.getContext('2d'); g.drawImage(c, 0, 0);
+  const img = g.getImageData(0, 0, o.width, o.height), d = img.data;
+  for (let i = 0; i < d.length; i += 4) { if (!d[i + 3]) continue; const r = d[i] / 255, gg = d[i + 1] / 255, b = d[i + 2] / 255, mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), l = (mx + mn) / 2;
+    if (mx < .09) continue;
+    let h = 0, s = 0; if (mx !== mn) { const dd = mx - mn; s = l > .5 ? dd / (2 - mx - mn) : dd / (mx + mn); h = mx === r ? (gg - b) / dd + (gg < b ? 6 : 0) : mx === gg ? (b - r) / dd + 2 : (r - gg) / dd + 4; h *= 60; }
+    const [H, S, L] = f([h, s, l]), hh = ((H % 360) + 360) % 360 / 360, ss = Math.max(0, Math.min(1, S)), ll = Math.max(0, Math.min(1, L));
+    const q = ll < .5 ? ll * (1 + ss) : ll + ss - ll * ss, p = 2 * ll - q, hue = (t: number) => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < .5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
+    d[i] = Math.round(hue(hh + 1 / 3) * 255); d[i + 1] = Math.round(hue(hh) * 255); d[i + 2] = Math.round(hue(hh - 1 / 3) * 255); }
+  g.putImageData(img, 0, 0); return o;
+}
+const toward = (h: number, target: number, k: number) => { let d = ((target - h + 540) % 360) - 180; return h + d * k; };
 function withWalk(build: (ph: number | string) => HTMLCanvasElement, extra?, poses: string[] = [], frames = 4) {   // 站立圖 + 走路圖（預設 4 張）+ 攻擊動作
   const sp = makeHD(build(-1), extra); sp.walk = Array.from({ length: frames }, (_, ph) => makeHD(build(ph), extra));
   sp.atk = {}; for (const p of poses) sp.atk[p] = makeHD(build(p), extra); return sp;
@@ -423,6 +437,13 @@ function buildMonsters() { return {
   mimic: withWalk(hdMimic, undefined, ['crouch', 'strike', 'land']),
   general: makeHD(hdGeneral()),
   queen: makeHD(hdQueen()),
+  // 區域 Boss（非主線）：沿用主線 Boss 的身體和招式，換顏色、換名字、換等級
+  generalMoss: makeHD(recolor(hdGeneral(), ([h, s, l]) => [toward(h, 105, .85), s * .8, l])),                      // 巨石陣的苔甲守衛：長滿青苔的盔甲
+  lichMist: makeHD(recolor(hdLich(), ([h, s, l]) => [toward(h, 200, .9), s * .45, l * 1.05])),                    // 霧林女妖：灰藍色的霧
+  yetiSand: makeHD(recolor(hdYeti(), ([h, s, l]) => [toward(h, 35, 1), Math.max(s, .35) * .9, l * .88])),          // 沙暴巨人：沙色的毛
+  queenSlag: makeHD(recolor(hdQueen(), ([h, s, l]) => [h > 30 && h < 70 && s > .5 ? h : toward(h, 18, 1), s, l])),  // 熔渣母體：橘紅色的熔岩史萊姆（王冠保持金色）
+  dragonFrost: makeHD(recolor(hdDragon(), ([h, s, l]) => [toward(h, 205, 1), s * .75, Math.min(1, l * 1.25)])),    // 冰霜飛龍
+  mushToxic: makeHD(recolor(hdMushKing(), ([h, s, l]) => [h > 30 && h < 70 && s > .5 ? h : toward(h, 285, .9), s, l])),   // 毒菇母后：紫色的菇傘
   slime: makeHD(hdSlime(RAMP.slime, '#0e2a18', '#a8f0a0')),
   slimeM: makeHD(hdSlime(RAMP.slimeM, '#2a0a04', '#fff0a0')),
   wolf: withWalk(ph => hdWolf2(RAMP.wolf, {}, ph), undefined, WOLF_POSES, 6),
