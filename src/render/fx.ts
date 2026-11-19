@@ -176,15 +176,18 @@ export function enemyJuice(e, sp) {
       else if (moving) { const stp = Math.floor(A * 9);                    // 跑步：每一格換一張走路圖，腳踩在正下方那兩格身體高一點
         wf = stp % 4; lean = .12 * fl; lift = stp % 2; }
       break; }
-    case 'blade': {                                                     // 骷髏：一拐一拐地走、站在原地舉劍 → 劈下去
-      if (st === 'windup') { lean = -.18 * fl * Math.min(1, wk * 4); pose = 'raise'; }
-      else if (st === 'slash') { lean = .2 * fl; pose = 'strike'; }
-      else if (st === 'recover') { if (e.t > .35) { lean = .1 * fl; pose = 'strike'; } }   // 劈完停在那裡一下，再一下子站直
-      else if (moving) { const f = (A * 1.25 * Math.min(1.3, rel + .3)) % 1;   // 節奏不平均：好腳跨得快、跛腳拖得慢
-        wf = f < .3 ? 0 : f < .45 ? 1 : f < .82 ? 2 : 3;
-        rot = [-.03, 0, .09, .04][wf] * fl;                               // 拖跛腳時身體歪向一邊
-        if (wf === 2 && e._wf !== 2) dustPuff(e.x + fl * 2, e.y, 2, 14);     // 跛腳拖過地面揚一點灰
+    case 'blade': {                                                     // 骷髏：一拐一拐地走；蹲低蓄力 → 舉劍 → 揮過去 → 劈到底 → 收招
+      if (e._st !== st && st === 'recover') e._rs = G.time;
+      if (st === 'windup') { pose = wk < .22 ? 'ready' : 'raise'; lean = wk < .22 ? .06 * fl : -.14 * fl * Math.min(1, (wk - .22) * 5); }
+      else if (st === 'slash') { pose = e.t > .09 ? 'swing' : 'strike'; lean = .14 * fl; }
+      else if (st === 'recover') { const k = G.time - (e._rs || 0);       // 劈到底停一下 → 劍垂下來慢慢收 → 站直
+        if (k < .16) { pose = 'strike'; lean = .1 * fl; } else if (k < .5) { pose = 'recoil'; lean = .05 * fl; } }
+      else if (moving) { const f = (A * 1.15 * Math.min(1.3, rel + .3)) % 1;   // 6 格、節奏不平均：好腳跨得快、跛腳拖得慢、踩實時停一下
+        const T = [.13, .26, .4, .62, .82, 1]; wf = T.findIndex(t => f < t);
+        rot = [-.03, -.02, 0, .05, .08, .03][wf] * fl;                    // 拖跛腳時身體歪向一邊
+        if (wf === 4 && e._wf !== 4) dustPuff(e.x + fl * 2, e.y, 2, 14);     // 跛腳踩實揚一點灰
         e._wf = wf; }
+      e._st = st;
       break; }
     case 'heavy': {                                                     // 石像魔、樹精：抬腳 → 重重踩下（地面震動）
       if (st === 'windup') { const k = Math.min(1, wk * 3); lift = Math.round(3 * k); lean = -.16 * fl * k; pose = 'raise'; }   // 雙手舉高

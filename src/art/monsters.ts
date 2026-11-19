@@ -1,7 +1,7 @@
 import { HK } from '../core/canvas';
 import { OL, makeSprite } from './sprite';
 import { ROWS } from './hero';
-import { SKEL_H, SKEL_PAD, SKEL_POSES, SKEL_W, paintSkel } from './skeleton';
+import { SKEL_H, SKEL_PAD, SKEL_POSES, SKEL_W, SKEL_WALK, paintSkel, skelSmear } from './skeleton';
 
 export const SPR: Record<string, any> = {
   slime: makeSprite(ROWS.slime, { o:OL, g:'#5ad06a', G:'#2f8f45', w:'#d8ffd8' }),
@@ -130,7 +130,12 @@ function hdWolf(R, s, opt: Record<string, any> = {}, ph: number | string = -1) {
 }
 /* 骷髏兵：照參考圖描的（src/art/skeleton.ts）。ph：0~3 走路、-1 站、'raise' 舉劍、'strike' 往前劈 */
 function hdSkel(R, eyeC, ph: number | string = -1) {
-  return sculpt(SKEL_W, SKEL_H, [], a => paintSkel(a.set, R, eyeC, ph), typeof ph === 'string' ? SKEL_PAD[ph] || {} : {});
+  const pad = typeof ph === 'string' ? SKEL_PAD[ph] || {} : {}, c = sculpt(SKEL_W, SKEL_H, [], a => paintSkel(a.set, R, eyeC, ph), pad);
+  const sm = skelSmear(ph); if (!sm.length) return c;
+  const g = c.getContext('2d'), img = g.getImageData(0, 0, c.width, c.height), d = img.data;   // 劍的殘影：半透明、只畫在空白的地方、不加外框
+  for (const [x, y, al] of sm) { const X = x + (pad.l || 0), Y = y + (pad.t || 0); if (X < 0 || Y < 0 || X >= c.width || Y >= c.height) continue;
+    const i = (Y * c.width + X) * 4; if (d[i + 3]) continue; d[i] = 255; d[i + 1] = 250; d[i + 2] = 240; d[i + 3] = Math.round(al * 255); }
+  g.putImageData(img, 0, 0); return c;
 }
 /* ph：0~3 走路、-1 站、'raise' = 雙拳舉過頭、'strike' = 雙拳砸到地上 */
 function hdGolem(R, opt, ph: number | string = -1) {
@@ -317,8 +322,8 @@ function hdLich() {                                                   // 沼澤�
     for (let k = 0; k < 14; k++) { const x = 16 + (k * 29) % 54, y = 44 + (k * 17) % 48; if (a.get(x, y)) a.set(x, y, '#4a6a2e'); }
     a.set(66, 12, '#ffffff'); a.set(67, 11, '#ffffff');
   }); }
-function withWalk(build: (ph: number | string) => HTMLCanvasElement, extra?, poses: string[] = []) {   // 站立圖 + 4 張走路圖 + 攻擊動作
-  const sp = makeHD(build(-1), extra); sp.walk = [0, 1, 2, 3].map(ph => makeHD(build(ph), extra));
+function withWalk(build: (ph: number | string) => HTMLCanvasElement, extra?, poses: string[] = [], frames = 4) {   // 站立圖 + 走路圖（預設 4 張）+ 攻擊動作
+  const sp = makeHD(build(-1), extra); sp.walk = Array.from({ length: frames }, (_, ph) => makeHD(build(ph), extra));
   sp.atk = {}; for (const p of poses) sp.atk[p] = makeHD(build(p), extra); return sp;
 }
 function buildMonsters() { return {
@@ -333,15 +338,15 @@ function buildMonsters() { return {
   slimeM: makeHD(hdSlime(RAMP.slimeM, '#2a0a04', '#fff0a0')),
   wolf: withWalk(ph => hdWolf(RAMP.wolf, 1, {}, ph), undefined, ['strike']),
   wolfF: withWalk(ph => hdWolf(RAMP.wolfF, 1, {}, ph), undefined, ['strike']),
-  skel: withWalk(ph => hdSkel(RAMP.bone, '#ff4a4a', ph), undefined, SKEL_POSES),
-  skelE: withWalk(ph => hdSkel(RAMP.ash, '#ff9a3a', ph), undefined, SKEL_POSES),
+  skel: withWalk(ph => hdSkel(RAMP.bone, '#ff4a4a', ph), undefined, SKEL_POSES, SKEL_WALK),
+  skelE: withWalk(ph => hdSkel(RAMP.ash, '#ff9a3a', ph), undefined, SKEL_POSES, SKEL_WALK),
   golem: withWalk(ph => hdGolem(RAMP.stone, { eye: '#7fe8ff', crack: '#262234', moss: ['#2f5a26', '#4f8a3e', '#7ab85a'] }, ph), undefined, ['raise', 'strike']),
   golemL: withWalk(ph => hdGolem(RAMP.basalt, { eye: '#ffcf4a', crack: '#ff6a2a', glowCrack: '#ffcf4a' }, ph), undefined, ['raise', 'strike']),
   shroom: withWalk(hdShroom),
   wolfS: withWalk(ph => hdWolf(RAMP.snowwolf, 1, { eye: '#4ac8ff' }, ph), undefined, ['strike']),
   slimeI: makeHD(hdSlime(RAMP.ice, '#0a2040', '#ffffff')),
   golemI: withWalk(ph => hdGolem(RAMP.iceStone, { eye: '#7fe8ff', crack: '#26304a', moss: ['#a6b8d8', '#e8f0fa', '#ffffff'] }, ph), undefined, ['raise', 'strike']),
-  skelS: withWalk(ph => hdSkel(RAMP.swampBone, '#7aff6a', ph), undefined, SKEL_POSES),
+  skelS: withWalk(ph => hdSkel(RAMP.swampBone, '#7aff6a', ph), undefined, SKEL_POSES, SKEL_WALK),
   shroomP: withWalk(ph => hdShroom(+ph, RAMP.capP)),
   treantS: withWalk(ph => hdTreant(ph, RAMP.leafS, RAMP.barkS, '#9aff6a'), undefined, ['raise', 'strike']),
   treant: withWalk(hdTreant, undefined, ['raise', 'strike']),
