@@ -14,6 +14,7 @@ import { sfx } from '../core/audio';
 import { makeEnemy, updateEnemy } from './enemies';
 import { updateBoss } from './boss';
 import { aoeHit, damageEnemy, hurtPlayer, targets } from './combat';
+import { tickWeaponFx } from './weaponFx';
 import { updatePlayer } from './playerUpdate';
 import { STARC, asn } from '../render/fx';
 import { gain, toast } from '../ui/hud';
@@ -151,6 +152,7 @@ export function update(dt) {
   for (const pl of G.players) updatePlayer(pl, dt);
   const near = e => G.players.some(pl => Math.abs(e.x - pl.x) < 520 && Math.abs(e.y - pl.y) < 380);   // 只更新任何玩家附近的怪
   for (let i = G.enemies.length - 1; i >= 0; i--) { const e = G.enemies[i]; if (near(e)) updateEnemy(e, dt); }
+  tickWeaponFx(dt, targets(G.me));
   updateNPCs(); updateQuest(); updateBoss(dt); updateRegionBosses(dt); separate(); updateProjectiles(dt); updateDrops(dt); updateSpawns(dt);
   for (let i = G.fx.length - 1; i >= 0; i--) { G.fx[i].t += dt; if (G.fx[i].t >= G.fx[i].d) G.fx.splice(i, 1); }
   for (let i = G.ghosts.length - 1; i >= 0; i--) { G.ghosts[i].life -= dt; if (G.ghosts[i].life <= 0) G.ghosts.splice(i, 1); }

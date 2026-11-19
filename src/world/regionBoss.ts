@@ -2,7 +2,7 @@ import { G } from '../core/state';
 import { $, TAU, clamp, pick, rr } from '../core/util';
 import { HK, ctx } from '../core/canvas';
 import { SPR } from '../art/monsters';
-import { makeGear, makeWeapon } from '../data/items';
+import { makeGear, makeUnique } from '../data/items';
 import { TS } from './map';
 import { AI, FIREC } from './bossAI';
 import { drawPools } from './bossAI2';
@@ -26,16 +26,16 @@ export const RBDEF: Record<string, any> = {
     reward: () => { const it = makeGear('mail', 15, 4); it.name = '朽鋼胸甲'; it.def = Math.round(it.def * 1.15); it.aff = { hp:90, def:10, crit:6 }; return it; } },
   dragon: { id:'dragon', name:'熔岩巨龍・燼翼', short:'熔岩巨龍', sub:'火口深處傳來低吼', tx:222, ty:58, tr:9.5, lv:21, hp:4200, kind:'dragon', ai:'dragon',
     ring:['#ff8a3a', '#fff0a0'], aura:['#ff6a2a', '#ffb040', '#fff0a0'], souls:2000, gold:800,
-    reward: () => { const it = makeWeapon('staff', 4); it.name = '燼翼法杖'; it.aff = { crit:10, cdr:15, speed:10 }; return it; } },
+    reward: () => { return makeUnique('emberstaff'); } },
   mushking: { id:'mushking', name:'蘑菇王・孢冠', short:'蘑菇王', sub:'森林深處的菌絲在顫動', tx:150, ty:173, tr:8.5, lv:10, hp:1700, kind:'mushking', ai:'mushking',
     ring:['#c46ad8', '#ffffff'], aura:['#c46ad8', '#f0c8ff', '#ffffff'], souls:550, gold:260,
     reward: () => { const it = makeGear('ring', 11, 4); it.name = '孢冠指環'; it.aff = { crit:8, hp:45, lifesteal:3, cdr:10 }; return it; } },
   yeti: { id:'yeti', name:'雪原巨人・霜鬃', short:'雪原巨人', sub:'祭壇上的雪動了起來', tx:326, ty:24, tr:9.5, lv:25, hp:5600, kind:'yeti', ai:'yeti',
     ring:['#a8dcff', '#ffffff'], aura:['#7ab8e8', '#dcecff', '#ffffff'], souls:3000, gold:1100,
-    reward: () => { const it = makeWeapon('hammer', 4); it.name = '霜鬃巨鎚'; it.aff = { crit:8, def:12, hp:120 }; return it; } },
+    reward: () => { return makeUnique('frostmaul'); } },
   lich: { id:'lich', name:'沼澤巫妖・腐沼', short:'沼澤巫妖', sub:'腐沼的主人睜開了眼睛', tx:322, ty:168, tr:9.5, lv:30, hp:7000, kind:'lich', ai:'lich',
     ring:['#6ae04a', '#d0ffb0'], aura:['#3ac83a', '#9aff6a', '#eaffd0'], souls:4200, gold:1500,
-    reward: () => { const it = makeWeapon('scythe', 4); it.name = '腐沼之鐮'; it.aff = { lifesteal:5, cdr:18, speed:12 }; return it; } },
+    reward: () => { return makeUnique('rotscythe'); } },
 };
 for (const d of Object.values(RBDEF)) { d.x = d.tx * TS + 8; d.y = d.ty * TS + 8; d.R = d.tr * TS; }
 export let rbs = [];

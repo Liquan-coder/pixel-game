@@ -1,5 +1,5 @@
 import { G } from '../core/state';
-import { AT, TT, WT, slotOf } from '../data/items';
+import { AT, TT, WT, fixWeapon, slotOf } from '../data/items';
 import { migrateAttrs } from '../data/attrs';
 import { MAT_KEYS, migrateWeapon } from '../data/forge';
 import { CAMPS, MW, discovered } from '../world/map';
@@ -25,8 +25,8 @@ export function applySave(d) {
   resetPlayers();
   Object.assign(G.me, migrateAttrs(d)); G.me.souls = d.souls || 0;   // 舊存檔的三種能力值會換算成新的六種
   G.me.inv = (Array.isArray(d.inv) ? d.inv : []).filter(it => it && (WT[it.type] || AT[it.type] || TT[it.type]));   // 舊存檔：補上欄位預設值
-  for (const it of G.me.inv) { it.slot = slotOf(it); it.aff = it.aff || {}; migrateWeapon(it); }
-  if (d.weapon && WT[d.weapon.type]) { G.me.weapon = d.weapon; G.me.weapon.slot = 'weapon'; G.me.weapon.aff = G.me.weapon.aff || {}; migrateWeapon(G.me.weapon); }
+  for (const it of G.me.inv) { it.slot = slotOf(it); it.aff = it.aff || {}; migrateWeapon(it); fixWeapon(it); }
+  if (d.weapon && WT[d.weapon.type]) { G.me.weapon = d.weapon; G.me.weapon.slot = 'weapon'; G.me.weapon.aff = G.me.weapon.aff || {}; migrateWeapon(G.me.weapon); fixWeapon(G.me.weapon); }
   G.me.mats = {}; for (const k of MAT_KEYS) if (d.mats && d.mats[k] > 0) G.me.mats[k] = d.mats[k] | 0;
   rbDead.clear(); for (const id of d.rbDead || []) rbDead.add(id);
   G.me.gold = d.gold || 0; G.me.armor = d.armor && AT[d.armor.type] ? d.armor : null; G.me.trinket = d.trinket && TT[d.trinket.type] ? d.trinket : null;

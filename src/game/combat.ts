@@ -12,6 +12,7 @@ import { burst, hitSpark, quakeFx, shake } from './worldUpdate';
 import { STARC } from '../render/fx';
 import { showBanner, toast } from '../ui/hud';
 import type { Enemy } from '../types';
+import { bindFx, onHit, onKill } from './weaponFx';
 import type { Player } from '../types';
 
 /* ================= PLAYER COMBAT ================= */
@@ -26,7 +27,7 @@ function calcDmg(pl: Player, mult) {
   const crit = Math.random() * 100 < pl.crit; if (crit) v *= 1.8;
   return { v: Math.max(1, Math.round(v)), crit };
 }
-export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: number, opts: { heavy?: boolean; stun?: number; crit?: boolean; heal?: number } = {}) {
+export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: number, opts: { heavy?: boolean; stun?: number; crit?: boolean; heal?: number; proc?: boolean } = {}) {
   if (e.hp <= 0) return;
   let { v, crit } = calcDmg(pl, mult);
   if (opts.crit && !crit) { crit = true; v = Math.round(v * 1.8); }      // 居合：一定暴擊
@@ -42,8 +43,21 @@ export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: 
   if (opts.heavy) { G.hitStop = Math.max(G.hitStop, .055); shake(3, .1); }
   crit ? sfx.crit() : sfx.hit();
   if (crit) shake(2, .1);
-  if (e.hp <= 0) { if (e.rb) regionBossDie(e, pl); else if (e.boss) bossDie(pl); else killEnemy(e, pl); }
+  if (!opts.proc) onHit(pl, e, v, crit);                                // 刻印效果（出血、燃燒、寒霜、雷鳴…）
+  finish(pl, e);
 }
+function finish(pl: Player, e: Enemy) {                                  // 血量歸零 → 依種類走對應的死亡流程（只會走一次）
+  if (e.hp > 0 || e.dying) return; e.dying = true; e.soulMul = onKill(pl, e);
+  if (e.rb) regionBossDie(e, pl); else if (e.boss) bossDie(pl); else killEnemy(e, pl);
+}
+/** 效果造成的傷害：不暴擊、不擊退、不再觸發效果 */
+export function rawHit(pl: Player, e: Enemy, v: number, col: string) {
+  if (e.hp <= 0 || e.dead) return;
+  e.hp -= v; e.flash = .08; if (!e.boss && (e.state === 'idle' || e.state === 'return')) e.state = 'chase';
+  if (col === '#ffe85a') G.nums.push({ x:e.x + rr(-3, 3), y:e.y - (e.boss ? 26 : 16), txt:String(v), col, t:0, d:.6 });
+  finish(pl, e);
+}
+bindFx(rawHit, targets);
 function meleeHit(pl: Player, range, arcDeg, mult, opts?) {
   const half = arcDeg / 2 * Math.PI / 180;
   for (const e of targets(pl)) {

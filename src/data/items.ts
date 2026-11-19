@@ -6,6 +6,8 @@ import { SH, sculpt } from '../art/monsters';
 import { gridCanvas } from '../art/weapon';
 import type { Item } from '../types';
 import { meets, soft } from './attrs';
+import { UQ, UQ_BY_NAME } from './uniques';
+import { FX_KEYS, WFXD } from '../game/weaponFx';
 
 /* ================= DATA ================= */
 export const WT = {
@@ -22,6 +24,8 @@ export const WT = {
 export const RAR = [
   {n:'普通',c:'#d9d4ca',m:1,a:0},{n:'優秀',c:'#6fd36f',m:1.12,a:1},{n:'稀有',c:'#55a8ff',m:1.25,a:2},
   {n:'史詩',c:'#c475ff',m:1.4,a:3},{n:'傳說',c:'#ff9f3a',m:1.6,a:3}];
+/* m（倍率）現在只用在防具 / 飾品。武器的稀有度：普通 0 詞綴、優秀 1、稀有 2、史詩 2 + 刻印效果、傳說 = 獨特武器（data/uniques.ts） */
+const WAFN = [0, 1, 2, 2, 3];
 export const AFFIX = {
   crit:{n:'暴擊率',r:[3,9],u:'%'}, lifesteal:{n:'吸血',r:[2,5],u:'%'}, speed:{n:'攻擊速度',r:[6,15],u:'%'},
   cdr:{n:'技能冷卻縮短',r:[8,20],u:'%'}, hp:{n:'生命上限',r:[10,30],u:''}, def:{n:'防禦',r:[2,5],u:''}, st:{n:'體力上限',r:[6,14],u:''}};
@@ -50,17 +54,32 @@ export const KIND = {
    稀有度不再加攻擊，而是多詞綴 / 刻印效果（見 rollWeapon）。 */
 export const UP_MAX = 10;
 export const upMult = (up: number) => 1 + .32 * (up || 0);               // +10 ≈ 4.2 倍（舊系統物品等級 30 大約 4.8 倍）
-export const wBase = (it: Item) => WT[it.type].base;
+export const wBase = (it: Item) => it.uq && UQ[it.uq] ? UQ[it.uq].base : WT[it.type].base;
 export const wAtk = (it: Item) => Math.round(wBase(it) * upMult(it.up));
 export const refreshWeapon = (it: Item) => { it.atk = wAtk(it); return it; };
 const WPRE = ['鐵', '精鋼', '秘銀', '星隕'];                               // 名稱前綴只看稀有度
 const WAFF = ['crit', 'lifesteal', 'speed', 'cdr'];                       // 武器只出百分比詞綴（不會隨地區膨脹）
 export function makeWeapon(type: string, rarity = 0, up = 0): Item {
-  const R = RAR[rarity];
+  const nAff = WAFN[rarity] ?? 0; if (rarity > 3) rarity = 3;          // 隨機掉落最高史詩；傳說只有獨特武器（「傳說」骰到 → 史詩 + 3 條詞綴）
   const aff: Record<string, number> = {};
-  for (const k of WAFF.slice().sort(() => Math.random() - .5).slice(0, R.a)) aff[k] = ri(AFFIX[k].r[0], AFFIX[k].r[1]);
-  const name = (rarity === 3 ? pick(['霜語','烈陽','暮光','裂風','血月','星火']) : WPRE[Math.min(rarity, 3)]) + WT[type].name;
-  return refreshWeapon({ id: G.uid++, slot:'weapon', type, ilvl: 0, rarity, up: Math.max(0, Math.min(UP_MAX, up)), aff, name });
+  for (const k of WAFF.slice().sort(() => Math.random() - .5).slice(0, nAff)) aff[k] = ri(AFFIX[k].r[0], AFFIX[k].r[1]);
+  const fx = rarity >= 3 ? pick(FX_KEYS) : undefined;
+  const name = (fx ? WFXD[fx].pre : WPRE[rarity]) + WT[type].name;
+  const it: Item = { id: G.uid++, slot:'weapon', type, ilvl: 0, rarity, up: Math.max(0, Math.min(UP_MAX, up)), aff, name };
+  if (fx) it.fx = fx;
+  return refreshWeapon(it);
+}
+export function makeUnique(key: string, up = 0): Item {
+  const U = UQ[key];
+  return refreshWeapon({ id: G.uid++, slot:'weapon', type: U.type, ilvl: 0, rarity: 4, up, aff: { ...U.aff }, name: U.name, uq: key });
+}
+/** 讀檔時補齊：舊的獨特武器對回編號、史詩沒有刻印就補一個、隨機傳說降成史詩（保留詞綴） */
+export function fixWeapon(it: Item) {
+  if (!WT[it.type]) return it;
+  const k = it.uq || UQ_BY_NAME[it.name];
+  if (k && UQ[k]) { it.uq = k; it.rarity = 4; it.type = UQ[k].type; delete it.fx; it.name = UQ[k].name; }
+  else { if (it.rarity > 3) it.rarity = 3; if (it.rarity === 3 && !it.fx) it.fx = pick(FX_KEYS); }
+  return refreshWeapon(it);
 }
 /** 舊名稱相容：makeItem(type, 強化等級, 稀有度) */
 export const makeItem = (type: string, up: number, rarity: number) => makeWeapon(type, rarity, up);
@@ -96,9 +115,7 @@ export function randomLoot(lv, rarity) {
   const q = Math.random(), type = q < .6 ? pickWeaponType(lv) : q < .85 ? pick(Object.keys(AT)) : pick(Object.keys(TT));
   return makeGear(type, lv, rarity);
 }
-export function bossWeapon() {
-  const it = makeWeapon('wolfblade', 4); it.name = '狼牙雙刃'; it.aff = { crit:10, lifesteal:4, speed:10 }; return it;
-}
+export const bossWeapon = () => makeUnique('wolfblade');
 export const ICON: Record<string, HTMLCanvasElement> = {}, ICON_URL: Record<string, string> = {};
 for (const type of Object.keys(WT)) {
   const W = WEAP[type], r = rotGrid(W.rows, W.grip, -Math.PI / 4, false, W.base), c = gridCanvas(r.rows, W.pal); ICON[type] = c;

@@ -2,6 +2,8 @@ import { G } from '../core/state';
 import { $ } from '../core/util';
 import { AFFIX, AT, ICON_URL, RAR, SLOTN, TT, UP_MAX, WT, gearValue, itemName, slotOf } from '../data/items';
 import { MATS, MAT_KEYS } from '../data/forge';
+import { UQ } from '../data/uniques';
+import { WFXD, fxOf } from '../game/weaponFx';
 import { CAMPS, MW, REGIONS, reg } from '../world/map';
 import { mini } from '../world/minimap';
 import { calcStats, curEq, level, lvCost, recalc } from '../game/player';
@@ -80,7 +82,10 @@ export function itemCard(it, cmp?) {
   const aff = Object.keys(it.aff).map(k => '<div class="aff">＋' + it.aff[k] + AFFIX[k].u + ' ' + AFFIX[k].n + '</div>').join('');
   let head, main, tail = '';
   if (sl === 'weapon') { const W = WT[it.type], S = scaleOf(it); head = '強化 +' + (it.up || 0) + '/' + UP_MAX; main = '攻擊 ' + it.atk + (c ? dv(it.atk, c.atk) : '') + ' <small style="color:var(--muted)">· ' + W.trait + '</small>';
-    tail = '<div class="scal">加成 ' + Object.keys(S).map(k => ATTR_NAME[k] + ' ' + grade(S[k])).join(' · ') + '</div><div class="sk">技能 <b>' + W.sn + '</b>：' + W.sd + '</div>'; }
+    const fx = fxOf(it), U = it.uq && UQ[it.uq];
+    tail = '<div class="scal">加成 ' + Object.keys(S).map(k => ATTR_NAME[k] + ' ' + grade(S[k])).join(' · ') + '</div>' +
+      (fx ? '<div class="sk">刻印 <b style="color:' + WFXD[fx].c + '">' + WFXD[fx].n + '</b>：' + WFXD[fx].d + '</div>' : '') +
+      '<div class="sk">技能 <b>' + W.sn + '</b>：' + W.sd + '</div>' + (U ? '<div class="sk lore">' + U.lore + '<br><small>來源：' + U.from + '</small></div>' : ''); }
   else if (sl === 'armor') { head = AT[it.type].d; main = '防禦 ' + it.def + (c ? dv(it.def, c.def || 0) : '') + (it.hp ? ' · 生命 +' + it.hp : ''); }
   else { head = TT[it.type].d; main = TT[it.type].name; }
   return '<div class="card" style="border-color:' + R.c + '"><div class="iname" style="color:' + R.c + '"><img alt="" src="' + ICON_URL[it.type] + '">' + itemName(it) + '</div>' +
