@@ -11,6 +11,7 @@ export interface Item {
   ilvl: number;                   // 物品等級（只有防具 / 飾品用；武器是 0）
   up?: number;                    // 武器強化等級 +0 ～ +10（data/forge.ts）
   uq?: string;                    // 獨特武器的編號（data/uniques.ts）
+  ug?: string;                    // 獨特防具 / 飾品的編號（data/uniques.ts 的 UG）
   fx?: string;                    // 刻印效果（史詩以上，game/weaponFx.ts）
   rarity: number;                 // 0 普通 ～ 4 傳說
   name: string;

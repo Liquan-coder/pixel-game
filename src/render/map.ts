@@ -60,7 +60,7 @@ export function renderBigMap() {
     g.drawImage(c, Math.round(x - c.width * S / 2), Math.round(y - c.height * S / 2), c.width * S, c.height * S); hits.push({ ...p, x, y }); };
   for (const T of TOWNS) if (seen(T.tx, T.ty)) icon('town', { kind: 'town', id: T.id, name: T.name, desc: '城鎮 · 有鎮民和鐵匠，可以買賣、強化武器', tx: T.tx, ty: T.ty });
   for (const p of POIS) if (seen(p.tx, p.ty)) icon(p.kind, { kind: p.kind, id: p.id, name: p.name, desc: p.desc || (p.kind === 'ruin' ? '遺跡 · 通往地底的入口' : p.kind === 'town' ? '城鎮' : '地標'), tx: p.tx, ty: p.ty });
-  for (const d of DUNGEONS) if (seen(d.ent[0], d.ent[1])) { const done = flags.has('dgn:' + d.id);
+  for (const d of DUNGEONS) if (d.style !== 'ruin' && seen(d.ent[0], d.ent[1])) { const done = flags.has('dgn:' + d.id);   // 地底遺跡畫成遺跡圖示（POIS）
     icon(done ? 'dungeonDone' : 'dungeon', { kind: 'dungeon', id: d.id, name: d.name, desc: done ? '地城 · 已經攻略完了' : '地城 · 最深處有守護者看守著寶物', tx: d.ent[0], ty: d.ent[1] }); }
   if (merchant) icon('merchant', { kind: 'merchant', id: 'merchant', name: '流浪商人', desc: '會在點燃過的營火之間移動，賣藥水、礦石和裝備', tx: merchant.x / TS - .5, ty: merchant.y / TS - .5 });
   if (G.lost) icon('lost', { kind: 'lost', id: 'lost', name: '掉落的魂晶', desc: '上次倒下時掉的 ' + G.lost.amount + ' 魂晶 · 走過去就能撿回來（再死一次就沒了）', tx: G.lost.x / TS - .5, ty: G.lost.y / TS - .5 });

@@ -4,6 +4,7 @@ import { hash2 } from '../art/monsters';
 import { ARENA, BIGT, BRIDGE, CAMPS, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, HOUSE, HOUSES, LAVA, MH, MW, OPEN_REGIONS, PILLAR, PY, REGIONS, TOWNS, RFLOOR, ROAD, ROADS, ROCK, RWALL, STAIRS, SOLID, TREE, TS, WALKABLE, WATER, braziers, glows, map, reg, shade, spawns, torches } from './map';
 import { RBDEF } from './regionBoss';
 import { addDungeonSpawns, stampEntrances } from './dungeons';
+import { registerDungeonBosses } from './dungeonBoss';
 import { buildLandmarks, GLOW_ZONES } from './landmarks';
 export let reachable: Uint8Array = null;                               // 從起點走得到的格子（genWorld 算好）
 
@@ -140,7 +141,7 @@ export function genWorld() {
   for (const [px, py] of [[4, 4], [14, 4], [4, 13], [14, 13]]) map[I(ax + px, ay + py)] = PILLAR;
   for (const x of DOOR) map[I(x, ARENA.y1)] = FOG;
   for (const [bx, by] of [[2, 2], [16, 2], [2, 15], [16, 15]]) braziers.push({ x:(ax + bx) * TS + 8, y:(ay + by) * TS + 12 });
-  stampEntrances(inb); addDungeonSpawns();                              // 地城：野外入口的小山 + 海上的地城區塊（裡面的怪也在這裡放）
+  stampEntrances(inb); addDungeonSpawns(); registerDungeonBosses();                              // 地城：野外入口的小山 + 海上的地城區塊（裡面的怪也在這裡放）
   for (const c of CAMPS) clearDisk(c.tx, c.ty, 3, false);
   for (let y = 3; y < MH - 3; y++) for (let x = 3; x < MW - 3; x++) {
     const i = I(x, y);

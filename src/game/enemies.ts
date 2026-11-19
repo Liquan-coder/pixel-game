@@ -63,7 +63,7 @@ function doEnemyAttack(e) {
     e.state = 'recover'; e.t = .9; shake(3.5, .2);
   } else if (e.beh === 'ranged') {
     const n = e.elite ? 3 : 1;
-    for (let k = 0; k < n; k++) { const a = e.aim + (k - (n - 1) / 2) * .25; G.projs.push({ x:e.x, y:e.y - 6, vx:Math.cos(a) * 95, vy:Math.sin(a) * 95, r:3, life:2.2, dmg:e.dmg, owner:'e', kind:'spore' }); }
+    for (let k = 0; k < n; k++) { const a = e.aim + (k - (n - 1) / 2) * .25; G.projs.push({ x:e.x, y:e.y - 6, vx:Math.cos(a) * 95, vy:Math.sin(a) * 95, r:3, life:2.2, dmg:e.dmg, owner:'e', kind:KIND[e.kind].proj || 'spore' }); }
     e.state = 'recover'; e.t = .4;
   }
   e.atkCd = D.cd * (e.elite ? .8 : 1);

@@ -6,7 +6,7 @@ import { SH, sculpt } from '../art/monsters';
 import { gridCanvas } from '../art/weapon';
 import type { Item } from '../types';
 import { meets, soft } from './attrs';
-import { UQ, UQ_BY_NAME } from './uniques';
+import { UG, UQ, UQ_BY_NAME } from './uniques';
 import { FX_KEYS, WFXD } from '../game/weaponFx';
 
 /* ================= DATA ================= */
@@ -48,7 +48,24 @@ export const KIND = {
   wolfS:{beh:'lunge',name:'雪狼',col:'#dce4f0'}, slimeI:{beh:'slime',name:'冰晶史萊姆',col:'#a8dcff'}, golemI:{beh:'heavy',name:'冰霜魔像',col:'#a6b8d8'},
   mimic:{beh:'lunge',name:'寶箱怪',col:'#a07a4c'},
   skelS:{beh:'blade',name:'沼澤骷髏',col:'#8a9470'}, shroomP:{beh:'ranged',name:'沼毒菇',col:'#a870d0'}, treantS:{beh:'heavy',name:'沼澤樹妖',col:'#3a4826'},
-};
+  // 地城專屬（art/dungeonMonsters.ts）：每座地城兩三種，野外不會出現。proj = 遠程怪射出去的東西
+  spiderM:{beh:'lunge',name:'苔蛛',col:'#5a8236'}, batC:{beh:'lunge',name:'洞穴蝙蝠',col:'#765a42'},
+  ghoulB:{beh:'blade',name:'古墓食屍鬼',col:'#8a9480'}, wraithB:{beh:'ranged',name:'墓穴幽魂',col:'#7a8aaa',proj:'bolt'},
+  crabT:{beh:'heavy',name:'潮音蟹',col:'#4a9090'}, frogG:{beh:'slime',name:'石窟蛙',col:'#4a9670'},
+  spiderF:{beh:'lunge',name:'巢蛛',col:'#62407e'}, batF:{beh:'lunge',name:'林蝠',col:'#40644a'},
+  ghoulR:{beh:'blade',name:'根鬼',col:'#6a5034'}, wraithR:{beh:'ranged',name:'樹靈',col:'#4a8a52',proj:'glob'},
+  beetleS:{beh:'lunge',name:'砂甲蟲',col:'#ac8c58'}, batS:{beh:'lunge',name:'岩蝠',col:'#8a7e62'},
+  ghoulS:{beh:'blade',name:'沙墓乾屍',col:'#ae9a74'}, wraithS:{beh:'ranged',name:'沙靈',col:'#c8a84a',proj:'bolt'},
+  spiderL:{beh:'lunge',name:'熔岩蛛',col:'#e8582a'}, impL:{beh:'ranged',name:'火小鬼',col:'#d04030',proj:'ember'},
+  crabL:{beh:'heavy',name:'黑曜蟹',col:'#463c46'}, beetleL:{beh:'lunge',name:'熔甲蟲',col:'#e8582a'},
+  spiderI:{beh:'lunge',name:'冰晶蛛',col:'#7aa4cc'}, batI:{beh:'lunge',name:'霜蝠',col:'#b8c8e0'},
+  ghoulI:{beh:'blade',name:'霜屍鬼',col:'#98aac4'}, wraithI:{beh:'ranged',name:'雪魂',col:'#d0dcec',proj:'bolt'},
+  frogP:{beh:'slime',name:'腐沼蛙',col:'#6a4488'}, beetleP:{beh:'lunge',name:'腐根甲蟲',col:'#3e5630'},
+  crabP:{beh:'heavy',name:'沉沼蟹',col:'#526030'}, wraithP:{beh:'ranged',name:'水鬼',col:'#3a7868',proj:'glob'},
+  ghoulK:{beh:'blade',name:'王城亡衛',col:'#706e84'}, wraithK:{beh:'ranged',name:'王魂',col:'#6a5096',proj:'bolt'}, batK:{beh:'lunge',name:'墓蝠',col:'#4a3e58'},
+  impF:{beh:'ranged',name:'爐火小鬼',col:'#d07a28',proj:'ember'}, beetleF:{beh:'lunge',name:'青銅甲蟲',col:'#9a6c32'}, spiderB:{beh:'lunge',name:'熔爐蛛',col:'#7e7054'},
+  frogT:{beh:'slime',name:'祭壇蛙',col:'#3a7e68'}, wraithT:{beh:'ranged',name:'看守之影',col:'#3a4a96',proj:'bolt'}, ghoulT:{beh:'blade',name:'沉沒祭司',col:'#406a50'},
+} as Record<string, { beh: string; name: string; col: string; proj?: string }>;
 /* ================= 武器 =================
    攻擊力 = 武器的基礎攻擊（每種武器固定）× 強化倍率。沒有「物品等級」了：
    一把 +0 長劍不管在哪裡撿到都一樣強，要變強就拿礦石去鐵匠那裡強化（+1 ～ +10，見 data/forge.ts）。
@@ -103,6 +120,14 @@ export function makeGear(type: string, ilvl: number, rarity: number): Item {
   const name = rarity >= 3 ? pick(['霜語','烈陽','暮光','裂風','血月','星火']) + base.name : (isA ? ['粗布','精製','秘銀','星隕','龍鱗'] : ['銅','銀','金','星辰','龍心'])[tier] + base.name;
   const it: Item = { id: G.uid++, slot: isA ? 'armor' : 'trinket', type, ilvl, rarity, aff, name };
   if (isA) { it.def = Math.round(base.def * (1 + .12 * (ilvl - 1)) * R.m * rr(.92, 1.08)); it.hp = Math.round(base.hp * (1 + .1 * (ilvl - 1)) * R.m); }
+  return it;
+}
+/** 獨特防具 / 飾品（data/uniques.ts 的 UG）：固定名字、數值、背景故事 */
+export function makeUniqueGear(key: string): Item {
+  const U = UG[key], isA = !!AT[U.type], base = isA ? AT[U.type] : TT[U.type], m = RAR[4].m * 1.1, ilvl = U.lv;
+  const aff: Record<string, number> = {}; for (const k in U.aff) aff[k] = SCALE_AFF.has(k) ? Math.round(U.aff[k] * (1 + (k === 'hp' ? .15 : .1) * (ilvl - 1))) : U.aff[k];
+  const it: Item = { id: G.uid++, slot: isA ? 'armor' : 'trinket', type: U.type, ilvl, rarity: 4, aff, name: U.name, ug: key };
+  if (isA) { it.def = Math.round(base.def * (1 + .12 * (ilvl - 1)) * m); it.hp = Math.round(base.hp * (1 + .1 * (ilvl - 1)) * m); }
   return it;
 }
 export const DROP_WEAPONS = ['sword', 'dagger', 'axe', 'spear', 'staff', 'katana', 'hammer', 'scythe'];   // 會從怪物身上掉、商人會賣的武器（狼牙雙刃只有狼王會掉）

@@ -1,8 +1,9 @@
 import { mulberry32 } from '../core/util';
 import { SH, hash2, sculpt } from '../art/monsters';
-import { ARENA, BIGT, BRIDGE, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, HOUSE, HOUSES, LAVA, MH, MW, PILLAR, RFLOOR, ROAD, ROCK, RWALL, TREE, WALKABLE, WATER, map, reg } from './map';
+import { STAIRS, ARENA, BIGT, BRIDGE, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, HOUSE, HOUSES, LAVA, MH, MW, PILLAR, RFLOOR, ROAD, ROCK, RWALL, TREE, WALKABLE, WATER, map, reg } from './map';
 import { CARPU, CRUSTU, ICEW, LAVU, MUDW, NZ0, NZ1, NZ2, RUIN, RUINU, SCU, TA, UL, WATU, WOODU, groundK, hexU, isLavaish, isRoadish, isWallT, isWaterish, nz, tileAt } from './gen';
 
+const STAIR_U = UL(['#0a080e', '#16121c', '#241e2c', '#342c3e', '#463c52']);
 export function bakeTileHD(buf, CA, tx, ty, ox, oy) {
   const i = ty * MW + tx, t = map[i], r = reg[i], S = SCU[r], U = RUINU[r];
   const up = tileAt(tx, ty - 1), dn = tileAt(tx, ty + 1), lf = tileAt(tx - 1, ty), rt = tileAt(tx + 1, ty);
@@ -114,6 +115,15 @@ export function bakeTileHD(buf, CA, tx, ty, ox, oy) {
     return;
   }
   if (t === WATER || t === LAVA) return;
+  if (t === STAIRS) {                                                    // 地底遺跡的入口：石框 + 一階一階往下、越下面越暗（最上面一階最亮）
+    const D = STAIR_U;
+    for (let ly = 0; ly < TA; ly++) for (let lx = 0; lx < TA; lx++) { let c;
+      if (lx < 5 || lx > 42 || ly < 4) c = (lx < 2 || lx > 45 || ly < 2) ? U.gr : U.cap;      // 石框
+      else { const step = Math.floor((ly - 4) / 9), v = (ly - 4) % 9; c = v < 2 ? D[Math.max(0, 4 - step)] : D[Math.max(0, 3 - step)]; if (v === 8) c = D[0];
+        if (lx < 8 || lx > 39) c = D[Math.max(0, 2 - step)]; }
+      buf[at(lx, ly)] = c; }
+    return;
+  }
   if (t === RFLOOR || t === PILLAR || t === CRATE || t === FOG) {        // 石板地：交錯石板 + 斜面光影 + 裂痕 + 青苔
     const door = r === 4 && tx >= DOOR[0] && tx <= DOOR[2] && ty > ARENA.y0;
     for (let ly = 0; ly < TA; ly++) for (let lx = 0; lx < TA; lx++) { const ax = AX + lx, ay = AY + ly;

@@ -15,6 +15,7 @@ import { artDot, artPath, drawOrb } from '../render/fx';
 import { teleCircle, teleLane, teleSector, warnMark } from '../render/enemy';
 import { showBanner, toast } from '../ui/hud';
 import { save } from '../game/save';
+import { flags } from '../game/quest';
 import { nearestPlayer } from '../game/player';
 
 export const RBDEF: Record<string, any> = {
@@ -63,7 +64,7 @@ function makeRB(d) { return { rb:true, boss:true, def:d, id:d.id, kind:d.kind, b
   flash:0, kx:0, ky:0, stun:0, flip:false, anim:0, aim:0, z:0, tele:null, splitT:0 }; }
 export function resetRegionBosses() {
   G.enemies = G.enemies.filter(e => !e.rbAdd);
-  rbs = Object.values(RBDEF).filter(d => !rbDead.has(d.id)).map(makeRB);
+  rbs = Object.values(RBDEF).filter(d => !rbDead.has(d.id) && !(d.dg && flags.has('dgn:' + d.dg))).map(makeRB);   // 地城 Boss：打倒過（舊存檔的守護者也算）就不再出現
 }
 export const fightingRB = () => rbs.find(e => !e.dead && e.state !== 'sleep');
 export function nearZone() { if (G.me.dead || fightingRB()) return null;                  // 給 HUD 用：「我」是否站在結界邊
@@ -106,8 +107,9 @@ export function regionBossDie(e, by) {                                  // by = 
   for (let i = 0; i < 40; i++) G.parts.push({ x:e.x + rr(-12, 12), y:e.y - rr(0, 24), vx:rr(-15, 15), vy:-rr(40, 140), life:rr(.7, 1.4), max:1.4, col:pick(d.aura.concat(['#f2c14e', '#b49cff'])), star:rr(1, 3), drag:1 });
   dropSouls(e.x, e.y, d.souls, by);
   const it = d.reward(); dropItem(it, e.x, e.y); dropGold(e.x, e.y, d.gold);
-  dropMat(e.x, e.y, oreForLevel(d.lv), 3, by); dropMat(e.x, e.y, 'ore4', 1, by);       // Boss 一定掉礦石，還有一顆強化 +10 用的隕星鐵
-  sfx.win(); shake(8, .8); showBanner('強敵已擊敗', '掉落：' + it.name, 3200); save();
+  dropMat(e.x, e.y, oreForLevel(d.lv), 3, by); if (d.star !== false) dropMat(e.x, e.y, 'ore4', 1, by);       // Boss 一定掉礦石；區域 Boss 和 20 級以上的地城 Boss 還有一顆強化 +10 用的隕星鐵
+  if (d.dg) flags.add('dgn:' + d.dg);                                                    // 地城 Boss：最深處的金箱解開封印、以後不再出現
+  sfx.win(); shake(8, .8); showBanner(d.dg ? '守護者倒下了' : '強敵已擊敗', '掉落：' + it.name + (d.dg ? ' · 最深處的寶箱解開了封印' : ''), 3200); save();
 }
 export function drawBarrier(e, faint?) {                                       // 結界：場地邊緣一圈會流動的虛線光（還沒開打時淡淡地顯示）
   const d = e.def, n = Math.ceil(TAU * d.R / HK), a0 = ctx.globalAlpha = faint ? .35 + .15 * Math.sin(G.time * 3) : 1;
@@ -125,7 +127,7 @@ export function drawRBTele(e) {
   const q = e.wt ? clamp(1 - e.t / e.wt, 0, 1) : 0;
   if (/Wind$/.test(e.state)) warnMark(e.x, e.y - SPR[e.kind].h - 6 - (e.z || 0));
   drawPools(e);
-  for (const m of e.pend || []) teleCircle(m.x, m.y, 22, clamp(1 - m.t / m.T, 0, 1));
+  for (const m of e.pend || []) teleCircle(m.x, m.y, m.r || 22, clamp(1 - m.t / m.T, 0, 1));
   if (e.state === 'breath' && e.glow) { const [gx, gy, ga] = e.glow; drawOrb(gx, gy, 6 + Math.sin(G.time * 40), FIREC); for (const k of [30, 60, 90]) G.RB_L.push({ x:gx + Math.cos(ga) * k, y:gy + Math.sin(ga) * k, r:46, warm:1 }); }
   for (const b of e.burns || []) { if (vis2(b.x, b.y)) flame(b.x + Math.sin(b.ph) * 2, b.y + 2, 3 + 2 * Math.min(1, b.t), b.ph); }
   for (const t of e.tele || []) { const qq = t.q !== undefined ? t.q : q;

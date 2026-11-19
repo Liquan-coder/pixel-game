@@ -14,7 +14,7 @@ import { hitSpark, quakeFx, shake } from '../game/worldUpdate';
 import type { Enemy } from '../types';
 
 const ICEC = ['#2a4a78', '#a8dcff', '#ffffff'];
-function tickPools(e: Enemy, dt) {                                     // 站在一灘裡面會一直扣血（受傷後的無敵時間決定扣血頻率）
+export function tickPools(e: Enemy, dt) {                                     // 站在一灘裡面會一直扣血（受傷後的無敵時間決定扣血頻率）
   e.pools = (e.pools || []).filter(p => (p.t -= dt) > 0);
   for (const p of e.pools) { for (const pl of G.players) if (Math.hypot(pl.x - p.x, (pl.y - p.y) * 1.4) < p.r - DG && hurtPlayer(pl, p.dmg, p.x, p.y)) hitSpark(pl.x, pl.y - 8, false, -Math.PI / 2);
     if (Math.random() < .25) G.parts.push({ x: p.x + rr(-p.r, p.r) * .8, y: p.y + rr(-p.r, p.r) * .5, vx: rr(-4, 4), vy: -rr(8, 22), life: .7, max: .7, col: pick(p.cols), s: Math.random() < .4 ? 2 : 1, drag: 1 }); }
@@ -24,19 +24,19 @@ export function drawPools(e: Enemy) {                                  // 畫：
     ctx.globalAlpha = .38 * k; ctx.fillStyle = p.cols[0]; ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r, p.r * .7, 0, 0, TAU); ctx.fill();
     ctx.globalAlpha = .7 * k; ctx.strokeStyle = p.cols[1]; ctx.lineWidth = HK * 2; ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r - HK, p.r * .7 - HK, 0, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; }
 }
-function addPool(e, x, y, r, t, dmg, cols) { e.pools = e.pools || []; e.pools.push({ x, y, r, t, T: t, dmg, cols }); }
-function summon(e, kind, n, max, lvOff = 2) {
+export function addPool(e, x, y, r, t, dmg, cols) { e.pools = e.pools || []; e.pools.push({ x, y, r, t, T: t, dmg, cols }); }
+export function summon(e, kind, n, max, lvOff = 2) {
   const D = e.def, room = Math.min(n, max - G.enemies.filter(x => x.rbAdd === D.id).length);
   for (let i = 0; i < room; i++) { const a = rr(0, TAU), x = e.x + Math.cos(a) * 40, y = e.y + Math.sin(a) * 30; if (collides(x, y, 7)) continue;
     const w = makeEnemy(kind, Math.max(1, e.lv - lvOff), x, y, null); w.state = 'chase'; w.rbAdd = D.id; G.enemies.push(w);
     G.fx.push({ k: 'warp', x, y, r0: 2, r1: 16, th: 3, t: 0, d: .4, col: D.ring[0] }); }
 }
-function landHit(e, r, dmg) {                                          // 落地的範圍傷害
+export function landHit(e, r, dmg) {                                          // 落地的範圍傷害
   for (const pl of G.players) if (Math.hypot(pl.x - e.x, pl.y - e.y) < r - DG && hurtPlayer(pl, dmg, e.x, e.y)) hitSpark(pl.x, pl.y - 8, true, Math.atan2(pl.y - e.y, pl.x - e.x));
   for (const dl of [0, .08]) G.fx.push({ k: 'warp', x: e.x, y: e.y, r0: 6, r1: r + 10, th: 6, delay: dl, t: 0, d: .4 + dl, col: e.def.aura[0] });
   quakeFx(e.x, e.y, r); sfx.boom(); shake(6, .3); G.hitStop = Math.max(G.hitStop, .07);
 }
-function jumpStates(e, dt, R, dmg, airT, then?) {                       // 跳起來砸人（女王的跳躍，參數化）
+export function jumpStates(e, dt, R, dmg, airT, then?) {                       // 跳起來砸人（女王的跳躍，參數化）
   if (e.state === 'jumpWind') { e.t -= dt; if (e.t > .2) { const o = { x: e.tgt.x, y: e.tgt.y }; keepIn(o, e.def, 20); e.tx = o.x; e.ty = o.y; }
     e.tele = [{ k: 'circle', x: e.tx, y: e.ty, r: R, q: clamp(1 - e.t / e.wt, 0, 1) * .5 }];
     if (e.t <= 0) { e.state = 'jump'; e.t = e.lt = airT; e.sx = e.x; e.sy = e.y; sfx.dodge(); } return true; }
@@ -45,7 +45,7 @@ function jumpStates(e, dt, R, dmg, airT, then?) {                       // 跳�
     if (e.t <= 0) { e.z = 0; e.tele = null; landHit(e, R, dmg); e.state = 'idle'; e.t = .9; if (then) then(); } return true; }
   return false;
 }
-function fan(e, n, spread, speed, dmg, kind, extra = {}) {             // 往目標方向射出一排子彈
+export function fan(e, n, spread, speed, dmg, kind, extra = {}) {             // 往目標方向射出一排子彈
   for (let i = 0; i < n; i++) { const a = n === 1 ? e.aim : e.aim - spread / 2 + spread * i / (n - 1);
     G.projs.push({ x: e.x + Math.cos(a) * 16, y: e.y - 12 + Math.sin(a) * 12, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, r: 5, life: 1.6, dmg, owner: 'e', kind, ...extra }); }
 }

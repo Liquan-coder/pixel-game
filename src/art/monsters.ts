@@ -464,3 +464,5 @@ function buildMonsters() { return {
 }; }
 Object.assign(SPR, buildMonsters());
 
+
+export { RAMP, gait, joint, legParts, STEP6, BOB6, withWalk, makeHD, recolor };   // art/dungeonMonsters.ts、art/dungeonBosses.ts 也用同一套工具

@@ -69,7 +69,8 @@ const pageScript = async () => {
     }
     renderMini();
   };
-  const run = (name, fn) => { try { fn(); log.push('✓ ' + name); } catch (e) { fails.push(`✗ ${name}: ${e.stack.split('\n').slice(0, 4).join(' | ')}`); } };
+  const run = (name, fn) => { if (G.me && G.me.dead) { log.push('  （' + name + ' 開始前角色是倒下的 → 先扶起來）'); G.me.dead = false; } if (G.me) { G.me.hp = G.me.maxHp; G.me.iframe = 0; }
+    try { fn(); log.push('✓ ' + name); } catch (e) { fails.push(`✗ ${name}: ${e.stack.split('\n').slice(0, 4).join(' | ')}`); } };
   const tp = (x, y) => { G.me.x = x; G.me.y = y; };
 
   run('開始新遊戲', () => { startGame(false); step(30); });
@@ -203,7 +204,7 @@ const pageScript = async () => {
     for (const fx of FX.FX_KEYS) {
       G.me.weapon = items.makeWeapon('sword', 3); G.me.weapon.fx = fx; recalc(G.me);
       const e = G.enemies.filter(e => !e.dead && !e.rb && !e.chest).sort((a, b) => Math.hypot(a.x - G.me.x, a.y - G.me.y) - Math.hypot(b.x - G.me.x, b.y - G.me.y))[0];
-      tp(e.x - 10, e.y); e.hp = e.maxHp = 1e6; const twin = G.enemies.find(o => o !== e && !o.rb && Math.hypot(o.x - e.x, o.y - e.y) < 200);
+      tp(e.x - 10, e.y); e.hp = e.maxHp = 1e6; const twin = G.enemies.find(o => o !== e && !o.rb && !o.dead && !o.gone && !o.chest && Math.hypot(o.x - e.x, o.y - e.y) < 200);
       if (fx === 'shock' && twin) { twin.x = e.x + 20; twin.y = e.y; twin.hp = twin.maxHp = 1e6; }
       let hit = false; const tw0 = twin ? twin.hp : 0;
       for (let i = 0; i < 40 && !hit; i++) { damageEnemy(G.me, e, 1, G.me.x, G.me.y); step(8, { god: true });
@@ -236,27 +237,34 @@ const pageScript = async () => {
     if (G.lastCamp !== 'dawn') throw new Error('最後休息的營火沒有更新');
   });
 
-  run('地城：進入 → 寶箱被封印 → 打倒守護者 → 拿到獨特武器 → 休息後守護者不再出現 → 離開', () => {
+  run('地城：進入 → 寶箱被封印 → 打倒 Boss → 招牌裝備 + 金箱 → 休息後 Boss 不再出現 → 離開', () => {
     const D = imp0.dg, CH = await0.chests, Q = await0.quest; setMenu(null);
+    const vit0 = G.me.vit; G.me.vit = 80; recalc(G.me); G.me.hp = G.me.maxHp;           // 30 級地城的怪會一擊打倒 1 級角色 → 測試時先把生命加高
     for (const d of D.DUNGEONS) {
       tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1);
       const door = D.nearDoor(G.me); if (!door || door.out) throw new Error(d.id + '：站在入口前沒偵測到門');
       imp0.input.enterDoor(); step(2);
       if (!D.dungeonAt(G.me.x, G.me.y)) throw new Error(d.id + '：沒有傳送進地城');
+      Q.flags.delete('dgn:' + d.id); RB.rbDead.delete('dg_' + d.id); RB.resetRegionBosses();          // 前面的「區域 Boss」測試已經打倒過 → 先讓它復活
       const chest = CH.CHESTS.find(c => c.id === 'd_' + d.id); if (!chest) throw new Error(d.id + '：找不到最深處的寶箱');
-      tp(chest.x, chest.y + 6); step(14); CH.openChest(G.me, chest); if (chest.opened) throw new Error(d.id + '：守護者還在，寶箱卻打開了');
-      const boss = G.enemies.find(e => e.sp && e.sp.once === 'dgn:' + d.id); if (!boss) throw new Error(d.id + '：找不到守護者');
-      boss.hp = 1; damageEnemy(G.me, boss, 5, G.me.x, G.me.y); step(3);
-      if (!Q.flags.has('dgn:' + d.id)) throw new Error(d.id + '：打倒守護者沒有記錄');
-      const n0 = G.drops.length; CH.openChest(G.me, chest); step(3);
-      const got = G.drops.slice(n0).find(x => x.item.uq === d.uq); if (!chest.opened || !got) throw new Error(d.id + '：沒拿到 ' + d.uq);
-      menus.restAt(CAMPS[0]); setMenu(null); step(2);
-      if (G.enemies.some(e => e.sp && e.sp.once === 'dgn:' + d.id)) throw new Error(d.id + '：休息後守護者又出現了');
-      tp(d.exX, d.exY); step(1); const out = D.nearDoor(G.me); if (!out || !out.out) throw new Error(d.id + '：站在階梯上沒偵測到出口');
+      chest.opened = false; tp(chest.x, chest.y + 6); step(14); CH.openChest(G.me, chest); if (chest.opened) throw new Error(d.id + '：Boss 還在，寶箱卻打開了');
+      const boss = RB.rbs.find(e => e.id === 'dg_' + d.id); if (!boss) throw new Error(d.id + '：找不到地城 Boss');
+      tp(boss.def.x, boss.def.y + 30); step(120, { god: true }); if (boss.state === 'sleep') throw new Error(d.id + '：Boss 沒有醒來');
+      boss.hp = boss.maxHp * .45; step(240, { god: true, atkEvery: 15 });
+      const k0 = G.drops.length; if (!boss.dead) { boss.hp = 1; damageEnemy(G.me, boss, 5, G.me.x, G.me.y); step(5, { god: true }); }
+      if (!boss.dead) throw new Error(d.id + '：Boss 沒死');
+      if (!Q.flags.has('dgn:' + d.id)) throw new Error(d.id + '：打倒 Boss 沒有記錄');
+      const sig = G.drops.slice(k0).find(x => x.item.ug === d.sig); if (!sig) throw new Error(d.id + '：Boss 沒掉招牌裝備 ' + d.sig);
+      const n0 = G.drops.length; tp(chest.x, chest.y + 6); CH.openChest(G.me, chest); step(3);
+      const got = d.uq ? G.drops.slice(n0).find(x => x.item.uq === d.uq) : { item: { name: '黃金寶箱' } }; if (!chest.opened || !got) throw new Error(d.id + '：最深處的寶箱沒打開 / 沒拿到 ' + d.uq);
+      menus.restAt(CAMPS[0]); setMenu(null); G.projs = []; step(2, { god: true });
+      if (RB.rbs.some(e => e.id === 'dg_' + d.id)) throw new Error(d.id + '：休息後 Boss 又出現了');
+      tp(d.exX, d.exY); step(1, { god: true }); const out = D.nearDoor(G.me); if (!out || !out.out) throw new Error(d.id + '：站在階梯上沒偵測到出口（dead=' + G.me.dead + ' 位置 ' + Math.round(G.me.x - d.exX) + ',' + Math.round(G.me.y - d.exY) + '）');
       imp0.input.enterDoor(); step(2); if (D.dungeonAt(G.me.x, G.me.y)) throw new Error(d.id + '：沒有離開地城');
-      log.push('  ' + d.name + '：' + got.item.name);
+      log.push('  ' + d.name + '：' + boss.def.name + ' → ' + sig.item.name + (d.uq ? ' + ' + got.item.name : ''));
+      G.drops = [];
     }
-    G.drops = [];
+    G.drops = []; G.me.vit = vit0; recalc(G.me);
   });
 
   run('掉落：小怪主要掉魂晶 / 礦石，武器很少', () => {

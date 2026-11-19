@@ -44,9 +44,9 @@ export function genChests(reach: Uint8Array) {
     [455, 342, 2, 28], [522, 300, 1, 27], [610, 260, 1, 28], [534, 462, 1, 29]]) {                                                 // 沼澤
     const p = near(x, y); if (p) add(p[0], p[1], tier, lv, false); }
   // 地城：岔路房的銀箱 + 最深處的金箱（獨特武器，要先打倒守護者）。地城裡面走路到不了起點，所以直接放
-  for (const d of DUNGEONS) { const dd = d as any; if (!dd.bossChest) continue;
-    CHESTS.push({ id: 'd_' + d.id, tx: dd.bossChest[0], ty: dd.bossChest[1], x: dd.bossChest[0] * TS + 8, y: dd.bossChest[1] * TS + 10, tier: 2, lv: d.lv + 2, mimic: false, opened: false, t: 0, uq: d.uq, need: 'dgn:' + d.id });
-    add(dd.sideChest[0], dd.sideChest[1], 1, d.lv + 1, false); }
+  for (const d of DUNGEONS) { if (!d.bossChest) continue;
+    CHESTS.push({ id: 'd_' + d.id, tx: d.bossChest[0], ty: d.bossChest[1], x: d.bossChest[0] * TS + 8, y: d.bossChest[1] * TS + 10, tier: 2, lv: d.lv + 2, mimic: false, opened: false, t: 0, uq: d.uq, need: 'dgn:' + d.id });
+    d.sideChests.forEach(([x, y], k) => add(x, y, d.style === 'ruin' && k === 0 ? 2 : 1, d.lv + 1, false)); }
   // 野外隨機寶箱：每個地區 8 個
   for (const r of [0, 1, 2, 3, 5, 6]) {
     let n = 0, tries = 0;

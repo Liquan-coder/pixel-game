@@ -109,6 +109,7 @@ export function render() {
     else if (p.kind === 'wave') { drawWaveP(p); addLight(L, p.x, p.y, 40, 3); }
     else if (p.kind === 'claw') { drawWaveP(p); addLight(L, p.x, p.y, 34, 1); }
     else if (p.kind === 'ember') { drawOrb(p.x, p.y, 4.5, FIREC); addLight(L, p.x, p.y, 30, 1); }
+    else if (p.kind === 'shot') { drawOrb(p.x, p.y, 4, p.cols); addLight(L, p.x, p.y, 24, 2); }
     else if (p.kind === 'glob') { drawOrb(p.x, p.y, 4.5, ['#1d5a32', '#4fbf5a', '#c8ffc0']); addLight(L, p.x, p.y, 22, 2); }
     else { ctx.fillStyle = '#e8743b'; ctx.fillRect(Math.round(p.x - 3), Math.round(p.y - 3), 6, 6); ctx.fillStyle = '#ffe38a'; ctx.fillRect(Math.round(p.x - 1), Math.round(p.y - 1), 3, 3); addLight(L, p.x, p.y, 44, 1); }
   }

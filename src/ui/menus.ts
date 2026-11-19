@@ -2,7 +2,7 @@ import { G } from '../core/state';
 import { $ } from '../core/util';
 import { AFFIX, AT, ICON_URL, RAR, SLOTN, TT, UP_MAX, WT, gearValue, itemName, slotOf } from '../data/items';
 import { MATS, MAT_KEYS } from '../data/forge';
-import { UQ } from '../data/uniques';
+import { UG, UQ } from '../data/uniques';
 import { WFXD, fxOf } from '../game/weaponFx';
 import { CAMPS, MW, REGIONS, reg } from '../world/map';
 import { mini } from '../world/minimap';
@@ -89,6 +89,7 @@ export function itemCard(it, cmp?) {
       '<div class="sk">技能 <b>' + W.sn + '</b>：' + W.sd + '</div>' + (U ? '<div class="sk lore">' + U.lore + '<br><small>來源：' + U.from + '</small></div>' : ''); }
   else if (sl === 'armor') { head = AT[it.type].d; main = '防禦 ' + it.def + (c ? dv(it.def, c.def || 0) : '') + (it.hp ? ' · 生命 +' + it.hp : ''); }
   else { head = TT[it.type].d; main = TT[it.type].name; }
+  const UGd = it.ug && UG[it.ug]; if (UGd) tail += '<div class="sk lore">' + UGd.lore + '<br><small>來源：' + UGd.from + '</small></div>';   // 獨特防具 / 飾品的背景故事
   return '<div class="card" style="border-color:' + R.c + '"><div class="iname" style="color:' + R.c + '"><img alt="" src="' + ICON_URL[it.type] + '">' + itemName(it) + '</div>' +
     '<div class="rar" style="color:' + R.c + '">' + R.n + ' · ' + SLOTN[sl] + ' · ' + (sl === 'weapon' ? '' : '物品等級 ' + it.ilvl + ' · ') + head + '</div>' +
     '<div class="atk">' + main + '</div>' + aff + reqLine(it) + tail + '</div>';

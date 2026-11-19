@@ -23,7 +23,8 @@ const STAIRS_SP = sculpt(30, 22, [{ sh: SH.box(15, 14, 13, 7, 1), ramp: ['#2a263
 export function drawDoors(vis, list, L, addLight) {
   for (const d of DUNGEONS) {
     const ex = d.ent[0] * TS + 8, ey = (d.ent[1] + 1) * TS - 1;
-    if (vis(ex, ey, 60)) { const sp = d.style === 'crypt' ? CRYPT_SP : CAVE_SP; list.push({ y: ey - 2, f: () => drawArtSprite(sp, ex, ey) });
+    if (d.stairs) { const sx = ex, sy = d.ent[1] * TS + 8; if (vis(sx, sy, 60)) addLight(L, sx, sy, 24 + Math.sin(G.time * 3) * 2, 3); }   // 地底遺跡的石階：地圖上的格子已經畫好了，只加一點光
+    else if (vis(ex, ey, 60)) { const sp = d.style === 'crypt' ? CRYPT_SP : CAVE_SP; list.push({ y: ey - 2, f: () => drawArtSprite(sp, ex, ey) });
       addLight(L, ex, ey - 8, (d.style === 'crypt' ? 26 : 18) + Math.sin(G.time * 3) * 2, 3); }   // 入口淡淡的紫光：遠遠就看得到
     if (d.exX !== undefined && vis(d.exX, d.exY, 60)) { list.push({ y: d.exY - 20, f: () => {                // 上樓階梯：地上的石階 + 從上面灑下來的光
       drawArtSprite(STAIRS_SP, d.exX, d.exY + 5); const k = (Math.sin(G.time * 2) + 1) / 2; ctx.globalAlpha = .18 + .1 * k; ctx.fillStyle = '#fff6d0';
