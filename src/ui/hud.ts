@@ -16,7 +16,12 @@ import { view } from '../render/render';
 const hudCache: Record<string, unknown> = {};
 function setText(id, v) { if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } }
 function setScale(id, v) { v = Math.round(clamp(v, 0, 1) * 200) / 200; if (hudCache[id] !== v) { hudCache[id] = v; $(id).style.transform = 'scaleX(' + v + ')'; } }
+/* 條的長度：上限 100 生命 = 96px，每多 1 點生命 +0.25px；體力 80 = 84px，每多 1 點 +0.5px（最長由 CSS 限制） */
+export const hpBarW = (maxHp: number) => Math.round(96 + Math.max(0, maxHp - 100) * .25);
+export const stBarW = (maxSt: number) => Math.round(84 + Math.max(0, maxSt - 80) * .5);
+function setW(id, px) { const k = id + 'W'; if (hudCache[k] !== px) { hudCache[k] = px; $(id).parentElement.style.setProperty('--w', px + 'px'); } }
 export function updateHUD() {
+  setW('hpBar', hpBarW(G.me.maxHp)); setW('stBar', stBarW(G.me.maxSt));
   setText('lvTxt', String(level(G.me))); setScale('hpBar', G.me.hp / G.me.maxHp); setScale('stBar', G.me.st / G.me.maxSt);
   setText('soulTxt', String(G.me.souls)); setText('potTxt', String(G.me.pot)); setText('potTxt2', G.me.pot + '/' + G.potMax);
   const cd = G.me.skillCd > 0 ? G.me.skillCd / (WT[G.me.weapon.type].scd * (1 - G.me.cdr)) : 0;
