@@ -148,6 +148,12 @@ export function drawWaveP(p) {                                                //
 }
 /* 怪物動態：用「壓扁 / 拉長 / 傾斜 / 跳起」讓同一張圖動起來，每種怪個性不同 */
 function dustPuff(x, y, n, sp) { for (let i = 0; i < n; i++) { const sg = i % 2 ? 1 : -1; G.parts.push({ x:x + sg * rr(1, 4), y:y + rr(-1, 1), vx:sg * rr(sp * .4, sp), vy:-rr(4, 16), life:rr(.22, .4), max:.4, col:pick(['#b8a888', '#8a7a64', '#d8ccb0']), s:1, g:40, drag:3 }); } }
+/* 走路第幾格：用累加的步伐（速度變了只改快慢，不會跳格）；停下來後再多走完 0.2 秒，不會一停一走地閃。不在走路 → -1 */
+function walkFrame(e, dt, moving, rel, n, rate) {
+  if (moving) e._mvT = .2; else if ((e._mvT || 0) > 0) e._mvT -= dt; else return -1;
+  e._lp = ((e._lp || 0) + dt * rate * clamp(rel, .5, 1.1)) % 1;
+  return Math.floor(e._lp * n) % n;
+}
 export function enemyJuice(e, sp) {
   const dt = Math.max(1e-3, camDt);
   if (e._lx !== undefined) { const v = Math.hypot(e.x - e._lx, e.y - e._ly) / dt; e._v = (e._v || 0) + (Math.min(400, v) - (e._v || 0)) * Math.min(1, dt * 12); }
@@ -169,12 +175,14 @@ export function enemyJuice(e, sp) {
       else { sy = 1 + .05 * Math.sin(A * 3); sx = 1 / sy; }            // 待機：呼吸
       break; }
     /* 史萊姆以外的怪都是「硬」的：不拉長、不壓扁，只有姿勢（前傾/後仰/抬高），而且姿勢是「一格一格切換」不是平滑晃動 → 動作俐落有力 */
-    case 'lunge': {                                                     // 狼、骷髏：壓低蓄勢 → 猛撲 → 停頓 → 站直
-      if (st === 'windup') { lean = -.28 * fl * Math.min(1, wk * 4); pose = 'raise'; }     // 很快就後仰到底、舉起武器，然後停住發抖
-      else if (st === 'lunge') { lean = .38 * fl; pose = 'strike'; if (Math.random() < .6) dustPuff(e.x - fl * 4, e.y, 1, 20); }
-      else if (st === 'recover') { lean = e.t > .35 ? .16 * fl : 0; }     // 撲完前傾停一下，再一下子站直
-      else if (moving) { const stp = Math.floor(A * 9);                    // 跑步：每一格換一張走路圖，腳踩在正下方那兩格身體高一點
-        wf = stp % 4; lean = .12 * fl; lift = stp % 2; }
+    case 'lunge': {                                                     // 狼、寶箱怪：壓低蓄力 → 跳起來撲過去（有弧線）→ 落地吸收 → 站直
+      if (e._st !== st && st === 'recover') e._rs = G.time;
+      if (st === 'windup') pose = 'crouch';
+      else if (st === 'lunge') { const q = clamp(1 - e.t / .3, 0, 1); pose = 'strike'; lift = Math.sin(q * Math.PI) * 5; lean = .05 * fl;
+        if (e._st !== 'lunge') dustPuff(e.x - fl * 4, e.y, 4, 26); }       // 起跳揚塵
+      else if (st === 'recover') { const k = G.time - (e._rs || 0); if (k < .22) pose = 'land'; if (k < .05 && e._land !== e._rs) { e._land = e._rs; dustPuff(e.x + fl * 3, e.y, 3, 20); } }
+      else { const n = sp.walk?.length || 4; wf = walkFrame(e, dt, moving, rel, n, n === 6 ? 1.6 : 2.2); if (wf >= 0) lean = .04 * fl; }
+      e._st = st;
       break; }
     case 'blade': {                                                     // 骷髏：一般走路；蹲低蓄力 → 舉劍 → 揮過去 → 劈到底 → 收招
       if (e._st !== st && st === 'recover') e._rs = G.time;
@@ -182,27 +190,26 @@ export function enemyJuice(e, sp) {
       else if (st === 'slash') { pose = e.t > .09 ? 'swing' : 'strike'; lean = .14 * fl; }
       else if (st === 'recover') { const k = G.time - (e._rs || 0);       // 劈到底停一下 → 劍垂下來慢慢收 → 站直
         if (k < .16) { pose = 'strike'; lean = .1 * fl; } else if (k < .5) { pose = 'recoil'; lean = .05 * fl; } }
-      else if (moving || (e._mvT || 0) > 0) {                             // 停下來後再多走完 0.2 秒，不會一停一走地閃
-        if (moving) e._mvT = .2; else e._mvT -= dt;
-        e._lp = ((e._lp || 0) + dt * 1.25 * clamp(rel, .5, 1)) % 1;     // 步伐用累加的：速度變了只改快慢，不會突然跳好幾格
-        wf = Math.floor(e._lp * 6); }                                    // 6 格平均分配時間，身體不歪
+      else wf = walkFrame(e, dt, moving, rel, 6, 1.25);                  // 6 格平均分配時間，身體不歪
       e._st = st;
       break; }
-    case 'heavy': {                                                     // 石像魔、樹精：抬腳 → 重重踩下（地面震動）
-      if (st === 'windup') { const k = Math.min(1, wk * 3); lift = Math.round(3 * k); lean = -.16 * fl * k; pose = 'raise'; }   // 雙手舉高
-      else if (st === 'recover') { lean = e.t > .3 ? .14 * fl : 0; if (e.t > .6) pose = 'strike'; }   // 砸下去後停在地上一下
-      else if (moving) { const c = A * 1.7, stp = Math.floor(c), f = c - stp;
-        wf = Math.floor(c * 2) % 4;                                       // 走路圖：一步兩張（抬腳 → 踩下），踩下那一刻剛好換步、揚塵
-        lift = f < .55 ? 0 : 1;
-        rot = (stp % 2 ? .05 : -.05) * Math.min(1, rel);                  // 左右腳換邊時身體一下子換方向
-        if (e._step !== undefined && stp !== e._step) { dustPuff(e.x + (stp % 2 ? 4 : -4), e.y, 5, 28);
-          if (G.me && Math.hypot(e.x - G.me.x, e.y - G.me.y) < 90) { G.shakeMag = Math.max(G.shakeMag, .8); G.shakeT = Math.max(G.shakeT, .06); } }
-        e._step = stp; }
+    case 'heavy': {                                                     // 石像魔、樹精：蹲低蓄力 → 雙手舉高 → 揮到一半 → 砸地 → 慢慢抬起來；走路抬腳 → 重重踩下（地面震動）
+      if (e._st !== st && st === 'recover') e._rs = G.time;
+      if (st === 'windup') { pose = wk < .25 ? 'ready' : wk < .88 ? 'raise' : 'mid'; if (pose === 'raise') lift = Math.round(2 * Math.min(1, (wk - .25) * 5)); }
+      else if (st === 'recover') { const k = G.time - (e._rs || 0); if (k < .3) pose = 'strike'; else if (k < .62) pose = 'recoil'; }   // 砸下去後停在地上一下
+      else { wf = walkFrame(e, dt, moving, rel, 4, .85);                 // 走路圖：一步兩張（抬腳 → 踩下），踩下那一刻揚塵、地面震
+        if (wf >= 0) { lift = wf % 2; rot = (wf < 2 ? .02 : -.02) * Math.min(1, rel);
+          if (e._wf !== undefined && wf !== e._wf && wf % 2 === 0) { dustPuff(e.x + (wf ? 4 : -4), e.y, 5, 28);
+            if (G.me && Math.hypot(e.x - G.me.x, e.y - G.me.y) < 90) { G.shakeMag = Math.max(G.shakeMag, .8); G.shakeT = Math.max(G.shakeT, .06); } }
+          e._wf = wf; } }
+      e._st = st;
       break; }
-    case 'ranged': {                                                    // 毒菇：噴之前後仰發抖，噴完被後座力推一下
-      if (st === 'windup') { lean = -.14 * fl * Math.min(1, wk * 3); }
-      else if (st === 'recover') { lean = e.t > .2 ? -.18 * fl : 0; }
-      else { rot = Math.floor(A * 2) % 2 ? .05 : -.05; if (moving) { lift = Math.floor(A * 8) % 2; wf = Math.floor(A * 8) % 4; } }
+    case 'ranged': {                                                    // 毒菇：壓扁蓄力 → 菇傘鼓起來 → 噴孢子（被後座力推一下）；走路小跳步
+      if (e._st !== st && st === 'recover') e._rs = G.time;
+      if (st === 'windup') pose = wk < .3 ? 'squat' : 'puff';
+      else if (st === 'recover') { if (G.time - (e._rs || 0) < .2) { pose = 'spit'; lean = -.06 * fl; } }
+      else { wf = walkFrame(e, dt, moving, rel, 4, 1.6); if (wf >= 0) lift = [0, 2, 0, 2][wf]; }
+      e._st = st;
       break; }
     default:                                                            // boss：跑動時前傾 + 換腳，招式動作交給 boss 自己
       if (rel > .3 && !e.z) { lean = .1 * Math.min(1, rel) * fl; if (st === 'chase') wf = Math.floor(A * 9) % 4; }

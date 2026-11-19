@@ -85,6 +85,68 @@ function gait(ph, d, L) {
   const G = [[d, 0], [0, 0], [-d, 0], [0, -L]];
   return [G[ph], G[(ph + 2) % 4]];
 }
+/* ---- 新版小怪動作（跟骷髏同一套概念）：關節、6 格平均步伐、身體少晃、攻擊分好幾格 ---- */
+/* 兩段的腳：給起點、終點、兩段長度，算出關節位置。bend = 1 → 關節往「起點→終點」的左邊彎（腳朝下時 = 往後），-1 → 往前 */
+function joint(sx, sy, ex, ey, a, b, bend) {
+  const dx = ex - sx, dy = ey - sy, d = Math.hypot(dx, dy) || 1, dd = Math.min(d, a + b - .01);
+  const along = (a * a - b * b + dd * dd) / (2 * dd), h = Math.sqrt(Math.max(0, a * a - along * along)), ux = dx / d, uy = dy / d;
+  return [sx + ux * along - uy * h * bend, sy + uy * along + ux * h * bend];
+}
+/* 一隻有關節的腳 = 兩個 cap（大腿 + 小腿），回傳兩個 part */
+function legParts(s0, e, a, b, bend, r0, rm, r1, base) {
+  const j = joint(s0[0], s0[1], e[0], e[1], a, b, bend);
+  return [{ ...base, sh: SH.cap(s0[0], s0[1], j[0], j[1], r0, rm) }, { ...base, sh: SH.cap(j[0], j[1], e[0], e[1], rm, r1) }];
+}
+/* 6 格步伐：每隻腳 = 踩地往後滑 4 格 + 抬起往前 2 格；另一組腳差半圈（+3）。[往前, 往上] */
+const STEP6 = (d, L) => [[d, 0], [d / 3, 0], [-d / 3, 0], [-d, 0], [-d / 3, -L], [d * .6, -L * .8]];
+const BOB6 = [0, -1, 0, 0, -1, 0];                                     // 兩組腳交錯經過時身體撐高 1 格
+
+/* 小狼（新版）：小跑步（對角的兩隻腳一起動）、腳有關節、尾巴跟著擺、撲咬時張嘴
+   ph：0~5 走路、-1 站、'crouch' 壓低蓄力、'strike' 撲出去（張嘴、四肢拉直）、'land' 落地（前腳彎下去吸收） */
+const WOLF_POSES = ['crouch', 'strike', 'land'];
+function hdWolf2(R, opt: Record<string, any> = {}, ph: number | string = -1) {
+  const pose = typeof ph === 'string' ? ph : '', w = !pose && +ph >= 0 ? +ph : -1, ST = STEP6(3, 2.2);
+  let FA = [0, 0], FB = [0, 0], BA = [0, 0], BB = [0, 0], bd = [0, 0], hd = [0, 0], tl = [0, 0], jaw = false;
+  if (w >= 0) { FA = BA = ST[w]; FB = BB = ST[(w + 3) % 6]; bd = [0, BOB6[w]]; hd = [0, BOB6[w] + [0, 0, 1, 0, 0, 1][w]]; tl = [0, [0, -1, -1, 0, 1, 1][w]]; }
+  if (pose === 'crouch') { FA = [1.5, 0]; FB = [1, 0]; BA = [-1, 0]; BB = [-1.5, 0]; bd = [-1, 2]; hd = [0, 4]; tl = [0, 3]; }          // 壓低：身體往後坐、頭壓低、尾巴垂下
+  if (pose === 'strike') { FA = [9, -5]; FB = [7.5, -3.5]; BA = [-8, -1]; BB = [-6.5, 0]; bd = [1, -1]; hd = [2, -1]; tl = [-2, 4]; jaw = true; }   // 撲出去：前腳往前伸、後腳蹬直、張嘴
+  if (pose === 'land') { FA = [3, 0]; FB = [2.5, 0]; BA = [-5, -1]; BB = [-4, 0]; bd = [1, 1]; hd = [1, 3]; tl = [-1, 1]; }            // 落地：前腳彎、胸口往下沉
+  const B = (x: number, y: number): [number, number] => [x + bd[0], y + bd[1]], Hd = (x: number, y: number): [number, number] => [x + hd[0], y + hd[1]];
+  const belly = opt.belly || R.slice(2), tx = opt.tex ?? .22;
+  const P = (sh, extra = {}) => ({ sh, ramp: R, ...extra });
+  const tb = B(12, 14), tt = [3 + bd[0] + tl[0], 7.5 + bd[1] + tl[1]];
+  const parts: any[] = [
+    P(SH.cap(tb[0], tb[1], tt[0], tt[1], 3.8, 2.8), { tex: tx, grp: 1 }),
+    { sh: SH.ell(tt[0], tt[1], 2.8, 2.6), ramp: belly, grp: 1 },
+    P(SH.ell(...B(15, 19), 4.6, 5.2), { bias: -.35, grp: 2 }),
+    ...legParts(B(14, 22), [16 + BB[0], 29.5 + BB[1]], 4.4, 4.4, 1, 2, 1.8, 1.6, { ramp: R, bias: -.35, grp: 2 }),      // 遠側後腳：腳踝往後彎
+    ...legParts(B(33, 19), [32 + FA[0], 29.5 + FA[1]], 5.6, 5.6, -1, 2.2, 1.9, 1.7, { ramp: R, bias: -.35, grp: 3 }),  // 遠側前腳：腕關節往前彎
+    P(SH.ell(...B(24, 16.5), 13.5, 7), { tex: tx, grp: 4 }),
+    { sh: SH.ell(...B(24.5, 20.5), 10, 2.4), ramp: belly, grp: 4, rim: false },
+    P(SH.ell(...B(35.5, 16), 6.6, 7.6), { tex: tx, grp: 4 }),
+    P(SH.ell(...B(18, 19.5), 5, 5.6), { tex: tx, grp: 6 }),
+    ...legParts(B(17, 23), [19.5 + BA[0], 30 + BA[1]], 4.4, 4.4, 1, 2.3, 2, 1.8, { ramp: R, grp: 6 }),
+    ...legParts(B(37, 20), [36.5 + FB[0], 30 + FB[1]], 5.6, 5.6, -1, 2.5, 2.2, 2, { ramp: R, grp: 7 }),
+    P(SH.poly([Hd(36.5, 8), Hd(38.5, 0), Hd(41.5, 6)]), { grp: 8 }),
+    P(SH.ell(...Hd(41.5, 10), 6.6, 5.6), { tex: tx * .7, grp: 8 }),
+  ];
+  if (jaw) parts.push({ sh: SH.ell(...Hd(46.5, 14), 3.6, 2.2), ramp: ['#3a0a10', '#5a1420', '#7a2030'], grp: 8, rim: false, noline: true },   // 張開的嘴巴裡面
+    P(SH.cap(...Hd(44, 10.6), ...Hd(50.5, 11.2), 3, 1.9), { grp: 8 }),                                  // 上顎
+    P(SH.cap(...Hd(43.5, 14.5), ...Hd(48.5, 17.8), 1.9, 1.2), { grp: 8 }));                           // 下顎往下張
+  else parts.push(P(SH.cap(...Hd(44, 11.5), ...Hd(50, 13), 3.3, 2.1), { grp: 8 }));
+  parts.push(P(SH.poly([Hd(41.5, 6), Hd(44.5, .5), Hd(45.5, 7)]), { grp: 8 }));
+  return sculpt(52, 31, parts, a => {
+    const eye = opt.eye || '#ffd04a', h = Hd;
+    a.rect(...h(43.5, 8.5), 2, 1, eye); a.set(...h(45, 8.5), '#1a1210');
+    a.line(...h(42, 7.3), ...h(45.5, 7.7), R[0]);
+    a.ell(...h(jaw ? 50.8 : 50.3, jaw ? 10.8 : 12.2), 1, 1, '#141018');
+    if (jaw) { for (const t of [46.5, 49]) a.set(...h(t, 12.8), '#f4eee0'); for (const t of [45.5, 47.5]) a.set(...h(t, 15.6 + (t - 45) * .5), '#f4eee0'); }   // 上下兩排尖牙
+    else { a.line(...h(45, 15), ...h(50, 14.5), R[0]); for (const t of [46, 48.5]) a.set(...h(t, 15.8), '#f4eee0'); }
+    if (pose === 'crouch') a.line(...h(41, 6.8), ...h(45.5, 8.2), R[0]);   // 壓低時皺眉
+    for (const [lx, ly, dx, dy, c] of [[16, 29.3, ...BB, 2], [19.5, 29.8, ...BA, 3], [32, 29.3, ...FA, 2], [36.5, 29.8, ...FB, 3]]) a.rect(lx + dx - 1.2, ly + dy, 3, 1, R[c]);   // 腳掌
+    for (let i = 0; i < 6; i++) { const x = 14 + i * 3.4 + bd[0], y = 10.5 + Math.abs(i - 2.5) * .4 + bd[1]; a.line(x, y, x + 1.4, y + 1.6, R[1]); }   // 背上的毛
+  }, { l: 2, r: 2, t: 2 });
+}
 function hdSlime(R, eye, spot) { return sculpt(36, 30, [
   { sh: SH.ell(18, 19, 16.5, 11.6, (x, y) => y < 29.5), ramp: R, rim: false, bias: .12 }], a => {
   a.ell(10.5, 12.5, 3.5, 1.6, R[4]); a.set(7, 15, R[4]); a.set(8, 16, R[3]);
@@ -141,49 +203,73 @@ function hdSkel(R, eyeC, ph: number | string = -1) {
 function hdGolem(R, opt, ph: number | string = -1) {
   const pose = typeof ph === 'string' ? ph : '', [[ax, ay], [bx, by]] = gait(pose ? -1 : +ph, 1.6, 3);
   let LA = [9 - ax * .3, 22 + ax * .8], LF = [8.5 - ax * .6, 32 + ax * 1.8], RA = [40 + bx * .3, 22 + bx * .8], RF = [41 + bx * .6, 32.5 + bx * 1.8];
-  if (pose === 'raise') { LA = [11, 11]; LF = [16, -1]; RA = [38, 11]; RF = [33, -1]; }
-  if (pose === 'strike') { LA = [13, 29]; LF = [17, 39.5]; RA = [35, 29]; RF = [31, 39.5]; }
+  let dy = 0;                                                             // 身體（軀幹 + 頭）往下沉多少
+  if (pose === 'ready') { LA = [10, 25]; LF = [12, 34]; RA = [38, 25]; RF = [36, 34]; dy = 2; }      // 蓄力：蹲低、拳頭收在腰邊
+  if (pose === 'raise') { LA = [11, 11]; LF = [16, -1]; RA = [38, 11]; RF = [33, -1]; dy = -1; }
+  if (pose === 'mid') { LA = [12, 19]; LF = [18, 16]; RA = [36, 19]; RF = [30, 16]; }                // 揮到一半：拳頭在胸前往下砸
+  if (pose === 'strike') { LA = [13, 29]; LF = [17, 39.5]; RA = [35, 29]; RF = [31, 39.5]; dy = 2; }
+  if (pose === 'recoil') { LA = [11, 25]; LF = [14, 33]; RA = [37, 25]; RF = [34, 33]; dy = 1; }    // 收招：拳頭從地上抬起來
   const L = [{ sh: SH.ell(LA[0], LA[1], 6.5, 9), ramp: R, bias: -.25, tex: .4, grp: 1 }, { sh: SH.ell(LF[0], LF[1], 5.2, 4.2), ramp: R, bias: -.25, tex: .4, grp: 1 }];
   const Rr = [{ sh: SH.ell(RA[0], RA[1], 6.8, 9.2), ramp: R, tex: .4, grp: 6 }, { sh: SH.ell(RF[0], RF[1], 5.8, 4.6), ramp: R, tex: .4, grp: 6 }];
   const body = [
     { sh: SH.box(17 - bx * .5, 37 + by, 5.2, 5.8, 3), ramp: R, tex: .4, grp: 2 },
     { sh: SH.box(31 + ax * .5, 37 + ay, 5.2, 5.8, 3), ramp: R, tex: .4, grp: 3 },
-    { sh: SH.box(24, 22, 14.5, 12, 2.6), ramp: R, tex: .45, grp: 4 },
-    { sh: SH.box(25, 8.5, 7.2, 5.6, 3), ramp: R, tex: .4, grp: 5 }];
-  const parts = pose === 'strike' ? [...body, ...L, ...Rr] : [...L, ...body, ...Rr];   // 砸地時兩隻手在身體前面
+    { sh: SH.box(24, 22 + dy, 14.5, 12, 2.6), ramp: R, tex: .45, grp: 4 },
+    { sh: SH.box(25, 8.5 + dy, 7.2, 5.6, 3), ramp: R, tex: .4, grp: 5 }];
+  const front = pose === 'strike' || pose === 'mid';
+  const parts = front ? [...body, ...L, ...Rr] : [...L, ...body, ...Rr];   // 往下砸時兩隻手在身體前面
   const rdx = RA[0] - 40, rdy = RA[1] - 22;                                         // 右手臂上的裂痕跟著手臂移動
   return sculpt(48, 43, parts, a => {
-  for (const [x0, y0, x1, y1] of [[14, 15, 18, 22], [18, 22, 16, 27], [30, 26, 34, 30], [42 + rdx, 18 + rdy, 39 + rdx, 23 + rdy], [21, 6, 22, 10]]) a.line(x0, y0, x1, y1, opt.crack);
-  if (opt.glowCrack) for (const [x0, y0, x1, y1] of [[14, 15, 18, 22], [30, 26, 34, 30], [42 + rdx, 18 + rdy, 39 + rdx, 23 + rdy]]) a.line(x0 + 1, y0, x1 + 1, y1, opt.glowCrack);
-  for (const ex of [23, 28]) { a.rect(ex, 8, 3, 2, opt.eye); a.set(ex + 1, 8, '#ffffff'); }
-  a.line(24, 18, 27, 21, opt.eye); a.line(27, 21, 24, 24, opt.eye); a.line(24, 24, 21, 21, opt.eye); a.line(21, 21, 24, 18, opt.eye); a.set(24, 21, '#ffffff');
+  const cr = [[14, 15 + dy, 18, 22 + dy], [18, 22 + dy, 16, 27 + dy], [30, 26 + dy, 34, 30 + dy], [42 + rdx, 18 + rdy, 39 + rdx, 23 + rdy], [21, 6 + dy, 22, 10 + dy]];
+  for (const [x0, y0, x1, y1] of cr) a.line(x0, y0, x1, y1, opt.crack);
+  if (opt.glowCrack) for (const [x0, y0, x1, y1] of [cr[0], cr[2], cr[3]]) a.line(x0 + 1, y0, x1 + 1, y1, opt.glowCrack);
+  for (const ex of [23, 28]) { a.rect(ex, 8 + dy, 3, 2, opt.eye); a.set(ex + 1, 8 + dy, '#ffffff'); }
+  const gy = 21 + dy; a.line(24, gy - 3, 27, gy, opt.eye); a.line(27, gy, 24, gy + 3, opt.eye); a.line(24, gy + 3, 21, gy, opt.eye); a.line(21, gy, 24, gy - 3, opt.eye); a.set(24, gy, '#ffffff');
   if (opt.moss) for (let y = -12; y < 43; y++) for (let x = 0; x < 48; x++) { const p = a.pid(x, y); if (p < 0 || a.pid(x, y - 1) === p) continue;
     if (a.hash(x, y) < .8) { a.set(x, y, opt.moss[2]); a.set(x, y + 1, opt.moss[1]); if (a.hash(y, x) < .4) a.set(x, y + 2, opt.moss[0]); } }
-}, pose === 'raise' ? { t: 7 } : {}); }
-function hdShroom(ph = -1, CAP = RAMP.cap) { const [[ax, ay], [bx, by]] = gait(ph, 1.5, 1.6); return sculpt(36, 34, [
+}, pose === 'raise' ? { t: 8 } : {}); }
+const HEAVY_POSES = ['ready', 'raise', 'mid', 'strike', 'recoil'];
+/* 毒菇：ph 0~3 小跳步（落地時菇傘往下壓、跳起來時拉高）、-1 站
+   'squat' 壓扁蓄力、'puff' 菇傘鼓起來、'spit' 菇傘往下一壓、嘴巴張開噴出孢子 */
+const SHROOM_POSES = ['squat', 'puff', 'spit'];
+function hdShroom(ph: number | string = -1, CAP = RAMP.cap) {
+  const pose = typeof ph === 'string' ? ph : '', w = !pose && +ph >= 0 ? +ph : -1, [[ax, ay], [bx, by]] = gait(w, 1.5, 1.6);
+  let cd = w >= 0 ? [1, -1, 1, -1][w] : 0, cs = 0;                      // cd = 菇傘往下壓多少，cs = 菇傘變大多少
+  if (pose === 'squat') cd = 3;
+  if (pose === 'puff') { cd = -2; cs = 2; }
+  if (pose === 'spit') { cd = 2; cs = -1; }
+  return sculpt(36, 34, [
   { sh: SH.ell(13 + bx, 32 + by, 4, 2), ramp: RAMP.stem, grp: 1 }, { sh: SH.ell(23 + ax, 32 + ay, 4, 2), ramp: RAMP.stem, grp: 1 },
-  { sh: SH.box(18, 25, 7, 7.5, 2.5), ramp: RAMP.stem, grp: 2 },
-  { sh: SH.ell(18, 15.5, 15, 3.4), ramp: RAMP.gill, grp: 3, rim: false },
-  { sh: SH.ell(18, 13.5, 17, 11.8, (x, y) => y < 15.8), ramp: CAP, grp: 4 },
+  { sh: SH.box(18, 25 + cd * .5, 7, 7.5 - cd * .5, 2.5), ramp: RAMP.stem, grp: 2 },
+  { sh: SH.ell(18, 15.5 + cd, 15 + cs, 3.4), ramp: RAMP.gill, grp: 3, rim: false },
+  { sh: SH.ell(18, 13.5 + cd - cs * .5, 17 + cs, 11.8 + cs, (x, y) => y < 15.8 + cd), ramp: CAP, grp: 4 },
 ], a => {
-  for (const [x, y, rx, ry] of [[8, 9, 3, 2], [17, 5, 3.2, 2], [26.5, 9, 3.4, 2.2], [12, 13, 2, 1.3], [30, 13.5, 1.8, 1]]) { a.ell(x, y, rx, ry, '#fff4f6'); a.ell(x + .6, y + ry * .6, rx * .7, .8, '#e6c2cc'); }
-  for (const ex of [20, 25]) { a.rect(ex, 22, 1, 3, '#1a1012'); }
-  a.line(19, 21, 21, 21.5, '#5a3a2a'); a.line(24, 21.5, 26, 21, '#5a3a2a');
-  a.line(21, 27, 24, 27, '#5a2a2a'); a.set(20, 26, '#5a2a2a');
-}); }
+  const k = (17 + cs) / 17;
+  for (const [x, y, rx, ry] of [[8, 9, 3, 2], [17, 5, 3.2, 2], [26.5, 9, 3.4, 2.2], [12, 13, 2, 1.3], [30, 13.5, 1.8, 1]]) {
+    const X = 18 + (x - 18) * k, Y = 13.5 + cd - cs * .5 + (y - 13.5) * k; a.ell(X, Y, rx, ry, '#fff4f6'); a.ell(X + .6, Y + ry * .6, rx * .7, .8, '#e6c2cc'); }
+  const fy = cd * .5;
+  for (const ex of [20, 25]) { a.rect(ex, 22 + fy, 1, pose === 'squat' ? 1 : 3, '#1a1012'); }        // 壓扁時瞇眼
+  a.line(19, 21 + fy, 21, 21.5 + fy, '#5a3a2a'); a.line(24, 21.5 + fy, 26, 21 + fy, '#5a3a2a');
+  if (pose === 'spit' || pose === 'puff') a.ell(22.5, 27 + fy * .5, pose === 'spit' ? 1.8 : 1, pose === 'spit' ? 1.6 : 1, '#3a1018');   // 嘴巴：鼓氣 → 張開
+  else { a.line(21, 27, 24, 27, '#5a2a2a'); a.set(20, 26, '#5a2a2a'); }
+  if (pose === 'spit') for (const [x, y, r] of [[30, 26, 1.6], [33, 23.5, 1.2], [33.5, 28, 1], [27.5, 23, .8]]) a.ell(x, y, r, r, CAP[3]);   // 噴出來的孢子
+}, pose === 'puff' ? { t: 4, l: 2, r: 2 } : {}); }
 /* ph：0~3 走路、-1 站、'raise' = 樹枝手高舉、'strike' = 樹枝手往下砸 */
 function hdTreant(ph: number | string = -1, LEAF = RAMP.leaf, BARK = RAMP.bark, EYE = '#f4e04d') {
   const pose = typeof ph === 'string' ? ph : '', [[ax, ay], [bx, by]] = gait(pose ? -1 : +ph, 2, 2.6);
   let LH = [4 + ax * .5, 33 + ax * 1.8], LL = [3.5 + ax * .5, 33.5 + ax * 1.8], RH = [40 - bx * .5, 33 + bx * 1.8], RL = [41.5 - bx * .5, 34 + bx * 1.8];
+  if (pose === 'ready') { LH = [6, 38]; LL = [5, 39.5]; RH = [39, 38]; RL = [40, 39.5]; }            // 蓄力：樹枝手往後下方甩
   if (pose === 'raise') { LH = [1, 13]; LL = [0, 11]; RH = [44, 13]; RL = [45, 11]; }
+  if (pose === 'mid') { LH = [12, 15]; LL = [12, 13]; RH = [33, 15]; RL = [33, 13]; }              // 揮到一半：在身體前面往下甩
   if (pose === 'strike') { LH = [10, 43]; LL = [9.5, 44.5]; RH = [35, 43]; RL = [35.5, 44.5]; }
+  if (pose === 'recoil') { LH = [7, 40]; LL = [6, 41.5]; RH = [38, 40]; RL = [39, 41.5]; }           // 收招：樹枝從地上抬起來
   const arms = [
     { sh: SH.cap(14, 25, LH[0], LH[1], 2.6, 1.8), ramp: BARK, bias: -.2, tex: .3, grp: 1 },
     { sh: SH.ell(LL[0], LL[1], 3.6, 3.2), ramp: LEAF, tex: .5, grp: 1 },
     { sh: SH.cap(31, 25, RH[0], RH[1], 2.8, 2), ramp: BARK, tex: .3, grp: 5 },
     { sh: SH.ell(RL[0], RL[1], 3.6, 3.2), ramp: LEAF, tex: .5, grp: 5 }];
   return sculpt(45, 48, [
-  ...(pose === 'strike' ? [] : arms.slice(0, 2)),
+  ...(pose === 'strike' || pose === 'mid' ? [] : arms.slice(0, 2)),
   { sh: SH.cap(16, 40, 9 - bx * .5, 47 + by, 3, 2), ramp: BARK, tex: .3, grp: 2 },
   { sh: SH.cap(28, 40, 35 + ax * .5, 47 + ay, 3, 2), ramp: BARK, tex: .3, grp: 2 },
   { sh: SH.cap(22, 41, 22, 47, 3.2, 2.6), ramp: BARK, tex: .3, grp: 2 },
@@ -192,7 +278,7 @@ function hdTreant(ph: number | string = -1, LEAF = RAMP.leaf, BARK = RAMP.bark, 
   { sh: SH.ell(13, 13, 10, 8.5), ramp: LEAF, tex: .5, grp: 4 },
   { sh: SH.ell(31, 12.5, 11, 9), ramp: LEAF, tex: .5, grp: 4 },
   { sh: SH.ell(22, 7, 10, 7), ramp: LEAF, tex: .5, grp: 4 },
-  ...(pose === 'strike' ? arms : arms.slice(2)),                        // 往下砸時兩隻手都在樹幹前面
+  ...(pose === 'strike' || pose === 'mid' ? arms : arms.slice(2)),      // 往下砸時兩隻手都在樹幹前面
 ], a => {
   for (const [x, y0] of [[15, 24], [19, 30], [28, 26], [25, 36]]) for (let y = y0; y < y0 + 7; y++) a.set(x + Math.round(Math.sin(y * .9)), y, BARK[0]);
   for (const ex of [19, 26]) { a.ell(ex, 28, 2.2, 1.8, '#120a06'); a.set(ex, 28, EYE); a.set(ex + 1, 28, '#fff8a0'); }
@@ -263,7 +349,10 @@ function hdDragon() {                                                  // 熔岩
     for (const [x, y] of [[60, 50], [72, 48], [84, 52], [96, 42]]) { a.set(x, y, '#c8c0c4'); a.set(x, y - 1, '#8a8084'); }
   }); }
 function hdMimic(ph: number | string = -1) {                          // 寶箱怪：蓋子張開變成嘴，上下兩排牙，蓋子上有一對發光的眼睛
-  const pose = typeof ph === 'string' ? ph : '', hop = typeof ph === 'number' && ph >= 0 ? [0, 2, 3, 1][ph] : 0, gape = pose === 'strike' ? 9 : pose ? 4 : 5;
+  // 走路：整個箱子一跳一跳，蓋子跟著一開一合；'crouch' 蓋子咬緊、壓低發抖，'strike' 張到最大撲過去，'land' 喀一聲咬下去
+  const pose = typeof ph === 'string' ? ph : '', w = typeof ph === 'number' && ph >= 0 ? ph : -1;
+  const hop = w >= 0 ? [0, 2, 3, 1][w] : pose === 'crouch' || pose === 'land' ? -1 : 0;
+  const gape = pose === 'strike' ? 9 : pose === 'crouch' ? 1 : pose === 'land' ? 0 : w >= 0 ? [3, 6, 7, 4][w] : 5;
   const W = ['#2e1c0e', '#4a3018', '#6a4626', '#86603a', '#a07a4c'], B = ['#2a2834', '#4a4858', '#6e6c86', '#9a98b0'];
   const by = 30 - hop, ly = by - 13 - gape;
   return sculpt(40, 40, [
@@ -331,25 +420,25 @@ function buildMonsters() { return {
   mushking: makeHD(hdMushKing()),
   yeti: makeHD(hdYeti()),
   lich: makeHD(hdLich()),
-  mimic: withWalk(hdMimic, undefined, ['strike']),
+  mimic: withWalk(hdMimic, undefined, ['crouch', 'strike', 'land']),
   general: makeHD(hdGeneral()),
   queen: makeHD(hdQueen()),
   slime: makeHD(hdSlime(RAMP.slime, '#0e2a18', '#a8f0a0')),
   slimeM: makeHD(hdSlime(RAMP.slimeM, '#2a0a04', '#fff0a0')),
-  wolf: withWalk(ph => hdWolf(RAMP.wolf, 1, {}, ph), undefined, ['strike']),
-  wolfF: withWalk(ph => hdWolf(RAMP.wolfF, 1, {}, ph), undefined, ['strike']),
+  wolf: withWalk(ph => hdWolf2(RAMP.wolf, {}, ph), undefined, WOLF_POSES, 6),
+  wolfF: withWalk(ph => hdWolf2(RAMP.wolfF, {}, ph), undefined, WOLF_POSES, 6),
   skel: withWalk(ph => hdSkel(RAMP.bone, '#ff4a4a', ph), undefined, SKEL_POSES, SKEL_WALK),
   skelE: withWalk(ph => hdSkel(RAMP.ash, '#ff9a3a', ph), undefined, SKEL_POSES, SKEL_WALK),
-  golem: withWalk(ph => hdGolem(RAMP.stone, { eye: '#7fe8ff', crack: '#262234', moss: ['#2f5a26', '#4f8a3e', '#7ab85a'] }, ph), undefined, ['raise', 'strike']),
-  golemL: withWalk(ph => hdGolem(RAMP.basalt, { eye: '#ffcf4a', crack: '#ff6a2a', glowCrack: '#ffcf4a' }, ph), undefined, ['raise', 'strike']),
-  shroom: withWalk(hdShroom),
-  wolfS: withWalk(ph => hdWolf(RAMP.snowwolf, 1, { eye: '#4ac8ff' }, ph), undefined, ['strike']),
+  golem: withWalk(ph => hdGolem(RAMP.stone, { eye: '#7fe8ff', crack: '#262234', moss: ['#2f5a26', '#4f8a3e', '#7ab85a'] }, ph), undefined, HEAVY_POSES),
+  golemL: withWalk(ph => hdGolem(RAMP.basalt, { eye: '#ffcf4a', crack: '#ff6a2a', glowCrack: '#ffcf4a' }, ph), undefined, HEAVY_POSES),
+  shroom: withWalk(hdShroom, undefined, SHROOM_POSES),
+  wolfS: withWalk(ph => hdWolf2(RAMP.snowwolf, { eye: '#4ac8ff' }, ph), undefined, WOLF_POSES, 6),
   slimeI: makeHD(hdSlime(RAMP.ice, '#0a2040', '#ffffff')),
-  golemI: withWalk(ph => hdGolem(RAMP.iceStone, { eye: '#7fe8ff', crack: '#26304a', moss: ['#a6b8d8', '#e8f0fa', '#ffffff'] }, ph), undefined, ['raise', 'strike']),
+  golemI: withWalk(ph => hdGolem(RAMP.iceStone, { eye: '#7fe8ff', crack: '#26304a', moss: ['#a6b8d8', '#e8f0fa', '#ffffff'] }, ph), undefined, HEAVY_POSES),
   skelS: withWalk(ph => hdSkel(RAMP.swampBone, '#7aff6a', ph), undefined, SKEL_POSES, SKEL_WALK),
-  shroomP: withWalk(ph => hdShroom(+ph, RAMP.capP)),
-  treantS: withWalk(ph => hdTreant(ph, RAMP.leafS, RAMP.barkS, '#9aff6a'), undefined, ['raise', 'strike']),
-  treant: withWalk(hdTreant, undefined, ['raise', 'strike']),
+  shroomP: withWalk(ph => hdShroom(ph, RAMP.capP), undefined, SHROOM_POSES),
+  treantS: withWalk(ph => hdTreant(ph, RAMP.leafS, RAMP.barkS, '#9aff6a'), undefined, HEAVY_POSES),
+  treant: withWalk(hdTreant, undefined, HEAVY_POSES),
   boss: withWalk(ph => hdWolf(RAMP.boss, 1.8, { eye: '#ff3b3b', mane: ['#5c5f76','#8a8ea6','#b4b8cc','#dcdeea','#ffffff'], scar: true, belly: ['#8a8ea6','#c4c8da','#eef0f8'] }, ph), { eye: [Math.round(44 * 1.8), Math.round(9 * 1.8)] }),
 }; }
 Object.assign(SPR, buildMonsters());
