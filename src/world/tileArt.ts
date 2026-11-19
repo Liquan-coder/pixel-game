@@ -6,10 +6,11 @@ import { CARPU, CRUSTU, ICEW, LAVU, MUDW, NZ0, NZ1, NZ2, RUIN, RUINU, SCU, TA, U
 export function bakeTileHD(buf, CA, tx, ty, ox, oy) {
   const i = ty * MW + tx, t = map[i], r = reg[i], S = SCU[r], U = RUINU[r];
   const up = tileAt(tx, ty - 1), dn = tileAt(tx, ty + 1), lf = tileAt(tx - 1, ty), rt = tileAt(tx + 1, ty);
-  const AX = tx * TA, AY = ty * TA, wallUp = isWallT(up);
+  const AX = tx * TA, AY = ty * TA, wallUp = isWallT(up), wallL = isWallT(lf), wallR = isWallT(rt);
   const at = (lx, ly) => (oy + ly) * CA + ox + lx;
   const ground = (lx, ly) => { const ax = AX + lx, ay = AY + ly; let k = groundK(r, ax, ay);
     if (wallUp && ly < 15) k -= ly < 5 ? 2 : ly < 10 ? 1 : (hash2(ax, ay) < .5 ? 1 : 0);
+    if (wallL && lx < 7) k -= lx < 3 ? 2 : 1; if (wallR && lx > 40) k -= lx > 44 ? 2 : 1;   // 牆腳的影子：一看就知道牆比地面高
     return S.g[k < 0 ? 0 : k]; };
   if (t === CLIFF) {
     if (!isWallT(dn)) {                                                  // 崖壁正面：直條岩紋 + 橫向岩層 + 上緣草皮/岩唇
@@ -23,12 +24,19 @@ export function bakeTileHD(buf, CA, tx, ty, ox, oy) {
         const lh = 3 + Math.floor(nz(NZ2, ax * 2.5, AY) * 6);
         if (ly < lh) c = ly === lh - 1 ? S.lip[0] : (ly === 0 ? S.lip[3] : S.lip[(ax + ly) % 3 === 0 ? 1 : 2]);
         buf[at(lx, ly)] = c; }
-    } else {                                                             // 崖頂：暗色台地 + 邊緣反光
+    } else {                                                             // 崖頂：一整片大石塊（跟崖壁同色系），外圈亮邊 + 黑框 → 一看就是走不上去的岩石高地
+      const eL = !isWallT(lf), eR = !isWallT(rt), eU = !isWallT(up); boulderCells(AX, AY);
       for (let ly = 0; ly < TA; ly++) for (let lx = 0; lx < TA; lx++) { const ax = AX + lx, ay = AY + ly;
-        const n = nz(NZ1, ax, ay) + (hash2(ax, ay) - .5) * .2; let c = S.top[n < .42 ? 0 : n < .6 ? 1 : 2];
-        if (!isWallT(lf) && lx < 3) c = lx === 0 ? S.face[0] : S.lip[2];
-        else if (!isWallT(rt) && lx > 44) c = lx === 47 ? S.face[0] : S.face[1];
-        if (!isWallT(up) && ly < 4) c = ly < 2 ? S.face[0] : S.lip[2];
+        const b = boulder(ax, ay), s2 = -(b.bx + b.by) / BC;
+        let k = 2 + (s2 > .2 ? 1 : 0) + (s2 > .55 ? 1 : 0) - (s2 < -.3 ? 1 : 0);
+        if (hash2(ax, ay) < .06) k--;
+        let c = S.face[k < 0 ? 0 : k > 4 ? 4 : k];
+        if (r === 5 && s2 > -.05 && hash2(b.id, 5) < .85) c = S.lip[s2 > .45 ? 3 : 2];                         // 雪原：石頭上積雪
+        else if ((r <= 1 || r === 6) && s2 > .1 && nz(NZ1, ax * .7, ay * .7) > .6) c = S.lip[s2 > .5 ? 3 : 2]; // 平原 / 森林 / 沼澤：石頭上長青苔
+        else if (r === 3 && b.gap < 3.2 && b.gap >= 1.6 && hash2(b.id, 3) < .35) c = LAVU[3];                  // 熔岩：石縫透出紅光
+        if (b.gap < 1.6) c = S.face[0]; else if (b.gap < 2.8 && b.bx + b.by > 0) c = S.face[1];
+        const e = Math.min(eL ? lx : 99, eR ? 47 - lx : 99, eU ? ly : 99);
+        if (e < 2) c = DK; else if (e < 4) c = S.face[4];
         buf[at(lx, ly)] = c; }
     }
     return;
@@ -46,9 +54,14 @@ export function bakeTileHD(buf, CA, tx, ty, ox, oy) {
         if (ly >= 45) c = U.mo;
         if ((!isWallT(lf) && lx < 1) || (!isWallT(rt) && lx > 46)) c = U.mo;
         buf[at(lx, ly)] = c; }
-    } else {
-      for (let ly = 0; ly < TA; ly++) for (let lx = 0; lx < TA; lx++) { let c = hash2(AX + lx, AY + ly) < .08 ? U.mo : U.top;
-        if ((!isWallT(lf) && lx < 2) || (!isWallT(rt) && lx > 45) || (!isWallT(up) && ly < 2)) c = U.edge;
+    } else {                                                             // 牆頂：深色大石磚 + 外圈亮邊 + 黑框（以前是一片黑，看起來像洞）
+      const eL = !isWallT(lf), eR = !isWallT(rt), eU = !isWallT(up);
+      for (let ly = 0; ly < TA; ly++) for (let lx = 0; lx < TA; lx++) { const ax = AX + lx, ay = AY + ly;
+        const row = Math.floor(ay / 12), off = (row & 1) * 8, u = (ax + off) % 16, v = ay % 12, h = hash2(Math.floor((ax + off) / 16), row);
+        let c = u === 0 || v === 0 ? U.top : (u === 1 || v === 1) ? U.wf2 : h < .35 ? U.mo : U.edge;
+        if (hash2(ax, ay) < .04) c = U.top;
+        const e = Math.min(eL ? lx : 99, eR ? 47 - lx : 99, eU ? ly : 99);
+        if (e < 2) c = DK; else if (e < 4) c = U.cap;
         buf[at(lx, ly)] = c; }
     }
     return;
@@ -60,11 +73,13 @@ export function bakeTileHD(buf, CA, tx, ty, ox, oy) {
       if (Math.abs(nz(NZ2, ax * .5, ay * 2) - .5) < .025) k = 5;
       let d = 99; if (!isWaterish(lf)) d = Math.min(d, lx); if (!isWaterish(rt)) d = Math.min(d, 47 - lx); if (!isWaterish(dn)) d = Math.min(d, 47 - ly);
       if (d < 2) k = 6; else if (d < 5) k = Math.max(k, 5); else if (d < 10) k = Math.max(k, 4);
+      if (d < 1) { buf[at(lx, ly)] = S.bank[0]; continue; }             // 岸邊一圈深色描邊：水和陸地的界線一眼就看得出來
       const WP = r === 5 ? ICEU : r === 6 ? MUDU : WATU;                // 雪原是結冰的湖、沼澤是混濁的泥水
       if (r === 5 && k < 5 && hash2(ax >> 3, ay >> 3) < .05 && Math.abs(((ax + ay * 2) % 13) - 6) < 1) k = 6;   // 冰面裂紋
       let c = WP[k];
       if (!isWaterish(up)) { if (ly < 7) c = S.bank[ly < 2 ? 2 : (hash2(ax, ay >> 2) < .3 ? 0 : 1)]; else if (ly < 9) c = WP[6]; else if (ly < 14) c = WP[Math.max(k, 5)]; }
       buf[at(lx, ly)] = c; }
+    if (t === WATER && (r === 6 || r === 1) && hash2(tx, ty) < (r === 6 ? .45 : .2)) lily(buf, CA, ox + 8 + ((hash2(ty, tx) * 26) | 0), oy + 14 + ((hash2(tx + 5, ty) * 22) | 0), hash2(tx, ty + 9));
   } else if (t === LAVA || (t === BRIDGE && r === 3)) {                 // 熔岩：流動紋 + 黑色結痂 + 發光邊
     for (let ly = 0; ly < TA; ly++) for (let lx = 0; lx < TA; lx++) { const ax = AX + lx, ay = AY + ly;
       const n = .65 * nz(NZ1, ax * .45, ay * 1.1) + .35 * nz(NZ0, ax * 2, ay * 2), m = nz(NZ1, ax * .3 + 70, ay * .3 + 20);
@@ -109,17 +124,14 @@ export function bakeTileHD(buf, CA, tx, ty, ox, oy) {
     if (r === 4 && !door && hash2(tx, ty) < .06) decoBones(buf, CA, ox + 14 + ((hash2(ty, tx) * 16) | 0), oy + 22);
     return;
   }
-  if (t === ROAD) {                                                    // 道路：泥土或鵝卵石，邊緣不規則地吃進草地
+  if (t === ROAD) {                                                    // 道路：泥土路，邊緣不規則地吃進草地（以前荒地用鵝卵石，看起來像磚牆，已拿掉）
     const nr = [!isRoadish(up), !isRoadish(dn), !isRoadish(lf), !isRoadish(rt)];
     for (let ly = 0; ly < TA; ly++) for (let lx = 0; lx < TA; lx++) { const ax = AX + lx, ay = AY + ly;
       let d = 99; if (nr[0]) d = Math.min(d, ly); if (nr[1]) d = Math.min(d, 47 - ly); if (nr[2]) d = Math.min(d, lx); if (nr[3]) d = Math.min(d, 47 - lx);
       const th = 2 + Math.floor(nz(NZ2, ax * 1.7, ay * 1.7) * 9);
       if (d < th) { buf[at(lx, ly)] = ground(lx, ly); continue; }
       let c;
-      if (S.cob) { const row = Math.floor(ay / 9), o = (row & 1) * 7, col = Math.floor((ax + o) / 13), u = (ax + o) % 13, v = ay % 9, h = hash2(col, row);
-        let k = 2 + Math.floor(h * 2.4); if (u === 0 || v === 0 || (u === 1 && v === 1) || (u === 12 && v === 8)) k = 1; else if (u === 1 || v === 1) k++; else if (u === 12 || v === 8) k--;
-        c = S.road[k < 0 ? 0 : k > 4 ? 4 : k]; }
-      else { const big = nz(NZ0, ax + 300, ay), mid = nz(NZ1, ax + 50, ay), s = hash2(ax, ay); let k = big > .58 ? 3 : 2;
+      { const big = nz(NZ0, ax + 300, ay), mid = nz(NZ1, ax + 50, ay), s = hash2(ax, ay); let k = big > .58 ? 3 : 2;
         if (Math.abs(big - .58) < .02) k = 2 + ((ax + ay) & 1); if (mid > .74) k++; else if (mid < .25) k--;
         if (s < .012) k = 4; else if (s > .99) k = 0; else if (hash2(ax, ay - 1) < .012) k = 1; c = S.road[k < 0 ? 0 : k > 4 ? 4 : k]; }
       if (d < th + 2) c = S.road[0];
@@ -129,6 +141,29 @@ export function bakeTileHD(buf, CA, tx, ty, ox, oy) {
   }
   for (let ly = 0; ly < TA; ly++) for (let lx = 0; lx < TA; lx++) buf[at(lx, ly)] = ground(lx, ly);
   if (t === GROUND) decoGround(buf, CA, r, tx, ty, ox, oy);
+}
+/* 崖頂的石塊：Worley 雜訊（每個格點一顆石頭）。gap = 離兩顆石頭交界多近（越小越接近石縫），bx/by = 離石頭中心的偏移（拿來打光） */
+const BC = 14, BN = 7, BPX = new Float32Array(BN * BN), BPY = new Float32Array(BN * BN);   // 這一格會用到的石頭中心（7×7 個格點），每格只算一次
+let bgx0 = 0, bgy0 = 0;
+function boulderCells(AX, AY) {
+  bgx0 = Math.floor(AX / BC) - 1; bgy0 = Math.floor(AY / BC) - 1;
+  for (let j = 0; j < BN; j++) for (let i = 0; i < BN; i++) { const gx = bgx0 + i, gy = bgy0 + j;
+    BPX[j * BN + i] = (gx + .15 + hash2(gx, gy) * .7) * BC; BPY[j * BN + i] = (gy + .15 + hash2(gy + 911, gx) * .7) * BC; }
+}
+const BQ = { gap: 0, bx: 0, by: 0, id: 0 };
+function boulder(ax, ay) {                                              // 先呼叫 boulderCells(這一格的左上角)
+  const ci = Math.floor(ax / BC) - bgx0, cj = Math.floor(ay / BC) - bgy0; let d1 = 1e9, d2 = 1e9, bx = 0, by = 0, id = 0;
+  for (let j = cj - 1; j <= cj + 1; j++) for (let i = ci - 1; i <= ci + 1; i++) { const k = j * BN + i, dx = ax - BPX[k], dy = (ay - BPY[k]) * 1.2, d = dx * dx + dy * dy;
+    if (d < d1) { d2 = d1; d1 = d; bx = dx; by = dy; id = (bgx0 + i) * 7919 + bgy0 + j; } else if (d < d2) d2 = d; }
+  BQ.gap = Math.sqrt(d2) - Math.sqrt(d1); BQ.bx = bx; BQ.by = by; BQ.id = id; return BQ;
+}
+const LILY = UL(['#1e3a18', '#3e6a2e', '#5a8a3a', '#8ab858', '#f0c8e0']);
+function lily(buf, CA, cx, cy, h) {                                    // 睡蓮葉：橢圓 + 一道缺口，偶爾開一朵粉紅小花
+  const R = 5 + Math.floor(h * 3);
+  for (let y = -R; y <= R; y++) for (let x = -R - 1; x <= R + 1; x++) { const d = (x * x) / ((R + 1) * (R + 1)) + (y * y) / (R * R); if (d > 1) continue;
+    if (x > 0 && Math.abs(y) <= Math.max(0, x / 3)) continue;
+    buf[(cy + y) * CA + cx + x] = d > .78 ? LILY[0] : (x + y < -R * .4 ? LILY[3] : d < .35 && h > .5 ? LILY[2] : LILY[1]); }
+  if (h > .7) { buf[(cy - 1) * CA + cx - 1] = LILY[4]; buf[(cy - 1) * CA + cx - 2] = LILY[4]; buf[(cy - 2) * CA + cx - 1] = LILY[4]; }
 }
 /* 小裝飾：直接寫進像素緩衝 */
 function stamp(buf, CA, rows, pal, x0, y0) { for (let y = 0; y < rows.length; y++) { const row = rows[y]; for (let x = 0; x < row.length; x++) { const c = pal[row[x]]; if (c) buf[(y0 + y) * CA + x0 + x] = c; } } }

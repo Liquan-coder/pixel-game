@@ -6,8 +6,8 @@ export const mini = $<HTMLCanvasElement>('mini'), mctx = mini.getContext('2d');
 export const miniBase = document.createElement('canvas'); miniBase.width = MW; miniBase.height = MH;
 const mbx = miniBase.getContext('2d');
 const MCOL = { [ROAD]:'#b8956a', [WATER]:'#3b6ea8', [LAVA]:'#e8743b', [RWALL]:'#2a2633', [RFLOOR]:'#7a768a', [BRIDGE]:'#8a6038', [TREE]:null, [ROCK]:'#6b6878', [PILLAR]:'#2a2633', [CRATE]:'#7a5434', [FOG]:'#e8e4ff', [GRAVE]:'#8a8696', [BIGT]:'#2a5a26', [HOUSE]:'#a8503a' };
-const MGROUND = ['#5a9a46', '#2f5a3e', '#9a8a6a', '#3a2b2d', '#3a3444', '#c8d4e2', '#2b3822'], MTREE = ['#3a7a30', '#1c4635', '#6a5a44', '#2a1e20', '#3a7a30', '#2a4a5c', '#3a3220'], MCLIFF = ['#3a352e', '#232a22', '#5a4a34', '#1a1214', '#14111b', '#5a667c', '#12160e'];
-const MWATER = { 5: '#8ab4d4', 6: '#2a3a22' };
+const MGROUND = ['#5a9a46', '#2f5a3e', '#9a8a6a', '#3a2b2d', '#3a3444', '#c8d4e2', '#2b3822'], MTREE = ['#3a7a30', '#1c4635', '#6a5a44', '#2a1e20', '#3a7a30', '#2a4a5c', '#3a3220'], MCLIFF = ['#6e685c', '#404c40', '#62533c', '#3a2c2e', '#43303d', '#58647e', '#3a4048'];   // 岩石高地 = 跟遊戲裡崖頂石塊同色
+const MWATER = { 5: '#8ab4d4', 6: '#22544e' };
 export function miniPix(i) {
   const t = map[i], r = reg[i];
   const col = t === GROUND ? MGROUND[r] : t === TREE ? MTREE[r] : t === CLIFF ? MCLIFF[r] : t === WATER && MWATER[r] ? MWATER[r] : MCOL[t];
