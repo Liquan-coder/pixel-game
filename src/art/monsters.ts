@@ -119,14 +119,14 @@ function hdWolf2(R, opt: Record<string, any> = {}, ph: number | string = -1) {
     P(SH.cap(tb[0], tb[1], tt[0], tt[1], 3.8, 2.8), { tex: tx, grp: 1 }),
     { sh: SH.ell(tt[0], tt[1], 2.8, 2.6), ramp: belly, grp: 1 },
     P(SH.ell(...B(15, 19), 4.6, 5.2), { bias: -.35, grp: 2 }),
-    ...legParts(B(14, 22), [16 + BB[0], 29.5 + BB[1]], 4.4, 4.4, 1, 2, 1.8, 1.6, { ramp: R, bias: -.35, grp: 2 }),      // 遠側後腳：腳踝往後彎
-    ...legParts(B(33, 19), [32 + FA[0], 29.5 + FA[1]], 5.6, 5.6, -1, 2.2, 1.9, 1.7, { ramp: R, bias: -.35, grp: 3 }),  // 遠側前腳：腕關節往前彎
+    ...legParts(B(14, 22), [16 + BB[0], 29.5 + BB[1]], 4.6, 3.6, 1, 1.9, 1.3, 1.1, { ramp: R, bias: -.75, grp: 2 }),    // 遠側後腳（暗一點）：腳踝往後彎
+    ...legParts(B(33, 20), [32 + FA[0], 29.5 + FA[1]], 4.8, 4.8, -1, 1.9, 1.4, 1.1, { ramp: R, bias: -.75, grp: 3 }),   // 遠側前腳：站著打直，抬腳時腕關節才往前折
     P(SH.ell(...B(24, 16.5), 13.5, 7), { tex: tx, grp: 4 }),
     { sh: SH.ell(...B(24.5, 20.5), 10, 2.4), ramp: belly, grp: 4, rim: false },
     P(SH.ell(...B(35.5, 16), 6.6, 7.6), { tex: tx, grp: 4 }),
     P(SH.ell(...B(18, 19.5), 5, 5.6), { tex: tx, grp: 6 }),
-    ...legParts(B(17, 23), [19.5 + BA[0], 30 + BA[1]], 4.4, 4.4, 1, 2.3, 2, 1.8, { ramp: R, grp: 6 }),
-    ...legParts(B(37, 20), [36.5 + FB[0], 30 + FB[1]], 5.6, 5.6, -1, 2.5, 2.2, 2, { ramp: R, grp: 7 }),
+    ...legParts(B(17, 23), [19.5 + BA[0], 30 + BA[1]], 4.6, 3.6, 1, 2.2, 1.5, 1.3, { ramp: R, grp: 6 }),
+    ...legParts(B(37, 21), [36.5 + FB[0], 30 + FB[1]], 4.6, 4.6, -1, 2.2, 1.6, 1.3, { ramp: R, grp: 7 }),
     P(SH.poly([Hd(36.5, 8), Hd(38.5, 0), Hd(41.5, 6)]), { grp: 8 }),
     P(SH.ell(...Hd(41.5, 10), 6.6, 5.6), { tex: tx * .7, grp: 8 }),
   ];
@@ -143,7 +143,7 @@ function hdWolf2(R, opt: Record<string, any> = {}, ph: number | string = -1) {
     if (jaw) { for (const t of [46.5, 49]) a.set(...h(t, 12.8), '#f4eee0'); for (const t of [45.5, 47.5]) a.set(...h(t, 15.6 + (t - 45) * .5), '#f4eee0'); }   // 上下兩排尖牙
     else { a.line(...h(45, 15), ...h(50, 14.5), R[0]); for (const t of [46, 48.5]) a.set(...h(t, 15.8), '#f4eee0'); }
     if (pose === 'crouch') a.line(...h(41, 6.8), ...h(45.5, 8.2), R[0]);   // 壓低時皺眉
-    for (const [lx, ly, dx, dy, c] of [[16, 29.3, ...BB, 2], [19.5, 29.8, ...BA, 3], [32, 29.3, ...FA, 2], [36.5, 29.8, ...FB, 3]]) a.rect(lx + dx - 1.2, ly + dy, 3, 1, R[c]);   // 腳掌
+    for (const [lx, ly, dx, dy, c] of [[16, 29.3, ...BB, 1], [19.5, 29.8, ...BA, 3], [32, 29.3, ...FA, 1], [36.5, 29.8, ...FB, 3]]) a.rect(lx + dx - 1, ly + dy, 2.5, 1, R[c]);   // 腳掌（遠側暗、近側亮）
     for (let i = 0; i < 6; i++) { const x = 14 + i * 3.4 + bd[0], y = 10.5 + Math.abs(i - 2.5) * .4 + bd[1]; a.line(x, y, x + 1.4, y + 1.6, R[1]); }   // 背上的毛
   }, { l: 2, r: 2, t: 2 });
 }
