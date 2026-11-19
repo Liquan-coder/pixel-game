@@ -277,38 +277,111 @@ function hdBigTree() { const L = SRAMP.leaf, B = SRAMP.bark, R = mulberry32(77);
     for (const [x, y0] of [[72, 130], [84, 150], [76, 168]]) for (let y = y0; y < y0 + 16; y++) a.set(x + Math.round(Math.sin(y * .5) * 1.5), y, B[0]);
     a.ell(80, 150, 5, 7, '#1a0e06'); });
 }
-/* 房子：整棟畫成一張圖，剛好蓋住它佔的格子（上半是屋頂、下半是正面的牆）。snow = 屋頂積雪 + 冰柱、牆是原木 */
-const ROOFS = [['#3a0e10', '#5e1a1c', '#8a2a26', '#b04432', '#d06648'], ['#10203a', '#1c3460', '#2a4a86', '#3e64a8', '#5a82c4'],
-  ['#14301c', '#22482a', '#346638', '#4a8448', '#6aa25c'], ['#2a1a10', '#46301c', '#6a4a2a', '#8a663a', '#a8824e']];
+/* 房子：整棟畫成一張圖，剛好蓋住它佔的格子。上半是屋頂（一排一排的瓦片），下半是正面的牆。
+   晨風鎮：米色灰泥牆 + 木頭框架；霜歌鎮：原木小屋 + 屋頂積雪 + 冰柱。大一點的房子門上有一個小山牆（三角形的屋頂）。
+   全部在 post 裡一格一格畫：pid 0 = 牆、1 = 屋頂、2 = 山牆、3 = 煙囪 */
+const ROOFS = [['#3e1412', '#62201c', '#86302a', '#a84638', '#c8664c'], ['#16203a', '#22345a', '#30487a', '#425e98', '#5c7cb4'],
+  ['#162c1c', '#22422a', '#30583a', '#43704a', '#5c8c5c'], ['#2a1a10', '#44301e', '#5e442a', '#7a5c3a', '#96784e']];
+const PLASTER = ['#6e5e4a', '#988670', '#bcab90', '#d6c8aa', '#e8dcc2'], STONE_W = ['#2e2a38', '#48445a', '#686480', '#8a86a0', '#aaa6be'];
+const BEAMS = ['#2a1a0e', '#45301a', '#634628', '#80603a'];
 function hdHouse(wT, hT, roof, snow, smith) {
-  const W = wT * TA, H = hT * TA, R = ROOFS[roof], eave = Math.round(H * .56), WALL = snow ? SRAMP.bark : ['#8a7a5e', '#b0a080', '#cfc0a0', '#e4d8bc', '#f2ead4'];
-  const BEAM = ['#2e1c0e', '#4a3018', '#6a4626'], rng = mulberry32(wT * 31 + hT * 7 + roof);
-  return sculpt(W, H, [
-    { sh: SH.box(W / 2, (eave + H) / 2 - 2, W / 2 - 7, (H - eave) / 2, 9), ramp: WALL, tex: .15, grp: 1 },
-    { sh: SH.poly([[16, 4], [W - 16, 4], [W - 1, eave + 4], [1, eave + 4]]), ramp: R, tex: .12, bias: .1, grp: 2 },
-    { sh: SH.box(W * .72, 12, 7, 12, 9), ramp: ['#2a2834', '#4a4858', '#6e6c86', '#8e8ca6'], tex: .2, grp: 3 },
-  ], a => {
-    for (let y = 8; y < eave + 3; y += 7) for (let x = 0; x < W; x++) if (a.pid(x, y) === 1) a.set(x, y, R[0]);           // 一排一排的瓦片
-    for (let y = 8; y < eave + 3; y += 7) for (let x = ((y / 7) & 1) * 6; x < W; x += 12) for (let k = 1; k < 7; k++) if (a.pid(x, y + k) === 1) a.set(x, y + k, R[1]);
-    for (let x = 0; x < W; x++) if (a.pid(x, eave + 4) === 1 || a.pid(x, eave + 3) === 1) a.set(x, eave + 3, R[0]);
-    const wy = eave + 5, wb = H - 3;
-    if (snow) { for (let y = wy; y < wb; y += 6) for (let x = 8; x < W - 8; x++) if (a.pid(x, y) === 0) a.set(x, y, WALL[0]); }   // 原木牆
-    else { for (const x of [8, W / 2 - 1, W - 10]) for (let y = wy; y < wb; y++) { a.set(x, y, BEAM[1]); a.set(x + 1, y, BEAM[0]); }   // 木頭樑柱
-      for (let x = 8; x < W - 8; x++) { a.set(x, wy, BEAM[1]); a.set(x, wy + 1, BEAM[0]); } }
-    const dw = 18, dx = Math.round(W / 2 - dw / 2) + (wT > 3 ? 14 : 0), dh = Math.min(30, wb - wy - 6);            // 門
-    a.rect(dx - 2, wb - dh - 2, dw + 4, dh + 2, BEAM[0]); a.rect(dx, wb - dh, dw, dh, '#5a3c26');
-    for (let x = dx + 4; x < dx + dw; x += 5) for (let y = wb - dh; y < wb; y++) a.set(x, y, '#3a2414');
-    a.set(dx + dw - 4, wb - dh / 2, '#f2c14e');
-    const winY = wy + 8;                                                                                     // 窗戶：暖黃色的燈光
-    for (const wx of wT > 3 ? [16, dx - 26] : [10]) if (wx > 6) { a.rect(wx - 2, winY - 2, 20, 18, BEAM[0]); a.rect(wx, winY, 16, 14, '#ffd27a');
-      a.rect(wx, winY, 16, 3, '#fff0b0'); a.rect(wx + 7, winY, 2, 14, BEAM[1]); a.rect(wx, winY + 6, 16, 2, BEAM[1]);
-      if (!snow) for (let x = wx - 2; x < wx + 18; x++) { a.set(x, winY + 15, '#6a4626'); if (x % 3) a.set(x, winY + 14, rng() < .5 ? '#f29bb8' : '#f4e27a'); } }   // 花台
-    if (snow) { for (let x = 0; x < W; x++) { let top = -1; for (let y = 0; y < eave + 5; y++) if (a.pid(x, y) === 1) { top = y; break; }   // 屋頂積雪
-        if (top < 0) continue; const d = 10 + Math.round(Math.sin(x * .3) * 3 + rng() * 2); for (let y = top; y < Math.min(eave + 3, top + d); y++) a.set(x, y, y - top < 2 ? '#ffffff' : y - top > d - 3 ? '#b8c8dc' : '#e8f0fa'); }
-      for (let x = 4; x < W - 4; x += 5 + Math.floor(rng() * 4)) { const L = 3 + Math.floor(rng() * 7); for (let k = 0; k < L; k++) a.set(x, eave + 5 + k, k < L - 2 ? '#dcecff' : '#a8c8f0'); } }   // 冰柱
-    if (smith) { const sx = dx + dw + 6, sy = wy + 4;                                                       // 鐵匠鋪：門邊掛鐵砧招牌
-      a.rect(sx, sy, 22, 16, '#3a2414'); a.rect(sx + 1, sy + 1, 20, 14, '#7a5434');
-      a.rect(sx + 5, sy + 5, 12, 3, '#4a4858'); a.rect(sx + 8, sy + 8, 6, 3, '#4a4858'); a.rect(sx + 6, sy + 11, 10, 2, '#4a4858'); a.rect(sx + 5, sy + 5, 12, 1, '#9a98b0'); }
+  const W = wT * TA, H = hT * TA, R = ROOFS[roof], rng = mulberry32(wT * 31 + hT * 7 + roof * 3 + (snow ? 11 : 0));
+  const top = 8, eave = Math.round(H * .5), wl = 7, wr = W - 7, foot = H - 9, LOG = SRAMP.bark;
+  const dcx = wT >= 5 ? Math.round(W * .6) : Math.round(W / 2), big = wT >= 4, gw = 30;              // 門的中心；大房子門上有山牆
+  const chx = big ? Math.round(dcx < W / 2 ? W * .78 : W * .2) : Math.round(W * .74);                  // 煙囪避開山牆
+  const ex = y => 4 - 3 * (y - top) / (eave + 4 - top);                                                 // 屋頂左右邊緣（往下稍微變寬 = 屋簷）
+  const parts: any[] = [
+    { sh: SH.poly([[wl, eave], [wr, eave], [wr, H], [wl, H]]), ramp: ['#000'], noline: true, rim: false },
+    { sh: SH.poly([[4, top], [W - 4, top], [W - 1, eave + 5], [1, eave + 5]]), ramp: ['#000'], noline: true, rim: false },
+    { sh: SH.poly(big ? [[dcx, top + 2], [dcx + gw + 4, eave + 6], [dcx - gw - 4, eave + 6]] : [[0, 0], [0, 0], [0, 0]]), ramp: ['#000'], noline: true, rim: false },
+    { sh: SH.poly([[chx - 7, 0], [chx + 7, 0], [chx + 7, top + 16], [chx - 7, top + 16]]), ramp: ['#000'], noline: true, rim: false },
+  ];
+  return sculpt(W, H, parts, a => {
+    const N = (x, y) => a.hash(x * 3 + roof, y * 5);
+    const shade = (P, k) => P[Math.max(0, Math.min(P.length - 1, Math.round(k)))];
+    /* ---- 牆 ---- */
+    for (let y = eave; y < H; y++) for (let x = wl; x < wr; x++) { if (a.pid(x, y) !== 0) continue;
+      let c;
+      if (y >= foot) { const row = (y - foot) >> 2, yy = (y - foot) & 3, off = row & 1 ? 5 : 0;           // 石頭地基
+        const bx = (x + off) % 10; c = yy === 3 || bx === 0 ? STONE_W[0] : shade(STONE_W, 2.6 - yy * .5 + (N(Math.floor((x + off) / 10), row) - .5) * 1.4); }
+      else if (snow) { const yy = (y - eave) % 7;                                                          // 原木：每根一條亮邊、一條暗邊、中間有木紋
+        c = yy === 0 ? LOG[3] : yy === 6 ? LOG[0] : yy === 5 ? LOG[1] : shade(LOG, 2.2 + (N(x >> 2, y) - .5) * .9); if (yy > 0 && yy < 5 && N(x, y) > .93) c = LOG[1]; }
+      else c = shade(PLASTER, 3.1 + (N(x, y) - .5) * .7 - (x < wl + 3 ? 1 : 0) - (x > wr - 3 ? .7 : 0));     // 灰泥：有一點斑駁
+      const sh = y - eave - 5; if (y < foot && sh < 5) c = snow ? shade(LOG, sh < 2 ? 0 : 1) : shade(PLASTER, sh < 2 ? 0 : sh < 4 ? 1 : 2);   // 屋簷下的陰影
+      a.set(x, y, c); }
+    if (!snow) {                                                                                          // 木頭框架：兩邊的柱子、地基上的橫樑、斜撐
+      for (const px of [wl, wr - 4]) for (let y = eave + 5; y < foot; y++) { a.set(px, y, BEAMS[0]); a.set(px + 1, y, BEAMS[2]); a.set(px + 2, y, BEAMS[1]); a.set(px + 3, y, BEAMS[0]); }
+      for (let x = wl; x < wr; x++) { a.set(x, foot - 4, BEAMS[0]); a.set(x, foot - 3, BEAMS[2]); a.set(x, foot - 2, BEAMS[1]); a.set(x, foot - 1, BEAMS[0]); }
+      for (let k = 0; k < 14; k++) for (let t = 0; t < 3; t++) { a.set(wl + 4 + k + t, foot - 5 - k, t === 1 ? BEAMS[2] : BEAMS[1]); a.set(wr - 5 - k - t, foot - 5 - k, t === 1 ? BEAMS[2] : BEAMS[1]); }
+    } else for (let y = eave + 6; y < foot; y += 7) for (const ox of [wl + 3, wr - 4]) {                // 原木小屋：轉角露出圓圓的木頭截面
+      a.ell(ox, y + 3, 3.5, 3.2, LOG[0]); a.ell(ox, y + 3, 2.5, 2.3, '#b08a5a'); a.set(ox, y + 3, '#7a5a38'); }
+    /* ---- 窗戶 ---- */
+    const wins = big ? [dcx - 46, dcx + 46].concat(wT >= 5 ? [dcx - 92] : []) : [dcx - 40, dcx + 40];
+    const winY = eave + 16;
+    for (const cx of wins) { if (smith && cx > dcx) continue; const x0 = cx - 8; if (x0 < wl + 10 || x0 + 16 > wr - 10) continue;
+      for (const sx of [x0 - 7, x0 + 18]) { a.rect(sx, winY - 1, 6, 18, BEAMS[0]); a.rect(sx + 1, winY, 4, 16, R[2]);         // 百葉窗
+        for (let y = winY + 2; y < winY + 15; y += 3) a.rect(sx + 1, y, 4, 1, R[1]); a.rect(sx + 1, winY, 1, 16, R[3]); }
+      a.rect(x0 - 1, winY - 2, 18, 19, BEAMS[0]); a.rect(x0 + 1, winY, 14, 15, '#f0b850');
+      a.rect(x0 + 1, winY, 14, 5, '#ffd88a'); a.rect(x0 + 1, winY, 6, 2, '#fff4c4');
+      a.rect(x0 + 7, winY, 2, 15, BEAMS[1]); a.rect(x0 + 1, winY + 7, 14, 2, BEAMS[1]);
+      a.rect(x0 - 3, winY + 16, 22, 3, BEAMS[2]); a.rect(x0 - 3, winY + 18, 22, 1, BEAMS[0]);                   // 窗台
+      if (snow) { a.rect(x0 - 3, winY + 15, 22, 2, '#eef4ff'); a.rect(x0 - 2, winY + 15, 20, 1, '#ffffff'); }
+      else { a.rect(x0 - 2, winY + 19, 20, 4, '#5a3a20'); a.rect(x0 - 2, winY + 19, 20, 1, '#7a5430');            // 花台
+        for (let x = x0 - 1; x < x0 + 17; x++) { const g = rng(); a.set(x, winY + 15, g < .5 ? '#3f7a34' : '#5a9a44'); if (x % 3 === 0) { a.set(x, winY + 14, rng() < .5 ? '#f29bb8' : '#f4e27a'); a.set(x, winY + 13, '#ffffff'); } } } }
+    /* ---- 門 ---- */
+    const dw = 20, dh = Math.min(40, foot - eave - 14), dx = dcx - dw / 2, dy = foot - dh;
+    a.rect(dx - 3, dy - 3, dw + 6, dh + 3, BEAMS[0]); a.rect(dx - 2, dy - 2, dw + 4, 2, BEAMS[2]);
+    for (let y = dy; y < foot; y++) for (let x = dx; x < dx + dw; x++) { const cut = y - dy < 4 && (Math.abs(x - dcx + .5) > dw / 2 - (4 - (y - dy))); if (cut) continue;   // 上緣稍微圓角
+      const px = (x - dx) % 5; a.set(x, y, px === 0 ? '#3a2414' : px === 1 ? '#8a5a34' : shade(['#4a2e18', '#5e3c22', '#704a2a'], 1.4 + (N(x, y) - .5))); }
+    for (const by of [dy + 8, foot - 9]) a.rect(dx, by, dw, 2, '#2e2a38');                                  // 鐵條
+    a.rect(dx + dw - 5, dy + dh / 2, 2, 3, '#f2c14e'); a.set(dx + dw - 5, dy + dh / 2, '#fff2a8');
+    for (let y = foot; y < H; y++) for (let x = dx - 5; x < dx + dw + 5; x++) a.set(x, y, y === foot ? STONE_W[4] : y === H - 1 ? STONE_W[0] : STONE_W[3]);   // 門前的石階
+    if (big) { const ly = dy - 9; a.rect(dcx - 2, ly - 4, 4, 2, BEAMS[0]); a.rect(dcx - 3, ly - 2, 6, 6, '#2e2a38'); a.rect(dcx - 2, ly - 1, 4, 4, '#ffe08a'); a.set(dcx - 1, ly - 1, '#fffbe0'); }   // 門燈
+    /* ---- 屋頂 ---- */
+    const RH = 7, SW = 10;
+    for (let y = top; y <= eave + 5; y++) for (let x = 0; x < W; x++) { if (a.pid(x, y) !== 1) continue;
+      const t = (y - top) / (eave - top), r = Math.floor((y - top) / RH), yy = (y - top) % RH, xx = (x + (r & 1) * (SW >> 1) + (N(r, 0) * 4 | 0)) % SW;
+      let k = 3.1 - t * 1.4 + (N(Math.floor((x + (r & 1) * 5) / SW), r) - .5) * .7;
+      if (yy === 0) k += .8; else if (yy >= RH - 2) k -= yy === RH - 1 ? 3 : 1; else if (xx === 0) k -= 1.6;
+      const el = x - ex(y), er = (W - 1 - ex(y)) - x;
+      if (el < 3 || er < 3) k = el < 1 || er < 1 ? 1 : 1.6 - (er < 3 ? .6 : 0);                             // 左右的封簷板
+      if (y < top + 4) k = y === top ? 3.6 : y === top + 3 ? 0 : 1.8 + ((x >> 3) & 1) * .5;                   // 屋脊
+      let c = shade(R, k);
+      if (y >= eave + 2) c = y === eave + 2 ? BEAMS[3] : y >= eave + 5 ? BEAMS[0] : BEAMS[1];                 // 屋簷的木板
+      a.set(x, y, c); }
+    if (big) {                                                                                             // 山牆：三角形的牆面 + 兩條屋簷板 + 圓窗
+      const gy0 = top + 6, gy1 = eave + 1;
+      for (let y = gy0; y <= eave + 6; y++) for (let x = dcx - gw - 6; x <= dcx + gw + 6; x++) { if (a.pid(x, y) !== 2) continue;
+        const half = (y - top - 2) / (eave + 6 - top - 2) * (gw + 4), d = half - Math.abs(x - dcx);
+        let c;
+        if (d < 6) c = d < 1 ? R[0] : d < 2.2 ? R[3] : d < 5 ? shade(R, x < dcx ? 2 : 1.5) : R[0];                // 斜斜的屋簷板（用屋頂的顏色）
+        else if (y > gy1) c = BEAMS[y === gy1 + 1 ? 2 : y >= eave + 5 ? 0 : 1];
+        else if (snow) { const yy = (y - gy0) % 6; c = yy === 0 ? LOG[3] : yy === 5 ? LOG[0] : LOG[2]; }
+        else c = shade(PLASTER, 3 + (N(x, y) - .5) * .6 - (y > gy1 - 3 ? 1.5 : 0));
+        a.set(x, y, c); }
+      const oy = Math.round((top + eave) / 2) + 6;                                                          // 閣樓的小圓窗
+      a.ell(dcx, oy, 6.5, 6.5, BEAMS[0]); a.ell(dcx, oy, 5, 5, '#f0b850'); a.ell(dcx - 1, oy - 1, 3, 3, '#ffd88a');
+      a.rect(dcx - 5, oy, 10, 1, BEAMS[1]); a.rect(dcx, oy - 5, 1, 10, BEAMS[1]); }
+    /* ---- 煙囪 ---- */
+    for (let y = 0; y < top + 16; y++) for (let x = chx - 7; x <= chx + 7; x++) { if (a.pid(x, y) !== 3) continue;
+      const yy = y % 4, bx = (x + ((y >> 2) & 1) * 3) % 6; let c = yy === 3 || bx === 0 ? '#3a1e1a' : shade(['#5a2a22', '#7a3a2e', '#94503c', '#ae6a50'], 2 - (x - chx) * .12 + (N(x >> 1, y >> 2) - .5));
+      if (y < 3) c = y === 0 ? '#2a2834' : '#5a5868'; if (y === 3) c = '#1a1416';
+      if (x === chx - 7) c = '#2a1a16'; if (y === top + 15) c = R[0];
+      a.set(x, y, c); }
+    a.rect(chx - 4, 1, 8, 2, '#1a1416');                                                                    // 煙囪口
+    /* ---- 雪 ---- */
+    if (snow) {
+      for (let x = 0; x < W; x++) { let t0 = -1; for (let y = 0; y < eave + 5; y++) { const p = a.pid(x, y); if (p === 1 || p === 2 || p === 3) { t0 = y; break; } }
+        if (t0 < 0) continue; const ch = a.pid(x, t0) === 3, d = ch ? 4 : 8 + Math.round(Math.sin(x * .27) * 2.5 + rng() * 2);
+        for (let y = t0; y < t0 + d; y++) a.set(x, y, y - t0 < 2 ? '#ffffff' : y - t0 >= d - 2 ? '#b0c4dc' : '#e6eef8'); }
+      for (let x = 2; x < W - 2; x++) { if (a.pid(x, eave + 1) !== 1 && a.pid(x, eave + 1) !== 2) continue;    // 屋簷上的一條積雪
+        const d = 2 + (Math.sin(x * .5) > .6 ? 1 : 0); for (let k = 0; k < d; k++) a.set(x, eave + k, k === 0 ? '#ffffff' : '#dce8f6'); }
+      for (let x = 6; x < W - 6; x += 5 + Math.floor(rng() * 5)) { if (Math.abs(x - dcx) < 14) continue; const L = 3 + Math.floor(rng() * 8);   // 冰柱
+        for (let k = 0; k < L; k++) { a.set(x, eave + 6 + k, k < L - 2 ? '#dcecff' : '#a8c8f0'); if (k < L / 2) a.set(x + 1, eave + 6 + k, '#a8c8f0'); } } }
+    if (smith) { const sx = dcx + dw / 2 + 12, sy = eave + 14;                                              // 鐵匠鋪：門邊掛鐵砧招牌
+      a.rect(sx + 9, sy - 6, 2, 6, BEAMS[0]); a.rect(sx, sy, 28, 20, BEAMS[0]); a.rect(sx + 1, sy + 1, 26, 18, '#7a5434'); a.rect(sx + 1, sy + 1, 26, 1, '#9a7048');
+      a.rect(sx + 6, sy + 6, 16, 4, '#4a4858'); a.rect(sx + 10, sy + 10, 8, 3, '#4a4858'); a.rect(sx + 7, sy + 13, 14, 3, '#4a4858'); a.rect(sx + 6, sy + 6, 16, 1, '#aaa8c0');
+      a.rect(sx + 18, sy + 3, 3, 4, '#8a6038'); }
   });
 }
 const HOUSE_ART = new Map();
