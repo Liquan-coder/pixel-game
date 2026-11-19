@@ -34,13 +34,10 @@ function limb(set: Set, sx: number, sy: number, ex: number, ey: number, a: numbe
   if (knob) set(Math.round(jx), Math.round(jy), knob);                        // 關節亮一點，看得出是兩根骨頭接起來
 }
 
-/* 一拐一拐的走路（6 格）：前腳（亮）是好腳，膝蓋會彎、正常跨步；後腳（暗）是跛腳，膝蓋不彎、拖在地上
-   A / B = 好腳 / 跛腳的腳掌偏移，BODY_D = 身體（含手）的偏移，HEAD_D = 頭骨再多的偏移（晚半拍、喀一下）
-   0 好腳抬起往前 → 1 好腳踩下 → 2 身體撐到最高、跛腳開始拖 → 3 跛腳拖上來、身體往前倒
-   → 4 跛腳踩實、身體一沉、頭骨喀一下 → 5 撐起來、好腳準備抬 */
+/* 走路（6 格、兩腳對稱）：每隻腳 = 踩地往後滑 4 格 + 抬起往前 2 格，另一隻腳差半圈
+   STEP = 腳掌偏移 [往前, 往上]；BOB = 身體上下（兩腳交錯經過時撐高 1 格） */
 export const SKEL_WALK = 6;
-const LIMP_A = [[6, -2], [4, 0], [2, 0], [0, 0], [-2, 0], [1, -2]], LIMP_B = [[-2, 0], [-3, 0], [-4, 0], [-1, 0], [2, 0], [0, 0]];
-const LIMP_BODY = [[1, 0], [1, -1], [0, -1], [0, 0], [0, 1], [0, 0]], LIMP_HEAD = [[0, 0], [0, 0], [0, 0], [-1, 0], [1, 1], [0, 1]];
+const STEP = [[3, 0], [1, 0], [-1, 0], [-3, 0], [-1, -2], [2, -1]], BOB = [0, -1, 0, 0, -1, 0];
 
 /* 各個動作的姿勢：hand / tip = 拿劍的手和劍尖，fh = 另一隻手，o = 身體偏移，h = 頭骨偏移，jaw = 下巴張開 */
 type Pose = { hand: number[], tip: number[], fh: number[], o?: number[], h?: number[], jaw?: boolean };
@@ -54,18 +51,18 @@ const POSES: Record<string, Pose> = {
 };
 
 /* R：骨頭顏色（暗→亮 5 階）；eye：眼睛的光
-   ph：0~5 跛腳走路、-1 站，或 POSES 裡的動作名稱 */
+   ph：0~5 走路、-1 站，或 POSES 裡的動作名稱 */
 export function paintSkel(set: Set, R: string[], eye: string, ph: number | string = -1) {
   const C: Record<string, string> = { c: R[4], e: R[3], d: R[2], j: R[1], f: CAVITY };
   const P = typeof ph === 'string' ? POSES[ph] : null, w = !P && +ph >= 0 ? +ph : -1;
-  const [ax, ay] = w >= 0 ? LIMP_A[w] : [0, 0], [bx, by] = w >= 0 ? LIMP_B[w] : [0, 0];
-  const [ox, oy] = P ? P.o || [0, 0] : w >= 0 ? LIMP_BODY[w] : [0, 0], [hx, hy] = P ? P.h || [0, 0] : w >= 0 ? LIMP_HEAD[w] : [0, 0];
-  // 走路時兩隻手跟著好腳反方向擺
-  const fh = P ? P.fh : [1 - ax * .7 + ox, 28 + oy], hand = P ? P.hand : [24 + ax * .35 + ox, 25 + oy], tip = P ? P.tip : [34.5 + ax * .35 + ox, 4.5 + oy];
+  const [ax, ay] = w >= 0 ? STEP[w] : [0, 0], [bx, by] = w >= 0 ? STEP[(w + 3) % 6] : [0, 0];
+  const [ox, oy] = P ? P.o || [0, 0] : [0, w >= 0 ? BOB[w] : 0], [hx, hy] = P ? P.h || [0, 0] : [0, 0];
+  // 走路時兩隻手跟著前腳反方向擺
+  const fh = P ? P.fh : [1 - ax * .6 + ox, 28 + oy], hand = P ? P.hand : [24 + ax * .3 + ox, 25 + oy], tip = P ? P.tip : [34.5 + ax * .3 + ox, 4.5 + oy];
 
   const S: Set = (x, y, c) => set(x + ox, y + oy, c);                          // 畫在「身體」上（跟著身體偏移）
-  // 後腳（暗，跛腳）：膝蓋不彎，一根直的拖著
-  bone(set, 15 + ox, 31 + oy, 17.5 + bx, 44 + by, C.j, C.d);
+  // 後腳（暗）：膝蓋往前彎
+  limb(set, 15 + ox, 31 + oy, 17.5 + bx, 44 + by, 7, 7, -1, C.j, C.d, C.d);
   for (let i = 0; i < 4; i++) set(Math.round(17 + bx) + i, Math.round(45 + by), C.j);
   // 不拿劍的手：手肘往後彎
   limb(set, 3.5 + ox, 15 + oy, fh[0], fh[1], 7, 7, 1, C.e, C.c, C.c);
@@ -75,7 +72,7 @@ export function paintSkel(set: Set, R: string[], eye: string, ph: number | strin
     for (let x = 0; x < row.length; x++) if (row[x] !== '.') S(x + dx, y + dy, C[row[x]]); });
   if (P?.jaw) for (let x = 10; x <= 15; x++) S(x + hx, 10 + hy, CAVITY);       // 張開的嘴
   for (const [x, y] of [[12, 5], [16, 5]]) S(x + hx, y + hy, eye);             // 眼窩裡的光
-  // 前腳（亮，好腳）：膝蓋往前彎
+  // 前腳（亮）：膝蓋往前彎
   limb(set, 8 + ox, 31 + oy, 4.5 + ax, 44 + ay, 7.2, 7.2, -1, C.e, C.c, C.c);
   for (let i = 0; i < 4; i++) set(Math.round(4 + ax) + i, Math.round(45 + ay), i < 2 ? C.e : C.c);
   // 拿劍的手臂：手肘往後彎
