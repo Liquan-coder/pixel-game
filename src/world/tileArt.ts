@@ -1,6 +1,6 @@
 import { mulberry32 } from '../core/util';
 import { SH, hash2, sculpt } from '../art/monsters';
-import { ARENA, BIGT, BRIDGE, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, HOUSE, HOUSES, LAVA, MW, PILLAR, RFLOOR, ROAD, ROCK, RWALL, TREE, WALKABLE, WATER, map, reg } from './map';
+import { ARENA, BIGT, BRIDGE, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, HOUSE, HOUSES, LAVA, MH, MW, PILLAR, RFLOOR, ROAD, ROCK, RWALL, TREE, WALKABLE, WATER, map, reg } from './map';
 import { CARPU, CRUSTU, ICEW, LAVU, MUDW, NZ0, NZ1, NZ2, RUIN, RUINU, SCU, TA, UL, WATU, WOODU, groundK, hexU, isLavaish, isRoadish, isWallT, isWaterish, nz, tileAt } from './gen';
 
 export function bakeTileHD(buf, CA, tx, ty, ox, oy) {
@@ -8,7 +8,13 @@ export function bakeTileHD(buf, CA, tx, ty, ox, oy) {
   const up = tileAt(tx, ty - 1), dn = tileAt(tx, ty + 1), lf = tileAt(tx - 1, ty), rt = tileAt(tx + 1, ty);
   const AX = tx * TA, AY = ty * TA, wallUp = isWallT(up), wallL = isWallT(lf), wallR = isWallT(rt);
   const at = (lx, ly) => (oy + ly) * CA + ox + lx;
-  const ground = (lx, ly) => { const ax = AX + lx, ay = AY + ly; let k = groundK(r, ax, ay);
+  /* 地區交界：靠近邊的地面像素，有機會改用隔壁地區的顏色（越靠邊機會越大）→ 顏色是漸漸混過去的，不是一條直線 */
+  const rAt = (x, y) => reg[Math.min(MH - 1, Math.max(0, y)) * MW + Math.min(MW - 1, Math.max(0, x))];
+  const rU = rAt(tx, ty - 1), rD = rAt(tx, ty + 1), rL = rAt(tx - 1, ty), rR = rAt(tx + 1, ty), mix = rU !== r || rD !== r || rL !== r || rR !== r;
+  const ground = (lx, ly) => { const ax = AX + lx, ay = AY + ly;
+    if (mix) { let d = 99, o = r; if (rL !== r && lx < d) { d = lx; o = rL; } if (rR !== r && 47 - lx < d) { d = 47 - lx; o = rR; } if (rU !== r && ly < d) { d = ly; o = rU; } if (rD !== r && 47 - ly < d) { d = 47 - ly; o = rD; }
+      if (o !== r && o !== 4 && hash2(ax, ay * 3 + 1) < (24 - d) / 48) { const k2 = groundK(o, ax, ay); return SCU[o].g[k2]; } }
+    let k = groundK(r, ax, ay);
     if (wallUp && ly < 15) k -= ly < 5 ? 2 : ly < 10 ? 1 : (hash2(ax, ay) < .5 ? 1 : 0);
     if (wallL && lx < 7) k -= lx < 3 ? 2 : 1; if (wallR && lx > 40) k -= lx > 44 ? 2 : 1;   // 牆腳的影子：一看就知道牆比地面高
     return S.g[k < 0 ? 0 : k]; };

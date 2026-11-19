@@ -33,7 +33,9 @@ export function centerMap() {
 }
 const toScr = (tx: number, ty: number) => [(tx - mv.x) * mv.z + mv.w / 2, (ty - mv.y) * mv.z + mv.h / 2];
 const toTile = (sx: number, sy: number) => [(sx - mv.w / 2) / mv.z + mv.x, (sy - mv.h / 2) / mv.z + mv.y];
-function clampView() { mv.z = clamp(mv.z, zMin(), zMax); mv.x = clamp(mv.x, 0, MW); mv.y = clamp(mv.y, 0, MH); }
+function clampView() {                                               // 地圖比畫面小 → 置中；比畫面大 → 不能拖出邊界
+  mv.z = clamp(mv.z, zMin(), zMax); const hw = mv.w / 2 / mv.z, hh = mv.h / 2 / mv.z;
+  mv.x = MW <= hw * 2 ? MW / 2 : clamp(mv.x, hw, MW - hw); mv.y = MH <= hh * 2 ? MH / 2 : clamp(mv.y, hh, MH - hh); }
 export let mapSel: string | null = null;                                // 點了哪個營火（等確認傳送）
 export function renderBigMap() {
   const r = bigmap.getBoundingClientRect(), dpr = Math.min(3, window.devicePixelRatio || 1);

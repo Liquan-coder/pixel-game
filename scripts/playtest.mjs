@@ -253,6 +253,14 @@ const pageScript = async () => {
     log.push('  存檔大小 ' + before.length + ' bytes');
   });
 
+  run('舊存檔（v6）：舊的起始營火變成西丘營火，位置不變', () => {
+    save(); const s = loadSave(); s.v = 6; s.lastCamp = 'start'; s.camps = ['start', 'dawn']; s.merchant = { camp: 'start', stock: [] };
+    applySave(s); const W = CAMPS.find(c => c.id === 'west'), S0 = CAMPS.find(c => c.id === 'start');
+    if (G.lastCamp !== 'west' || !W.lit || !S0.lit) throw new Error('營火沒有換算：' + G.lastCamp + ' west=' + W.lit + ' start=' + S0.lit);
+    if (W.tx !== 30 || W.ty !== 165) throw new Error('西丘營火位置不對');
+    save(); applySave(loadSave()); step(5);
+  });
+
   run('死亡 → 重生', () => {
     G.me.iframe = 0; G.me.hp = 1; hurtPlayer(G.me, 9999, G.me.x + 5, G.me.y); step(400);
     if (G.me.dead) throw new Error('沒有重生');

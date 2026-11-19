@@ -10,34 +10,63 @@ import { asn } from '../render/fx';
 
 export const CH = 16, CPX = CH * TS, chunks = new Map(), CHUNK_MAX = 26;
 export let bakedFrame = -1, bakeCount = 0;
-export function bakeChunk(cx, cy) {
+/* 地形烘焙分成三段：地面像素（16 列）→ 放上畫布 + 火把座 → 物件（樹、石頭、房子…，22 列）。
+   預先烘焙（prefetch）每幀只做幾毫秒，下一幀接著做 → 走路時不會因為一次烤一整塊而卡一下。
+   真的要畫但還沒烤好的那一塊，才會一次烤完（getChunk）。 */
+type Job = { cx: number; cy: number; c: HTMLCanvasElement; g: CanvasRenderingContext2D; img: ImageData; buf: Uint32Array; step: number };
+const OBJ_ROWS = CH + 6;
+function beginJob(cx, cy): Job {
   const CA = CH * TA, c = document.createElement('canvas'); c.width = c.height = CA; const g = c.getContext('2d');
-  const img = g.createImageData(CA, CA), buf = new Uint32Array(img.data.buffer);
-  const tx0 = cx * CH, ty0 = cy * CH;
-  for (let ty = ty0; ty < ty0 + CH; ty++) for (let tx = tx0; tx < tx0 + CH; tx++) bakeTileHD(buf, CA, tx, ty, (tx - tx0) * TA, (ty - ty0) * TA);
-  g.putImageData(img, 0, 0);
-  for (const t of torches) if (t.tx >= tx0 && t.tx < tx0 + CH && t.ty >= ty0 && t.ty < ty0 + CH) {     // 牆上的火把座
-    const x = (t.x - tx0 * TS) * AR, y = (t.y - ty0 * TS) * AR;
-    g.fillStyle = OL; g.fillRect(x - 5, y - 1, 10, 18); g.fillStyle = '#7a5434'; g.fillRect(x - 2, y, 4, 15); g.fillStyle = '#9a7048'; g.fillRect(x - 2, y, 1, 15);
-    g.fillStyle = '#4a4858'; g.fillRect(x - 4, y + 10, 8, 3); g.fillStyle = '#7a788a'; g.fillRect(x - 4, y + 10, 8, 1); }
-  for (let ty = ty0; ty < Math.min(MH, ty0 + CH + 6); ty++) for (let tx = Math.max(0, tx0 - 4); tx < Math.min(MW, tx0 + CH + 4); tx++) bakeObjectHD(g, tx, ty, (tx - tx0) * TA, (ty - ty0) * TA);
+  const img = g.createImageData(CA, CA); return { cx, cy, c, g, img, buf: new Uint32Array(img.data.buffer), step: 0 };
+}
+function stepJob(j: Job) {                                                // 做一小段；做完回傳 true
+  const CA = CH * TA, tx0 = j.cx * CH, ty0 = j.cy * CH, s = j.step++;
+  if (s < CH) { const ty = ty0 + s; if (ty < MH) for (let tx = tx0; tx < tx0 + CH; tx++) if (tx < MW) bakeTileHD(j.buf, CA, tx, ty, (tx - tx0) * TA, (ty - ty0) * TA); return false; }
+  if (s === CH) { const g = j.g; g.putImageData(j.img, 0, 0);
+    for (const t of torches) if (t.tx >= tx0 && t.tx < tx0 + CH && t.ty >= ty0 && t.ty < ty0 + CH) {     // 牆上的火把座
+      const x = (t.x - tx0 * TS) * AR, y = (t.y - ty0 * TS) * AR;
+      g.fillStyle = OL; g.fillRect(x - 5, y - 1, 10, 18); g.fillStyle = '#7a5434'; g.fillRect(x - 2, y, 4, 15); g.fillStyle = '#9a7048'; g.fillRect(x - 2, y, 1, 15);
+      g.fillStyle = '#4a4858'; g.fillRect(x - 4, y + 10, 8, 3); g.fillStyle = '#7a788a'; g.fillRect(x - 4, y + 10, 8, 1); }
+    return false; }
+  const ty = ty0 + (s - CH - 1);
+  if (ty < MH) for (let tx = Math.max(0, tx0 - 4); tx < Math.min(MW, tx0 + CH + 4); tx++) bakeObjectHD(j.g, tx, ty, (tx - tx0) * TA, (ty - ty0) * TA);
+  return s - CH >= OBJ_ROWS;
+}
+let job: Job | null = null;
+export function bakeChunk(cx, cy) {                                       // 一次烤完（如果剛好是背景正在烤的那塊，就接著烤完）
+  const j = job && job.cx === cx && job.cy === cy ? job : beginJob(cx, cy); if (j === job) job = null;
+  while (!stepJob(j)) {}
   bakedFrame = G.frameNo; bakeCount++;
-  return c;
+  return j.c;
 }
 export function getChunk(cx, cy) {
   const k = cx + ',' + cy; let e = chunks.get(k);
-  if (!e) { e = { c: bakeChunk(cx, cy), used: G.frameNo }; chunks.set(k, e);
-    if (chunks.size > CHUNK_MAX) { let old = null, ou = Infinity; for (const [kk, v] of chunks) if (v.used < ou) { ou = v.used; old = kk; } if (old && old !== k) chunks.delete(old); } }
+  if (!e) { e = { c: bakeChunk(cx, cy), used: G.frameNo }; chunks.set(k, e); evict(k); }
   e.used = G.frameNo; return e.c;
 }
-export function prefetchChunks(cx, cy) {                                       // 每幀最多先烤一塊：把周圍一圈事先準備好，走過去才不會卡
-  if (bakedFrame === G.frameNo) return;
+function evict(keep: string) {
+  if (chunks.size <= CHUNK_MAX) return;
+  let old = null, ou = Infinity; for (const [kk, v] of chunks) if (v.used < ou && kk !== keep) { ou = v.used; old = kk; } if (old) chunks.delete(old);
+}
+const BUDGET_MS = 3;                                                      // 每幀最多花幾毫秒在背景烘焙
+export function prefetchChunks(cx, cy) {
+  if (bakedFrame === G.frameNo) return;                                   // 這一幀已經同步烤過一塊了，不要再加重
+  const t0 = performance.now();
+  while (performance.now() - t0 < BUDGET_MS) {
+    if (!job) { const n = nextMissing(cx, cy); if (!n) return; job = beginJob(n[0], n[1]); }
+    if (stepJob(job)) { const k = job.cx + ',' + job.cy; chunks.set(k, { c: job.c, used: G.frameNo - 1 }); evict(k); bakeCount++; job = null; }
+  }
+}
+function nextMissing(cx, cy) {                                            // 畫面周圍一圈還沒烤的塊，離中心近的先烤
   const gx0 = Math.floor(cx / CPX) - 1, gx1 = Math.floor((cx + LW) / CPX) + 1, gy0 = Math.floor(cy / CPX) - 1, gy1 = Math.floor((cy + LH) / CPX) + 1;
+  const mx = (cx + LW / 2) / CPX, my = (cy + LH / 2) / CPX; let best = null, bd = Infinity;
   for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) {
     if (gx < 0 || gy < 0 || gx * CH >= MW || gy * CH >= MH || chunks.has(gx + ',' + gy)) continue;
-    const e = { c: bakeChunk(gx, gy), used: G.frameNo - 1 }; chunks.set(gx + ',' + gy, e); return; }
+    const d = (gx + .5 - mx) ** 2 + (gy + .5 - my) ** 2; if (d < bd) { bd = d; best = [gx, gy]; } }
+  return best;
 }
-export function invalidate(tx, ty) { for (let y = ty - 6; y <= ty + 6; y += 2) for (let x = tx - 4; x <= tx + 4; x += 2) chunks.delete(Math.floor(clamp(x, 0, MW - 1) / CH) + ',' + Math.floor(clamp(y, 0, MH - 1) / CH)); }
+export function invalidate(tx, ty) { for (let y = ty - 6; y <= ty + 6; y += 2) for (let x = tx - 4; x <= tx + 4; x += 2) { const gx = Math.floor(clamp(x, 0, MW - 1) / CH), gy = Math.floor(clamp(y, 0, MH - 1) / CH);
+  chunks.delete(gx + ',' + gy); if (job && job.cx === gx && job.cy === gy) job = null; } }
 
 /* ---------- 會動的場景：火焰、營火、火盆、發光蘑菇 ---------- */
 export function flame(x, y, h, seed) {

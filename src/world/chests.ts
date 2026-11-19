@@ -29,7 +29,7 @@ export function genChests(reach: Uint8Array) {
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (!WALKABLE(map[I(x + dx, y + dy)])) return false; return true; };
   const blocked = (x, y) => (x >= ARENA.x0 - 3 && x <= ARENA.x1 + 3 && y >= ARENA.y0 - 3 && y <= ARENA.y1 + 3) ||
     Object.values(RBDEF).some(d => Math.hypot(d.tx - x, d.ty - y) < d.tr + 3) || CHESTS.some(c => Math.hypot(c.tx - x, c.ty - y) < 22);
-  const add = (x, y, tier, lv, mimic) => CHESTS.push({ id: 'c' + CHESTS.length, tx: x, ty: y, x: x * TS + 8, y: y * TS + 10, tier, lv, mimic, opened: false, t: 0 });
+  const add = (x, y, tier, lv, mimic) => CHESTS.push({ id: 'c' + x + '_' + y, /* 用位置當編號：地圖改了也不會對錯箱子 */ tx: x, ty: y, x: x * TS + 8, y: y * TS + 10, tier, lv, mimic, opened: false, t: 0 });
   const near = (x0, y0) => { for (let r = 0; r < 8; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const x = x0 + dx, y = y0 + dy;   // 從指定點往外找最近能放的格子
     if (Math.max(Math.abs(dx), Math.abs(dy)) === r && open(x, y) && !blocked(x, y)) return [x, y]; } return null; };
   // 地標寶箱：固定位置、比較好的箱子
@@ -38,7 +38,7 @@ export function genChests(reach: Uint8Array) {
   // 野外隨機寶箱：每個地區 8 個
   for (const r of [0, 1, 2, 3, 5, 6]) {
     let n = 0, tries = 0;
-    while (n < 8 && tries++ < 20000) {
+    while (n < (r === 0 ? 20 : 8) && tries++ < 40000) {                 // 平原變大了，寶箱也多放一些
       const x = 4 + Math.floor(R() * (MW - 8)), y = 4 + Math.floor(R() * (MH - 8));
       if (reg[I(x, y)] !== r || !open(x, y) || blocked(x, y)) continue;
       if (CAMPS.some(c => Math.hypot(c.tx - x, c.ty - y) < 12) || TOWNS.some(T => Math.hypot(T.tx - x, T.ty - y) < T.r + 6)) continue;
