@@ -3,7 +3,9 @@ import { G } from '../core/state';
 import { $, mulberry32, pick, rr } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
 import { SH, sculpt } from '../art/monsters';
-import { randomLoot } from '../data/items';
+import { makeUnique, randomLoot } from '../data/items';
+import { DUNGEONS } from './dungeons';
+import { flags } from '../game/quest';
 import { ARENA, CAMPS, GROUND, MH, MW, RFLOOR, ROAD, TOWNS, TS, WALKABLE, map, reg } from './map';
 import { RBDEF } from './regionBoss';
 import { drawArtSprite } from './chunks';
@@ -16,10 +18,11 @@ import { showBanner, toast } from '../ui/hud';
 import { save } from '../game/save';
 import type { Player } from '../types';
 
-export interface Chest { id: string; tx: number; ty: number; x: number; y: number; tier: number; lv: number; mimic: boolean; opened: boolean; t: number; foe?: any }
+export interface Chest { id: string; tx: number; ty: number; x: number; y: number; tier: number; lv: number; mimic: boolean; opened: boolean; t: number; foe?: any;
+  uq?: string; need?: string }                                           // uq = 固定的獨特武器；need = 要先達成的旗標（地城守護者倒下）
 export const CHESTS: Chest[] = [];
 const TIER = [{ n:'木製寶箱', col:'#c8a070' }, { n:'白銀寶箱', col:'#cfd8ea' }, { n:'黃金寶箱', col:'#f2c14e' }];
-const REG_LV = [3, 8, 13, 18, 8, 23, 28];                               // 每個地區寶箱的等級
+const REG_LV = [3, 8, 13, 18, 8, 23, 28, 4];                               // 每個地區寶箱的等級
 
 /* 放寶箱：reach = 從起點走得到的格子。偏僻 = 離道路、營火都有一段距離 */
 export function genChests(reach: Uint8Array) {
@@ -35,6 +38,10 @@ export function genChests(reach: Uint8Array) {
   // 地標寶箱：固定位置、比較好的箱子
   for (const [x, y, tier, lv] of [[80, 40, 2, 14], [35, 31, 1, 12], [205, 168, 1, 9], [84, 146, 0, 4], [165, 116, 0, 8], [206, 36, 1, 19], [318, 87, 1, 23], [266, 160, 2, 28], [44, 104, 0, 3]]) {
     const p = near(x, y); if (p) add(p[0], p[1], tier, lv, false); }
+  // 地城：岔路房的銀箱 + 最深處的金箱（獨特武器，要先打倒守護者）。地城裡面走路到不了起點，所以直接放
+  for (const d of DUNGEONS) { const dd = d as any; if (!dd.bossChest) continue;
+    CHESTS.push({ id: 'd_' + d.id, tx: dd.bossChest[0], ty: dd.bossChest[1], x: dd.bossChest[0] * TS + 8, y: dd.bossChest[1] * TS + 10, tier: 2, lv: d.lv + 2, mimic: false, opened: false, t: 0, uq: d.uq, need: 'dgn:' + d.id });
+    add(dd.sideChest[0], dd.sideChest[1], 1, d.lv + 1, false); }
   // 野外隨機寶箱：每個地區 8 個
   for (const r of [0, 1, 2, 3, 5, 6]) {
     let n = 0, tries = 0;
@@ -52,6 +59,7 @@ export function genChests(reach: Uint8Array) {
 export const nearChest = (pl: Player) => { if (pl.dead) return null; for (const c of CHESTS) if (!c.opened && !c.foe && Math.abs(c.x - pl.x) < 22 && Math.hypot(c.x - pl.x, c.y - pl.y) < 22) return c; return null; };
 export function openChest(pl: Player, c: Chest) {
   if (c.opened || c.foe) return;
+  if (c.need && !flags.has(c.need)) { toast('寶箱被一股力量封住了……先打倒這裡的守護者', '#c8a8ff'); return; }
   if (c.mimic) {                                                       // 寶箱怪：張開嘴撲過來，打倒才拿得到東西
     const e = makeEnemy('mimic', c.lv + 1, c.x, c.y - 2, { elite: true, ename: '寶箱怪', alive: true, timer: 0 });
     e.state = 'chase'; e.chest = c; c.foe = e; G.enemies.push(e);
@@ -65,6 +73,7 @@ function giveLoot(c: Chest, pl: Player) {
   dropGold(c.x, c.y, Math.round([20 + lv * 4, 40 + lv * 8, 80 + lv * 15][T] * rr(.85, 1.15)));
   dropSouls(c.x, c.y, [lv * 5, lv * 10, lv * 20][T], pl);
   dropMat(c.x, c.y, oreForLevel(lv), 2 + T, pl); if (T === 2) dropMat(c.x, c.y, oreForLevel(lv + 10), 1, pl);   // 黃金寶箱多一顆下一級的礦石
+  if (c.uq) { const it = makeUnique(c.uq); dropItem(it, c.x, c.y); showBanner('獲得傳說武器', it.name, 2600); sfx.epic(); return; }   // 地城最深處：固定的獨特武器
   const q = Math.random();
   if (T === 0) { if (q < .65) dropItem(randomLoot(lv, q < .2 ? 2 : 1), c.x, c.y); }
   else if (T === 1) dropItem(randomLoot(lv, q < .3 ? 3 : 2), c.x, c.y);

@@ -15,6 +15,7 @@ export const REGIONS = [
   { key:'den', name:'狼王巢穴', sub:'建議等級 7 以上', amb:.52, tint:[8,4,12] },
   { key:'snow', name:'霜寒雪原', sub:'建議等級 20–25', c:[304,46], amb:.1, tint:[14,22,44] },
   { key:'swamp', name:'幽影沼澤', sub:'建議等級 25–30', c:[302,148], amb:.3, tint:[10,20,8] },
+  { key:'dungeon', name:'地城', sub:'', amb:.55, tint:[6,4,12] },          // 7 = 地城裡面（world/dungeons.ts），不是野外
 ];
 export const OPEN_REGIONS = [0, 1, 2, 3, 5, 6];                       // 野外地區（4 = 狼王巢穴，不是野外）
 export const ARENA = { x0:181, y0:102, x1:199, y1:119 };

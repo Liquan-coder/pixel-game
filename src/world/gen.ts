@@ -3,6 +3,7 @@ import { clamp, makeNoise, mulberry32 } from '../core/util';
 import { hash2 } from '../art/monsters';
 import { ARENA, BIGT, BRIDGE, CAMPS, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, HOUSE, HOUSES, LAVA, MH, MW, OPEN_REGIONS, PILLAR, REGIONS, TOWNS, RFLOOR, ROAD, ROADS, ROCK, RWALL, SOLID, TREE, TS, WALKABLE, WATER, braziers, glows, map, reg, shade, spawns, torches } from './map';
 import { RBDEF } from './regionBoss';
+import { addDungeonSpawns, stampEntrances } from './dungeons';
 export let reachable: Uint8Array = null;                               // 從起點走得到的格子（genWorld 算好）
 
 export function genWorld() {
@@ -120,6 +121,7 @@ export function genWorld() {
   for (const [px, py] of [[185,106],[195,106],[185,115],[195,115]]) map[I(px, py)] = PILLAR;
   for (const x of DOOR) map[I(x, ARENA.y1)] = FOG;
   for (const [bx, by] of [[183,104],[197,104],[183,117],[197,117]]) braziers.push({ x:bx * TS + 8, y:by * TS + 12 });
+  stampEntrances(inb); addDungeonSpawns();                              // 地城：野外入口的小山 + 海上的地城區塊（裡面的怪也在這裡放）
   for (const c of CAMPS) clearDisk(c.tx, c.ty, 3, false);
   for (let y = 3; y < MH - 3; y++) for (let x = 3; x < MW - 3; x++) {
     const i = I(x, y);
@@ -190,6 +192,7 @@ export const RUIN = [
   { fl:'#34303f', fl2:'#38344a', gr:'#25222d', hi:'#413c51', wf:'#4a4560', wf2:'#3e3953', mo:'#2a2637', cap:'#6c6689', top:'#14111b', edge:'#3b3651', moss:null },
   { fl:'#8a96aa', fl2:'#929eb2', gr:'#5e6a80', hi:'#b4c0d4', wf:'#9aa6bc', wf2:'#8a96ac', mo:'#5a6478', cap:'#e8f0fa', top:'#6a7890', edge:'#7a869c', moss:null },
   { fl:'#3a4236', fl2:'#40483a', gr:'#262c22', hi:'#4e5844', wf:'#4a5440', wf2:'#404a38', mo:'#262c22', cap:'#5e6a52', top:'#161a12', edge:'#343c2e', moss:'#4a6a2e' },
+  { fl:'#3a3640', fl2:'#403b48', gr:'#28252e', hi:'#4c4756', wf:'#4a4454', wf2:'#3e3948', mo:'#26222e', cap:'#6a6478', top:'#16131c', edge:'#34303e', moss:'#3e5a34' },
 ];
 export const isWallT = t => t === CLIFF || t === RWALL;
 /* ---------- tiles：以 3 倍細像素烘焙（每格 48×48），跟角色同一個像素密度 ---------- */
@@ -222,6 +225,8 @@ export const SCU = [
     face:UL(['#2a3244','#404a62','#58647e','#727e9a','#8e9ab4']), lip:UL(['#8a9ab0','#c4d2e2','#e8f0f8','#ffffff']), top:UL(['#5e6a82','#68748c','#727e96']), bank:UL(['#6a7890','#8492aa','#a0aec4']) },
   { g:UL(['#161c12','#1c2416','#232e1c','#2b3822','#344428','#3e5030']), road:UL(['#251f16','#352d20','#453b2a','#544934','#63573e']),
     face:UL(['#14161a','#262a30','#3a4048','#505860','#68727a']), lip:UL(['#121810','#232e1c','#344428','#506838']), top:UL(['#0e120a','#12160e','#161c12']), bank:UL(['#1a160e','#262014','#322a1c']) },
+  { g:UL(['#1c1a18','#24211e','#2c2824','#35302a','#3f3931','#4a4339']), road:UL(['#2a2622','#36302a','#423a32','#4e453b','#5a5044']),   // 7 地城：深色岩洞
+    face:UL(['#16141a','#2a2630','#3e3946','#544e5e','#6c6678']), lip:UL(['#1a2418','#2a3a24','#3e5634','#5a7a48']), top:UL(['#121014','#16131a','#1a1720']), bank:UL(['#141210','#1e1a16','#28221c']) },
 ];
 export const RUINU = RUIN.map(u => { const o: Record<string, number> = {}; for (const k in u) o[k] = u[k] ? hexU(u[k]) : 0; return o; });
 export const WATU = UL(['#1a3664','#22467e','#2c5892','#3566a2','#4a80ba','#7cb0dc','#d4ecff']);

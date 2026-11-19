@@ -189,7 +189,7 @@ const DECO = {
 const DP = {
   p0: { a:0, b:0 }, flowers: ['#f4e27a', '#ffffff', '#f29bb8', '#9ac8ff', '#c8a0ff'].map(hexU),
   stone: [UL(['#1a1820','#b0adbb','#8d8a99','#6b6878']), UL(['#0f1712','#8a9a8a','#6a7a6a','#4a5a4a']), UL(['#2a2014','#d8c8a8','#b0a080','#8a7a5a']), UL(['#100a0a','#6a5a5c','#4a3a3c','#2e2224']), UL(['#0e0b14','#6a6478','#4a4558','#34303f']),
-    UL(['#2a3448','#e8f0fa','#b0bed0','#8494ac']), UL(['#0e120a','#5e6a52','#46503c','#2e3626'])],
+    UL(['#2a3448','#e8f0fa','#b0bed0','#8494ac']), UL(['#0e120a','#5e6a52','#46503c','#2e3626']), UL(['#0e0b14','#6a6478','#4a4558','#34303f'])],
 };
 function decoBones(buf, CA, x, y) { stamp(buf, CA, DECO.bone, { w:hexU('#e8e0cc'), k:hexU('#8a8270') }, x, y); }
 function decoGround(buf, CA, r, tx, ty, ox, oy) {

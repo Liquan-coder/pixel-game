@@ -8,6 +8,7 @@ import { SH, sculpt } from '../art/monsters';
 import { STEPS, TABLETS, PREMISE, type QuestCtx } from '../data/story';
 import { CAMPS, GROUND, MW, ROAD, TS, WALKABLE, discovered, map } from '../world/map';
 import { rbDead } from '../world/regionBoss';
+import { DUNGEONS } from '../world/dungeons';
 import { CHESTS } from '../world/chests';
 import { drawArtSprite } from '../world/chunks';
 import { drawShadow } from '../render/player';
@@ -56,6 +57,7 @@ export function mapMarker(g, s, ox = 0, oy = 0) {
 /* ---- 石碑 ---- */
 export const TAB = TABLETS.map(t => ({ ...t, x: 0, y: 0 }));
 export function placeTablets() {                                       // 地圖生成後：把石碑放到附近走得到的空地
+  for (const d of DUNGEONS) { const p = (d as any).tablet; if (p && !TAB.some(t => t.id === 'd_' + d.id)) TAB.push({ id: 'd_' + d.id, tx: p[0], ty: p[1], title: d.lore.title, text: d.lore.text, x: 0, y: 0 }); }   // 地城裡的石碑
   const I = (x, y) => y * MW + x, ok = (x, y) => (map[I(x, y)] === GROUND || map[I(x, y)] === ROAD) && [[1, 0], [-1, 0], [0, 1], [0, -1]].every(([a, b]) => WALKABLE(map[I(x + a, y + b)])) && !CHESTS.some(c => Math.abs(c.tx - x) + Math.abs(c.ty - y) < 3);
   for (const t of TAB) { let best = null; for (let r = 0; r < 10 && !best; r++) for (let dy = -r; dy <= r && !best; dy++) for (let dx = -r; dx <= r; dx++) if (Math.max(Math.abs(dx), Math.abs(dy)) === r && ok(t.tx + dx, t.ty + dy)) { best = [t.tx + dx, t.ty + dy]; break; }
     if (best) { t.tx = best[0]; t.ty = best[1]; } t.x = t.tx * TS + 8; t.y = t.ty * TS + 10; }

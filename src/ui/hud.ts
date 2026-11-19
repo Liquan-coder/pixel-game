@@ -8,6 +8,7 @@ import { nearMerchant } from './shop';
 import { nearChest } from '../world/chests';
 import { nearSmith } from '../world/towns';
 import { nearTablet } from '../game/quest';
+import { doorLabel, nearDoor } from '../world/dungeons';
 import { itemCard } from './menus';
 import { SCALE } from '../core/canvas';
 import { view } from '../render/render';
@@ -40,7 +41,9 @@ export function updateHUD() {
   const chest = !!(!G.paused && G.started && !pk && nearChest(G.me)), tab = !!(!G.paused && G.started && !pk && !chest && nearTablet());
   if (hudCache.tab !== tab) { hudCache.tab = tab; $('readBtn').hidden = !tab; }
   if (hudCache.chest !== chest) { hudCache.chest = chest; $('chestBtn').hidden = !chest; }
-  if (pk || chest || tab) { show = false; shop = false; }                           // 腳邊有裝備時，E 和下方按鈕都是「撿起」
+  const door = !G.paused && G.started && !pk && !chest && !tab ? nearDoor(G.me) : null, dk = door ? doorLabel(door) : '';
+  if (hudCache.door !== dk) { hudCache.door = dk; $('doorBtn').hidden = !door; if (door) $('doorTxt').textContent = dk; }
+  if (pk || chest || tab || door) { show = false; shop = false; }                           // 腳邊有裝備時，E 和下方按鈕都是「撿起」
   if (hudCache.shop !== shop) { hudCache.shop = shop; $('shopBtn').hidden = !shop; }
   if (hudCache.rest !== (show && !shop)) { hudCache.rest = show && !shop; $('restBtn').hidden = !(show && !shop); }
   setText('goldTxt', String(G.me.gold));

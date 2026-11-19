@@ -59,7 +59,7 @@ const pageScript = async () => {
   const shop = await imp('ui/shop');
   const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies') };
 
-  const imp0 = { map: await imp('render/map') };
+  const imp0 = { map: await imp('render/map'), dg: await imp('world/dungeons'), input: await imp('ui/input') };
   const step = (n, opts = {}) => {
     for (let i = 0; i < n; i++) {
       if (opts.god && G.me) { G.me.hp = G.me.maxHp; G.me.st = G.me.maxSt; }
@@ -233,6 +233,29 @@ const pageScript = async () => {
     b.click(); step(2);
     if (Math.hypot(G.me.x - dst.x, G.me.y - dst.y) > 40) throw new Error('沒有傳送到晨風鎮營火');
     if (G.lastCamp !== 'dawn') throw new Error('最後休息的營火沒有更新');
+  });
+
+  run('地城：進入 → 寶箱被封印 → 打倒守護者 → 拿到獨特武器 → 休息後守護者不再出現 → 離開', () => {
+    const D = imp0.dg, CH = await0.chests, Q = await0.quest; setMenu(null);
+    for (const d of D.DUNGEONS) {
+      tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1);
+      const door = D.nearDoor(G.me); if (!door || door.out) throw new Error(d.id + '：站在入口前沒偵測到門');
+      imp0.input.enterDoor(); step(2);
+      if (!D.dungeonAt(G.me.x, G.me.y)) throw new Error(d.id + '：沒有傳送進地城');
+      const chest = CH.CHESTS.find(c => c.id === 'd_' + d.id); if (!chest) throw new Error(d.id + '：找不到最深處的寶箱');
+      tp(chest.x, chest.y + 6); CH.openChest(G.me, chest); if (chest.opened) throw new Error(d.id + '：守護者還在，寶箱卻打開了');
+      const boss = G.enemies.find(e => e.sp && e.sp.once === 'dgn:' + d.id); if (!boss) throw new Error(d.id + '：找不到守護者');
+      boss.hp = 1; damageEnemy(G.me, boss, 5, G.me.x, G.me.y); step(3);
+      if (!Q.flags.has('dgn:' + d.id)) throw new Error(d.id + '：打倒守護者沒有記錄');
+      const n0 = G.drops.length; CH.openChest(G.me, chest); step(3);
+      const got = G.drops.slice(n0).find(x => x.item.uq === d.uq); if (!chest.opened || !got) throw new Error(d.id + '：沒拿到 ' + d.uq);
+      menus.restAt(CAMPS[0]); setMenu(null); step(2);
+      if (G.enemies.some(e => e.sp && e.sp.once === 'dgn:' + d.id)) throw new Error(d.id + '：休息後守護者又出現了');
+      tp(d.exX, d.exY); step(1); const out = D.nearDoor(G.me); if (!out || !out.out) throw new Error(d.id + '：站在階梯上沒偵測到出口');
+      imp0.input.enterDoor(); step(2); if (D.dungeonAt(G.me.x, G.me.y)) throw new Error(d.id + '：沒有離開地城');
+      log.push('  ' + d.name + '：' + got.item.name);
+    }
+    G.drops = [];
   });
 
   run('掉落：小怪主要掉魂晶 / 礦石，武器很少', () => {

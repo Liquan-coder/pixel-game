@@ -11,6 +11,11 @@ import { pickUp } from '../game/worldUpdate';
 import { nearChest, openChest } from '../world/chests';
 import { nearSmith } from '../world/towns';
 import { nearTablet, readTablet } from '../game/quest';
+import { nearDoor, useDoor } from '../world/dungeons';
+import { cam } from '../game/player';
+import { LH, LW } from '../core/canvas';
+export function enterDoor() { const d = nearDoor(G.me); if (!d) return; useDoor(G.me, d, pl => { cam.x = pl.x - LW / 2; cam.y = pl.y - LH / 2; }); G.region = ''; }
+$('doorBtn').addEventListener('click', enterDoor);
 
 /* ================= INPUT ================= */
 const KEYMAP = { KeyW:'up', ArrowUp:'up', KeyS:'down', ArrowDown:'down', KeyA:'left', ArrowLeft:'left', KeyD:'right', ArrowRight:'right',
@@ -57,7 +62,7 @@ export function readInput() {
   if (pressed.inv) toggleInv();
   if (pressed.map) toggleMap();
   if (pressed.esc && openMenu) setMenu(null);
-  if (pressed.rest && !openMenu) { if (G.pick) pickUp(G.me, G.pick); else if (nearChest(G.me)) openChest(G.me, nearChest(G.me)); else if (nearTablet()) readTablet(nearTablet()); else if (nearSmith()) openShop(nearSmith()); else if (nearMerchant()) openShop(); else { const c = nearCamp(G.me); if (c) restAt(c); } }
+  if (pressed.rest && !openMenu) { if (G.pick) pickUp(G.me, G.pick); else if (nearChest(G.me)) openChest(G.me, nearChest(G.me)); else if (nearTablet()) readTablet(nearTablet()); else if (nearDoor(G.me)) enterDoor(); else if (nearSmith()) openShop(nearSmith()); else if (nearMerchant()) openShop(); else { const c = nearCamp(G.me); if (c) restAt(c); } }
   if (pressed.enter && !G.started) startGame(!$('btnContinue').hidden);
 }
 

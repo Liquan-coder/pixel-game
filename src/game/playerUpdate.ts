@@ -84,7 +84,9 @@ export function updatePlayer(pl: Player, dt) {
   const rg = REGIONS[regAt(pl.x, pl.y)].key;
   const tx = pl.x / TS, ty = pl.y / TS; let sb = '';
   for (const s of SUBS) if (Math.abs(s.x - tx) < s.r && Math.hypot(s.x - tx, s.y - ty) < s.r) { sb = s.name; break; }
-  if (rg !== G.region) { G.region = rg; G.sub = sb; showArea(REGIONS.find(r => r.key === rg).name, REGIONS.find(r => r.key === rg).sub); }
+  if (rg !== G.region) { G.region = rg; G.sub = sb;
+    if (rg === 'dungeon' && sb) { const first = !discovered.has(sb); discovered.add(sb); showArea(sb, first ? '發現新地點 · 地城' : '地城'); if (first) sfx.discover(); }   // 地城：直接顯示地城的名字
+    else showArea(REGIONS.find(r => r.key === rg).name, REGIONS.find(r => r.key === rg).sub); }
   else if (sb !== G.sub) { G.sub = sb; if (sb) { const first = !discovered.has(sb); discovered.add(sb); showArea(sb, first ? '發現新地點' : REGIONS.find(r => r.key === rg).name); if (first) sfx.discover(); } }
 }
 export function nearCamp(pl: Player) {

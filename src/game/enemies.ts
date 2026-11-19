@@ -8,7 +8,9 @@ import { hurtPlayer } from './combat';
 import { nearestPlayer } from './player';
 import { burst, dropGold, dropMat, dropPot, dropSouls, killFx, quakeFx, shake } from './worldUpdate';
 import { oreForLevel } from '../data/forge';
-import { toast } from '../ui/hud';
+import { showBanner, toast } from '../ui/hud';
+import { flags } from './quest';
+import { save } from './save';
 import type { Enemy } from '../types';
 import { mimicDown, resetMimics } from '../world/chests';
 
@@ -22,7 +24,8 @@ export function makeEnemy(kind: string, lv: number, x: number, y: number, sp?): 
 }
 export function respawnAll() {
   G.enemies = []; resetMimics();
-  for (const sp of spawns) { sp.alive = true; sp.timer = 0; G.enemies.push(makeEnemy(sp.kind, sp.lv, sp.x, sp.y, sp)); }
+  for (const sp of spawns) { if (sp.once && flags.has(sp.once)) { sp.alive = false; sp.timer = Infinity; continue; }   // 地城守護者：打倒過就不再出現
+    sp.alive = true; sp.timer = 0; G.enemies.push(makeEnemy(sp.kind, sp.lv, sp.x, sp.y, sp)); }
 }
 /* 石像魔、樹精的砸地：落點在面前一小段距離，範圍是一個圓（跟「雙手舉高往下砸」的動作一致） */
 export function slamSpot(e) { const off = e.r + (e.elite ? 15 : 12), R = e.elite ? 23 : 19;
@@ -99,6 +102,7 @@ export function killEnemy(e, by) {                                     // by = �
   /* 掉落：小怪主要給魂晶、礦石、藥水；武器很少（主要從地城、Boss、寶箱拿） */
   if (e.sp || e.elite) { const n = e.elite ? 3 : Math.random() < .2 ? 1 : 0; if (n) dropMat(e.x, e.y, oreForLevel(e.lv), n, by); }   // 強化礦石：等級越高的怪掉越高級的
   if (by && by.pot < G.potMax && Math.random() < (e.elite ? .6 : e.sp ? .07 : 0)) dropPot(e.x, e.y, by);                          // 藥水：只有喝過才會掉（補一瓶）
+  if (e.sp && e.sp.once && !flags.has(e.sp.once)) { flags.add(e.sp.once); showBanner('守護者倒下了', e.ename + ' · 最深處的寶箱解開了封印', 2800); dropMat(e.x, e.y, 'ore2', 1, by); save(); }
   if (e.elite) { toast('擊敗了 ' + e.ename, '#f2c14e'); const q = Math.random();
     if (q < .15) dropItem(randomLoot(e.lv, q < .05 ? 3 : 2, 'weapon'), e.x, e.y); else if (q < .45) dropItem(randomLoot(e.lv, q < .25 ? 3 : 2, 'gear'), e.x, e.y); }
   else if (e.sp) { const q = Math.random(), r = Math.random(), rarity = r < .03 ? 3 : r < .13 ? 2 : r < .4 ? 1 : 0;
