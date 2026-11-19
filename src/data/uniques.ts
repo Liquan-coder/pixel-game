@@ -50,7 +50,7 @@ for (const k of ['royalguard', 'forgehammer', 'deepstaff']) { UQ_REQ[k] = UQ[k].
    存檔只記 ug = 編號，數值改這裡就會套用到舊存檔。 */
 export interface UniqueGearDef { type: 'robe' | 'leather' | 'mail' | 'ring' | 'amulet'; name: string; lv: number; aff: Record<string, number>; lore: string; from: string }
 export const UG: Record<string, UniqueGearDef> = {
-  mosscloak:   { type: 'robe', name: '苔綠斗篷', lv: 5, aff: { hp: 24, lifesteal: 3, speed: 8 }, lore: '洞窟深處的史萊姆王把它當成床。上面的苔蘚到現在還活著，會慢慢把傷口補起來。', from: '翠風平原・苔石洞窟' },
+  mosscloak:   { type: 'robe', name: '苔綠斗篷', lv: 5, aff: { hp: 24, lifesteal: 3, speed: 8 }, lore: '苔蝸王把它披在殼上睡了很多年。上面的苔蘚到現在還活著，會慢慢把傷口補起來。', from: '翠風平原・苔石洞窟' },
   barrowlamp:  { type: 'amulet', name: '守墓人的燈', lv: 6, aff: { hp: 26, crit: 6, cdr: 10 }, lore: '一盞永遠不能熄的燈，縮成了項鍊那麼小。火光裡偶爾會映出一個陌生人的笑臉。', from: '翠風平原・無名古墓' },
   tideshell:   { type: 'ring', name: '潮音貝殼', lv: 6, aff: { crit: 7, cdr: 14, speed: 8 }, lore: '貼在耳邊能聽見搖籃曲。唱歌的人好像就在海的另一邊。', from: '翠風平原・潮音石窟' },
   silkmail:    { type: 'leather', name: '蛛絲軟甲', lv: 9, aff: { def: 4, speed: 12, crit: 5 }, lore: '巢母吐的絲編成的甲，比皮還輕、比鐵還韌。', from: '迷霧森林・蛛巢洞窟' },
