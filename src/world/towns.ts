@@ -78,7 +78,9 @@ export const nearSmith = () => { const n = nearNPC(); return n && n.smith ? n : 
 /* 每幀：走近的居民轉頭看你、說下一句話（顯示在畫面下方） */
 let talking = null;
 export function updateNPCs() {
-  const n = G.started && !G.paused ? nearNPC(34) : null;
+  // 走到 34 以內開始說話，離開 44 才結束（站在邊界上不會一直出現、消失、換下一句）
+  const keep = talking && G.me && !G.me.dead && Math.hypot(talking.x - G.me.x, talking.y - G.me.y) < 44 ? talking : null;
+  const n = G.started && !G.paused ? keep || nearNPC(34) : null;
   for (const m of NPCS) { const was = m.near; m.near = m === n; if (m.near && !was) { m.line = (m.line + 1) % m.lines.length; flags.add('talk:' + m.town + ':' + m.name); } }
   if (n) n.flip = G.me.x < n.x;
   for (const pl of G.players) for (const m of NPCS) { const dx = pl.x - m.x, dy = pl.y - m.y, d = Math.hypot(dx, dy), R = 9;   // 居民有體積：走過去會被輕輕推開

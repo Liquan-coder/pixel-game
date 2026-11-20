@@ -57,6 +57,7 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 #pickBtn{align-self:center;white-space:nowrap;pointer-events:auto;background:#2a1a4a;border:3px solid var(--soul);color:#e8dcff;font-size:14px;padding:5px 14px;box-shadow:inset -3px -3px 0 #0007,0 0 0 2px var(--ink),0 0 18px #b49cff55}
 #pickBtn small{font-size:11px;opacity:.7;margin-left:4px}
 @keyframes tin{from{transform:translateY(-6px);opacity:0}}
+@keyframes talkin{from{transform:translate(-50%,6px);opacity:0}}   /* 對話框：動畫時也要保持置中（translateX(-50%)），不然會先偏一邊再跳回來 */
 /* 開著選單時，播報移到畫面最下面、疊在選單上面，才不會蓋住選單的標題和分頁 */
 body.menu #toasts{z-index:20;top:auto;bottom:calc(6px + env(safe-area-inset-bottom,0px));flex-direction:column-reverse}
 body.menu .toast{background:#000d;border:1px solid var(--line);padding:3px 12px}
@@ -252,7 +253,7 @@ body:not(.touch) #controls{display:none}
 #journal summary{cursor:pointer;font-size:14px;color:#cdbfff}
 #journal details p{margin:6px 0 2px;font-size:13px;line-height:1.7}
 @media (max-height:500px){#quest{font-size:12px}#quest small{font-size:11px}.panel .ph{margin-bottom:6px}.panel .ph h2{font-size:17px}.panel .tabs{margin-bottom:6px}.panel .tabs button{padding:4px}.statrow{padding:4px 8px}.statrow .nm{font-size:14px}}
-#talk{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));max-width:min(520px,70vw);background:#0b0814e6;border:2px solid var(--line);box-shadow:0 0 0 2px var(--ink);padding:7px 14px;font-size:14px;line-height:1.5;text-align:left;text-shadow:1px 1px 0 #000;animation:tin .25s steps(3)}
+#talk{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));max-width:min(520px,70vw);background:#0b0814e6;border:2px solid var(--line);box-shadow:0 0 0 2px var(--ink);padding:7px 14px;font-size:14px;line-height:1.5;text-align:left;text-shadow:1px 1px 0 #000;animation:talkin .18s ease-out}
 #talk b{display:block;color:var(--gold);font-weight:400;font-size:12px;letter-spacing:.1em}
 #talk small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
 .touch #talk small{display:none}
