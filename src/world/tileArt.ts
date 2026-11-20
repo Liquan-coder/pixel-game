@@ -1,8 +1,10 @@
 import { mulberry32 } from '../core/util';
 import { SH, hash2, sculpt } from '../art/monsters';
-import { STAIRS, ARENA, BIGT, BRIDGE, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, HOUSE, HOUSES, LAVA, MH, MW, PILLAR, RFLOOR, ROAD, ROCK, RWALL, TREE, WALKABLE, WATER, map, reg } from './map';
+import { STAIRS, ARENA, BIGT, BRIDGE, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, HOUSE, HOUSES, LAVA, MH, MW, PILLAR, RFLOOR, ROAD, ROCK, RWALL, TREE, WALKABLE, WATER, hgt, map, reg } from './map';
 import { CARPU, CRUSTU, ICEW, LAVU, MUDW, NZ0, NZ1, NZ2, RUIN, RUINU, SCU, TA, UL, WATU, WOODU, groundK, hexU, isLavaish, isRoadish, isWallT, isWaterish, nz, tileAt } from './gen';
 
+/* 岩壁的「高度層」：0（山腳那一圈）～ 3（山頂）；不是岩壁 = -1 */
+const lvAt = (x: number, y: number) => (x < 0 || y < 0 || x >= MW || y >= MH || map[y * MW + x] !== CLIFF) ? -1 : Math.max(0, hgt[y * MW + x] - 1);
 const STAIR_U = UL(['#0a080e', '#16121c', '#241e2c', '#342c3e', '#463c52']);
 export function bakeTileHD(buf, CA, tx, ty, ox, oy) {
   const i = ty * MW + tx, t = map[i], r = reg[i], S = SCU[r], U = RUINU[r];
@@ -20,25 +22,31 @@ export function bakeTileHD(buf, CA, tx, ty, ox, oy) {
     if (wallL && lx < 7) k -= lx < 3 ? 2 : 1; if (wallR && lx > 40) k -= lx > 44 ? 2 : 1;   // 牆腳的影子：一看就知道牆比地面高
     return S.g[k < 0 ? 0 : k]; };
   if (t === CLIFF) {
-    if (!isWallT(dn)) {                                                  // 崖壁正面：直條岩紋 + 橫向岩層 + 上緣草皮/岩唇
+    const L = lvAt(tx, ty), Ld = lvAt(tx, ty + 1), Ll = lvAt(tx - 1, ty), Lr = lvAt(tx + 1, ty), Lu = lvAt(tx, ty - 1);
+    const lowL = !isWallT(lf) || (Ll >= 0 && Ll < L), lowR = !isWallT(rt) || (Lr >= 0 && Lr < L);
+    if (!isWallT(dn) || (Ld >= 0 && Ld < L)) {                           // 崖壁正面：直條岩紋 + 橫向岩層 + 上緣草皮/岩唇（山裡面每升一層也是一道崖壁）
       for (let ly = 0; ly < TA; ly++) for (let lx = 0; lx < TA; lx++) { const ax = AX + lx, ay = AY + ly;
         const v = nz(NZ1, ax, ay * .22); let k = 2 + (v > .58 ? 1 : 0) + (v > .7 ? 1 : 0) - (v < .4 ? 1 : 0);
         if ((ay + Math.floor(nz(NZ2, ax * .25, 3) * 7)) % 15 === 0) k = 1;
         if (hash2(ax >> 1, (ay / 7) | 0) < .012) k = 0;
         if (ly >= 40) k -= 1; if (ly >= 45) k -= 1;
-        if ((!isWallT(lf) && lx < 2) || (!isWallT(rt) && lx > 45)) k = 0;
+        if ((lowL && lx < 2) || (lowR && lx > 45)) k = 0;
+        if (L >= 2 && ly < 40) k++;                                      // 高的地方亮一點
         let c = S.face[k < 0 ? 0 : k > 4 ? 4 : k];
         const lh = 3 + Math.floor(nz(NZ2, ax * 2.5, AY) * 6);
         if (ly < lh) c = ly === lh - 1 ? S.lip[0] : (ly === 0 ? S.lip[3] : S.lip[(ax + ly) % 3 === 0 ? 1 : 2]);
         buf[at(lx, ly)] = c; }
     } else {                                                             // 崖頂：一整片大石塊（跟崖壁同色系），外圈亮邊 + 黑框 → 一看就是走不上去的岩石高地
-      const eL = !isWallT(lf), eR = !isWallT(rt), eU = !isWallT(up); boulderCells(AX, AY);
+      /* 山的層次（v10）：離山腳越遠 = 越高。每一層的邊緣有亮邊 + 黑框，往上一層的崖壁在上面那格畫；越高越亮，最高一層是山頂（雪原 = 積雪） */
+      const eL = lowL, eR = lowR, eU = !isWallT(up) || (Lu >= 0 && Lu < L), shUp = Lu > L; boulderCells(AX, AY);
       for (let ly = 0; ly < TA; ly++) for (let lx = 0; lx < TA; lx++) { const ax = AX + lx, ay = AY + ly;
         const b = boulder(ax, ay), s2 = -(b.bx + b.by) / BC;
-        let k = 2 + (s2 > .2 ? 1 : 0) + (s2 > .55 ? 1 : 0) - (s2 < -.3 ? 1 : 0);
+        let k = 2 + (s2 > .2 ? 1 : 0) + (s2 > .55 ? 1 : 0) - (s2 < -.3 ? 1 : 0) + (L - 1);
+        if (shUp && ly < 9) k -= ly < 4 ? 2 : 1;                           // 上面一層崖壁的影子
         if (hash2(ax, ay) < .06) k--;
         let c = S.face[k < 0 ? 0 : k > 4 ? 4 : k];
-        if (r === 5 && s2 > -.05 && hash2(b.id, 5) < .85) c = S.lip[s2 > .45 ? 3 : 2];                         // 雪原：石頭上積雪
+        if (L === 3 && r !== 3 && s2 > -.35) c = r === 5 || r === 2 ? S.lip[s2 > .3 ? 3 : 2] : S.face[s2 > .3 ? 4 : 3];   // 山頂：雪原積雪、其他地方是亮色的岩頂
+        else if (r === 5 && s2 > -.05 && hash2(b.id, 5) < .85) c = S.lip[s2 > .45 ? 3 : 2];                    // 雪原：石頭上積雪
         else if ((r <= 1 || r === 6) && s2 > .1 && nz(NZ1, ax * .7, ay * .7) > .6) c = S.lip[s2 > .5 ? 3 : 2]; // 平原 / 森林 / 沼澤：石頭上長青苔
         else if (r === 3 && b.gap < 3.2 && b.gap >= 1.6 && hash2(b.id, 3) < .35) c = LAVU[3];                  // 熔岩：石縫透出紅光
         if (b.gap < 1.6) c = S.face[0]; else if (b.gap < 2.8 && b.bx + b.by > 0) c = S.face[1];

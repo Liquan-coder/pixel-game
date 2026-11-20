@@ -4,6 +4,7 @@ import { migrateAttrs } from '../data/attrs';
 import { MAT_KEYS, ORE_TO_MAT, migrateWeapon } from '../data/forge';
 import { CAMPS, MH, MW, PY, TS, discovered, explored } from '../world/map';
 import { rbDead } from '../world/regionBoss';
+import { reachable } from '../world/gen';
 import { packExplored, redrawMini, unpackExplored } from '../world/minimap';
 import { resetPlayers, recalc } from './player';
 import { openDoor } from './boss';
@@ -57,6 +58,12 @@ export function applySave(d) {
     redrawMini();
     d.chests = (d.chests || []).map((id: string) => { const m = /^c(\d+)_(\d+)$/.exec(id); return m && plainsOld(+m[1], +m[2]) ? 'c' + m[1] + '_' + (+m[2] + PY) : id; });
   }
+  /* v10：地形改過（山、零散的樹和石頭），掉在地上的魂晶可能剛好被蓋住 → 移到旁邊最近走得到的地方 */
+  if (G.lost && reachable) { const tx = Math.floor(G.lost.x / TS), ty = Math.floor(G.lost.y / TS);
+    if (!reachable[ty * MW + tx]) { let best: number[] | null = null;
+      for (let r = 1; r < 40 && !best; r++) for (let dy = -r; dy <= r && !best; dy++) for (let dx = -r; dx <= r; dx++) { const x = tx + dx, y = ty + dy;
+        if (x > 0 && y > 0 && x < MW && y < MH && reachable[y * MW + x]) { best = [x, y]; break; } }
+      if (best) { G.lost.x = best[0] * TS + 8; G.lost.y = best[1] * TS + 8; } } }
   resetQuest(); for (const f of d.flags || []) flags.add(f); for (const l of d.lore || []) loreRead.add(l);
   const opened = new Set(d.chests || []); for (const c of CHESTS) { c.opened = opened.has(c.id); c.foe = null; c.t = 2; }
   if (G.bossDead) openDoor();

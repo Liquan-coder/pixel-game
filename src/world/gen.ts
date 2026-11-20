@@ -6,7 +6,7 @@ import { RBDEF } from './regionBoss';
 import { addDungeonSpawns, inDZone, stampEntrances } from './dungeons';
 import { registerDungeonBosses } from './dungeonBoss';
 import { buildLandmarks, GLOW_ZONES } from './landmarks';
-import { connectPockets, despeckle, formations, vegetation } from './terrain';
+import { connectPockets, despeckle, formations, heights, props, unpinch, vegetation } from './terrain';
 export let reachable: Uint8Array = null;                               // 從起點走得到的格子（genWorld 算好）
 
 /* 地圖生成用的小工具（landmarks.ts 也會用） */
@@ -134,6 +134,13 @@ export function genWorld() {
   for (const [bx, by] of [[2, 2], [16, 2], [2, 15], [16, 15]]) braziers.push({ x:(ax + bx) * TS + 8, y:(ay + by) * TS + 12 });
   stampEntrances(inb); addDungeonSpawns(); registerDungeonBosses();                              // 地城：野外入口的小山 + 海上的地城區塊（裡面的怪也在這裡放）
   for (const c of CAMPS) clearDisk(c.tx, c.ty, 3, false);
+  /* 零散的障礙（空地上可以繞、可以閃的樹和石頭）→ 填掉卡人的窄縫（terrain.ts） */
+  const busy = (x: number, y: number) => inDZone(x, y) || (x >= ARENA.x0 - 8 && x <= ARENA.x1 + 8 && y >= ARENA.y0 - 8 && y <= ARENA.y1 + 18) ||
+    CAMPS.some(c => Math.hypot(c.tx - x, c.ty - y) < 7) || TOWNS.some(T => Math.hypot(T.tx - x, T.ty - y) < T.r + 4) ||
+    Object.values(RBDEF).some(d => Math.hypot(d.tx - x, d.ty - y) < d.tr + 4);
+  const nearStairs = (x: number, y: number) => { for (let dy = -6; dy <= 6; dy++) for (let dx = -6; dx <= 6; dx++) if (inb(x + dx, y + dy) && map[I(x + dx, y + dy)] === STAIRS) return true; return false; };
+  props(mulberry32(4242), (x, y) => busy(x, y) || nearStairs(x, y));
+  unpinch(busy);
   for (let y = 3; y < MH - 3; y++) for (let x = 3; x < MW - 3; x++) {
     const i = I(x, y);
     if (map[i] === RWALL && map[i + MW] === RFLOOR && reg[i] !== 4 && R() < .25 && !torches.some(t => Math.abs(t.tx - x) + Math.abs(t.ty - y) < 6)) torches.push({ tx:x, ty:y, x:x * TS + 8, y:y * TS + 8, ph:R() * 10 });
@@ -149,7 +156,8 @@ export function genWorld() {
     return reach; };
   connectPockets(flood(), (x, y) => inDZone(x, y) || (x >= ARENA.x0 && x <= ARENA.x1 && y >= ARENA.y0 && y <= ARENA.y1));
   const reach = flood();
-  reachable = reach;                                                   // main.ts 會用它來放寶箱
+  reachable = reach;
+  heights();                                                            // 山的高度（tileArt 畫山峰用）                                                   // main.ts 會用它來放寶箱
   // 怪物
   const R2 = mulberry32(99);
   const grid = new Map<number, any[]>(), gk = (tx, ty) => ((tx >> 3) << 12) | (ty >> 3);   // 8×8 格一桶，查「附近有沒有怪」比較快

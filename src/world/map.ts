@@ -9,6 +9,7 @@ export const SOLID = new Set([WATER, LAVA, CLIFF, RWALL, TREE, ROCK, PILLAR, CRA
 export const BLOCKP = new Set([CLIFF, RWALL, TREE, ROCK, PILLAR, CRATE, GRAVE, BIGT, HOUSE]);
 export const WALKABLE = t => t === GROUND || t === ROAD || t === RFLOOR || t === BRIDGE || t === FOG || t === STAIRS;
 export const map = new Uint8Array(MW * MH), reg = new Uint8Array(MW * MH), shade = new Uint8Array(MW * MH);
+export const hgt = new Uint8Array(MW * MH);                            // 岩壁 / 山有多「高」：離山腳幾格（gen 最後算，tileArt 用來畫山峰的層次）
 /* cs = 用來分地區的中心點（每個地區好幾個，加上雜訊扭曲邊界）；c = 地圖上地名的位置
    anchor / span = 怪物等級：離 anchor 越遠越強，span 格以外就是最高等級（anchor 放在從低等級地區走進來的那一側） */
 export const REGIONS = [

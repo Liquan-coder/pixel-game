@@ -5,7 +5,7 @@
    - 擋路的 = 高、有影子（樹、岩壁、石柱、牆）；走得過去的 = 平的（地面、路、石板、橋）。不放模稜兩可的小石頭。
    - 探索靠「引導」不是迷宮：路會岔到每個地點，地點有光 / 煙 / 霧，岩洞前面有小路。
    genWorld（gen.ts）會依序呼叫：formations() → vegetation() → （地標、道路、城鎮…）→ connectPockets() */
-import { CLIFF, GROUND, LAVA, MH, MW, ROCK, TREE, WALKABLE, WATER, map, reg } from './map';
+import { CLIFF, GROUND, LAVA, MH, MW, ROCK, SUBS, TREE, WALKABLE, WATER, hgt, map, reg } from './map';
 import { I, inb, river } from './gen';
 
 type Noise = (x: number, y: number) => number;
@@ -83,25 +83,90 @@ export function formations(R: () => number, n: Noise) {
   smooth(WATER, r => r === 6, 2, 3, 5);
 }
 
-/* ================= 2. 植物：一片一片的樹林（林子之間是空地），平原上偶爾一棵孤樹 ================= */
+/* ================= 2. 山和林：大片的「山」（中間岩峰、外圈林坡），山和山之間是空地 =================
+   v10：以前整片都是樹 → 像一道道綠色的牆。現在比較大的一片，中心是岩山（tileArt 會依高度畫出一層一層到山頂），
+   外面一圈樹當山腳；小片的就是普通樹林。總面積比 v9 少。 */
 export function vegetation(R: () => number, n: Noise, nBig: Noise) {
-  /* 森林、沼澤、雪原的針葉林：用低頻雜訊決定「哪裡是林子」，林子裡很密，林子外面幾乎沒有樹 */
-  const MASS = { 1: .5, 6: .6, 5: .74, 0: .74, 2: 2, 3: 2 } as Record<number, number>;        // 雜訊大於這個值 = 林子（荒地、熔岩沒有自然林）
+  /* 雜訊大於 th = 林子；大於 th + CORE = 山的岩峰（荒地、熔岩沒有自然林，它們的台地在 formations 裡） */
+  const nearSub = (x: number, y: number) => SUBS.some(S => Math.hypot(S.x - x, S.y - y) < S.r + 5);   // 有名字的地點（地標）旁邊不長岩山，地標才走得進去
+  const MASS = { 1: .55, 6: .64, 5: .76, 0: .78 } as Record<number, number>, CORE = { 1: .22, 6: .2, 5: .13, 0: .12 } as Record<number, number>;
   for (let y = 4; y < MH - 4; y++) for (let x = 4; x < MW - 4; x++) { const i = I(x, y); if (map[i] !== GROUND) continue; const r = reg[i];
     const th = MASS[r]; if (th === undefined) continue;
     const v = nBig(x * .55 + r * 97, y * .55);
-    if (v > th) { if (R() < .9) map[i] = TREE; }
-    else if (r === 0 && R() < .0015) map[i] = TREE;                                               // 平原：很少很少的孤樹（有影子、一看就知道是樹）
+    if (v > th + CORE[r] && !nearSub(x, y)) map[i] = CLIFF; else if (v > th && R() < .92) map[i] = TREE;
   }
-  /* 指定位置的樹林（平原的小樹林、荒地的枯樹林、熔岩的焦木） */
+  /* 指定位置的山（平原、雪原）和小樹林（荒地的枯樹林、熔岩的焦木） */
+  const M = (cx: number, cy: number, rx: number, ry: number) => { blob(cx, cy, rx * .45, ry * .45, CLIFF, n, .25); blob(cx, cy, rx, ry, TREE, n, .3); };
   const G = (cx: number, cy: number, rx: number, ry: number) => blob(cx, cy, rx, ry, TREE, n, .35);
-  G(26, 432, 12, 7); G(158, 424, 14, 6); G(92, 528, 9, 6); G(236, 566, 12, 7); G(40, 578, 10, 5); G(210, 470, 8, 5);   // 平原
-  G(140, 232, 6, 4); G(40, 196, 5, 3); G(186, 118, 5, 3);                                         // 荒地
-  G(242, 172, 6, 4); G(400, 120, 5, 3);                                                           // 熔岩
-  G(470, 182, 13, 9); G(540, 62, 12, 7); G(456, 150, 7, 5); G(600, 200, 9, 6);                    // 雪原的針葉林
-  /* 林子的邊緣磨圓、小洞補起來、單棵的拿掉（平原的孤樹除外） */
-  smooth(TREE, r => r === 1 || r === 5 || r === 6 || r === 2 || r === 3, 3, 3, 5);
-  smooth(TREE, r => r === 0, 1, 1, 6);
+  M(26, 432, 12, 7); M(158, 424, 14, 6); G(92, 528, 7, 5); M(236, 566, 12, 7); G(40, 578, 8, 4); G(210, 470, 6, 4);   // 平原
+  G(140, 232, 5, 3); G(40, 196, 4, 3); G(186, 118, 4, 3);                                         // 荒地
+  G(242, 172, 5, 3); G(400, 120, 4, 3);                                                           // 熔岩
+  M(470, 182, 13, 9); M(540, 62, 12, 7); G(456, 150, 6, 4); G(600, 200, 7, 5);                    // 雪原的針葉林
+  /* 林子和山的邊緣磨圓、小洞補起來、單棵的拿掉 */
+  smooth(CLIFF, r => r === 1 || r === 5 || r === 6 || r === 0, 2, 3, 5);
+  smooth(TREE, r => r === 1 || r === 5 || r === 6 || r === 2 || r === 3 || r === 0, 3, 3, 5);
+}
+
+/* ================= 2b. 零散的障礙：空地上一棵樹、一小叢樹、一堆石頭，讓人有東西可以繞、可以閃 =================
+   規則：每個障礙四周 3 格內什麼都沒有 → 障礙之間最窄也有 3 格，不會有卡人的縫。不放在路、營火、城鎮、地城入口旁邊。
+   在道路、地標、城鎮都蓋好之後才放（genWorld 呼叫），所以看得到它們、會避開。 */
+const PROPS = {                                                       // 每個地區：每 1000 格平地大約幾個、樹 / 石頭的比例
+  0: { d: 4.5, tree: .7 }, 1: { d: 4, tree: .85 }, 2: { d: 3.5, tree: .3 }, 3: { d: 3, tree: .2 }, 5: { d: 3.5, tree: .6 }, 6: { d: 3, tree: .75 },
+} as Record<number, { d: number; tree: number }>;
+export function props(R: () => number, avoid: (x: number, y: number) => boolean) {
+  const SHAPES = [[[0, 0]], [[0, 0]], [[0, 0], [1, 0]], [[0, 0], [1, 0], [0, 1]], [[0, 0], [1, 0], [0, 1], [1, 1]], [[0, 0], [1, 1], [2, 0]]];
+  const clear = (x: number, y: number) => { for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+    if (!inb(x + dx, y + dy) || map[I(x + dx, y + dy)] !== GROUND) return false; } return true; };
+  for (const k in PROPS) { const r = +k, P = PROPS[r]; let area = 0;
+    for (let i = 0; i < MW * MH; i++) if (reg[i] === r && map[i] === GROUND) area++;
+    let want = Math.round(area / 1000 * P.d), tries = 0;
+    while (want > 0 && tries++ < 40000) { const x = 4 + Math.floor(R() * (MW - 8)), y = 4 + Math.floor(R() * (MH - 8));
+      if (reg[I(x, y)] !== r || avoid(x, y)) continue;
+      const sh = SHAPES[Math.floor(R() * SHAPES.length)];
+      if (!sh.every(([dx, dy]) => clear(x + dx, y + dy))) continue;
+      const tile = R() < P.tree ? TREE : ROCK;
+      for (const [dx, dy] of sh) map[I(x + dx, y + dy)] = tile; want--; }
+  }
+}
+
+/* ================= 2c. 填掉窄縫：兩個障礙中間只剩 1～2 格寬、或三面被包住的凹槽 → 填滿 =================
+   玩家最討厭的是「看起來過得去、走進去卡住」。只動平地（不動路、地標裡面），只看天然障礙（樹、石、崖、水、熔岩）。 */
+const NAT = (t: number) => t === TREE || t === ROCK || t === CLIFF || t === WATER || t === LAVA;
+export function unpinch(keep: (x: number, y: number) => boolean) {
+  const blk = (x: number, y: number) => NAT(map[I(x, y)]);
+  const fill = (x: number, y: number) => { const i = I(x, y);              // 用旁邊最多的障礙種類填
+    const c: Record<number, number> = {}; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const t = map[I(x + dx, y + dy)]; if (NAT(t)) c[t] = (c[t] || 0) + 1; }
+    let best = TREE, bn = -1; for (const t in c) if (c[t] > bn || (c[t] === bn && +t === CLIFF)) { bn = c[t]; best = +t; } map[i] = best; };
+  const ok = (x: number, y: number) => { if (map[I(x, y)] !== GROUND || keep(x, y)) return false;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const t = map[I(x + dx, y + dy)]; if (!(t === GROUND || NAT(t))) return false; } return true; };
+  for (let pass = 0; pass < 4; pass++) { let changed = 0;
+    for (let y = 6; y < MH - 6; y++) for (let x = 6; x < MW - 6; x++) { if (!ok(x, y)) continue;
+      const L = blk(x - 1, y), Rr = blk(x + 1, y), U = blk(x, y - 1), D = blk(x, y + 1), n = +L + +Rr + +U + +D;
+      if (n >= 3 || (L && Rr) || (U && D)) { fill(x, y); changed++; continue; }                      // 1 格寬的縫 / 三面包住的凹槽
+      if (L && !Rr && blk(x + 2, y) && ok(x + 1, y)) { fill(x, y); fill(x + 1, y); changed++; continue; }   // 2 格寬的縫（橫）
+      if (U && !D && blk(x, y + 2) && ok(x, y + 1)) { fill(x, y); fill(x, y + 1); changed++; continue; }    // 2 格寬的縫（直）
+    }
+    if (!changed) break; }
+}
+
+/* ================= 2d. 高度：每一格岩壁在山的第幾層（tileArt 依這個畫出一層一層往上疊的山） =================
+   hgt = 0：不是岩壁；1 ～ 4：第 0 ～ 3 層（山腳那 3 格是第 0 層，往裡面每 3 格高一層）。
+   距離用「近似圓形」的算法（直走 3、斜走 4），層線才會是圓的，不會是菱形；最後再修平滑，不留零碎的一格。 */
+export function heights() {
+  const N = MW * MH, d = new Uint16Array(N).fill(65535);
+  for (let i = 0; i < N; i++) if (map[i] !== CLIFF) d[i] = 0;
+  const relax = (i: number, j: number, w: number) => { if (d[j] + w < d[i]) d[i] = d[j] + w; };
+  for (let y = 1; y < MH - 1; y++) for (let x = 1; x < MW - 1; x++) { const i = I(x, y); if (!d[i]) continue;   // 從左上掃到右下
+    relax(i, i - 1, 3); relax(i, i - MW, 3); relax(i, i - MW - 1, 4); relax(i, i - MW + 1, 4); }
+  for (let y = MH - 2; y >= 1; y--) for (let x = MW - 2; x >= 1; x--) { const i = I(x, y); if (!d[i]) continue;  // 再從右下掃回左上
+    relax(i, i + 1, 3); relax(i, i + MW, 3); relax(i, i + MW + 1, 4); relax(i, i + MW - 1, 4); }
+  hgt.fill(0);
+  for (let i = 0; i < N; i++) if (map[i] === CLIFF) hgt[i] = 1 + Math.max(0, Math.min(3, Math.floor((Math.min(d[i], 999) - 3) / 9)));
+  for (let pass = 0; pass < 2; pass++) { const prev = hgt.slice();               // 修平滑：跟周圍 8 格多數不一樣的，改成多數
+    for (let y = 1; y < MH - 1; y++) for (let x = 1; x < MW - 1; x++) { const i = I(x, y); if (!prev[i] || prev[i] === 1) continue;
+      const c = [0, 0, 0, 0, 0]; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) c[prev[I(x + dx, y + dy)]]++;
+      let best = prev[i]; for (let v = 2; v <= 4; v++) if (c[v] >= 5) best = v;
+      if (c[best] + (best === prev[i] ? 0 : 0) >= 5 && Math.abs(best - prev[i]) === 1) hgt[i] = best; } }
 }
 
 /* ================= 3. 收尾：單獨一格的岩石 / 斷崖拿掉（看起來像雜訊、又會卡人） ================= */
@@ -111,7 +176,7 @@ export function despeckle() {
     if (c === 0 || (t === CLIFF && c < 2)) map[i] = GROUND; }
 }
 
-/* ================= 4. 林中空地接上小路：被樹林圍起來、走不到的空地，從最近走得到的地方砍一條 2 格寬的小徑進去 =================
+/* ================= 4. 林中空地接上小路：被樹林圍起來、走不到的空地，從最近走得到的地方砍一條 3 格寬的小徑進去 =================
    只砍樹和石頭（不會挖穿斷崖、牆、水）。reach = 目前走得到的格子（會一起更新） */
 export function connectPockets(reach: Uint8Array, skip: (x: number, y: number) => boolean) {
   const seen = new Uint8Array(MW * MH), D4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -127,9 +192,9 @@ export function connectPockets(reach: Uint8Array, skip: (x: number, y: number) =
         if (reach[k]) { prev.set(k, j); hit = k; break; }
         const t = map[k]; if (t !== TREE && t !== ROCK && !WALKABLE(t)) continue; prev.set(k, j); q.push(k); } }
     if (hit < 0) continue;
-    for (let k = prev.get(hit); k >= 0 && !inComp.has(k); k = prev.get(k)) {   // 沿路砍出 2 格寬的小徑
+    for (let k = prev.get(hit); k >= 0 && !inComp.has(k); k = prev.get(k)) {   // 沿路砍出 3 格寬的小徑
       const kx = k % MW, ky = (k / MW) | 0;
-      for (const [ox, oy] of [[0, 0], [1, 0], [0, 1]]) { const m = I(kx + ox, ky + oy); if (map[m] === TREE || map[m] === ROCK) map[m] = GROUND; } }
+      for (const [ox, oy] of [[0, 0], [1, 0], [0, 1], [-1, 0], [0, -1]]) { const m = I(kx + ox, ky + oy); if (map[m] === TREE || map[m] === ROCK) map[m] = GROUND; } }
     for (const c of comp) reach[c] = 1;                                    // 這塊現在也算走得到（跟它相連的小徑之後的 BFS 會補上）
   }
 }
