@@ -7,6 +7,7 @@ import { gridCanvas } from '../art/weapon';
 import type { Item } from '../types';
 import { meets, soft } from './attrs';
 import { UG, UQ, UQ_BY_NAME } from './uniques';
+import { ACLS, ACLS_OF, ARMORS, ARMOR_BASIC, ARMOR_REGION, SEAL_NAME, TRINKETS, TRINKET_KEYS, aUpMult } from './gear';
 import { FX_KEYS, WFXD } from '../game/weaponFx';
 
 /* ================= DATA ================= */
@@ -21,16 +22,13 @@ export const WT = {
   scythe:{name:'鐮刀',base:14,cd:.5,range:33,arc:200,stam:13,skill:'reap',sn:'死神收割',scd:8,trait:'掃一大圈、打中會回血',sd:'把周圍的敵人拉過來一起砍（260%），每打中一隻回 4% 生命'},
   wolfblade:{name:'狼牙雙刃',base:15,cd:.3,range:24,arc:130,stam:9,skill:'wolfrush',sn:'狼影連襲',scd:7,trait:'狼王的獠牙',sd:'化為狼影，連續撲向三個敵人（每下 180%），期間無敵'},
 };
+/* 顏色（沒有品階了，只用來分辨是哪一種東西）：0 一般、2 地區防具 / 飾品、3 刻印（或裝了刻印的武器）、4 獨特。m 只給舊存檔換算用 */
 export const RAR = [
-  {n:'普通',c:'#d9d4ca',m:1,a:0},{n:'優秀',c:'#6fd36f',m:1.12,a:1},{n:'稀有',c:'#55a8ff',m:1.25,a:2},
-  {n:'史詩',c:'#c475ff',m:1.4,a:3},{n:'傳說',c:'#ff9f3a',m:1.6,a:3}];
-/* m（倍率）現在只用在防具 / 飾品。武器的稀有度：普通 0 詞綴、優秀 1、稀有 2、史詩 2 + 刻印效果、傳說 = 獨特武器（data/uniques.ts） */
-const WAFN = [0, 1, 2, 2, 3];
+  {n:'一般',c:'#d9d4ca',m:1},{n:'一般',c:'#6fd36f',m:1.12},{n:'特殊',c:'#55a8ff',m:1.25},
+  {n:'刻印',c:'#c475ff',m:1.4},{n:'獨特',c:'#ff9f3a',m:1.6}];
 export const AFFIX = {
   crit:{n:'暴擊率',r:[3,9],u:'%'}, lifesteal:{n:'吸血',r:[2,5],u:'%'}, speed:{n:'攻擊速度',r:[6,15],u:'%'},
   cdr:{n:'技能冷卻縮短',r:[8,20],u:'%'}, hp:{n:'生命上限',r:[10,30],u:''}, def:{n:'防禦',r:[2,5],u:''}, st:{n:'體力上限',r:[6,14],u:''}};
-const SCALE_AFF = new Set(['hp', 'def', 'st']);
-const rollAff = (k, ilvl) => { let v = ri(AFFIX[k].r[0], AFFIX[k].r[1]); if (SCALE_AFF.has(k)) v = Math.round(v * (1 + (k === 'hp' ? .15 : .1) * (ilvl - 1))); return v; };
 export const DG = 3;                                                       // 判定寬容：腳要踩進紅線內 3px 才算被打到
 export const BEH = {
   slime:{hp:l=>28+10*l,dmg:l=>5+2*l,spd:30,r:6,aggro:80,reach:16,wind:.4,cd:1.1,souls:l=>4+3*l},
@@ -67,23 +65,17 @@ export const KIND = {
   frogT:{beh:'slime',name:'祭壇蛙',col:'#3a7e68'}, wraithT:{beh:'ranged',name:'看守之影',col:'#3a4a96',proj:'bolt'}, ghoulT:{beh:'blade',name:'沉沒祭司',col:'#406a50'},
 } as Record<string, { beh: string; name: string; col: string; proj?: string }>;
 /* ================= 武器 =================
-   攻擊力 = 武器的基礎攻擊（每種武器固定）× 強化倍率。沒有「物品等級」了：
-   一把 +0 長劍不管在哪裡撿到都一樣強，要變強就拿礦石去鐵匠那裡強化（+1 ～ +10，見 data/forge.ts）。
-   稀有度不再加攻擊，而是多詞綴 / 刻印效果（見 rollWeapon）。 */
+   攻擊力 = 武器的基礎攻擊（每種武器固定）× 強化倍率。沒有品階、沒有隨機詞綴：
+   一把 +0 長劍不管在哪裡撿到都一樣強，要變強就拿素材去鐵匠那裡強化（+1 ～ +10，見 data/forge.ts）。
+   想要出血、燃燒…… 就裝「刻印」（可以拆下來換到別把）。獨特武器（data/uniques.ts）有固定的效果，不能裝刻印。 */
 export const UP_MAX = 10;
-export const upMult = (up: number) => 1 + .32 * (up || 0);               // +10 ≈ 4.2 倍（舊系統物品等級 30 大約 4.8 倍）
+export const upMult = (up: number) => 1 + .32 * (up || 0);               // +10 ≈ 4.2 倍
 export const wBase = (it: Item) => it.uq && UQ[it.uq] ? UQ[it.uq].base : WT[it.type].base;
 export const wAtk = (it: Item) => Math.round(wBase(it) * upMult(it.up));
 export const refreshWeapon = (it: Item) => { it.atk = wAtk(it); return it; };
-const WPRE = ['鐵', '精鋼', '秘銀', '星隕'];                               // 名稱前綴只看稀有度
-const WAFF = ['crit', 'lifesteal', 'speed', 'cdr'];                       // 武器只出百分比詞綴（不會隨地區膨脹）
-export function makeWeapon(type: string, rarity = 0, up = 0): Item {
-  const nAff = WAFN[rarity] ?? 0; if (rarity > 3) rarity = 3;          // 隨機掉落最高史詩；傳說只有獨特武器（「傳說」骰到 → 史詩 + 3 條詞綴）
-  const aff: Record<string, number> = {};
-  for (const k of WAFF.slice().sort(() => Math.random() - .5).slice(0, nAff)) aff[k] = ri(AFFIX[k].r[0], AFFIX[k].r[1]);
-  const fx = rarity >= 3 ? pick(FX_KEYS) : undefined;
-  const name = (fx ? WFXD[fx].pre : WPRE[rarity]) + WT[type].name;
-  const it: Item = { id: G.uid++, slot:'weapon', type, ilvl: 0, rarity, up: Math.max(0, Math.min(UP_MAX, up)), aff, name };
+const wName = (type: string, fx?: string) => (fx ? WFXD[fx].pre : '') + WT[type].name;
+export function makeWeapon(type: string, up = 0, fx?: string): Item {
+  const it: Item = { id: G.uid++, slot:'weapon', type, ilvl: 0, rarity: fx ? 3 : 0, up: Math.max(0, Math.min(UP_MAX, up)), aff: {}, name: wName(type, fx) };
   if (fx) it.fx = fx;
   return refreshWeapon(it);
 }
@@ -91,57 +83,103 @@ export function makeUnique(key: string, up = 0): Item {
   const U = UQ[key];
   return refreshWeapon({ id: G.uid++, slot:'weapon', type: U.type, ilvl: 0, rarity: 4, up, aff: { ...U.aff }, name: U.name, uq: key });
 }
-/** 讀檔時補齊：舊的獨特武器對回編號、史詩沒有刻印就補一個、隨機傳說降成史詩（保留詞綴） */
+/** 讀檔時補齊：舊的獨特武器對回編號；一般武器拿掉隨機詞綴（刻印保留，之後可以拆下來） */
 export function fixWeapon(it: Item) {
   if (!WT[it.type]) return it;
   const k = it.uq || UQ_BY_NAME[it.name];
-  if (k && UQ[k]) { it.uq = k; it.rarity = 4; it.type = UQ[k].type; delete it.fx; it.name = UQ[k].name; }
-  else { if (it.rarity > 3) it.rarity = 3; if (it.rarity === 3 && !it.fx) it.fx = pick(FX_KEYS); }
+  if (k && UQ[k]) { it.uq = k; it.rarity = 4; it.type = UQ[k].type; delete it.fx; it.name = UQ[k].name; it.aff = { ...UQ[k].aff }; }
+  else { it.aff = {}; if (it.fx && !WFXD[it.fx]) delete it.fx; it.rarity = it.fx ? 3 : 0; it.name = wName(it.type, it.fx); }
   return refreshWeapon(it);
 }
-/** 舊名稱相容：makeItem(type, 強化等級, 稀有度) */
-export const makeItem = (type: string, up: number, rarity: number) => makeWeapon(type, rarity, up);
-/** 顯示用名稱：+3 精鋼長劍 */
-export const itemName = (it: Item) => (it.slot === 'weapon' && it.up ? '+' + it.up + ' ' : '') + it.name;
-/** 商店價格、分解魂晶的基準。武器看稀有度和強化，防具飾品還是看物品等級 */
-export const gearValue = (it: Item) => it.slot === 'weapon' || WT[it.type] ? Math.round(12 * Math.pow(it.rarity + 1, 1.6) * (1 + .6 * (it.up || 0))) : it.ilvl * (it.rarity + 1);
-/* ---- 防具與飾品 ---- */
-export const AT = { robe:{ name:'法袍', def:3, hp:12, d:'輕盈，附帶較多生命' }, leather:{ name:'皮甲', def:5, hp:6, d:'防禦和生命平均' }, mail:{ name:'鎖甲', def:8, hp:0, d:'防禦最高' } };
-export const TT = { ring:{ name:'戒指', main:'crit', d:'一定有暴擊詞綴' }, amulet:{ name:'項鍊', main:'hp', d:'一定有生命詞綴' } };
-export const SLOTN = { weapon:'武器', armor:'防具', trinket:'飾品' };
-export const slotOf = it => it.slot || (AT[it.type] ? 'armor' : TT[it.type] ? 'trinket' : 'weapon');
-export function makeGear(type: string, ilvl: number, rarity: number): Item {
-  if (WT[type]) return makeWeapon(type, rarity);                         // 武器沒有物品等級：一律 +0
-  const R = RAR[rarity], isA = !!AT[type], base = isA ? AT[type] : TT[type];
-  const keys = Object.keys(AFFIX).filter(k => !(isA && k === 'def')).sort(() => Math.random() - .5).slice(0, R.a + (isA ? 0 : 1));
-  if (!isA && !keys.includes(base.main)) keys[0] = base.main;
-  const aff: Record<string, number> = {}; for (const k of keys) aff[k] = rollAff(k, ilvl);
-  const tier = ilvl <= 3 ? 0 : ilvl <= 7 ? 1 : ilvl <= 11 ? 2 : ilvl <= 15 ? 3 : 4;
-  const name = rarity >= 3 ? pick(['霜語','烈陽','暮光','裂風','血月','星火']) + base.name : (isA ? ['粗布','精製','秘銀','星隕','龍鱗'] : ['銅','銀','金','星辰','龍心'])[tier] + base.name;
-  const it: Item = { id: G.uid++, slot: isA ? 'armor' : 'trinket', type, ilvl, rarity, aff, name };
-  if (isA) { it.def = Math.round(base.def * (1 + .12 * (ilvl - 1)) * R.m * rr(.92, 1.08)); it.hp = Math.round(base.hp * (1 + .1 * (ilvl - 1)) * R.m); }
-  return it;
+/** 把刻印裝到一般武器上（原本的刻印變回道具，回傳它；沒有就回傳 null） */
+export function attachSeal(w: Item, seal: Item): Item | null {
+  if (w.uq || seal.slot !== 'seal') return null;
+  const old = w.fx ? makeSeal(w.fx) : null;
+  w.fx = seal.fx; w.rarity = 3; w.name = wName(w.type, w.fx); return old;
 }
-/** 獨特防具 / 飾品（data/uniques.ts 的 UG）：固定名字、數值、背景故事 */
+export function detachSeal(w: Item): Item | null {
+  if (w.uq || !w.fx) return null;
+  const s = makeSeal(w.fx); delete w.fx; w.rarity = 0; w.name = wName(w.type); return s;
+}
+/** 舊名稱相容：makeItem(type, 強化等級, 稀有度) → 稀有度不再有意義 */
+export const makeItem = (type: string, up: number, _rarity?: number) => makeWeapon(type, up);
+/** 顯示用名稱：+3 血棘長劍、+2 獵人皮甲 */
+export const itemName = (it: Item) => ((it.slot === 'weapon' || it.slot === 'armor') && it.up ? '+' + it.up + ' ' : '') + it.name;
+/** 商店價格、分解魂晶的基準 */
+export const gearValue = (it: Item) => {
+  const sl = slotOf(it), u = it.uq || it.ug ? 4 : 1;
+  if (sl === 'weapon') return Math.round(12 * (1 + .6 * (it.up || 0)) * u * (it.fx ? 2 : 1));
+  if (sl === 'armor') return Math.round(25 * (1 + .5 * (it.up || 0)) * u * (it.rarity >= 2 ? 1.6 : 1));
+  if (sl === 'seal') return 60;
+  return Math.round(45 * u);
+};
+/* ---- 防具、飾品、刻印（定義在 data/gear.ts） ---- */
+export const AT = { robe:{ name:'法袍', d:'輕甲' }, leather:{ name:'皮甲', d:'中甲' }, mail:{ name:'鎖甲', d:'重甲' } };
+export const TT = { ring:{ name:'戒指', d:'飾品' }, amulet:{ name:'項鍊', d:'飾品' } };
+export const SLOTN = { weapon:'武器', armor:'防具', trinket:'飾品', seal:'刻印' };
+export const slotOf = it => it.slot || (AT[it.type] ? 'armor' : TT[it.type] ? 'trinket' : it.type === 'seal' ? 'seal' : 'weapon');
+export function makeArmor(ak: string, up = 0): Item {
+  const A = ARMORS[ak] || ARMORS.cloth;
+  return { id: G.uid++, slot:'armor', type: A.type, ilvl: 0, rarity: A.eff ? 2 : 0, up, aff: {}, name: A.name, ak: ARMORS[ak] ? ak : 'cloth' };
+}
+export function makeTrinket(tk: string): Item {
+  const T = TRINKETS[tk] || TRINKETS.life;
+  return { id: G.uid++, slot:'trinket', type: T.type, ilvl: 0, rarity: 2, aff: {}, name: T.name, tk: TRINKETS[tk] ? tk : 'life' };
+}
+export function makeSeal(fx: string): Item {
+  return { id: G.uid++, slot:'seal', type:'seal', ilvl: 0, rarity: 3, aff: {}, name: SEAL_NAME(WFXD[fx].n), fx };
+}
+/** 獨特防具 / 飾品（data/uniques.ts 的 UG）：固定名字、效果、背景故事 */
 export function makeUniqueGear(key: string): Item {
-  const U = UG[key], isA = !!AT[U.type], base = isA ? AT[U.type] : TT[U.type], m = RAR[4].m * 1.1, ilvl = U.lv;
-  const aff: Record<string, number> = {}; for (const k in U.aff) aff[k] = SCALE_AFF.has(k) ? Math.round(U.aff[k] * (1 + (k === 'hp' ? .15 : .1) * (ilvl - 1))) : U.aff[k];
-  const it: Item = { id: G.uid++, slot: isA ? 'armor' : 'trinket', type: U.type, ilvl, rarity: 4, aff, name: U.name, ug: key };
-  if (isA) { it.def = Math.round(base.def * (1 + .12 * (ilvl - 1)) * m); it.hp = Math.round(base.hp * (1 + .1 * (ilvl - 1)) * m); }
-  return it;
+  const U = UG[key], isA = !!AT[U.type];
+  return { id: G.uid++, slot: isA ? 'armor' : 'trinket', type: U.type, ilvl: 0, rarity: 4, up: 0, aff: {}, name: U.name, ug: key };
+}
+/** 防具的類型、防禦、生命（含強化） */
+export function armorStats(it: Item | null) {
+  if (!it) return null;
+  const cls = ACLS_OF[it.type] || 'light', C = ACLS[cls], m = aUpMult(it.up), u = it.ug ? 1.1 : 1;
+  return { cls, def: Math.round(C.def * m * u), hp: Math.round(C.hp * m * u) };
+}
+/** 一件防具 / 飾品帶的效果 */
+export function effOf(it: Item | null): Record<string, number> {
+  if (!it) return {};
+  if (it.ug && UG[it.ug]) return UG[it.ug].eff;
+  if (it.tk && TRINKETS[it.tk]) return TRINKETS[it.tk].eff;
+  if (it.ak && ARMORS[it.ak]) return ARMORS[it.ak].eff || {};
+  return {};
+}
+/** 舊名稱相容：makeGear(type, 物品等級, 稀有度) → 依類型做一件新制的裝備 */
+export function makeGear(type: string, _ilvl?: number, _rarity?: number): Item {
+  if (WT[type]) return makeWeapon(type);
+  if (AT[type]) return makeArmor({ robe: 'cloth', leather: 'hunter', mail: 'chain' }[type]);
+  if (TT[type]) return makeTrinket(pick(TRINKET_KEYS.filter(k => TRINKETS[k].type === type)));
+  return makeSeal(pick(FX_KEYS));
+}
+/** 讀檔：舊的防具 / 飾品（物品等級 + 隨機詞綴）→ 新制 */
+export function fixGear(it: Item): Item | null {
+  if (!it) return null;
+  if (it.ug && UG[it.ug]) { it.rarity = 4; it.name = UG[it.ug].name; it.slot = AT[UG[it.ug].type] ? 'armor' : 'trinket'; it.aff = {}; it.up = it.up || 0; return it; }
+  if (it.slot === 'seal' || it.type === 'seal') return it.fx && WFXD[it.fx] ? it : null;
+  if (AT[it.type]) { if (!it.ak || !ARMORS[it.ak]) { const n = makeArmor({ robe: 'cloth', leather: 'hunter', mail: 'chain' }[it.type]); n.id = it.id; return n; } it.aff = {}; it.up = it.up || 0; return it; }
+  if (TT[it.type]) { if (!it.tk || !TRINKETS[it.tk]) { const n = makeTrinket(it.type === 'ring' ? 'hawk' : 'life'); n.id = it.id; return n; } it.aff = {}; return it; }
+  return null;
 }
 export const DROP_WEAPONS = ['sword', 'dagger', 'axe', 'spear', 'staff', 'katana', 'hammer', 'scythe'];   // 會從怪物身上掉、商人會賣的武器（狼牙雙刃只有狼王會掉）
-function pickWeaponType(lv) {                                            // 你能裝備的武器類型比較容易掉（權重 3：1）
+function pickWeaponType() {                                              // 你能裝備的武器類型比較容易掉（權重 3：1）
   const pl = G.me; if (!pl) return pick(DROP_WEAPONS);
   const w = DROP_WEAPONS.map(t => meets(pl, { type: t, ilvl: 0, slot: 'weapon' } as Item) ? 3 : 1), sum = w.reduce((a, b) => a + b, 0);
   let r = Math.random() * sum; for (let i = 0; i < w.length; i++) if ((r -= w[i]) < 0) return DROP_WEAPONS[i]; return DROP_WEAPONS[0];
 }
-/** kind：'weapon' = 一定是武器，'gear' = 防具或飾品，不給 = 寶箱那種混著來 */
-export function randomLoot(lv, rarity, kind?: 'weapon' | 'gear') {
-  if (G.me && rarity < 4 && Math.random() < .012 * soft(G.me.luk)) rarity++;   // 幸運：有機會升一級稀有度
-  const q = kind === 'weapon' ? 0 : kind === 'gear' ? .6 + Math.random() * .4 : Math.random();
-  const type = q < .6 ? pickWeaponType(lv) : q < .85 ? pick(Object.keys(AT)) : pick(Object.keys(TT));
-  return makeGear(type, lv, rarity);
+const regionOfLv = (lv: number) => lv <= 5 ? 'plains' : lv <= 10 ? 'forest' : lv <= 15 ? 'wastes' : lv <= 20 ? 'lava' : lv <= 25 ? 'snow' : 'swamp';
+/** 隨機裝備。kind：'weapon' = 武器、'gear' = 防具 / 飾品 / 刻印、不給 = 寶箱那種混著來。
+    rarity 是舊參數：越高越容易出飾品和刻印（而不是一般防具） */
+export function randomLoot(lv, rarity = 1, kind?: 'weapon' | 'gear') {
+  const q = Math.random();
+  if (kind === 'weapon' || (!kind && q < .3)) return makeWeapon(pickWeaponType(), 0, rarity >= 3 && Math.random() < .35 ? pick(FX_KEYS) : undefined);
+  const r = Math.random() * (1 + rarity * .15), rg = regionOfLv(lv);
+  if (r < .45) return makeArmor(ARMOR_REGION[rg] && Math.random() < .6 ? ARMOR_REGION[rg] : pick(ARMOR_BASIC));
+  if (r < .9) return makeTrinket(pick(TRINKET_KEYS));
+  return makeSeal(pick(FX_KEYS));
 }
 export const bossWeapon = () => makeUnique('wolfblade');
 export const ICON: Record<string, HTMLCanvasElement> = {}, ICON_URL: Record<string, string> = {};
@@ -165,6 +203,8 @@ for (const type of Object.keys(WT)) {
     ring: sculpt(24, 24, [{ sh: SH.ell(12, 15, 9, 7.5, (x, y) => ((x - 12) / 5.2) ** 2 + ((y - 15.5) / 4) ** 2 > 1), ramp: GLD, grp: 1 }, { sh: SH.ell(12, 7, 4.5, 4), ramp: ['#1a3a9a', '#3a6ae0', '#8fb0ff', '#e0ecff'], grp: 2 }]),
     amulet: sculpt(24, 28, [{ sh: SH.ell(12, 19, 7.5, 8), ramp: GLD, grp: 1 }, { sh: SH.ell(12, 19, 5, 5.5), ramp: ['#3a0a4a', '#7a2ab0', '#c070ff', '#f0d0ff'], grp: 2 }],
       a => { a.line(3, 1, 10, 11, '#c0862c'); a.line(21, 1, 14, 11, '#c0862c'); }),
+    seal: sculpt(24, 26, [{ sh: SH.poly([[12, 1], [22, 8], [20, 24], [4, 24], [2, 8]]), ramp: ['#2a1640', '#4a2a78', '#7a52b8', '#a888e0'], tex: .25, grp: 1 }],   // 刻印：刻著發光符文的紫色石片
+      a => { a.line(12, 6, 12, 19, '#f0e0ff'); a.line(8, 10, 16, 15, '#e0c8ff'); a.line(16, 10, 8, 15, '#e0c8ff'); a.set(12, 12, '#ffffff'); }),
     potion: sculpt(22, 26, [{ sh: SH.box(11, 4, 3, 3, 3), ramp: ['#5a3c26', '#7a5434', '#9a7048'], grp: 1 }, { sh: SH.ell(11, 16, 8.5, 9), ramp: ['#5a1018', '#a8202e', '#e04a5a', '#ff9aa8'], grp: 2 }], a => { a.set(7, 12, '#ffffff'); a.set(8, 11, '#ffffff'); }),
     potUp: sculpt(26, 28, [{ sh: SH.box(13, 5, 3, 3, 3), ramp: ['#5a3c26', '#7a5434', '#9a7048'], grp: 1 }, { sh: SH.ell(13, 17, 10, 10), ramp: GLD, grp: 2 }, { sh: SH.ell(13, 17, 7.5, 7.5), ramp: ['#5a1018', '#a8202e', '#e04a5a', '#ff9aa8'], grp: 3 }],
       a => { a.rect(12, 13, 3, 9, '#ffffff'); a.rect(9, 16, 9, 3, '#ffffff'); }),

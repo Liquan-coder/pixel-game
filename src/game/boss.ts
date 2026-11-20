@@ -1,6 +1,7 @@
 import { G } from '../core/state';
 import { $, TAU, angDiff, clamp, dist, pick, rr } from '../core/util';
 import { DG, bossWeapon } from '../data/items';
+import { bossMul } from './bossTuning';
 import { ARENA, DOOR, MW, RFLOOR, TS, explored, map } from '../world/map';
 import { invalidate } from '../world/chunks';
 import { miniPix } from '../world/minimap';
@@ -40,7 +41,10 @@ function chooseBossAttack() {
   else { bossWind('lungeWind', p2 ? .45 : .62); G.B.combo = p2 ? 2 : 0; }
 }
 function bossGhost() { G.fx.push({ k:'bghost', x:G.B.x, y:G.B.y - (G.B.z || 0), flip:G.B.flip, t:0, d:.22 }); }
-export function updateBoss(dt) {
+/* 狼王的招式傷害也照等級放大（跟其他 Boss 同一條曲線，game/bossTuning.ts） */
+export function updateBoss(dt) { G.dmgMul = bossMul(WOLF_LV); try { updateBoss0(dt); } finally { G.dmgMul = 1; } }
+const WOLF_LV = 8;
+function updateBoss0(dt) {
   if (!G.B || G.bossDead) return;
   G.B.anim += dt; if (G.B.flash > 0) G.B.flash -= dt;
   if (G.B.state === 'sleep') { if (G.players.some(pl => !pl.dead && inArena(pl.x, pl.y))) startBossFight(); return; }   // 任何人走進競技場就醒來

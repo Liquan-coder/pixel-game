@@ -2,6 +2,7 @@ import { G } from '../core/state';
 import { TAU, angDiff, pick, rr } from '../core/util';
 import { ANIM, HAND_R, HSY, REACH, STYLE, WLEN } from '../art/hero';
 import { BEH, RAR, WT } from '../data/items';
+import { ACLS } from '../data/gear';
 import { rbs, regionBossDie } from '../world/regionBoss';
 import { input } from './player';
 import { collides, moveEnt } from './collision';
@@ -13,6 +14,7 @@ import { STARC } from '../render/fx';
 import { showBanner, toast } from '../ui/hud';
 import type { Enemy } from '../types';
 import { bindFx, onHit, onKill } from './weaponFx';
+import './bossTuning';                                                   // Boss 的傷害倍率和獎勵（平衡用）
 import type { Player } from '../types';
 
 /* ================= PLAYER COMBAT ================= */
@@ -24,6 +26,9 @@ export function updFlip(pl: Player) { const c = Math.cos(pl.face); if (c < -.1) 
 function spendSt(pl: Player, v) { pl.st = Math.max(0, pl.st - v); pl.stDelay = .55; }
 function calcDmg(pl: Player, mult) {
   let v = (pl.atkPow || pl.weapon.atk) * mult * rr(.9, 1.1);           // atkPow = 武器攻擊 × 能力值加成（recalc 算好的）
+  const T = pl.tfx || {};
+  if (T.lowHp && pl.hp < pl.maxHp * .35) v *= 1 + T.lowHp / 100;            // 飾品：低血量時加攻
+  if (T.dodgeAtk && G.time < (pl.dodgeAtkT || 0)) { v *= 1 + T.dodgeAtk / 100; pl.dodgeAtkT = 0; }   // 飾品：瞬移後的下一擊
   const crit = Math.random() * 100 < pl.crit; if (crit) v *= 1.8;
   return { v: Math.max(1, Math.round(v)), crit };
 }
@@ -31,14 +36,15 @@ export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: 
   if (e.hp <= 0) return;
   let { v, crit } = calcDmg(pl, mult);
   if (opts.crit && !crit) { crit = true; v = Math.round(v * 1.8); }      // 居合：一定暴擊
-  if (opts.heal) pl.hp = Math.min(pl.maxHp, pl.hp + Math.round(pl.maxHp * opts.heal));   // 鐮刀收割：打中一隻回一點血
+  if (opts.heal) { if (G.time - (pl.healT0 || -9) > .6) { pl.healT0 = G.time; pl.healN = 0; }   // 鐮刀收割：打中一隻回一點血，一次技能最多算 3 隻
+    if (pl.healN < 3) { pl.healN++; pl.hp = Math.min(pl.maxHp, pl.hp + Math.round(pl.maxHp * opts.heal * (e.boss ? .5 : 1))); } }
   e.hp -= v; e.flash = .1; e.hitT = .32; e.hitDir = Math.sign(e.x - sx) || 1;
   G.nums.push({ x:e.x + rr(-3, 3), y:e.y - (e.boss ? 26 : 16), txt:String(v), col: crit ? '#ffd84a' : '#ffffff', t:0, d:.7, big:crit });
   const a = Math.atan2(e.y - sy, e.x - sx);
   if (!e.boss && !e.elite && !BEH[e.beh].heavy) { e.kx = Math.cos(a) * 110; e.ky = Math.sin(a) * 110; }
   if (opts.stun && !e.boss) e.stun = e.elite ? opts.stun * .4 : opts.stun;
   if (!e.boss && (e.state === 'idle' || e.state === 'return')) e.state = 'chase';
-  if (pl.ls > 0) pl.hp = Math.min(pl.maxHp, pl.hp + v * pl.ls);
+  if (pl.ls > 0) pl.hp = Math.min(pl.maxHp, pl.hp + Math.min(v * pl.ls, pl.maxHp * .01) * (e.boss ? .5 : 1));   // 吸血：每一下最多回 1% 生命，打 Boss 減半
   hitSpark(e.x, e.y - 7, crit, a);
   if (opts.heavy) { G.hitStop = Math.max(G.hitStop, .055); shake(3, .1); }
   crit ? sfx.crit() : sfx.hit();
@@ -159,7 +165,7 @@ export function tryAttack(pl: Player) {
 export const CH1 = .45, CH2 = 1.1, CHC = ['#9a7cff', '#c8a0ff', '#ffd04a'];
 export function stopCharge(pl: Player) { pl.chargeArm = false; pl.charging = false; pl.charge = 0; pl.chargeLv = 0; pl.chargeHold = 0; }
 export function updateCharge(pl: Player, dt) {
-  pl.charge += dt;
+  pl.charge += dt * (1 + ((pl.tfx && pl.tfx.charge) || 0) / 100);        // 飾品：蓄力比較快
   const lv = pl.charge >= CH2 ? 2 : pl.charge >= CH1 ? 1 : 0;
   if (lv > pl.chargeLv) { pl.chargeLv = lv; sfx.charge(lv); if (lv === 2) shake(1.5, .1);
     G.fx.push({ k:'warp', x:pl.x, y:pl.y, r0:4, r1:lv === 2 ? 26 : 18, th:3, t:0, d:.3, col:CHC[lv] });
@@ -360,9 +366,11 @@ export function trySkill(pl: Player) {
 function trail(x0, y0, x1, y1) { for (let i = 0; i <= 10; i++) { const k = i / 10; G.parts.push({ x:x0 + (x1 - x0) * k, y:y0 - 6 + (y1 - y0) * k, vx:rr(-8, 8), vy:rr(-8, 8), life:.35, max:.35, col: i % 2 ? '#b49cff' : '#e8e2ff', s:2 }); } }
 export function tryDodge(pl: Player) {                                                // 瞬移：消失、極快地移動一小段、在落點閃現
   if (pl.dodge > 0 || pl.drink > 0 || pl.dash || pl.dead || pl.st <= 0) return;
-  stopCharge(pl); spendSt(pl, 20); const m = Math.hypot(input.mx, input.my);
-  const a = m > .2 ? Math.atan2(input.my, input.mx) : pl.face;
-  pl.dodge = .14; pl.iframe = Math.max(pl.iframe, .3); pl.dvx = Math.cos(a) * 520; pl.dvy = Math.sin(a) * 520; pl.skillLock = 0; pl.timers = []; pl.lunge = null;
+  const C = ACLS[pl.acls] || ACLS.medium;                                // 防具類型：輕甲省體力、閃得遠；重甲相反
+  stopCharge(pl); spendSt(pl, 20 + C.dodgeSt); const m = Math.hypot(input.mx, input.my);
+  const a = m > .2 ? Math.atan2(input.my, input.mx) : pl.face, sp = 520 * C.dodgeMul;
+  pl.dodge = .14; pl.iframe = Math.max(pl.iframe, .3); pl.dvx = Math.cos(a) * sp; pl.dvy = Math.sin(a) * sp;
+  if (pl.tfx && pl.tfx.dodgeAtk) pl.dodgeAtkT = G.time + 1.5; pl.skillLock = 0; pl.timers = []; pl.lunge = null;
   if (pl.swing && pl.swing.anim && pl.swing.t < pl.swing.wu) { pl.swing = null; for (let i = G.fx.length - 1; i >= 0; i--) if (G.fx[i].k === 'smear' && G.fx[i].follow === pl && G.fx[i].t < (G.fx[i].delay || 0)) G.fx.splice(i, 1); }   // 預備中翻滾 = 取消這一刀
   blinkFx(pl, pl.x, pl.y, true); sfx.blink();
 }
@@ -372,9 +380,10 @@ export function tryPot(pl: Player) {
 }
 export function hurtPlayer(pl: Player, v, sx, sy) {
   if (pl.iframe > 0 || pl.dead) return false;
-  v = Math.max(1, Math.round(v * (G.dmgMul || 1) * (1 - (pl.defRed || 0))));            // 防禦：減少受到的傷害
+  const T = pl.tfx || {}, res = (T['res_' + G.region] || 0) / 100, guard = (T.guard || 0) / 100;   // 地區抗性、飾品減傷
+  v = Math.max(1, Math.round(v * (G.dmgMul || 1) * (1 - (pl.defRed || 0)) * (1 - res) * (1 - guard)));   // 防禦：減少受到的傷害
   pl.hp -= v; pl.hurt = .3; pl.iframe = .4;
-  const a = Math.atan2(pl.y - sy, pl.x - sx); pl.kx = Math.cos(a) * 120; pl.ky = Math.sin(a) * 120;
+  const a = Math.atan2(pl.y - sy, pl.x - sx), kb = pl.acls === 'heavy' ? 0 : 120; pl.kx = Math.cos(a) * kb; pl.ky = Math.sin(a) * kb;   // 重甲：不會被擊退
   G.nums.push({ x:pl.x, y:pl.y - 28, txt:String(v), col:'#ff5a5a', t:0, d:.8 });
   if (pl === G.me) { shake(3, .2); sfx.hurt(); }                       // 震動、音效只給自己（隊友受傷不震你的畫面）
   burst(pl.x, pl.y - 6, 8, '#d8434e', 60);

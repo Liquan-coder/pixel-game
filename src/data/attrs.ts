@@ -14,7 +14,7 @@ export const ATTRS: { k: AttrKey; n: string; d: string }[] = [
   { k: 'str', n: '力量', d: '重武器的傷害（斧、鎚、劍）' },
   { k: 'dex', n: '敏捷', d: '快武器的傷害（短刀、太刀、長槍）、攻擊速度' },
   { k: 'int', n: '智識', d: '魔法武器的傷害（法杖、鐮刀）、技能冷卻' },
-  { k: 'luk', n: '幸運', d: '暴擊率、掉落更好的裝備' },
+  { k: 'luk', n: '幸運', d: '暴擊率、怪物比較常掉素材' },
 ];
 export const ATTR_NAME: Record<AttrKey, string> = Object.fromEntries(ATTRS.map(a => [a.k, a.n])) as any;
 
@@ -37,15 +37,13 @@ const REQW: Record<string, Partial<Record<AttrKey, number>>> = {
 /** 獨特武器可以有自己的需求 / 加成（data/uniques.ts 會填進來） */
 export const UQ_REQ: Record<string, Partial<Record<AttrKey, number>>> = {}, UQ_SCALE: Record<string, Partial<Record<AttrKey, number>>> = {};
 export const scaleOf = (it: Item) => (it.uq && UQ_SCALE[it.uq]) || WSCALE[it.type] || {};
-/* 防具需求：[基本, 每一物品等級加多少]。越高級的防具需求越高 */
-const REQ: Record<string, Partial<Record<AttrKey, [number, number]>>> = {
-  mail: { str: [6, .3], end: [5, .15] }, leather: { end: [4, .15] }, robe: { int: [4, .2] },
-};
+/* 防具需求：看類型（重甲要力量和耐力、中甲要一點耐力、輕甲誰都能穿），獨特的再高一點 */
+const REQ: Record<string, Partial<Record<AttrKey, number>>> = { mail: { str: 10, end: 8 }, leather: { end: 7 }, robe: {} };
 export function reqOf(it: Item): Partial<Record<AttrKey, number>> {
   if (it.uq && UQ_REQ[it.uq]) return { ...UQ_REQ[it.uq] };
   if (REQW[it.type]) return { ...REQW[it.type] };
   const R = REQ[it.type], out: Partial<Record<AttrKey, number>> = {}; if (!R) return out;
-  for (const k in R) out[k] = Math.round(R[k][0] + R[k][1] * (it.ilvl - 1));
+  for (const k in R) out[k] = R[k] + (it.ug ? 3 : 0);
   return out;
 }
 export function unmet(pl: Player, it: Item | null): AttrKey[] { if (!it) return []; const r = reqOf(it); return (Object.keys(r) as AttrKey[]).filter(k => (pl[k] ?? ATTR_BASE) < r[k]); }

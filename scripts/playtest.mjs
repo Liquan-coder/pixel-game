@@ -44,6 +44,7 @@ const pageScript = async () => {
   const imp = p => import(`/src/${p}.ts`);
   const { G } = await imp('core/state');
   const { WT, makeItem } = await imp('data/items');
+  const ITEMS = await imp('data/items'), PLAYER = await imp('game/player');
   const { recalc, pressed, held, input, newPlayer, resetPlayers } = await imp('game/player');
   const BOSS = await imp('game/boss');
   const { update } = await imp('game/worldUpdate');
@@ -182,21 +183,63 @@ const pageScript = async () => {
     log.push('  完成前兩步後：' + Q.current().title);
   });
 
-  run('強化：鐵匠分頁、礦石 + 金幣 → +1、舊存檔武器換算', () => {
+  run('強化：鐵匠分頁、素材 + 金幣 → +1、舊存檔武器換算', () => {
     const F = await0.forge, towns = await0.towns, sm = towns.NPCS.find(n => n.smith);
-    G.me.weapon = makeItem('sword', 0, 0); recalc(G.me); G.me.mats = { ore1: 5 }; G.me.gold = 1000;
+    G.me.weapon = makeItem('sword', 0, 0); recalc(G.me); G.me.mats = { mat1: 5 }; G.me.gold = 1000;
     const a0 = G.me.weapon.atk, p0 = G.me.atkPow;
     tp(sm.x, sm.y + 12); step(2); shop.openShop(towns.nearSmith()); step(1);
     document.querySelector('#forgeTab').click(); document.querySelector('#shopMenu [data-fw]').click(); document.querySelector('#shopMenu [data-forge]').click(); step(1);
     if (G.me.weapon.up !== 1 || G.me.weapon.atk <= a0 || G.me.atkPow <= p0) throw new Error('強化沒有生效：up=' + G.me.weapon.up + ' atk ' + a0 + '→' + G.me.weapon.atk);
-    if (G.me.mats.ore1 !== 3 || G.me.gold !== 940) throw new Error('沒有扣礦石 / 金幣：' + JSON.stringify(G.me.mats) + ' ' + G.me.gold);
-    G.me.mats = {}; if (F.doUpgrade(G.me, G.me.weapon)) throw new Error('沒有礦石也能強化');
+    if (G.me.mats.mat1 !== 3 || G.me.gold !== 940) throw new Error('沒有扣素材 / 金幣：' + JSON.stringify(G.me.mats) + ' ' + G.me.gold);
+    G.me.mats = {}; if (F.doUpgrade(G.me, G.me.weapon)) throw new Error('沒有素材也能強化');
     setMenu(null);
     const old = { id: 999, type: 'axe', ilvl: 25, rarity: 3, atk: 120, aff: {}, name: '舊斧頭' }; F.migrateWeapon(old);
     if (old.up !== 10 || old.ilvl !== 0) throw new Error('舊武器換算錯誤：' + JSON.stringify(old));
     const mid = { id: 998, type: 'sword', ilvl: 9, rarity: 2, aff: {}, name: '舊劍' }; F.migrateWeapon(mid);
     log.push('  舊武器換算：25 級史詩斧 → +' + old.up + '，9 級稀有劍 → +' + mid.up + '（攻擊 ' + mid.atk + '）');
     G.me.weapon = makeItem('sword', 0, 0); recalc(G.me);
+  });
+
+  run('裝備新制：刻印拆裝、飾品欄、防具強化、效果、舊存檔換算', () => {
+    const I = ITEMS, F = await0.forge, P = PLAYER; setMenu(null);
+    // 刻印：裝上 → 武器有效果；拆下 → 變回道具
+    G.me.weapon = makeItem('sword', 0, 0); G.me.inv = [I.makeSeal('bleed')]; recalc(G.me);
+    menus.toggleInv(); G.selItem = G.me.inv[0].id; menus.renderInv();
+    document.querySelector('#cInfo [data-act="seal"]').click();
+    if (G.me.weapon.fx !== 'bleed' || G.me.inv.length) throw new Error('刻印沒有裝上：' + JSON.stringify(G.me.weapon));
+    G.selItem = G.me.weapon.id; menus.renderInv(); document.querySelector('#cInfo [data-act="unseal"]').click();
+    if (G.me.weapon.fx || G.me.inv[0]?.fx !== 'bleed') throw new Error('刻印沒有拆下來');
+    // 飾品：一開始 2 格，第 3 件要換掉一件
+    const rb0 = [...RB.rbDead], bd0 = G.bossDead; RB.rbDead.clear(); G.bossDead = false;   // 還沒打倒主線 Boss → 2 格
+    if (menus.tSlots() !== 2) throw new Error('一開始飾品欄應該是 2 格：' + menus.tSlots());
+    RB.rbDead.add('queen'); RB.rbDead.add('general'); if (menus.tSlots() !== 3) throw new Error('打倒 2 隻主線 Boss 應該變 3 格');
+    RB.rbDead.clear(); for (const id of rb0) RB.rbDead.add(id); G.bossDead = bd0; const n = menus.tSlots();
+    G.me.inv = [...Array(n).fill(0).map(() => I.makeTrinket('hawk')), I.makeTrinket('might')]; G.me.trinkets = [null, null, null, null];
+    for (let k = 0; k < n; k++) { G.selItem = G.me.inv[0].id; menus.renderInv(); document.querySelector('#cInfo [data-act="equip"]').click(); }
+    if (G.me.trinkets.filter(Boolean).length !== n) throw new Error('飾品沒有裝滿 ' + n + ' 格');
+    G.selItem = G.me.inv[0].id; menus.renderInv();
+    if (document.querySelector('#cInfo [data-act="equip"]')) throw new Error('飾品欄滿了還能直接裝');
+    document.querySelector('#cInfo [data-act="tswap"]').click();
+    if (!G.me.trinkets.some(t => t && t.tk === 'might')) throw new Error('換飾品失敗');
+    if (G.me.atkPow <= P.calcStats(G.me, { weapon: G.me.weapon, armor: G.me.armor, trinkets: [] }).atk) throw new Error('力之戒沒有加攻擊');
+    // 防具：重甲不會被擊退、強化 +1 防禦變高
+    G.me.armor = I.makeArmor('chain'); G.me.str = 12; G.me.end = 10; recalc(G.me);
+    const d0 = G.me.def; G.me.mats = { mat1: 2 }; G.me.gold = 500; if (!F.doUpgrade(G.me, G.me.armor)) throw new Error('防具不能強化'); recalc(G.me);
+    if (!(G.me.def > d0) || G.me.armor.up !== 1) throw new Error('防具強化沒有生效');
+    G.me.iframe = 0; G.me.hp = G.me.maxHp; hurtPlayer(G.me, 10, G.me.x - 10, G.me.y); if (G.me.kx !== 0) throw new Error('重甲還是會被擊退');
+    // 地區抗性：在熔岩高地穿燼鱗甲，受到的傷害變少
+    G.me.armor = I.makeArmor('ember'); recalc(G.me); const reg0 = G.region;
+    G.region = 'plains'; G.me.iframe = 0; G.me.hp = 999; hurtPlayer(G.me, 100, G.me.x, G.me.y + 5); const a1 = 999 - G.me.hp;
+    G.region = 'lava'; G.me.iframe = 0; G.me.hp = 999; hurtPlayer(G.me, 100, G.me.x, G.me.y + 5); const a2 = 999 - G.me.hp; G.region = reg0;
+    if (!(a2 < a1)) throw new Error('燼鱗甲在熔岩高地沒有減傷：' + a1 + ' / ' + a2);
+    // 舊存檔：物品等級 + 詞綴的防具 / 飾品 / 史詩武器 → 新制
+    const d = serialize(); d.armor = { id: 1, slot: 'armor', type: 'mail', ilvl: 20, rarity: 3, def: 40, hp: 30, aff: { hp: 90 }, name: '舊鎖甲' };
+    d.trinket = { id: 2, slot: 'trinket', type: 'ring', ilvl: 15, rarity: 2, aff: { crit: 8 }, name: '舊戒指' }; delete d.trinkets;
+    d.inv = [{ id: 3, slot: 'weapon', type: 'axe', ilvl: 0, up: 4, rarity: 3, fx: 'burn', aff: { crit: 5, lifesteal: 4 }, name: '烈焰戰斧' }]; d.mats = { ore1: 3, ore4: 1 };
+    applySave(d);
+    if (!G.me.armor.ak || G.me.armor.aff.hp || !G.me.trinkets[0]?.tk || G.me.inv[0].aff.lifesteal || G.me.inv[0].fx !== 'burn' || G.me.mats.mat1 !== 3 || G.me.mats.core !== 1)
+      throw new Error('舊存檔換算錯誤：' + JSON.stringify({ a: G.me.armor, t: G.me.trinkets[0], w: G.me.inv[0], m: G.me.mats }));
+    G.me.armor = null; G.me.trinkets = [null, null, null, null]; G.me.inv = []; G.me.weapon = makeItem('sword', 0, 0); recalc(G.me); setMenu(null);
   });
 
   run('刻印效果：出血 / 燃燒 / 寒霜 / 雷鳴 / 噬魂 都會觸發', () => {

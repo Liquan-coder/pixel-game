@@ -28,25 +28,26 @@ function sparks(e: Enemy, col: string, n: number) { for (let i = 0; i < n; i++) 
 /** 每次命中（proc = 由效果本身造成的傷害，不再觸發，避免連鎖無限） */
 export function onHit(pl: Player, e: Enemy, v: number, crit: boolean) {
   const fx = fxOf(pl.weapon); if (!fx || e.hp <= 0) return;
-  const pow = pl.atkPow || pl.weapon.atk || 10;
-  if (fx === 'bleed') { e.bleedB = (e.bleedB || 0) + 22 + (crit ? 15 : 0);
+  const pow = pl.atkPow || pl.weapon.atk || 10, B = 1 + ((pl.tfx && pl.tfx.fxBuild) || 0) / 100;   // B = 飾品「刻印效果加強」
+  if (fx === 'bleed') { e.bleedB = (e.bleedB || 0) + (22 + (crit ? 15 : 0)) * B;
     if (e.bleedB >= 100) { e.bleedB = 0; const d = Math.round(Math.max(pow * .6, e.maxHp * (e.boss ? .05 : .15)));
       num(e, '出血 ' + d, WFXD.bleed.c); sparks(e, '#e0303a', 16); sfx.crit(); rawHit(pl, e, d, WFXD.bleed.c); } }
-  else if (fx === 'frost') { e.frostB = (e.frostB || 0) + 25;
+  else if (fx === 'frost') { e.frostB = (e.frostB || 0) + 25 * B;
     if (e.frostB >= 100) { e.frostB = 0; const d = Math.round(pow * 1.5); if (!e.boss) e.stun = Math.max(e.stun || 0, e.elite ? .4 : 1);
       num(e, '凍傷 ' + d, WFXD.frost.c); sparks(e, '#c8f0ff', 14); G.fx.push({ k: 'ring', x: e.x, y: e.y, r0: 4, r1: 22, t: 0, d: .3, col: '#9ae0ff' }); rawHit(pl, e, d, WFXD.frost.c); } }
-  else if (fx === 'burn') { if (Math.random() < .3) { if (!(e.burnT > 0)) sparks(e, '#ff9a3a', 8); e.burnT = 3; e.burnD = Math.max(1, Math.round(pow * .2)); e.burnBy = pl; } }
-  else if (fx === 'shock') { if (Math.random() < .2) {
+  else if (fx === 'burn') { if (Math.random() < .3 * B) { if (!(e.burnT > 0)) sparks(e, '#ff9a3a', 8); e.burnT = 3; e.burnD = Math.max(1, Math.round(pow * .2)); e.burnBy = pl; } }
+  else if (fx === 'shock') { if (Math.random() < .2 * B) {
     const near = targetsOf(pl).filter(o => o !== e && o.hp > 0 && Math.hypot(o.x - e.x, o.y - e.y) < 64).sort((a, b) => Math.hypot(a.x - e.x, a.y - e.y) - Math.hypot(b.x - e.x, b.y - e.y)).slice(0, 2);
     for (const o of near) { bolt(e.x, e.y - 8, o.x, o.y - 8); rawHit(pl, o, Math.max(1, Math.round(v * .6)), WFXD.shock.c); }
     if (near.length) sfx.crit(); } }
 }
 /** 擊殺（回傳魂晶倍率） */
 export function onKill(pl: Player, e: Enemy) {
-  if (fxOf(pl.weapon) !== 'soul' || !pl) return 1;
-  const h = Math.round(pl.maxHp * .04); pl.hp = Math.min(pl.maxHp, pl.hp + h);
-  G.nums.push({ x: pl.x, y: pl.y - 28, txt: '+' + h, col: '#c8a8ff', t: 0, d: .7 }); sparks(e, '#c8a8ff', 10);
-  return 1.25;
+  if (!pl) return 1;
+  const T = pl.tfx || {}, soul = fxOf(pl.weapon) === 'soul', heal = (soul ? 4 : 0) + (T.killHeal || 0);   // 噬魂刻印 + 飾品「打倒敵人回血」
+  if (heal) { const h = Math.round(pl.maxHp * heal / 100); pl.hp = Math.min(pl.maxHp, pl.hp + h);
+    G.nums.push({ x: pl.x, y: pl.y - 28, txt: '+' + h, col: '#c8a8ff', t: 0, d: .7 }); if (soul) sparks(e, '#c8a8ff', 10); }
+  return (soul ? 1.25 : 1) * (1 + (T.souls || 0) / 100);                 // 魂晶倍率
 }
 /** 燃燒：每 0.5 秒扣一次 */
 export function tickWeaponFx(dt: number, list: Enemy[]) {

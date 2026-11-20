@@ -1,21 +1,23 @@
 // 遊戲主要資料的「形狀」。
 // 寫下來的好處：打錯屬性名稱（例如 pl.hpp）、或把敵人當成玩家傳進去時，編輯器會直接標紅。
 
-export type Slot = 'weapon' | 'armor' | 'trinket';
+export type Slot = 'weapon' | 'armor' | 'trinket' | 'seal';
 
 /** 裝備：武器、防具、飾品共用 */
 export interface Item {
   id: number;
   slot: Slot;
-  type: string;                   // WT / AT / TT 的 key，例如 'sword'、'robe'、'ring'
-  ilvl: number;                   // 物品等級（只有防具 / 飾品用；武器是 0）
-  up?: number;                    // 武器強化等級 +0 ～ +10（data/forge.ts）
+  type: string;                   // 圖示 / 動作：WT 的 key、'robe' | 'leather' | 'mail'、'ring' | 'amulet'、'seal'
+  ilvl: number;                   // 舊存檔才有（物品等級，新制已經不用）
+  up?: number;                    // 強化等級：武器 +0 ～ +10、防具 +0 ～ +5（data/forge.ts）
   uq?: string;                    // 獨特武器的編號（data/uniques.ts）
   ug?: string;                    // 獨特防具 / 飾品的編號（data/uniques.ts 的 UG）
-  fx?: string;                    // 刻印效果（史詩以上，game/weaponFx.ts）
-  rarity: number;                 // 0 普通 ～ 4 傳說
+  ak?: string;                    // 一般防具的編號（data/gear.ts 的 ARMORS）
+  tk?: string;                    // 一般飾品的編號（data/gear.ts 的 TRINKETS）
+  fx?: string;                    // 刻印效果：裝在一般武器上，或刻印道具本身（game/weaponFx.ts）
+  rarity: number;                 // 只決定顏色：0 一般、2 地區 / 飾品、3 刻印、4 獨特
   name: string;
-  aff: Record<string, number>;    // 詞綴，例如 { crit: 5, hp: 20 }
+  aff: Record<string, number>;    // 只有獨特武器有固定詞綴（例如 { crit: 5 }）
   atk?: number;                   // 只有武器有
   def?: number;                   // 只有防具有
   hp?: number;                    // 只有防具有
@@ -39,14 +41,18 @@ export interface Player {
   vit: number; str: number; end: number;          // 體魄 / 力量 / 耐力
   dex: number; int: number; luk: number;          // 敏捷 / 智識 / 幸運（見 data/attrs.ts）
   souls: number; gold: number; pot: number;
-  mats: Record<string, number>;   // 強化礦石：{ ore1: 3, ore2: 0, … }
+  mats: Record<string, number>;   // 強化素材：{ mat1: 3, core: 1, … }（data/forge.ts）
 
   // 裝備
   inv: Item[];
-  weapon: Item; armor: Item | null; trinket: Item | null;
+  weapon: Item; armor: Item | null; trinkets: (Item | null)[];   // 飾品欄 4 格（開放幾格見 menus.ts 的 tSlots）
 
   // recalc() 依照裝備算出來的
   def: number; defRed: number; crit: number; ls: number; aspd: number; cdr: number; atkPow?: number;
+  tfx?: Record<string, number>;   // 防具 + 飾品的效果加總（data/gear.ts 的 EFF）
+  acls?: string;                  // 身上防具的類型：'light' | 'medium' | 'heavy'
+  dodgeAtkT?: number;             // 「瞬移後下一擊加傷」到什麼時候（G.time）
+  healT0?: number; healN?: number; // 鐮刀收割：這一次技能已經回了幾次血
 
   // 倒數計時（秒），大於 0 代表還在冷卻/持續中
   atkCd: number; skillCd: number; iframe: number; hurt: number; dodge: number; drink: number;

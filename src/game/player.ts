@@ -1,6 +1,7 @@
 import { G } from '../core/state';
 import { $ } from '../core/util';
-import { WT, makeWeapon } from '../data/items';
+import { WT, armorStats, effOf, makeWeapon } from '../data/items';
+import { ACLS } from '../data/gear';
 import { soft, weaponAtk } from '../data/attrs';
 import type { Player } from '../types';
 
@@ -17,7 +18,7 @@ export const input = { mx:0, my:0 };
 // 建立一個新玩家（還沒放進 G.players）
 export function newPlayer(id = 'local'): Player {
   const pl = { id, x:0, y:0, r:5, face:0, flip:false, hp:100, maxHp:100, st:80, maxSt:80, stDelay:0, vit:5, str:5, end:5, dex:5, int:5, luk:5, souls:0, mats:{},
-    inv:[], weapon: makeWeapon('sword'), armor:null, trinket:null, gold:0, def:0, defRed:0, pot:3, atkCd:0, skillCd:0, iframe:0, hurt:0, dodge:0, dvx:0, dvy:0, drink:0,
+    inv:[], weapon: makeWeapon('sword'), armor:null, trinkets:[null, null, null, null], gold:0, def:0, defRed:0, pot:3, atkCd:0, skillCd:0, iframe:0, hurt:0, dodge:0, dvx:0, dvy:0, drink:0,
     skillLock:0, aimLock:0, swing:null, dash:null, timers:[], kx:0, ky:0, moving:false, dead:false, deathT:0,
     crit:5, ls:0, aspd:1, cdr:0, spin:0, thrust:0, slam:0, anim:0 };
   pl.weapon.name = '鏽鐵長劍';
@@ -41,18 +42,26 @@ export function nearestPlayer(x, y) {
 }
 export const level = (pl: Player) => pl.vit + pl.end + pl.str + pl.dex + pl.int + pl.luk - 29;   // 六種都是 5 的時候是 1 級
 export const lvCost = (pl: Player) => { const L = level(pl); return Math.floor(16 * Math.pow(1.16, L - 1) + 6 * L); };
-export const curEq = (pl: Player) => ({ weapon:pl.weapon, armor:pl.armor, trinket:pl.trinket });
-export function calcStats(pl: Player, eq) {                                               // 依照裝備算出所有屬性（換裝預覽也用這個）
-  const a: Record<string, number> = {}; for (const it of [eq.weapon, eq.armor, eq.trinket]) if (it) for (const k in it.aff) a[k] = (a[k] || 0) + it.aff[k];
-  const def = (eq.armor ? eq.armor.def || 0 : 0) + (a.def || 0) + Math.round(.5 * soft(pl.end));
-  return { maxHp: Math.round(100 + 22 * soft(pl.vit)) + (a.hp || 0) + (eq.armor ? eq.armor.hp || 0 : 0), maxSt: Math.round(80 + 8 * soft(pl.end)) + (a.st || 0),
-    crit: Math.round(5 + (a.crit || 0) + Math.min(12, .4 * soft(pl.luk))), ls: (a.lifesteal || 0) / 100,
-    aspd: 1 + (a.speed || 0) / 100 + Math.min(.15, .006 * soft(pl.dex)), cdr: Math.min(.5, (a.cdr || 0) / 100 + Math.min(.15, .006 * soft(pl.int))),
-    def, defRed: def / (def + 60), atk: weaponAtk(pl, eq.weapon) };
+export const curEq = (pl: Player) => ({ weapon:pl.weapon, armor:pl.armor, trinkets:pl.trinkets });
+export const DR_CAP = .4;                                               // 防禦減傷最多 40%（穿再重也不會變成打不痛）
+/* 依照裝備算出所有屬性（換裝預覽也用這個）
+   生命主要靠「體魄」；防具只加一點生命和防禦；飾品 / 防具效果（tfx）各管一件事；獨特武器還有固定詞綴（a） */
+export function calcStats(pl: Player, eq) {
+  const a: Record<string, number> = { ...(eq.weapon && eq.weapon.aff) };
+  const T: Record<string, number> = {}, add = (e: Record<string, number>) => { for (const k in e) T[k] = (T[k] || 0) + e[k]; };
+  add(effOf(eq.armor)); for (const t of eq.trinkets || []) add(effOf(t));
+  if (T.lifesteal) a.lifesteal = (a.lifesteal || 0) + T.lifesteal;
+  const A = armorStats(eq.armor), C = A ? ACLS[A.cls] : null;
+  const def = (A ? A.def : 0) + Math.round(.5 * soft(pl.end));
+  return { maxHp: Math.round((100 + 22 * soft(pl.vit) + (a.hp || 0) + (A ? A.hp : 0)) * (1 + (T.hpPct || 0) / 100)), maxSt: Math.round(80 + 8 * soft(pl.end)) + (T.stam || 0),
+    crit: Math.round(5 + (a.crit || 0) + (T.crit || 0) + Math.min(12, .4 * soft(pl.luk))), ls: (a.lifesteal || 0) / 100,
+    aspd: 1 + ((a.speed || 0) + (T.aspd || 0)) / 100 + Math.min(.15, .006 * soft(pl.dex)),
+    cdr: Math.min(.5, ((a.cdr || 0) + (T.cdr || 0) + (C ? C.cdr : 0)) / 100 + Math.min(.15, .006 * soft(pl.int))),
+    def, defRed: Math.min(DR_CAP, def / (def + 60)), atk: Math.round(weaponAtk(pl, eq.weapon) * (1 + (T.atkPct || 0) / 100)), tfx: T, acls: A ? A.cls : '' };
 }
 export function recalc(pl: Player) {
   const st = calcStats(pl, curEq(pl));
-  pl.maxHp = st.maxHp; pl.maxSt = st.maxSt; pl.crit = st.crit; pl.ls = st.ls; pl.aspd = st.aspd; pl.cdr = st.cdr; pl.def = st.def; pl.defRed = st.defRed; pl.atkPow = st.atk;
+  pl.maxHp = st.maxHp; pl.maxSt = st.maxSt; pl.crit = st.crit; pl.ls = st.ls; pl.aspd = st.aspd; pl.cdr = st.cdr; pl.def = st.def; pl.defRed = st.defRed; pl.atkPow = st.atk; pl.tfx = st.tfx; pl.acls = st.acls;
   pl.hp = Math.min(pl.hp, pl.maxHp); pl.st = Math.min(pl.st, pl.maxSt);
   if (pl === G.me) { $('skillName').textContent = WT[pl.weapon.type].sn; $('skillHudName').textContent = WT[pl.weapon.type].sn; }   // 技能按鈕只顯示「我」的
 }

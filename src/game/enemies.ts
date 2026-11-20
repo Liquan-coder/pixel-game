@@ -8,6 +8,7 @@ import { hurtPlayer } from './combat';
 import { nearestPlayer } from './player';
 import { burst, dropGold, dropMat, dropPot, dropSouls, killFx, quakeFx, shake } from './worldUpdate';
 import { oreForLevel } from '../data/forge';
+import { soft } from '../data/attrs';
 import { showBanner, toast } from '../ui/hud';
 import { flags } from './quest';
 import { save } from './save';
@@ -127,9 +128,10 @@ export function killEnemy(e, by) {                                     // by = �
   sfx.kill();
   dropGold(e.x, e.y, Math.round((3 + e.lv * 1.6) * rr(.7, 1.3) * (e.elite ? 8 : 1) * (e.sp ? 1 : .3)));
   /* 掉落：小怪主要給魂晶、礦石、藥水；武器很少（主要從地城、Boss、寶箱拿） */
-  if (e.sp || e.elite) { const n = e.elite ? 3 : Math.random() < .2 ? 1 : 0; if (n) dropMat(e.x, e.y, oreForLevel(e.lv), n, by); }   // 強化礦石：等級越高的怪掉越高級的
+  if (e.sp || e.elite) { const luk = by ? soft(by.luk) : 0, n = e.elite ? 2 + (Math.random() < .5 ? 1 : 0) : Math.random() < .25 + .008 * luk ? 1 : 0;   // 強化素材：這個地區的素材（幸運越高越常掉）
+    if (n) dropMat(e.x, e.y, oreForLevel(e.lv), n, by); }
   if (by && by.pot < G.potMax && Math.random() < (e.elite ? .6 : e.sp ? .07 : 0)) dropPot(e.x, e.y, by);                          // 藥水：只有喝過才會掉（補一瓶）
-  if (e.sp && e.sp.once && !flags.has(e.sp.once)) { flags.add(e.sp.once); showBanner('守護者倒下了', e.ename + ' · 最深處的寶箱解開了封印', 2800); dropMat(e.x, e.y, 'ore2', 1, by); save(); }
+  if (e.sp && e.sp.once && !flags.has(e.sp.once)) { flags.add(e.sp.once); showBanner('守護者倒下了', e.ename + ' · 最深處的寶箱解開了封印', 2800); dropMat(e.x, e.y, oreForLevel(e.lv), 2, by); save(); }
   if (e.elite) { toast('擊敗了 ' + e.ename, '#f2c14e'); const q = Math.random();
     if (q < .15) dropItem(randomLoot(e.lv, q < .05 ? 3 : 2, 'weapon'), e.x, e.y); else if (q < .45) dropItem(randomLoot(e.lv, q < .25 ? 3 : 2, 'gear'), e.x, e.y); }
   else if (e.sp) { const q = Math.random(), r = Math.random(), rarity = r < .03 ? 3 : r < .13 ? 2 : r < .4 ? 1 : 0;

@@ -4,7 +4,7 @@ import { updateQuest } from './quest';
 import { TAU, pick, rr } from '../core/util';
 import { HK, LH, LW, ctx, snapF } from '../core/canvas';
 import { COIN_SP, ICON, RAR, SOUL_SP } from '../data/items';
-import { MATS, ORE_SP } from '../data/forge';
+import { MATS, ORE_SP, ORE_TO_MAT } from '../data/forge';
 import { BLOCKP, TS, spawns } from '../world/map';
 import { updateRegionBosses } from '../world/regionBoss';
 import { tileAt } from '../world/gen';
@@ -76,7 +76,7 @@ export function dropSouls(x, y, v, by) { if (v <= 0) return; const n = Math.min(
     t:rr(0, .2), mag:false, soul:true, to:by });
   capCoins(); }
 /* ---- 礦石、藥水：跟魂晶一樣噴出來後自己飛向玩家 ---- */
-export function dropMat(x, y, mat, n, by) { if (n <= 0) return;
+export function dropMat(x, y, mat, n, by) { if (n <= 0) return; mat = ORE_TO_MAT[mat] || mat;   // 舊的礦石名稱 → 新素材
   for (let i = 0; i < n; i++) G.coins.push({ x, y, z:2, vz:rr(70, 120), vx:rr(-40, 40), vy:rr(-30, 30), v:1, t:rr(0, .2), mag:false, mat, to:by }); }
 export function dropPot(x, y, by) { G.coins.push({ x, y, z:2, vz:rr(80, 120), vx:rr(-30, 30), vy:rr(-25, 25), v:1, t:0, mag:false, pot:true, to:by }); }
 function capCoins() {                                               // 地上太多就清掉最舊的「金幣」；魂晶不清

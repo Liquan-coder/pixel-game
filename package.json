@@ -9,7 +9,8 @@
     "preview": "vite preview --host",
     "playtest": "node scripts/playtest.mjs",
     "shots": "node scripts/shots.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "balance": "node scripts/balance.mjs"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
