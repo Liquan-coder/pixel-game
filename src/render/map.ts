@@ -52,7 +52,7 @@ export function renderBigMap() {
   { const [zx, zy] = toScr(DZONE.x0 - 1, DZONE.y0 - 1), [zx1, zy1] = toScr(DZONE.x1 + 1, DZONE.y1 + 1); g.fillStyle = '#07060b'; g.fillRect(zx, zy, zx1 - zx, zy1 - zy); }   // 地城裡面是蓋在海上的，地圖上不顯示
   const label = (txt, x, y, col, size) => { g.font = size + 'px "DotGothic16", "PingFang TC", sans-serif'; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = '#07060b'; g.strokeText(txt, x, y); g.fillStyle = col; g.fillText(txt, x, y); };
   const big = mv.z >= 2.2;                                               // 拉近才顯示小地名
-  if (mv.z < 5) for (const k of OPEN_REGIONS) { const [x, y] = toScr(REGIONS[k].c[0], REGIONS[k].c[1]); label(REGIONS[k].name, x, y, '#f1e7d0', 16); label(REGIONS[k].sub.replace('建議等級 ', 'Lv '), x, y + 15, '#a99db8', 11); }
+  if (mv.z < 5) for (const k of OPEN_REGIONS) { const [x, y] = toScr(REGIONS[k].c[0], REGIONS[k].c[1]); label(REGIONS[k].name, x, y, '#f1e7d0', 16); }
   if (big) for (const s of SUBS) if (discovered.has(s.name)) { const [x, y] = toScr(s.x, s.y); label(s.name, x, y + 18, '#c9bfa8', 11); }
   // 圖示：放大 2 倍的像素圖，中心對準那一格；同時記下位置給「點一下」用
   hits = [];

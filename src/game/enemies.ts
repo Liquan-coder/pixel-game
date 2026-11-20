@@ -81,7 +81,7 @@ export function updateEnemy(e, dt) {
       if (e.t <= 0) { e.t = rr(1.5, 3.5); const a = rr(0, TAU), r = rr(8, 40); e.wx = e.hx + Math.cos(a) * r; e.wy = e.hy + Math.sin(a) * r; }
       stepToward(e, e.wx, e.wy, e.spd * .35, dt);
       if (!e.tgt.dead && d < e.aggro) { e.state = 'chase'; G.nums.push({ x:e.x, y:e.y - 20, txt:'!', col:'#ffd04a', t:0, d:.6 });
-        if (e.elite && !e.announced) { e.announced = true; toast('精英敵人：' + e.ename + '（Lv ' + e.lv + '）', '#f2c14e'); } }
+        if (e.elite && !e.announced) { e.announced = true; toast('精英敵人：' + e.ename, '#f2c14e'); } }
       break;
     case 'chase':
       if (e.tgt.dead || homeD > e.leash) { e.state = 'return'; e.t = 0; break; }

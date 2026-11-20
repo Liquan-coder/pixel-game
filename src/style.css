@@ -229,7 +229,6 @@ body:not(.touch) #controls{display:none}
 .goldline{color:var(--gold)}
 #zoneHint{position:absolute;left:50%;transform:translateX(-50%);top:calc(96px + env(safe-area-inset-top,0px));background:#000c;border:2px solid #8a3446;padding:5px 14px;font-size:14px;text-align:center;white-space:nowrap;color:var(--gold);text-shadow:1px 1px 0 #000}
 #zoneHint small{display:block;font-size:12px;color:var(--muted)}
-#zoneHint .weak{color:#ff8a7a}
 /* 主線目標：左上角、能力條下方；點一下切換提示文字 */
 #quest{grid-column:1/-1;margin-top:2px;max-width:min(320px,42vw);pointer-events:auto;cursor:pointer;text-shadow:1px 1px 0 #000,-1px 0 0 #000;font-size:13px;line-height:1.35}
 #quest b{display:block;font-weight:400;color:#ffe38a}

@@ -47,9 +47,9 @@ export function updateHUD() {
   if (hudCache.shop !== shop) { hudCache.shop = shop; $('shopBtn').hidden = !shop; }
   if (hudCache.rest !== (show && !shop)) { hudCache.rest = show && !shop; $('restBtn').hidden = !(show && !shop); }
   setText('goldTxt', String(G.me.gold));
-  const zn = (!G.paused && G.started) ? nearZone() : null, zk = zn ? zn.id + (level(G.me) < zn.lv - 2 ? 'w' : '') : '';      // 靠近 boss 場地時的提示
+  const zn = (!G.paused && G.started) ? nearZone() : null, zk = zn ? zn.id : '';      // 靠近 boss 場地時的提示（不寫等級、不說你打不打得過）
   if (hudCache.zone !== zk) { hudCache.zone = zk; $('zoneHint').hidden = !zn;
-    if (zn) $('zoneHint').innerHTML = zn.short + '的領域・建議等級 ' + zn.lv + (level(G.me) < zn.lv - 2 ? ' <span class="weak">（你目前偏弱）</span>' : '') + '<small>再往前走就會開打，打贏之前離不開結界</small>'; }
+    if (zn) $('zoneHint').innerHTML = zn.short + '的領域' + '<small>再往前走就會開打，打贏之前離不開結界</small>'; }
   if (G.B && !G.bossDead && G.B.state !== 'sleep') setScale('bossHp', G.B.hp / G.B.maxHp);
   const frb = fightingRB(); if (frb) setScale('bossHp', frb.hp / frb.maxHp);
 }
