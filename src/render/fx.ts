@@ -126,10 +126,11 @@ export function drawWarp(f, k) {                                              //
   ctx.globalAlpha = a0;
 }
 export function drawQuake(f, k) {
-  drawWarp({ x:f.x, y:f.y, r0:f.r * .2, r1:f.r, th:7, sy:.55, col:f.red ? '#c8203a' : '#e8743b' }, Math.min(1, k * 1.3));
-  ctx.globalAlpha = 1 - k; ctx.fillStyle = '#1a0e0a'; artPath();
+  const C = f.cols || [f.red ? '#c8203a' : '#e8743b', '#1a0e0a', f.red ? '#ff8a8a' : '#ffb040'];   // cols：區域 Boss 換色
+  drawWarp({ x:f.x, y:f.y, r0:f.r * .2, r1:f.r, th:7, sy:.55, col:C[0] }, Math.min(1, k * 1.3));
+  ctx.globalAlpha = 1 - k; ctx.fillStyle = C[1]; artPath();
   for (const ry of f.rays) artLine(f.x, f.y, f.x + Math.cos(ry.a) * ry.len, f.y + Math.sin(ry.a) * ry.len * .55, 2); ctx.fill();
-  ctx.fillStyle = f.red ? '#ff8a8a' : '#ffb040'; artPath();
+  ctx.fillStyle = C[2]; artPath();
   for (const ry of f.rays) artLine(f.x, f.y, f.x + Math.cos(ry.a) * ry.len * (1 - k), f.y + Math.sin(ry.a) * ry.len * .55 * (1 - k), 1); ctx.fill();
   ctx.globalAlpha = 1;
 }
@@ -137,7 +138,7 @@ export function drawSpikes(f, k) {                                            //
   const up = k < .2 ? k / .2 : k > .7 ? (1 - k) / .3 : 1, R = f.r;
   for (let i = 0; i < 5; i++) { const ox = f.x + (i - 2) * R * .38, oy = f.y + ((i * 7) % 3 - 1) * 3, H = R * (1.1 + ((i * 13) % 5) * .15) * up, W = R * .22;
     if (H < .5) continue;
-    fillArt(ox - W, oy - H, ox + W, oy + 1, (x, y) => { const v = (oy - y) / H; if (v < 0 || v > 1) return 0; const hw = W * (1 - v); const dx = x - ox; if (Math.abs(dx) > hw) return 0; return dx < -hw * .3 ? 3 : dx < hw * .3 ? 2 : 1; }, BONEC); }
+    fillArt(ox - W, oy - H, ox + W, oy + 1, (x, y) => { const v = (oy - y) / H; if (v < 0 || v > 1) return 0; const hw = W * (1 - v); const dx = x - ox; if (Math.abs(dx) > hw) return 0; return dx < -hw * .3 ? 3 : dx < hw * .3 ? 2 : 1; }, f.cols || BONEC); }
 }
 export function drawOrb(x, y, r, cols) { fillArt(x - r, y - r, x + r, y + r, (px, py) => { const d = Math.hypot(px - x, py - y) / r; return d > 1 ? 0 : d > .68 ? 1 : d > .36 ? 2 : 3; }, cols); }
 export function drawWaveP(p) {                                                // 飛行的新月劍氣

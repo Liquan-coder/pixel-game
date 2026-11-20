@@ -1,5 +1,6 @@
 /* ---- 第二批區域 Boss 的 AI：蘑菇王（森林）、雪原巨人（雪原）、沼澤巫妖（沼澤） ----
    共通的小工具：pools = 地上會持續扣血的一灘（孢子雲、毒沼），pend = 倒數後落下的攻擊（冰錐） */
+import { drawPoolDecor } from '../render/bossFx';
 import { G } from '../core/state';
 import { TAU, angDiff, clamp, pick, rr } from '../core/util';
 import { HK, ctx } from '../core/canvas';
@@ -22,7 +23,7 @@ export function tickPools(e: Enemy, dt) {                                     //
 export function drawPools(e: Enemy) {                                  // 畫：半透明的一灘 + 外圈
   for (const p of e.pools || []) { const k = Math.min(1, p.t / .5, (p.T - p.t) / .3);
     ctx.globalAlpha = .38 * k; ctx.fillStyle = p.cols[0]; ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r, p.r * .7, 0, 0, TAU); ctx.fill();
-    ctx.globalAlpha = .7 * k; ctx.strokeStyle = p.cols[1]; ctx.lineWidth = HK * 2; ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r - HK, p.r * .7 - HK, 0, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; }
+    ctx.globalAlpha = .7 * k; ctx.strokeStyle = p.cols[1]; ctx.lineWidth = HK * 2; ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r - HK, p.r * .7 - HK, 0, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; drawPoolDecor(p, k); }
 }
 export function addPool(e, x, y, r, t, dmg, cols) { e.pools = e.pools || []; e.pools.push({ x, y, r, t, T: t, dmg, cols }); }
 export function summon(e, kind, n, max, lvOff = 2) {

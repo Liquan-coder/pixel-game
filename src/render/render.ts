@@ -1,3 +1,4 @@
+import { drawBossFx, drawBossProj } from './bossFx';
 import { G } from '../core/state';
 import { TAU, clamp, pick, rr } from '../core/util';
 import { F, HK, LH, LW, ctx, lctx, lightC, snapF } from '../core/canvas';
@@ -102,27 +103,30 @@ export function render() {
   list.sort((a, b) => a.y - b.y); for (const it of list) it.f();
   drawQuestArrow();
   for (const p of G.projs) {
+    if (drawBossProj(p, L)) continue;                                  // Boss 專屬的子彈（render/bossFx.ts）
+    if (p.kind === 'spore' && p.cols) { drawOrb(p.x, p.y, 3.4, p.cols); continue; }
     if (p.kind === 'spore') { ctx.fillStyle = OL; ctx.fillRect(Math.round(p.x - 3), Math.round(p.y - 3), 6, 6); ctx.fillStyle = '#c46ad8'; ctx.fillRect(Math.round(p.x - 2), Math.round(p.y - 2), 4, 4); ctx.fillStyle = '#f0c8ff'; ctx.fillRect(Math.round(p.x - 1), Math.round(p.y - 1), 1, 1); addLight(L, p.x, p.y, 20, 2); }
-    else if (p.kind === 'bolt') { drawOrb(p.x, p.y, 3.2, ['#6a4ad0', '#b49cff', '#ffffff']); addLight(L, p.x, p.y, 28, 3); }
+    else if (p.kind === 'bolt') { drawOrb(p.x, p.y, 3.2, p.cols || ['#6a4ad0', '#b49cff', '#ffffff']); addLight(L, p.x, p.y, 28, 3); }
     else if (p.kind === 'orb') { const pr = p.big + Math.sin(G.time * 20) * .8; drawOrb(p.x, p.y, pr, ['#4a2a9a', '#9a7cff', '#ffffff']);
       for (let i = 0; i < 4; i++) { const a = G.time * 6 + i * TAU / 4; drawStar(p.x + Math.cos(a) * (pr + 4), p.y + Math.sin(a) * (pr + 4) * .7, 1.5, '#e8dcff'); } addLight(L, p.x, p.y, 50, 3); }
     else if (p.kind === 'wave') { drawWaveP(p); addLight(L, p.x, p.y, 40, 3); }
     else if (p.kind === 'claw') { drawWaveP(p); addLight(L, p.x, p.y, 34, 1); }
-    else if (p.kind === 'ember') { drawOrb(p.x, p.y, 4.5, FIREC); addLight(L, p.x, p.y, 30, 1); }
+    else if (p.kind === 'ember') { drawOrb(p.x, p.y, 4.5, p.cols || FIREC); addLight(L, p.x, p.y, 30, 1); }
     else if (p.kind === 'shot') { drawOrb(p.x, p.y, 4, p.cols); addLight(L, p.x, p.y, 24, 2); }
-    else if (p.kind === 'glob') { drawOrb(p.x, p.y, 4.5, ['#1d5a32', '#4fbf5a', '#c8ffc0']); addLight(L, p.x, p.y, 22, 2); }
+    else if (p.kind === 'glob') { drawOrb(p.x, p.y, 4.5, p.cols || ['#1d5a32', '#4fbf5a', '#c8ffc0']); addLight(L, p.x, p.y, 22, 2); }
     else { ctx.fillStyle = '#e8743b'; ctx.fillRect(Math.round(p.x - 3), Math.round(p.y - 3), 6, 6); ctx.fillStyle = '#ffe38a'; ctx.fillRect(Math.round(p.x - 1), Math.round(p.y - 1), 3, 3); addLight(L, p.x, p.y, 44, 1); }
   }
   for (const f of G.fx) {
     const k = f.t / f.d; ctx.globalAlpha = 1 - k; ctx.strokeStyle = f.col; ctx.fillStyle = f.col;
+    if (drawBossFx(f, k, L)) continue;                                 // 水柱 / 插地的劍 / 舌頭、鎖鏈、光束……（render/bossFx.ts）
     if (f.k === 'smear') drawSmear(f);
     else if (f.k === 'star') drawStar(f.x, f.y, f.s * (1 - f.t / f.d * .7), '#ffffff');   // 刀尖一閃
     else if (f.k === 'lance') drawLance(f);
     else if (f.k === 'warp') drawWarp(f, k);
     else if (f.k === 'quake') drawQuake(f, k);
     else if (f.k === 'spike') drawSpikes(f, k);
-    else if (f.k === 'meteor') { const u = k * k, mx = f.x + 50 * (1 - u), my = f.y - 170 * (1 - u); drawOrb(mx, my, 6, ['#5a1408', '#f07a32', '#ffe38a']);
-      G.parts.push({ x:mx + rr(-3, 3), y:my + rr(-3, 3), vx:rr(10, 30), vy:-rr(20, 60), life:.3, max:.3, col:pick(['#ffb040', '#ff6a2a', '#5a5054']), s:2 }); addLight(L, mx, my, 40, 1); }
+    else if (f.k === 'meteor') { const u = k * k, mx = f.x + 50 * (1 - u), my = f.y - 170 * (1 - u); drawOrb(mx, my, 6, f.cols || ['#5a1408', '#f07a32', '#ffe38a']);
+      G.parts.push({ x:mx + rr(-3, 3), y:my + rr(-3, 3), vx:rr(10, 30), vy:-rr(20, 60), life:.3, max:.3, col:pick(f.cols ? [f.cols[1], f.cols[2], '#5a5054'] : ['#ffb040', '#ff6a2a', '#5a5054']), s:2 }); addLight(L, mx, my, 40, 1); }
     else if (f.k === 'rghost') { const sp = SPR[f.kind], w = sp.w, h = sp.h; ctx.globalAlpha = .45 * (1 - k); ctx.drawImage(f.flip ? sp.rf : sp.rn, snapF(f.x - w / 2), snapF(f.y + 2 - h), w, h); }
     else if (f.k === 'bghost') { const sp = SPR.boss, w = sp.w, h = sp.h; ctx.globalAlpha = .5 * (1 - k); ctx.drawImage(f.flip ? sp.rf : sp.rn, snapF(f.x - w / 2), snapF(f.y + 2 - h), w, h); }
     else if (f.k === 'flash') { ctx.globalAlpha = f.a * (1 - k); ctx.fillStyle = f.col; ctx.fillRect(cx, cy, LW, LH); }

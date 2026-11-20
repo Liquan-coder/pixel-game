@@ -10,6 +10,7 @@ import { RBDEF } from './regionBoss';
 import { DUNGEONS } from './dungeons';
 import { TS } from './map';
 import { makeUniqueGear } from '../data/items';
+import { THEME } from './bossThemes';
 
 export type Move = [string, number, Record<string, any>?];
 export interface DBossDef { name: string; sub: string; lv: number; hp: number; spd: number; ring: string[]; aura: string[]; cols: string[]; proj: string; moves: Move[]; p2: Move[] }
@@ -70,7 +71,7 @@ export const DBOSS: Record<string, DBossDef> = {
 export function registerDungeonBosses() {
   for (const d of DUNGEONS) { const B = DBOSS[d.boss]; if (!B || !d.bossAt) continue;
     const [tx, ty, tr] = d.bossAt;
-    RBDEF['dg_' + d.id] = { id: 'dg_' + d.id, name: B.name, short: B.name.split('・')[0], sub: B.sub, tx, ty, tr, lv: B.lv, hp: B.hp, kind: 'db_' + d.boss, ai: 'dgn', boss: B, dg: d.id,
+    RBDEF['dg_' + d.id] = { id: 'dg_' + d.id, name: B.name, short: B.name.split('・')[0], sub: B.sub, tx, ty, tr, lv: B.lv, hp: B.hp, kind: 'db_' + d.boss, ai: 'dgn', boss: B, theme: THEME[d.boss], dg: d.id,
       adds: d.kinds, ring: B.ring, aura: B.aura, souls: B.lv * 45, gold: B.lv * 18, star: B.lv >= 20,
       x: tx * TS + 8, y: ty * TS + 8, R: tr * TS, reward: () => makeUniqueGear(d.sig) };
   }

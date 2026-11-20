@@ -49,12 +49,12 @@ export function reqOf(it: Item): Partial<Record<AttrKey, number>> {
 export function unmet(pl: Player, it: Item | null): AttrKey[] { if (!it) return []; const r = reqOf(it); return (Object.keys(r) as AttrKey[]).filter(k => (pl[k] ?? ATTR_BASE) < r[k]); }
 export const meets = (pl: Player, it: Item | null) => unmet(pl, it).length === 0;
 
-/* 武器的實際攻擊力：基礎攻擊 ×（1 + Σ 係數 × 6% × 遞減點數）。需求不夠的話只剩 60% */
-export function weaponAtk(pl: Player, w: Item) {
-  const S = scaleOf(w); let bonus = 0;
-  for (const k in S) bonus += S[k] * .06 * soft(pl[k] ?? ATTR_BASE);
-  return Math.round(w.atk * (1 + bonus) * (meets(pl, w) ? 1 : .6));
-}
+/* 武器的實際攻擊力：基礎攻擊 ×（1 + Σ 係數 × 6% × 遞減點數）。需求不夠的話只剩 60%（正常玩不會發生：不夠就不能裝備） */
+const scaleBonus = (pl: Player, w: Item) => { const S = scaleOf(w); let b = 0; for (const k in S) b += S[k] * .06 * soft(pl[k] ?? ATTR_BASE); return b; };
+export function weaponAtk(pl: Player, w: Item) { return Math.round(w.atk * (1 + scaleBonus(pl, w)) * (meets(pl, w) ? 1 : .6)); }
+/* 給卡片看的「基礎 + 加成」（像法環的 128 + 34）：base = 武器本身（含強化），bonus = 你的能力值多給的。
+   例：法杖 base 10、智識 S，智識 5 點 → 10 + 0；智識 20 點 → 10 + 10 */
+export function atkSplit(pl: Player, w: Item, base = w.atk) { const total = Math.round(base * (1 + scaleBonus(pl, w))); return { base, bonus: total - base, total }; }
 /* 舊存檔（只有體魄 / 力量 / 耐力，從 1 開始）→ 新的六種能力值（從 5 開始），等級不變 */
 export function migrateAttrs(d) {
   if (d.v >= 5) return { vit: d.vit, end: d.end, str: d.str, dex: d.dex, int: d.int, luk: d.luk };

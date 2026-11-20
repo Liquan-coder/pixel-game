@@ -69,9 +69,9 @@ export function invalidate(tx, ty) { for (let y = ty - 6; y <= ty + 6; y += 2) f
   chunks.delete(gx + ',' + gy); if (job && job.cx === gx && job.cy === gy) job = null; } }
 
 /* ---------- 會動的場景：火焰、營火、火盆、發光蘑菇 ---------- */
-export function flame(x, y, h, seed) {
+export function flame(x, y, h, seed, cols?: string[]) {                        // cols：換色（區域 Boss 的冰火之類），沒給就是一般的火
   const q = HK, f = Math.sin(G.time * 14 + seed) * .5 + .5, H = Math.round((h + f * 2) / q * .9), W = Math.max(4, Math.round(H * .5)), X = asn(x), Y = asn(y);
-  for (const [col, s] of [['#c8401e', 1], ['#f08a2e', .78], ['#ffd04a', .54], ['#fff6d0', .28]] as const) {
+  for (const [col, s] of (cols ? [[cols[0], 1], [cols[1], .78], [cols[2], .54], [cols[3], .28]] : [['#c8401e', 1], ['#f08a2e', .78], ['#ffd04a', .54], ['#fff6d0', .28]]) as [string, number][]) {
     const hh = Math.max(2, Math.round(H * (.3 + .7 * s))), ww = W * s; ctx.fillStyle = col; ctx.beginPath();
     for (let r = 0; r < hh; r++) { const u = r / hh, w = Math.max(1, Math.round(ww * Math.pow(1 - u, .65) * (u < .2 ? .7 + u * 1.5 : 1)));
       const xo = Math.round(Math.sin(G.time * 17 + seed * 3 + r * .5) * u * 1.6); ctx.rect(X + (xo - (w >> 1)) * q, Y - (r + 1) * q, w * q, q); }

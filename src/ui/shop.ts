@@ -7,6 +7,7 @@ import { FX_KEYS } from '../game/weaponFx';
 import { MATS, ORE_URL, atkAt, canUpgrade, doUpgrade, maxUp, upCost } from '../data/forge';
 import type { MatKey } from '../data/forge';
 import { recalc } from '../game/player';
+import { atkSplit } from '../data/attrs';
 import { CAMPS, MW, reg } from '../world/map';
 import { drawArtSprite } from '../world/chunks';
 import { collides } from '../game/collision';
@@ -66,7 +67,8 @@ function oreShopRow(o: Stock, i: number) {
 }
 /* ---- 鐵匠的「強化」分頁：選一把武器 → 底部顯示要多少礦石和金幣 → 按強化 ---- */
 function forgeList() { return [G.me.weapon, G.me.armor, ...G.me.inv.filter(it => isW(it) || slotOf(it) === 'armor')].filter(Boolean); }
-const upInfo = (w: Item, up: number) => isW(w) ? '攻擊 ' + atkAt(w, up) + ' → ' + atkAt(w, up + 1) : (() => { const a = armorStats({ ...w, up }), b = armorStats({ ...w, up: up + 1 }); return '防禦 ' + a.def + ' → ' + b.def + ' · 生命 ' + a.hp + ' → ' + b.hp; })();
+const upInfo = (w: Item, up: number) => isW(w) ? '攻擊 ' + atkSplit(G.me, w, atkAt(w, up)).total + ' → ' + atkSplit(G.me, w, atkAt(w, up + 1)).total :   // 你拿起來的總攻擊（含能力值加成）
+   (() => { const a = armorStats({ ...w, up }), b = armorStats({ ...w, up: up + 1 }); return '防禦 ' + a.def + ' → ' + b.def + ' · 生命 ' + a.hp + ' → ' + b.hp; })();
 function renderForge(body: HTMLElement) {
   const list = forgeList(), sel = list.find(w => w.id === shopSel) || null;
   const rows = list.map(w => { const c = upCost(w.up || 0, w), up = w.up || 0;

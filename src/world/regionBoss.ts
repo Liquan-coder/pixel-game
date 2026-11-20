@@ -17,6 +17,8 @@ import { showBanner, toast } from '../ui/hud';
 import { save } from '../game/save';
 import { flags } from '../game/quest';
 import { nearestPlayer } from '../game/player';
+import { DEFAULT_COLS, REGION_FX, recolorNew, rmapCols } from './bossThemes';
+import { drawFall } from '../render/bossFx';
 
 export const RBDEF: Record<string, any> = {
   queen: { id:'queen', name:'史萊姆女王・翠凝', short:'史萊姆女王', sub:'聖堂的聖壇前，湖水凝成了女王', tx:34, ty:322, tr:8.5, lv:6, hp:950, kind:'queen', ai:'queen',
@@ -92,8 +94,9 @@ export function updateRegionBosses(dt) {
     }
     if (e.splitT > 0) e.splitT -= dt;
     const dx = e.tgt.x - e.x, dy = e.tgt.y - e.y, dist2 = Math.hypot(dx, dy);
-    const n0 = G.projs.length; G.dmgMul = d.dmgMul || 1;
+    const n0 = G.projs.length, f0 = G.fx.length, p0 = G.parts.length; G.dmgMul = d.dmgMul || 1;
     AI[d.ai](e, dt, dist2, dx, dy);
+    recolorNew(e, f0, p0, n0);                                         // 區域 Boss：沿用來的特效換成自己的顏色（world/bossThemes.ts）
     for (let i = n0; i < G.projs.length; i++) if (G.projs[i].owner === 'e' && !G.projs[i].scaled) { G.projs[i].dmg = Math.max(1, Math.round(G.projs[i].dmg * G.dmgMul)); G.projs[i].scaled = true; }
     G.dmgMul = 1;
     keepPlayersIn(d); if (!(e.z > 0)) keepIn(e, d, e.r);
@@ -127,9 +130,10 @@ export function drawRBTele(e) {
   const q = e.wt ? clamp(1 - e.t / e.wt, 0, 1) : 0;
   if (/Wind$/.test(e.state)) warnMark(e.x, e.y - SPR[e.kind].h - 6 - (e.z || 0));
   drawPools(e);
-  for (const m of e.pend || []) teleCircle(m.x, m.y, m.r || 22, clamp(1 - m.t / m.T, 0, 1));
-  if (e.state === 'breath' && e.glow) { const [gx, gy, ga] = e.glow; drawOrb(gx, gy, 6 + Math.sin(G.time * 40), FIREC); for (const k of [30, 60, 90]) G.RB_L.push({ x:gx + Math.cos(ga) * k, y:gy + Math.sin(ga) * k, r:46, warm:1 }); }
-  for (const b of e.burns || []) { if (vis2(b.x, b.y)) flame(b.x + Math.sin(b.ph) * 2, b.y + 2, 3 + 2 * Math.min(1, b.t), b.ph); }
+  for (const m of e.pend || []) { const q = clamp(1 - m.t / m.T, 0, 1); teleCircle(m.x, m.y, m.r || 22, q); if (m.fall) drawFall(m, q); }
+  const fc = REGION_FX[e.def.id] ? rmapCols(e.def.id, DEFAULT_COLS.fire) : undefined;
+  if (e.state === 'breath' && e.glow) { const [gx, gy, ga] = e.glow; drawOrb(gx, gy, 6 + Math.sin(G.time * 40), REGION_FX[e.def.id] ? rmapCols(e.def.id, FIREC) : FIREC); for (const k of [30, 60, 90]) G.RB_L.push({ x:gx + Math.cos(ga) * k, y:gy + Math.sin(ga) * k, r:46, warm:1 }); }
+  for (const b of e.burns || []) { if (vis2(b.x, b.y)) flame(b.x + Math.sin(b.ph) * 2, b.y + 2, 3 + 2 * Math.min(1, b.t), b.ph, fc); }
   for (const t of e.tele || []) { const qq = t.q !== undefined ? t.q : q;
     if (t.k === 'circle') teleCircle(t.x !== undefined ? t.x : e.x, t.y !== undefined ? t.y : e.y, t.r, qq);
     else if (t.k === 'lane') teleLane(e.x, e.y - 6, t.a, t.L, t.W, qq);

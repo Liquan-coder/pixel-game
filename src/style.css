@@ -309,3 +309,4 @@ body:not(.touch) #controls{display:none}
 #restBtn small,#shopBtn small{font-size:11px;opacity:.7;margin-left:4px}
 .touch #restBtn small,.touch #shopBtn small{display:none}
 #bAtk.act{border-color:var(--gold);background:#5a4020dd;color:var(--gold);font-size:16px;box-shadow:inset -3px -4px 0 #0006,0 0 0 2px #100d16aa,0 0 16px #f2c14e88}
+#pickCard .card .atk .bn,.card .atk .bn{color:#c8b8ff}                       /* 攻擊的「+ 能力值加成」 */
