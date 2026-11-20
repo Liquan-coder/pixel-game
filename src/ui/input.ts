@@ -6,7 +6,7 @@ import { nearCamp } from '../game/playerUpdate';
 import { openMenu, setMenu } from './hud';
 import { nearMerchant, openShop } from './shop';
 import { restAt, toggleInv, toggleMap } from './menus';
-import { startGame } from '../main';
+import { moveSlot, pickSlot } from './title';
 import { pickUp } from '../game/worldUpdate';
 import { nearChest, openChest } from '../world/chests';
 import { nearSmith } from '../world/towns';
@@ -63,6 +63,6 @@ export function readInput() {
   if (pressed.map) toggleMap();
   if (pressed.esc && openMenu) setMenu(null);
   if (pressed.rest && !openMenu) { if (G.pick) pickUp(G.me, G.pick); else if (nearChest(G.me)) openChest(G.me, nearChest(G.me)); else if (nearTablet()) readTablet(nearTablet()); else if (nearDoor(G.me)) enterDoor(); else if (nearSmith()) openShop(nearSmith()); else if (nearMerchant()) openShop(); else { const c = nearCamp(G.me); if (c) restAt(c); } }
-  if (pressed.enter && !G.started) startGame(!$('btnContinue').hidden);
+  if (!G.started) { if (pressed.up) moveSlot(-1); if (pressed.down) moveSlot(1); if (pressed.enter) pickSlot(); if (pressed.esc) $('btnNewNo').click(); }
 }
 

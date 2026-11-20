@@ -12,15 +12,21 @@ import { CHESTS } from '../world/chests';
 import { flags, loreRead, resetQuest } from './quest';
 
 /* ================= SAVE ================= */
-const SAVE_KEY = 'pixel-wilds-save-v3';
+/* 三個存檔欄位。存檔 1 沿用以前唯一那個存檔的 key → 舊玩家的進度自動變成「存檔 1」 */
+export const SLOTS = 3;
+const SLOT_KEYS = ['pixel-wilds-save-v3', 'pixel-wilds-save-v3-s2', 'pixel-wilds-save-v3-s3'];
+const LAST_KEY = 'pixel-wilds-last-slot';                               // 上次玩的是哪一格（標題畫面預設選它）
+export let slot = 0;                                                     // 現在在玩哪一格：save() / loadSave() 都對它
+export function setSlot(n: number) { slot = n; try { localStorage.setItem(LAST_KEY, String(n)); } catch (e) {} }
+export function lastSlot() { try { const n = Number(localStorage.getItem(LAST_KEY)); return n >= 0 && n < SLOTS ? n : 0; } catch (e) { return 0; } }
 export function serialize() {
-  return { v:8, mats:G.me.mats, vit:G.me.vit, str:G.me.str, end:G.me.end, dex:G.me.dex, int:G.me.int, luk:G.me.luk, souls:G.me.souls, gold:G.me.gold, inv:G.me.inv, weapon:G.me.weapon, armor:G.me.armor, trinket:G.me.trinket,
+  return { v:8, at:Date.now(), mats:G.me.mats, vit:G.me.vit, str:G.me.str, end:G.me.end, dex:G.me.dex, int:G.me.int, luk:G.me.luk, souls:G.me.souls, gold:G.me.gold, inv:G.me.inv, weapon:G.me.weapon, armor:G.me.armor, trinket:G.me.trinket,
     merchant: merchant ? { camp:merchant.camp, stock:merchant.stock } : null, rbDead: [...rbDead], potMax: G.potMax, bossDead: G.bossDead,
     camps: CAMPS.filter(c => c.lit).map(c => c.id), lastCamp: G.lastCamp, lost: G.lost, uid: G.uid, map: packExplored(), mw: MW, chests: CHESTS.filter(c => c.opened).map(c => c.id), flags: [...flags], lore: [...loreRead], disc: [...discovered] };
 }
-export function save() { if (!G.started) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(serialize())); } catch (e) {} }
-export function loadSave() { try { const s = localStorage.getItem(SAVE_KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
-export function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+export function save() { if (!G.started) return; try { localStorage.setItem(SLOT_KEYS[slot], JSON.stringify(serialize())); } catch (e) {} }
+export function loadSave(n = slot) { try { const s = localStorage.getItem(SLOT_KEYS[n]); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+export function clearSave(n = slot) { try { localStorage.removeItem(SLOT_KEYS[n]); } catch (e) {} }
 export function applySave(d) {
   resetPlayers();
   Object.assign(G.me, migrateAttrs(d)); G.me.souls = d.souls || 0;   // 舊存檔的三種能力值會換算成新的六種

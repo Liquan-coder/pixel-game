@@ -272,9 +272,22 @@ body:not(.touch) #controls{display:none}
 .big{font-size:17px;padding:10px 22px;background:#3a2414;border:3px solid var(--gold);color:var(--gold);box-shadow:inset -3px -3px 0 #0007,0 0 0 2px var(--ink)}
 .big.alt{background:var(--panel2);border-color:var(--line);color:var(--text)}
 .tkeys{font-size:12px;color:var(--muted)}
+/* 標題畫面的存檔欄位 */
+.slots{display:grid;gap:8px;width:400px;max-width:calc(100vw - 32px);margin-top:4px}
+.save{display:flex;align-items:stretch;background:var(--panel);border:3px solid var(--line);box-shadow:inset -3px -3px 0 #0007,0 0 0 2px var(--ink)}
+.save.on{border-color:var(--gold);background:#3a2414}
+.slotMain{flex:1;display:grid;grid-template-columns:auto 1fr;column-gap:12px;align-items:center;text-align:left;padding:8px 12px;background:none;border:0;color:var(--text);cursor:pointer;min-width:0}
+.slotMain b{grid-row:span 2;font-weight:400;font-size:16px;color:var(--gold);white-space:nowrap}
+.slotMain span{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slotMain small{font-size:12px;color:var(--muted)}
+.save.empty .slotMain span{color:var(--muted)}
+.slotDel{padding:0 14px;background:none;border:0;border-left:2px solid var(--line);color:var(--muted);font-size:14px;cursor:pointer}
+.slotDel:hover{color:var(--hp)}
 #tArt{display:block;margin:0 auto 2px;height:132px;width:auto;image-rendering:pixelated}
 #confirmNew{font-size:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;background:#000a;border:2px solid #8a3446;padding:8px 12px}
 #confirmNew button{font-size:14px;padding:5px 12px;background:var(--panel2);border:2px solid var(--line)}
+/* 矮螢幕（手機橫放）的標題畫面：拿掉插圖、介紹和按鍵說明，讓三格存檔放得下（要放在 #tArt 的規則後面才蓋得過） */
+@media (max-height:500px){#tArt,.tbox>p,.tkeys{display:none}.tbox{gap:8px}.tbox h1{font-size:clamp(30px,10vh,56px)}.slots{gap:6px}.slotMain{padding:4px 10px}}
 /* 矮螢幕（手機橫放）：大標題、地名縮小一點，比較不會擋住角色 */
 @media (max-height:500px){#banner{font-size:24px;top:30%;padding:8px 0}#areaToast{top:16%}#areaToast b{font-size:22px}}
 #rotate{position:absolute;inset:0;display:grid;place-items:center;background:var(--ink);font-size:18px;text-align:center;line-height:1.8;padding:24px}

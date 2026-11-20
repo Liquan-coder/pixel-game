@@ -36,7 +36,8 @@ import { mapTab, renderInv, restAt, toggleMap } from './ui/menus';
 import { readInput } from './ui/input';
 import { CHESTS, genChests } from './world/chests';
 import { placeTablets, resetQuest } from './game/quest';
-import { applySave, clearSave, loadSave, save, serialize } from './game/save';
+import { applySave, clearSave, loadSave, save, serialize, setSlot, slot } from './game/save';
+import { initTitle } from './ui/title';
 
 /* ================= FLOW ================= */
 export function startGame(cont) {
@@ -48,10 +49,6 @@ export function startGame(cont) {
   $('keyHint').hidden = false; setTimeout(() => { $('keyHint').hidden = true; }, 15000);
   if (!cont) setTimeout(() => toast(isTouch ? '左下角搖桿移動，右手按攻擊。點小地圖看世界地圖' : 'WASD 移動，J 攻擊，K 翻滾，M 看地圖', '#f1e7d0'), 2800);
 }
-$('btnContinue').addEventListener('click', () => startGame(true));
-$('btnNew').addEventListener('click', () => { if (!$('btnContinue').hidden) { $('confirmNew').hidden = false; return; } startGame(false); });
-$('btnNewYes').addEventListener('click', () => { $('confirmNew').hidden = true; startGame(false); });
-$('btnNewNo').addEventListener('click', () => { $('confirmNew').hidden = true; });
 if (isTouch) $('tkeys').hidden = true;
 
 export let lastT = 0, camDt = 1 / 60;
@@ -70,11 +67,11 @@ function boot(data) {
   genWorld(); genChests(reachable); placeTablets(); bakeFullMap();
   resetPlayers(); placeAtCamp(G.me, 'start'); respawnAll(); resetBoss();
   resize(); window.addEventListener('resize', resize);
-  const s = loadSave(); $('btnContinue').hidden = !s; if (s) $('btnNew').textContent = '重新開始';
-  if (data && data.save && data.started) { applySave(data.save); placeAtCamp(G.me, G.lastCamp); restoreWorld(); G.started = true; $('title').hidden = true; setMenu(null); }
+  initTitle();                                                          // 標題畫面：三格存檔（ui/title.ts）
+  if (data && data.save && data.started) { if (data.slot >= 0) setSlot(data.slot); applySave(data.save); placeAtCamp(G.me, G.lastCamp); restoreWorld(); G.started = true; $('title').hidden = true; setMenu(null); }
   requestAnimationFrame(frame);
 }
-try { window.claude && window.claude.hot && window.claude.hot.snapshot && window.claude.hot.snapshot(() => ({ save: G.started ? serialize() : null, started: G.started })); } catch (e) {}
+try { window.claude && window.claude.hot && window.claude.hot.snapshot && window.claude.hot.snapshot(() => ({ save: G.started ? serialize() : null, started: G.started, slot })); } catch (e) {}
 const H = window.claude && window.claude.hot;
 if (H && H.ready) H.ready(boot); else boot((H && H.data) || {});
 window.__pw = { get P() { return G.me; }, get players() { return G.players; }, get enemies() { return G.enemies; }, get B() { return G.B; }, get drops() { return G.drops; }, input, keys, held, pressed, update, startGame, setMenu, CAMPS, spawns, makeItem, recalc, hurtPlayer, get bossDead() { return G.bossDead; }, get lost() { return G.lost; }, map, reg, ARENA, DOOR, cam, SUBS, toggleMap, bakeChunk, get merchant() { return merchant; }, get coins() { return G.coins; }, makeGear, serialize, applySave, restAt, calcStats, curEq, openShop, renderInv, get rbs() { return rbs; }, RBDEF, SPR, render, get fx() { return G.fx; }, get parts() { return G.parts; }, get bakeCount() { return bakeCount; }, get chunkN() { return chunks.size; }, drawSmear, drawWarp, teleCircle, teleSector, teleLane };
