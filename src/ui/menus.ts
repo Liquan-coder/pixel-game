@@ -180,7 +180,7 @@ function renderMapFoot(p: MapPick | null) {                              // 點�
   if (p.kind !== 'camp') { f.innerHTML = '<span class="lvfoot"><b>' + p.name + '</b>' + (rg && p.kind !== 'quest' ? ' · ' + rg.name : '') + (p.desc ? '<span class="gain">' + p.desc + '</span>' : '') + '</span><button type="button" class="sec" data-mapx>關閉</button>'; return; }
   const c = CAMPS.find(c => c.id === p.id); if (!c) { f.hidden = true; return; }
   const blk = !c.lit ? '還沒點燃：走到那裡點燃後才能傳送' : travelBlock();
-  f.innerHTML = '<span class="lvfoot"><b>' + c.name + '</b> · ' + REGIONS[reg[c.ty * MW + c.tx]].name + (blk ? '<span class="gain" style="color:#ff8a7a">' + blk + '</span>' : '<span class="gain">傳送後會在營火休息（補滿、怪物復活）</span>') + '</span>' +
+  f.innerHTML = '<span class="lvfoot"><b>' + p.name + '</b> · ' + REGIONS[reg[c.ty * MW + c.tx]].name + (blk ? '<span class="gain" style="color:#ff8a7a">' + blk + '</span>' : '<span class="gain">傳送後會在營火休息（補滿、怪物復活）</span>') + '</span>' +
     '<button type="button" class="sec" data-mapx>取消</button><button type="button" class="pri" data-travel="' + c.id + '"' + (blk ? ' disabled' : '') + '>傳送</button>';
 }
 onMapPick(renderMapFoot);

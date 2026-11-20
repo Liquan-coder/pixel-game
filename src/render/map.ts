@@ -9,12 +9,21 @@ import { DUNGEONS, DZONE, dungeonAt } from '../world/dungeons';
 import { POIS } from '../data/poi';
 import { MAP_ICONS, MAP_ICON_SCALE } from '../art/mapIcons';
 
-/* miniT → 已移到 G（core/state.js） */
+/* 一座地城佔的範圍（格）：左上角 x0 / y0、寬 w 都有存；高度從 dungeonAt 往下量一次就記起來 */
+const BOX = new Map();
+function dungeonBox(d) {
+  let b = BOX.get(d); if (b) return b;
+  let h = 0; while (h < 200 && dungeonAt((d.x0 + 1) * TS, (d.y0 + h) * TS) === d) h++;
+  b = { x0: d.x0, y0: d.y0, x1: d.x0 + d.w, y1: d.y0 + h }; BOX.set(d, b); return b;
+}
 export function renderMini() {
   const px = Math.floor(G.me.x / TS), py = Math.floor(G.me.y / TS), ox = clamp(px - 64, 0, MW - 128), oy = clamp(py - 40, 0, MH - 80);
   mctx.fillStyle = '#07060b'; mctx.fillRect(0, 0, 128, 80);
   mctx.drawImage(miniBase, ox, oy, 128, 80, 0, 0, 128, 80);
-  for (const c of CAMPS) if (explored[c.ty * MW + c.tx]) { mctx.fillStyle = c.lit ? '#f2c14e' : '#8a869a'; mctx.fillRect(c.tx - ox - 1, c.ty - oy - 1, 3, 3); }
+  const dg = dungeonAt(G.me.x, G.me.y);
+  if (dg) { const b = dungeonBox(dg), bx = b.x0 - ox, by = b.y0 - oy, bw = b.x1 - b.x0, bh = b.y1 - b.y0;   // 在地城裡：只顯示這一座，其他地城塗黑
+    mctx.fillStyle = '#07060b'; mctx.fillRect(0, 0, 128, Math.max(0, by)); mctx.fillRect(0, by + bh, 128, 80); mctx.fillRect(0, by, Math.max(0, bx), bh); mctx.fillRect(bx + bw, by, 128, bh); }
+  else for (const c of CAMPS) { mctx.fillStyle = c.lit ? '#f2c14e' : '#8a869a'; mctx.fillRect(c.tx - ox - 1, c.ty - oy - 1, 3, 3); }   // 營火：沒去過的也標出來（灰色），讓人想去點燃
   // Boss、寶箱不標：讓玩家自己去找
   if (merchant) { const mx = Math.floor(merchant.x / TS) - ox, my = Math.floor(merchant.y / TS) - oy; mctx.fillStyle = OL; mctx.fillRect(mx - 2, my - 2, 5, 5); mctx.fillStyle = '#5ae0b0'; mctx.fillRect(mx - 1, my - 1, 3, 3); }
   if (G.lost) { mctx.fillStyle = '#b49cff'; mctx.fillRect(Math.floor(G.lost.x / TS) - ox - 1, Math.floor(G.lost.y / TS) - oy - 1, 3, 3); }
@@ -64,7 +73,7 @@ export function renderBigMap() {
     icon(done ? 'dungeonDone' : 'dungeon', { kind: 'dungeon', id: d.id, name: d.name, desc: done ? '地城 · 已經攻略完了' : '地城 · 最深處有守護者看守著寶物', tx: d.ent[0], ty: d.ent[1] }); }
   if (merchant) icon('merchant', { kind: 'merchant', id: 'merchant', name: '流浪商人', desc: '會在點燃過的營火之間移動，賣藥水、礦石和裝備', tx: merchant.x / TS - .5, ty: merchant.y / TS - .5 });
   if (G.lost) icon('lost', { kind: 'lost', id: 'lost', name: '掉落的魂晶', desc: '上次倒下時掉的 ' + G.lost.amount + ' 魂晶 · 走過去就能撿回來（再死一次就沒了）', tx: G.lost.x / TS - .5, ty: G.lost.y / TS - .5 });
-  for (const c of CAMPS) if (seen(c.tx, c.ty) || c.lit) icon(c.lit ? 'camp' : 'campOff', { kind: 'camp', id: c.id, name: c.name, desc: '', tx: c.tx, ty: c.ty });
+  for (const c of CAMPS) icon(c.lit ? 'camp' : 'campOff', { kind: 'camp', id: c.id, name: c.lit || seen(c.tx, c.ty) ? c.name : '未知的營火', desc: '', tx: c.tx, ty: c.ty });   // 沒去過的營火也標出來（熄滅的樣子），讓人想去點燃
   { const q = current(); hits.push({ kind: 'quest', id: q.id, name: '主線：' + q.title, desc: '跟著金色箭頭走 · 不一定要照順序', tx: q.tx, ty: q.ty, ...(([x, y]) => ({ x, y }))(toScr(q.tx, q.ty)) }); }
   mapMarker(g, mv.z, mv.x - mv.w / 2 / mv.z, mv.y - mv.h / 2 / mv.z);
   // 你：魔女帽 + 一圈閃爍的光（在地城裡 → 標在入口）
