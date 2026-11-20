@@ -318,6 +318,7 @@ const pageScript = async () => {
       Q.flags.delete('dgn:' + d.id); RB.rbDead.delete('dg_' + d.id); RB.resetRegionBosses();          // 前面的「區域 Boss」測試已經打倒過 → 先讓它復活
       const chest = CH.CHESTS.find(c => c.id === 'd_' + d.id); if (!chest) throw new Error(d.id + '：找不到最深處的寶箱');
       chest.opened = false; tp(chest.x, chest.y + 6); step(14); CH.openChest(G.me, chest); if (chest.opened) throw new Error(d.id + '：Boss 還在，寶箱卻打開了');
+      tp(d.portal[0], d.portal[1]); step(1); if (D.nearDoor(G.me)?.portal) throw new Error(d.id + '：Boss 還在，大廳的傳送門卻已經能用');
       const boss = RB.rbs.find(e => e.id === 'dg_' + d.id); if (!boss) throw new Error(d.id + '：找不到地城 Boss');
       tp(boss.def.x, boss.def.y + 30); step(120, { god: true }); if (boss.state === 'sleep') throw new Error(d.id + '：Boss 沒有醒來');
       boss.hp = boss.maxHp * .45; step(240, { god: true, atkEvery: 15 });
@@ -329,7 +330,9 @@ const pageScript = async () => {
       const got = d.uq ? G.drops.slice(n0).find(x => x.item.uq === d.uq) : { item: { name: '黃金寶箱' } }; if (!chest.opened || !got) throw new Error(d.id + '：最深處的寶箱沒打開 / 沒拿到 ' + d.uq);
       menus.restAt(CAMPS[0]); setMenu(null); G.projs = []; step(2, { god: true });
       if (RB.rbs.some(e => e.id === 'dg_' + d.id)) throw new Error(d.id + '：休息後 Boss 又出現了');
-      tp(d.exX, d.exY); step(1, { god: true }); const out = D.nearDoor(G.me); if (!out || !out.out) throw new Error(d.id + '：站在階梯上沒偵測到出口（dead=' + G.me.dead + ' 位置 ' + Math.round(G.me.x - d.exX) + ',' + Math.round(G.me.y - d.exY) + '）');
+      const viaPortal = D.DUNGEONS.indexOf(d) % 2 === 1;                    // 一半的地城從 Boss 大廳的傳送門離開，一半走入口的傳送門
+      if (viaPortal) { tp(d.portal[0], d.portal[1]); step(1, { god: true }); const pd = D.nearDoor(G.me); if (!pd || !pd.portal) throw new Error(d.id + '：打倒 Boss 後大廳沒有傳送門'); }
+      else tp(d.exX, d.exY); step(1, { god: true }); const out = D.nearDoor(G.me); if (!out || !out.out) throw new Error(d.id + '：站在出口傳送門上沒偵測到出口（dead=' + G.me.dead + ' 位置 ' + Math.round(G.me.x - d.exX) + ',' + Math.round(G.me.y - d.exY) + '）');
       imp0.input.enterDoor(); step(2); if (D.dungeonAt(G.me.x, G.me.y)) throw new Error(d.id + '：沒有離開地城');
       log.push('  ' + d.name + '：' + boss.def.name + ' → ' + sig.item.name + (d.uq ? ' + ' + got.item.name : ''));
       G.drops = [];

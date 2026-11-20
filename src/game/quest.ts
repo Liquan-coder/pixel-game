@@ -8,7 +8,7 @@ import { SH, sculpt } from '../art/monsters';
 import { STEPS, TABLETS, PREMISE, type QuestCtx } from '../data/story';
 import { CAMPS, GROUND, MW, ROAD, TS, WALKABLE, discovered, map } from '../world/map';
 import { rbDead } from '../world/regionBoss';
-import { DUNGEONS } from '../world/dungeons';
+import { DUNGEONS, dungeonHooks } from '../world/dungeons';
 import { CHESTS } from '../world/chests';
 import { drawArtSprite } from '../world/chunks';
 import { drawShadow } from '../render/player';
@@ -17,6 +17,7 @@ import { sfx } from '../core/audio';
 import { save } from './save';
 
 export const flags = new Set<string>(), loreRead = new Set<string>();
+dungeonHooks.cleared = d => flags.has('dgn:' + d.id);                   // 地城 Boss 倒下 → 大廳的傳送門打開
 const qc: QuestCtx = { boss: id => rbDead.has(id), get wolf() { return G.bossDead; }, lit: id => !!CAMPS.find(c => c.id === id)?.lit, found: s => discovered.has(s), flag: f => flags.has(f) };
 let doneBefore: Set<string> = null;                                     // 上一次檢查時已經完成的步驟（用來偵測「剛剛完成」）
 export const cores = () => STEPS.filter(s => s.core && s.done(qc)).length, CORE_N = STEPS.filter(s => s.core).length;

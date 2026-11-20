@@ -1,6 +1,6 @@
 /* ================= 地城（洞窟 / 古墓 / 石窟）+ 地底遺跡（大型、很多房間） =================
    做法：地城的「裡面」也蓋在同一張地圖上，放在東南邊的海裡（DZONE，走路到不了）。
-   野外的入口（山壁上的洞口 / 石門；地底遺跡是建築物裡往下的石階）按 E → 傳送到裡面；裡面的上樓階梯按 E → 回到入口前面。
+   野外的入口（山壁上的洞口 / 石門；地底遺跡是建築物裡往下的石階）按攻擊鍵 → 傳送到裡面；裡面入口的傳送門（打倒 Boss 後大廳也會出現一個）→ 回到入口前面。
    這樣碰撞、怪物、燈光、寶箱、存檔都不用另外寫一套。
 
    每個地城：入口房 → 幾個有怪的房間（岔出去的小房間放銀箱）→ 最深處的 Boss 大廳 + 被封印的金箱。
@@ -32,6 +32,7 @@ export interface Dungeon {
   // genWorld 算出來的：
   x0?: number; y0?: number; w?: number; inX?: number; inY?: number; exX?: number; exY?: number;
   bossAt?: [number, number, number]; bossChest?: [number, number]; sideChests?: [number, number][]; tablet?: [number, number];
+  portal?: [number, number];                                              // Boss 大廳的傳送門（世界座標，打倒 Boss 後才出現）
 }
 export const DUNGEONS: Dungeon[] = [
   // ---- 翠風平原 ----
@@ -162,6 +163,7 @@ export function carveDungeons(roomSpawn: (d: Dungeon, tx: number, ty: number, ki
         roomSpawn(d, x, y, d.kinds[Math.floor(R() * d.kinds.length)], d.lv + (R() < .4 ? 1 : 0)); break; } }
     d.bossAt = [hall.x, hall.y + 1, Math.min(hall.rx, hall.ry) - .5];       // Boss 的結界：大廳中央，半徑比房間小一點
     d.bossChest = [hall.x, hall.y - hall.ry + 1];
+    d.portal = [hall.x * TS + 8, (hall.y + 3) * TS + 8];                   // 大廳中央偏下：不會擋到最深處的金箱
     d.sideChests = ruin ? [[rooms[7].x, rooms[7].y], [rooms[8].x, rooms[8].y]] : [[rooms[2].x, rooms[2].y]];
     const tr = ruin ? rooms[5] : rooms[3]; d.tablet = [tr.x + tr.rx - 1, tr.y - tr.ry + 1];
   }
@@ -171,13 +173,16 @@ export function addDungeonSpawns() {
 }
 
 /* ---- 進出 ---- */
-export interface Door { d: Dungeon; out: boolean; x: number; y: number }
+export interface Door { d: Dungeon; out: boolean; x: number; y: number; portal?: boolean }
+// 「這座地城的 Boss 打倒了沒」：flags 在 game/quest.ts，這個檔案會被地圖生成 import，不能直接 import quest → 由 quest.ts 把判斷塞進來
+export const dungeonHooks = { cleared: (_d: Dungeon) => false };
 export function nearDoor(pl: Player): Door | null {
   if (!pl || pl.dead) return null;
   for (const d of DUNGEONS) {
     const fx = d.ent[0] * TS + 8, fy = d.stairs ? d.ent[1] * TS + 14 : (d.ent[1] + 1) * TS + 6;   // 野外：站在洞口前 / 石階上
     if (Math.abs(pl.x - fx) < 20 && Math.abs(pl.y - fy) < 18) return { d, out: false, x: fx, y: fy };
-    if (d.exX !== undefined && Math.abs(pl.x - d.exX) < 16 && Math.abs(pl.y - d.exY) < 14) return { d, out: true, x: d.exX, y: d.exY };   // 裡面：站在上樓階梯上
+    if (d.exX !== undefined && Math.abs(pl.x - d.exX) < 16 && Math.abs(pl.y - d.exY) < 14) return { d, out: true, x: d.exX, y: d.exY };   // 裡面：站在出口的傳送門上
+    if (d.portal && Math.abs(pl.x - d.portal[0]) < 16 && Math.abs(pl.y - d.portal[1]) < 14 && dungeonHooks.cleared(d)) return { d, out: true, x: d.portal[0], y: d.portal[1], portal: true };   // Boss 大廳的傳送門
   }
   return null;
 }
@@ -189,4 +194,4 @@ export function useDoor(pl: Player, door: Door, snap: (pl: Player) => void) {
   snap(pl); G.fx.push({ k: 'flash', col: '#000000', a: .9, t: 0, d: .45 });
 }
 
-export const doorLabel = (door: Door) => door.out ? '離開「' + door.d.name + '」' : '進入「' + door.d.name + '」';
+export const doorLabel = (door: Door) => door.portal ? '傳送回地面' : door.out ? '離開「' + door.d.name + '」' : '進入「' + door.d.name + '」';

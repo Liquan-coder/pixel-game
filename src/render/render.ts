@@ -161,7 +161,7 @@ export function render() {
   }
   ctx.globalCompositeOperation = 'lighter';
   if (lavaT.length) { ctx.fillStyle = 'rgba(255,110,40,' + (.16 + .05 * Math.sin(G.time * 3)) + ')'; for (let k = 0; k < lavaT.length; k += 2) ctx.fillRect(lavaT[k] * TS - cx, lavaT[k + 1] * TS - cy, TS, TS); }
-  const tint = ['', 'rgba(255,140,50,', 'rgba(90,240,220,', 'rgba(170,150,255,'];
+  const tint = ['', 'rgba(255,140,50,', 'rgba(90,240,220,', 'rgba(170,150,255,', 'rgba(255,215,90,', 'rgba(235,240,255,'];   // 4 = 金色（金箱）、5 = 白色（霧門）
   for (const l of L) { if (!l.warm) continue; const x = l.x - cx, y = l.y - cy, r = l.r * .7; if (x < -r || y < -r || x > LW + r || y > LH + r) continue;
     const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, tint[l.warm] + '.16)'); g.addColorStop(1, tint[l.warm] + '0)'); ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); }
   ctx.globalCompositeOperation = 'source-over';

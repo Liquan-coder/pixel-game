@@ -24,7 +24,7 @@ export function interactTarget(): Interact | null {
   if (G.pick) { const d = G.pick; return { kind:'pick', btn:'撿起', run: () => pickUp(pl, d) }; }
   const c = nearChest(pl); if (c) return { kind:'chest', btn:'打開', run: () => openChest(pl, c) };
   const t = nearTablet(); if (t) return { kind:'read', btn:'閱讀', run: () => readTablet(t) };
-  const d = nearDoor(pl); if (d) return { kind:'door', btn:'進入', text: doorLabel(d), run: enterDoor };
+  const d = nearDoor(pl); if (d) return { kind:'door', btn: d.out ? '離開' : '進入', text: doorLabel(d), run: enterDoor };
   const s = nearSmith(); if (s) return { kind:'shop', btn:'交易', text:'和鐵匠交易', run: () => openShop(s) };
   if (nearMerchant()) return { kind:'shop', btn:'交易', text:'和流浪商人交易', run: () => openShop() };
   const camp = nearCamp(pl); if (camp) return { kind:'rest', btn:'休息', run: () => restAt(camp) };

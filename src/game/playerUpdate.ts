@@ -2,7 +2,7 @@ import { G } from '../core/state';
 import { TAU, dist, pick, rr } from '../core/util';
 import { LH, LW } from '../core/canvas';
 import { CAMPS, MW, REGIONS, ROAD, SUBS, TS, discovered, map } from '../world/map';
-import { resetRegionBosses } from '../world/regionBoss';
+import { fightingRB, resetRegionBosses } from '../world/regionBoss';
 import { cam, held, input, keys, pressed } from './player';
 import { collides, moveEnt, regAt } from './collision';
 import { sfx } from '../core/audio';
@@ -91,8 +91,8 @@ export function updatePlayer(pl: Player, dt) {
     else showArea(REGIONS.find(r => r.key === rg).name, REGIONS.find(r => r.key === rg).sub); }
   else if (sb !== G.sub) { G.sub = sb; if (sb) { const first = !discovered.has(sb); discovered.add(sb); showArea(sb, first ? '發現新地點' : REGIONS.find(r => r.key === rg).name); if (first) sfx.discover(); } }
 }
-/* 附近有怪正在追打你 → 攻擊鍵保持攻擊，不會變成撿東西/休息 */
-export const inFight = (pl: Player) => G.enemies.some(e => e.state !== 'idle' && e.state !== 'return' && Math.abs(e.x - pl.x) < 140 && dist(e, pl) < 140);
+/* 附近有怪正在追打你（或區域 / 地城 Boss 開打中）→ 攻擊鍵保持攻擊，不會變成撿東西/休息 */
+export const inFight = (pl: Player) => !!fightingRB() || G.enemies.some(e => e.state !== 'idle' && e.state !== 'return' && Math.abs(e.x - pl.x) < 140 && dist(e, pl) < 140);
 export function nearCamp(pl: Player) {
   if (pl.dead) return null;
   for (const c of CAMPS) if (c.lit && Math.abs(c.x - pl.x) < 30 && Math.hypot(c.x - pl.x, c.y - pl.y) < 30) {

@@ -1,4 +1,4 @@
-/* ---- 寶箱：散落在野外偏僻的地方，按 E 打開。木箱 / 銀箱 / 金箱，越好的箱子東西越好；有些是寶箱怪 ---- */
+/* ---- 寶箱：散落在野外偏僻的地方，按攻擊鍵打開（打開後會化成光點消失）。木箱 / 銀箱 / 金箱，越好的箱子東西越好；有些是寶箱怪 ---- */
 import { G } from '../core/state';
 import { $, mulberry32, pick, rr } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
@@ -19,9 +19,9 @@ import { save } from '../game/save';
 import type { Player } from '../types';
 
 export interface Chest { id: string; tx: number; ty: number; x: number; y: number; tier: number; lv: number; mimic: boolean; opened: boolean; t: number; foe?: any;
-  uq?: string; need?: string }                                           // uq = 固定的獨特武器；need = 要先達成的旗標（地城守護者倒下）
+  uq?: string; need?: string; poof?: boolean }                        // poof = 打開後消失的特效已經放過了                                           // uq = 固定的獨特武器；need = 要先達成的旗標（地城守護者倒下）
 export const CHESTS: Chest[] = [];
-const TIER = [{ n:'木製寶箱', col:'#c8a070' }, { n:'白銀寶箱', col:'#cfd8ea' }, { n:'黃金寶箱', col:'#f2c14e' }];
+const TIER = [{ n:'木製寶箱', col:'#c8a070' }, { n:'白銀寶箱', col:'#9ad0ff' }, { n:'黃金寶箱', col:'#f2c14e' }];
 const REG_LV = [3, 8, 13, 18, 8, 23, 28, 4];                               // 每個地區寶箱的等級
 
 /* 放寶箱：reach = 從起點走得到的格子。偏僻 = 離道路、營火都有一段距離 */
@@ -88,42 +88,69 @@ function giveLoot(c: Chest, pl: Player) {
   sfx.coin(); if (T === 2) sfx.epic();
 }
 /* 寶箱怪被打倒 → 箱子算打開了，再額外掉一件好東西 */
-export function mimicDown(e) { const c: Chest = e.chest; if (!c) return; c.foe = null; c.opened = true; c.t = 1; c.mimic = false; dropItem(randomLoot(c.lv, Math.random() < .4 ? 3 : 2), c.x, c.y); save(); }
+export function mimicDown(e) { const c: Chest = e.chest; if (!c) return; c.foe = null; c.opened = true; c.t = 2; c.mimic = false; dropItem(randomLoot(c.lv, Math.random() < .4 ? 3 : 2), c.x, c.y); save(); }
 /* 休息時野外的怪物會復活：沒打倒的寶箱怪會變回寶箱，下次打開又會跳出來 */
 export function resetMimics() { for (const c of CHESTS) c.foe = null; }
 
-/* ---- 畫：三種箱子 × 關著 / 打開 ---- */
-const WOOD = ['#2e1c0e', '#4a3018', '#6a4626', '#86603a', '#a07a4c'], RED = ['#2a0e10', '#4a1820', '#6a2430', '#8a3440', '#a84a52'];
-const BANDS = [['#2a2834', '#4a4858', '#6e6c86', '#9a98b0'], ['#4a5468', '#8a96ac', '#c4d0e4', '#ffffff'], ['#7a4a1a', '#c0862c', '#f2c14e', '#fff0a8']];
+/* ---- 畫：三種箱子 × 關著 / 打開。一眼要分得出來：
+   木箱 = 褐色 + 鐵條，沒什麼光；銀箱 = 藍鋼 + 亮銀邊 + 藍寶石，冷藍光和往上飄的藍色光點；
+   金箱 = 紅漆 + 粗金邊 + 紅寶石，一道往上的金色光柱（遠遠就看得到）+ 金色火花 ---- */
+const WOOD = ['#2e1c0e', '#4a3018', '#6a4626', '#86603a', '#a07a4c'], STEEL = ['#121a2e', '#1e2e52', '#2e4a7a', '#44689c', '#5e86ba'], RED = ['#2a0e10', '#4a1820', '#6a2430', '#8a3440', '#a84a52'];
+const BANDS = [['#1e1c24', '#34323e', '#4e4c5c', '#6a6878'], ['#4a5468', '#a4b2c8', '#e0e8f6', '#ffffff'], ['#7a4a1a', '#c0862c', '#f2c14e', '#fff0a8']];
 function chestArt(tier, open) {
-  const B = BANDS[tier], body = tier === 2 ? RED : WOOD;
+  const B = BANDS[tier], body = [WOOD, STEEL, RED][tier];
   const parts: Record<string, any>[] = [{ sh: SH.box(18, 23, 15, 7, 7), ramp: body, tex: .2, grp: 1 }];
   if (open) parts.unshift({ sh: SH.box(18, 10, 14.5, 4, 7), ramp: body, tex: .2, grp: 2 });          // 打開：蓋子往後翻，畫在箱子後面
   else parts.push({ sh: SH.ell(18, 16, 15.5, 7.5, (x, y) => y < 16.5), ramp: body, tex: .2, grp: 2 });
   return sculpt(36, 31, parts, a => {
     for (const py of [20, 25]) for (let x = 4; x < 32; x++) if (a.get(x, py) && a.get(x, py + 1)) a.set(x, py, body[1]);   // 木板縫
     if (!open) for (const py of [11, 14]) for (let x = 5; x < 31; x++) if (a.get(x, py) && a.get(x, py - 1)) a.set(x, py, body[1]);
-    for (const bx of [7, 28]) for (let y = open ? 7 : 9; y < 30; y++) if (a.get(bx, y)) { a.set(bx, y, B[2]); a.set(bx + 1, y, B[1]); }
-    for (let x = 3; x < 33; x++) if (a.get(x, 16)) a.set(x, 16, B[0]);
+    const bw = tier === 0 ? 1 : 2;                                                                     // 銀箱、金箱的邊條比較粗
+    for (const bx of [7, 28]) for (let y = open ? 7 : 9; y < 30; y++) if (a.get(bx, y)) for (let k = 0; k <= bw; k++) a.set(bx + k - (bx > 18 ? bw - 1 : 0), y, k === 0 ? B[3] : k === bw ? B[1] : B[2]);
+    for (let x = 3; x < 33; x++) if (a.get(x, 16)) { a.set(x, 16, B[tier ? 2 : 0]); if (tier) a.set(x, 17, B[1]); }
+    if (tier) for (let x = 3; x < 33; x++) for (const y of [29, 30]) if (a.get(x, y) && !a.get(x, y + 2)) a.set(x, y, y === 29 ? B[2] : B[1]);   // 底邊也包一圈金屬
     if (open) { for (let y = 13; y < 17; y++) for (let x = 4; x < 32; x++) a.set(x, y, y === 13 ? '#3a2410' : y === 14 ? '#ffe38a' : y === 15 ? '#f2c14e' : '#7a4a1a');   // 箱子裡的金光
       for (let x = 7; x < 29; x += 3) a.set(x, 12, '#fff6d0'); }
-    else { a.rect(16, 14, 4, 5, B[2]); a.set(16, 14, B[3]); a.set(18, 16, '#140c08'); a.set(18, 17, '#140c08'); }
-    if (tier === 2) for (const [x, y] of [[11, 21], [25, 21], [18, 25]]) { a.set(x, y, '#ff4a6a'); a.set(x - 1, y - 1, '#ffd0dc'); }   // 金箱：鑲紅寶石
+    else { a.rect(15, 13, 6, 7, B[2]); a.rect(16, 14, 4, 5, B[1]); a.set(15, 13, B[3]); a.set(18, 16, '#140c08'); a.set(18, 17, '#140c08');
+      if (tier === 1) { a.rect(17, 14, 2, 2, '#6ac8ff'); a.set(17, 14, '#e0f4ff'); } }                  // 銀箱：鎖上一顆藍寶石
+    if (tier === 2) for (const [x, y] of [[12, 21], [24, 21], [18, 25], [12, 12], [24, 12]]) if (a.get(x, y)) { a.rect(x - 1, y - 1, 3, 3, '#c01838'); a.set(x, y, '#ff4a6a'); a.set(x - 1, y - 1, '#ffd0dc'); }   // 金箱：鑲紅寶石
   });
 }
 export const ART = [0, 1, 2].map(t => [chestArt(t, false), chestArt(t, true)]);
+const GLOW = [null, ['#9ad0ff', '#d8f0ff', '#ffffff'], ['#f2c14e', '#ffe38a', '#fff6d0']];
+function drawBeam(c: Chest) {                                            // 金箱：從箱子往上的光柱，越上面越淡，慢慢呼吸
+  const k = .5 + .5 * Math.sin(G.time * 2 + c.tx), H = 70, x = c.x, y = c.y - 4;
+  for (const [w, al] of [[7, .1], [4, .16], [1.4, .35]]) {
+    const g = ctx.createLinearGradient(0, y - H, 0, y); g.addColorStop(0, 'rgba(255,226,140,0)'); g.addColorStop(1, 'rgba(255,236,170,' + (al * (.75 + .25 * k)) + ')');
+    ctx.fillStyle = g; ctx.fillRect(snapF(x - w / 2), snapF(y - H), w, H); }
+}
+function drawGround(c: Chest, col: string, r: number) {                  // 箱子底下一圈光暈
+  ctx.globalAlpha = .18 + .06 * Math.sin(G.time * 3 + c.tx); ctx.fillStyle = col;
+  ctx.beginPath(); ctx.ellipse(snapF(c.x), snapF(c.y + 1), r, r * .35, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+}
+const VANISH = .7, GONE = 1.2;                                           // 打開後 0.7 秒開始化成光點，1.2 秒完全消失
 export function drawChests(L, vis, addLight, list) {
   for (const c of CHESTS) {
-    if (c.foe || !vis(c.x, c.y)) continue;
+    if (c.foe || !vis(c.x, c.y, c.tier === 2 ? 80 : 20)) continue;
+    if (c.opened) { if (c.t < 2) c.t += 1 / 60; if (c.t >= GONE) continue; }
+    if (c.opened && c.t >= VANISH && !c.poof) { c.poof = true;                                        // 消失：一圈光點往上散開
+      const cols = GLOW[c.tier] || ['#c8a070', '#ffe38a', '#fff6d0'];
+      for (let i = 0; i < 22 + c.tier * 8; i++) G.parts.push({ x: c.x + rr(-7, 7), y: c.y - rr(0, 10), vx: rr(-20, 20), vy: -rr(20, 60), life: rr(.5, 1), max: 1, col: pick(cols), star: rr(.6, 1.8), drag: 2 });
+      G.fx.push({ k: 'warp', x: c.x, y: c.y - 4, r0: 4, r1: 22, th: 2, delay: 0, t: 0, d: .35, col: cols[1] }); }
+    const T = c.tier, closed = !c.opened;
+    if (closed && T === 2) list.push({ y: c.y - 30, f: () => drawBeam(c) });
     list.push({ y: c.y, f: () => {
-      drawShadow(c.x, c.y + 1, 14);
-      const pop = c.opened && c.t < .3 ? Math.sin(c.t / .3 * Math.PI) * 3 : 0;
-      drawArtSprite(ART[c.tier][c.opened ? 1 : 0], c.x, c.y + 3 - pop);
-      if (!c.opened && Math.floor(G.time * 2 + c.tx) % 5 === 0) {           // 關著的箱子偶爾閃一下，遠遠就看得到
+      const fade = c.opened && c.t > VANISH ? 1 - (c.t - VANISH) / (GONE - VANISH) : 1;
+      if (closed && T) drawGround(c, T === 2 ? '#ffd04a' : '#7ac0ff', T === 2 ? 15 : 12);
+      ctx.globalAlpha = fade; drawShadow(c.x, c.y + 1, 14);
+      const pop = c.opened && c.t < .3 ? Math.sin(c.t / .3 * Math.PI) * 3 : 0, rise = c.opened && c.t > VANISH ? (c.t - VANISH) * 8 : 0;
+      drawArtSprite(ART[T][c.opened ? 1 : 0], c.x, c.y + 3 - pop - rise); ctx.globalAlpha = 1;
+      if (closed && Math.floor(G.time * 2 + c.tx) % (T ? 2 : 5) === 0) {                            // 閃一下：銀箱、金箱閃得比較勤
         const k = (G.time * 2 + c.tx) % 1; ctx.globalAlpha = 1 - k; ctx.fillStyle = '#ffffff';
         ctx.fillRect(snapF(c.x - 10 + k * 20), snapF(c.y - 8), HK * 2, HK * 2); ctx.globalAlpha = 1; }
+      if (closed && T && Math.random() < (T === 2 ? .35 : .12)) {                                   // 往上飄的光點
+        const g = GLOW[T]; G.parts.push({ x: c.x + rr(-8, 8), y: c.y - rr(0, 6), vx: rr(-3, 3), vy: -rr(10, T === 2 ? 34 : 20), life: rr(.6, 1.2), max: 1.2, col: pick(g), star: rr(.5, T === 2 ? 1.6 : 1.1), drag: 1 }); }
     } });
-    if (c.opened) { if (c.t < 2) c.t += 1 / 60; }
-    else addLight(L, c.x, c.y - 4, 18 + c.tier * 6, 3);
+    if (closed) { addLight(L, c.x, c.y - 4, [18, 30, 44][T], [3, 2, 4][T]); if (T === 2) addLight(L, c.x, c.y - 40, 26, 4); }
   }
 }
