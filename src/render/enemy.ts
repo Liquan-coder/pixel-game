@@ -78,7 +78,7 @@ export function drawDrop(d) {
   const bh = 14 + d.item.rarity * 8; ctx.fillRect(Math.round(d.x - 1), Math.round(d.y - bh - 4), 2, bh);
   ctx.globalAlpha = 1; drawShadow(d.x, d.y + 1, 8);
   const ic = ICON[d.item.type], iw = ic.width * HK, ih = ic.height * HK; ctx.drawImage(ic, snapF(d.x - iw / 2), snapF(d.y - ih + 2 - d.z + bob), iw, ih);
-  if (d === G.pick) {                                                 // 按 E 會撿到這件：頭上一個往下指的小箭頭
+  if (d === G.pick) {                                                 // 按攻擊鍵會撿到這件：頭上一個往下指的小箭頭
     const ay = Math.round(d.y - ih - 4 + Math.abs(Math.sin(G.time * 5)) * -2), ax = Math.round(d.x);
     ctx.fillStyle = '#120d1c'; ctx.fillRect(ax - 3, ay - 1, 7, 4);
     ctx.fillStyle = '#ffffff'; ctx.fillRect(ax - 2, ay, 5, 1); ctx.fillRect(ax - 1, ay + 1, 3, 1); ctx.fillRect(ax, ay + 2, 1, 1);

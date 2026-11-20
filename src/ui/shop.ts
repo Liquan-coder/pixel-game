@@ -15,7 +15,6 @@ import { drawShadow } from '../render/player';
 import { setMenu, toast } from './hud';
 import { badge, itemCard, matLine } from './menus';
 import { save } from '../game/save';
-import { nearSmith } from '../world/towns';
 import type { Item } from '../types';
 
 export let merchant = null, shopTab = 'buy', shopSel = null, vendor = null;   // vendor = 現在打開的店（流浪商人或鎮上的鐵匠）
@@ -122,4 +121,3 @@ $('shopMenu').addEventListener('click', e => {
   if (t.dataset.sell) { const i = G.me.inv.findIndex(x => x.id === +t.dataset.sell); if (i < 0) return; const it = G.me.inv.splice(i, 1)[0];
     G.me.gold += sellPrice(it); sfx.coin(); shopSel = null; renderShop(); save(); }
 });
-$('shopBtn').addEventListener('click', () => { const s = nearSmith(); if (s) openShop(s); else if (nearMerchant()) openShop(); });

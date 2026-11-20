@@ -73,7 +73,6 @@ export function readTablet(t) {
   if (!loreRead.has(t.id)) { loreRead.add(t.id); toast('記下了「' + t.title + '」', '#9ac8ff'); save(); }
   sfx.pick(); setMenu('lore');
 }
-$('readBtn').addEventListener('click', () => { const t = nearTablet(); if (t) readTablet(t); });
 $('loreMenu').addEventListener('click', e => { const b = (e.target as HTMLElement).closest('button'); if (b && b.hasAttribute('data-close')) setMenu(null); });
 export function drawTablets(vis, list, L, addLight) {
   for (const t of TAB) { if (!vis(t.x, t.y)) continue;

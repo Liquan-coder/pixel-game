@@ -106,7 +106,7 @@ function updateDrops(dt) {
     const d = G.drops[i]; d.t += dt;
     if (d.z > 0 || d.vz > 0) { d.z += d.vz * dt; d.vz -= 260 * dt; const o = { x:d.x, y:d.y, r:3 }; moveEnt(o, d.vx * dt, d.vy * dt); d.x = o.x; d.y = o.y; if (d.z <= 0) { d.z = 0; d.vz = 0; } }
   }
-  G.pick = G.me && !G.me.dead ? nearDrop(G.me) : null;               // 不會自動撿：靠近時顯示屬性，按 E 才撿
+  G.pick = G.me && !G.me.dead ? nearDrop(G.me) : null;               // 不會自動撿：靠近時顯示屬性，按攻擊鍵才撿（見 ui/interact.ts）
 }
 /* ---- 掉在地上的裝備：找最近的、撿起來 ---- */
 export function nearDrop(pl) {

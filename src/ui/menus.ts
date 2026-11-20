@@ -10,7 +10,7 @@ import { CAMPS, MW, REGIONS, reg } from '../world/map';
 import { mini } from '../world/minimap';
 import { calcStats, curEq, level, lvCost, recalc } from '../game/player';
 import { initAudio, sfx } from '../core/audio';
-import { nearCamp, placeAtCamp, restoreWorld } from '../game/playerUpdate';
+import { placeAtCamp, restoreWorld } from '../game/playerUpdate';
 import { burst } from '../game/worldUpdate';
 import { centerMap, clearMapSel, mapPick, mv, onMapPick, renderBigMap, zoomAt, type MapPick } from '../render/map';
 import { fightingRB, rbDead } from '../world/regionBoss';
@@ -22,7 +22,6 @@ import { ATTRS, ATTR_NAME, grade, reqOf, scaleOf, unmet } from '../data/attrs';
 import { HERO, HERO_W } from '../art/hero';
 import { drawWeapon } from '../art/weapon';
 import { renderJournal } from '../game/quest';
-import { pickUp } from '../game/worldUpdate';
 
 export function restAt(c) {
   moveMerchant(); restockSmiths();
@@ -255,8 +254,6 @@ export function toggleMap() { if (openMenu === 'map') setMenu(null); else if (!o
 $('bagBtn').addEventListener('click', toggleInv);
 $('mapBtn').addEventListener('click', toggleMap);
 mini.addEventListener('click', toggleMap);
-$('pickBtn').addEventListener('click', () => { if (G.pick) pickUp(G.me, G.pick); });
-$('restBtn').addEventListener('click', () => { const c = nearCamp(G.me); if (c) restAt(c); });
 $('veil').addEventListener('click', () => setMenu(null));
 $('muteBtn').addEventListener('click', () => { G.muted = !G.muted; $('muteBtn').textContent = G.muted ? '音效 關' : '音效 開'; initAudio(); });
 

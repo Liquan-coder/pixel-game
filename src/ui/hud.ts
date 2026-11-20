@@ -3,13 +3,8 @@ import { $, clamp } from '../core/util';
 import { WT, slotOf } from '../data/items';
 import { fightingRB, nearZone } from '../world/regionBoss';
 import { curEq, held, level } from '../game/player';
-import { nearCamp } from '../game/playerUpdate';
-import { nearMerchant } from './shop';
-import { nearChest } from '../world/chests';
-import { nearSmith } from '../world/towns';
-import { nearTablet } from '../game/quest';
-import { doorLabel, nearDoor } from '../world/dungeons';
 import { itemCard } from './menus';
+import { interactTarget, type IKind } from './interact';
 import { SCALE } from '../core/canvas';
 import { view } from '../render/render';
 
@@ -21,6 +16,7 @@ function setScale(id, v) { v = Math.round(clamp(v, 0, 1) * 200) / 200; if (hudCa
 export const hpBarW = (maxHp: number) => Math.round(96 + Math.max(0, maxHp - 100) * .25);
 export const stBarW = (maxSt: number) => Math.round(84 + Math.max(0, maxSt - 80) * .5);
 function setW(id, px) { const k = id + 'W'; if (hudCache[k] !== px) { hudCache[k] = px; $(id).parentElement.style.setProperty('--w', px + 'px'); } }
+const PROMPTS: [IKind, string][] = [['pick', 'pickBtn'], ['chest', 'chestBtn'], ['read', 'readBtn'], ['door', 'doorBtn'], ['shop', 'shopBtn'], ['rest', 'restBtn']];
 export function updateHUD() {
   setW('hpBar', hpBarW(G.me.maxHp)); setW('stBar', stBarW(G.me.maxSt));
   setText('lvTxt', String(level(G.me))); setScale('hpBar', G.me.hp / G.me.maxHp); setScale('stBar', G.me.st / G.me.maxSt);
@@ -30,22 +26,15 @@ export function updateHUD() {
   const sec = G.me.skillCd > 0 ? (G.me.skillCd >= 1 ? String(Math.ceil(G.me.skillCd)) : G.me.skillCd.toFixed(1)) : '';   // 剩幾秒
   if (hudCache.sec !== sec) { if (hudCache.sec && !sec) { const h = $('skillHud'); h.classList.remove('ready'); void h.offsetWidth; h.classList.add('ready'); }   // 冷卻好了閃一下
     hudCache.sec = sec; $('skillHud').classList.toggle('cool', !!sec); for (const id of ['skillHudSec', 'bSkillSec']) { $(id).hidden = !sec; $(id).textContent = sec; } }
-  let show = !!((!G.paused && G.started) ? nearCamp(G.me) : null);
-  const smith = !G.paused && G.started ? nearSmith() : null;
-  let shop = !!(!G.paused && G.started && (smith || nearMerchant()));
-  setText('shopBtn', smith ? '和鐵匠交易' : '和流浪商人交易');
   const pk = !G.paused && G.started ? G.pick : null, pkKey = pk ? pk.item.id + ':' + (curEq(G.me)[slotOf(pk.item)]?.id ?? '') : '';
   if (hudCache.pick !== pkKey) { hudCache.pick = pkKey; $('pickBox').hidden = !pk;
     if (pk) $('pickCard').innerHTML = itemCard(pk.item, curEq(G.me)[slotOf(pk.item)]); }   // 跟身上同部位的裝備比較（▲▼）
   if (pk) placePickBox(pk);
-  const chest = !!(!G.paused && G.started && !pk && nearChest(G.me)), tab = !!(!G.paused && G.started && !pk && !chest && nearTablet());
-  if (hudCache.tab !== tab) { hudCache.tab = tab; $('readBtn').hidden = !tab; }
-  if (hudCache.chest !== chest) { hudCache.chest = chest; $('chestBtn').hidden = !chest; }
-  const door = !G.paused && G.started && !pk && !chest && !tab ? nearDoor(G.me) : null, dk = door ? doorLabel(door) : '';
-  if (hudCache.door !== dk) { hudCache.door = dk; $('doorBtn').hidden = !door; if (door) $('doorTxt').textContent = dk; }
-  if (pk || chest || tab || door) { show = false; shop = false; }                           // 腳邊有裝備時，E 和下方按鈕都是「撿起」
-  if (hudCache.shop !== shop) { hudCache.shop = shop; $('shopBtn').hidden = !shop; }
-  if (hudCache.rest !== (show && !shop)) { hudCache.rest = show && !shop; $('restBtn').hidden = !(show && !shop); }
+  const it = interactTarget(), ik = it ? it.kind + ':' + (it.text || '') : '';             // 攻擊鍵現在會做什麼：撿起 / 休息 / 打開…
+  if (hudCache.act !== ik) { hudCache.act = ik;
+    for (const [k, id] of PROMPTS) $(id).hidden = !it || it.kind !== k;
+    if (it?.text) $(it.kind === 'door' ? 'doorTxt' : 'shopTxt').textContent = it.text;
+    $('bAtk').textContent = it ? it.btn : '攻擊'; $('bAtk').classList.toggle('act', !!it); }
   setText('goldTxt', String(G.me.gold));
   const zn = (!G.paused && G.started) ? nearZone() : null, zk = zn ? zn.id : '';      // 靠近 boss 場地時的提示（不寫等級、不說你打不打得過）
   if (hudCache.zone !== zk) { hudCache.zone = zk; $('zoneHint').hidden = !zn;

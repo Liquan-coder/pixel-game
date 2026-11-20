@@ -92,7 +92,6 @@ export function mimicDown(e) { const c: Chest = e.chest; if (!c) return; c.foe =
 /* 休息時野外的怪物會復活：沒打倒的寶箱怪會變回寶箱，下次打開又會跳出來 */
 export function resetMimics() { for (const c of CHESTS) c.foe = null; }
 
-$('chestBtn').addEventListener('click', () => { const c = nearChest(G.me); if (c) openChest(G.me, c); });
 /* ---- 畫：三種箱子 × 關著 / 打開 ---- */
 const WOOD = ['#2e1c0e', '#4a3018', '#6a4626', '#86603a', '#a07a4c'], RED = ['#2a0e10', '#4a1820', '#6a2430', '#8a3440', '#a84a52'];
 const BANDS = [['#2a2834', '#4a4858', '#6e6c86', '#9a98b0'], ['#4a5468', '#8a96ac', '#c4d0e4', '#ffffff'], ['#7a4a1a', '#c0862c', '#f2c14e', '#fff0a8']];

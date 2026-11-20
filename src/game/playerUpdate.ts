@@ -91,10 +91,12 @@ export function updatePlayer(pl: Player, dt) {
     else showArea(REGIONS.find(r => r.key === rg).name, REGIONS.find(r => r.key === rg).sub); }
   else if (sb !== G.sub) { G.sub = sb; if (sb) { const first = !discovered.has(sb); discovered.add(sb); showArea(sb, first ? '發現新地點' : REGIONS.find(r => r.key === rg).name); if (first) sfx.discover(); } }
 }
+/* 附近有怪正在追打你 → 攻擊鍵保持攻擊，不會變成撿東西/休息 */
+export const inFight = (pl: Player) => G.enemies.some(e => e.state !== 'idle' && e.state !== 'return' && Math.abs(e.x - pl.x) < 140 && dist(e, pl) < 140);
 export function nearCamp(pl: Player) {
   if (pl.dead) return null;
   for (const c of CAMPS) if (c.lit && Math.abs(c.x - pl.x) < 30 && Math.hypot(c.x - pl.x, c.y - pl.y) < 30) {
-    if (G.enemies.some(e => e.state !== 'idle' && e.state !== 'return' && Math.abs(e.x - pl.x) < 140 && dist(e, pl) < 140)) return null;
+    if (inFight(pl)) return null;
     return c;
   }
   return null;

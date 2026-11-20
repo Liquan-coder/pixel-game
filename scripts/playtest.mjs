@@ -60,7 +60,7 @@ const pageScript = async () => {
   const shop = await imp('ui/shop');
   const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies') };
 
-  const imp0 = { map: await imp('render/map'), dg: await imp('world/dungeons'), input: await imp('ui/input') };
+  const imp0 = { map: await imp('render/map'), dg: await imp('world/dungeons'), input: await imp('ui/interact'), inp: await imp('ui/input'), hud: await imp('ui/hud') };
   const step = (n, opts = {}) => {
     for (let i = 0; i < n; i++) {
       if (opts.god && G.me) { G.me.hp = G.me.maxHp; G.me.st = G.me.maxSt; }
@@ -118,6 +118,26 @@ const pageScript = async () => {
     log.push('  狼王二階段後: ' + (G.B ? 'state=' + G.B.state + ' phase=' + G.B.phase : '已被擊殺'));
     if (G.B) { G.B.hp = 1; damageEnemy(G.me, G.B, 5, G.me.x, G.me.y); step(120, { god: true }); }
     if (!G.bossDead) throw new Error('狼王沒死');
+  });
+
+  run('攻擊鍵互動：靠近裝備 = 撿起、靠近營火 = 休息、被怪追 = 照樣攻擊', () => {
+    const { readInput } = imp0.inp, HUD = imp0.hud; setMenu(null);
+    const c = CAMPS[0]; tp(c.x, c.y + 16); G.enemies = []; G.drops = []; step(2);
+    const it = makeItem(WT.sword ? 'sword' : Object.keys(WT)[0], 1); const n0 = G.me.inv.length;
+    G.drops.push({ x:G.me.x + 4, y:G.me.y, z:0, vz:0, vx:0, vy:0, item:it, t:0, warned:false }); step(1);
+    if (document.getElementById('bAtk').textContent !== '撿起') throw new Error('靠近裝備時攻擊鍵沒變「撿起」：' + document.getElementById('bAtk').textContent);
+    pressed.atk = true; readInput(); const sw = pressed.atk; step(1);
+    if (sw) throw new Error('撿東西那一下還是揮刀了');
+    if (G.me.inv.length !== n0 + 1) throw new Error('按攻擊鍵沒撿起裝備');
+    if (document.getElementById('bAtk').textContent !== '休息') throw new Error('靠近營火時攻擊鍵沒變「休息」：' + document.getElementById('bAtk').textContent);
+    pressed.atk = true; readInput(); step(1);
+    if (HUD.openMenu !== 'camp') throw new Error('按攻擊鍵沒在營火休息，openMenu=' + HUD.openMenu);
+    setMenu(null); step(1);
+    const e = { state:'chase', x:G.me.x + 30, y:G.me.y }; G.enemies.push(e);
+    pressed.atk = true; readInput();
+    if (!pressed.atk) throw new Error('被怪追的時候攻擊鍵被拿去互動了');
+    for (const k in pressed) pressed[k] = false; G.enemies = []; step(1);
+    if (document.getElementById('bAtk').textContent !== '休息') throw new Error('怪清掉後沒變回「休息」');
   });
 
   run('選單：角色/地圖/營火/商店', () => {
