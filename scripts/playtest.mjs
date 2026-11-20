@@ -84,7 +84,7 @@ const pageScript = async () => {
     held.atk = true; step(70, { god: true }); held.atk = false; step(15, { god: true });
     G.me.skillCd = 0; pressed.skill = true; step(60, { god: true });
     input.mx = 1; pressed.dodge = true; step(25, { god: true }); input.mx = 0;
-    G.me.hp = 10; G.me.pot = Math.max(1, G.me.pot); pressed.pot = true; step(60);
+    G.me.hp = 10; G.me.pot = Math.max(1, G.me.pot); pressed.pot = true; for (let k = 0; k < 60; k++) { G.me.iframe = 1; step(1); }   // 喝藥時不能被怪打死（不然測不到回血）
     if (G.me.hp <= 10) throw new Error('喝藥水沒有回血（hp ' + G.me.hp + '）');
     step(30); G.me.st = 60; G.me.atkCd = 0; pressed.atk = true; held.atk = true; step(25);       // 按住攻擊：先揮一刀，然後開始蓄力
     if (!G.me.charging) throw new Error('按住攻擊沒有開始蓄力');
@@ -257,7 +257,7 @@ const pageScript = async () => {
       tp(e.x - 10, e.y); e.hp = e.maxHp = 1e6; const twin = G.enemies.find(o => o !== e && !o.rb && !o.dead && !o.gone && !o.chest && Math.hypot(o.x - e.x, o.y - e.y) < 200);
       if (fx === 'shock' && twin) { twin.x = e.x + 20; twin.y = e.y; twin.hp = twin.maxHp = 1e6; }
       let hit = false; const tw0 = twin ? twin.hp : 0;
-      for (let i = 0; i < 40 && !hit; i++) { damageEnemy(G.me, e, 1, G.me.x, G.me.y); step(8, { god: true });
+      for (let i = 0; i < 40 && !hit; i++) { if (fx === 'shock' && twin) { twin.x = e.x + 20; twin.y = e.y; } damageEnemy(G.me, e, 1, G.me.x, G.me.y); step(8, { god: true });   // 第二隻怪會走開 → 每次拉回來
         hit = fx === 'bleed' ? e.hp < 1e6 - 40 * G.me.atkPow * 1.2 : fx === 'burn' ? e.burnT > 0 : fx === 'frost' ? (e.frostB || 0) === 0 && i > 2 : fx === 'shock' ? !twin || twin.hp < tw0 : true; }
       if (fx === 'soul') { G.me.hp = 10; e.hp = 1; damageEnemy(G.me, e, 1, G.me.x, G.me.y); step(2); hit = G.me.hp > 10; }
       if (!hit) throw new Error(fx + ' 沒有觸發');
