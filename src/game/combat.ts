@@ -115,11 +115,11 @@ function swingSmear(pl: Player, s, type, cols, fin) {                           
   smearFx(pl, s.f + s.rs * s.sd, s.f + s.r1 * s.sd, flat ? Rv + 3 : Rv, wv * (flat ? 1.3 : 1), s.sw * .75, cols, .08, s.wu + s.sw * .25, s.sy);
 }
 export function tryAttack(pl: Player) {
-  if (pl.atkCd > 0 || busy(pl) || pl.st <= 0) return false;
+  if (pl.atkCd > 0 || busy(pl)) return false;                       // 普攻不耗體力（體力只用在瞬移和蓄力）
   const type = pl.weapon.type, W = WT[type], cols = wcols(pl, type), A = ANIM[type] || ANIM.sword;
   pl.combo = pl.comboT > 0 ? (pl.combo + 1) % 3 : 0; pl.comboT = .8;
   const fin = pl.combo === 2, st = (A.C || ['diag', 'rise', 'diag'])[pl.combo];   // 三下各用不同揮法（斜劈 → 橫掃 → 重劈）
-  spendSt(pl, W.stam * (fin ? 1.3 : 1)); pl.atkCd = W.cd / pl.aspd * (fin ? 1.3 : 1);
+  pl.atkCd = W.cd / pl.aspd * (fin ? 1.3 : 1);
   if (W.ranged) {                                                     // 法杖：舉杖聚光 → 往前一推放出 → 杖放低收招
     autoFace(pl, 170);
     const s = pl.swing = newSwing(pl, type, A, false, null, { ranged:true, fin });

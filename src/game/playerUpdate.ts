@@ -22,12 +22,13 @@ export function updatePlayer(pl: Player, dt) {
   if (pl.lunge) { pl.lunge.t -= dt; moveEnt(pl, pl.lunge.vx * dt, pl.lunge.vy * dt); G.ghosts.push({ x:pl.x, y:pl.y, flip:pl.flip, life:.2, max:.2 }); if (pl.lunge.t <= 0) pl.lunge = null; }
   if (pl.skillLock > 0) pl.skillLock -= dt;
   for (let i = pl.timers.length - 1; i >= 0; i--) { const tm = pl.timers[i]; tm.t -= dt; if (tm.t <= 0) { pl.timers.splice(i, 1); tm.fn(); } }
-  if (pl.stDelay > 0) pl.stDelay -= dt; else pl.st = Math.min(pl.maxSt, pl.st + (pl.drink > 0 ? 15 : 48) * dt);
+  if (pl.stDelay > 0) pl.stDelay -= dt; else if (!pl.charging) pl.st = Math.min(pl.maxSt, pl.st + (pl.drink > 0 ? 15 : 48) * dt);   // 蓄力時體力不會回（不然蓄力等於免費）
   if (pl.swing) { const s = pl.swing; s.t += dt; if (s.t >= s.d) { if (s.anim) { const g = s.f + s.r1 * s.sd; pl.wFrom = s.ranged ? g : Math.atan2(Math.sin(g) * s.sy, Math.cos(g)); pl.wRec = pl.wRecD = s.back; pl.wTy = s.ty; pl.wRot = Math.sign(s.r1 - (s.rs ?? s.r0)) * s.sd; } pl.swing = null; } }
   if (pl.wRec > 0) pl.wRec -= dt;
   if (Math.abs(pl.kx) + Math.abs(pl.ky) > 2) { moveEnt(pl, pl.kx * dt, pl.ky * dt); const k = Math.pow(0.001, dt); pl.kx *= k; pl.ky *= k; } else pl.kx = pl.ky = 0;
   if (pl.tfx && pl.tfx.regen && pl.hp > 0 && pl.hp < pl.maxHp) pl.hp = Math.min(pl.maxHp, pl.hp + pl.maxHp * pl.tfx.regen / 100 * dt);   // 飾品：慢慢回血
-  if (pl.drink > 0) { pl.drink -= dt; if (pl.drink <= 0) { const h = Math.round(pl.maxHp * (.5 + ((pl.tfx && pl.tfx.potion) || 0) / 100));   // 飾品：藥水多回一點 pl.hp = Math.min(pl.maxHp, pl.hp + h);
+  if (pl.drink > 0) { pl.drink -= dt; if (pl.drink <= 0) { const h = Math.round(pl.maxHp * (.5 + ((pl.tfx && pl.tfx.potion) || 0) / 100));   // 飾品：藥水多回一點
+    pl.hp = Math.min(pl.maxHp, pl.hp + h);
     G.nums.push({ x:pl.x, y:pl.y - 28, txt:'+' + h, col:'#7dff8a', t:0, d:.8 }); burst(pl.x, pl.y - 6, 12, '#7dff8a', 40); } }
   const m = Math.hypot(input.mx, input.my);
   if (pl.dash) {

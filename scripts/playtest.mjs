@@ -84,7 +84,14 @@ const pageScript = async () => {
     held.atk = true; step(70, { god: true }); held.atk = false; step(15, { god: true });
     G.me.skillCd = 0; pressed.skill = true; step(60, { god: true });
     input.mx = 1; pressed.dodge = true; step(25, { god: true }); input.mx = 0;
-    G.me.hp = 10; pressed.pot = true; step(40);
+    G.me.hp = 10; G.me.pot = Math.max(1, G.me.pot); pressed.pot = true; step(60);
+    if (G.me.hp <= 10) throw new Error('喝藥水沒有回血（hp ' + G.me.hp + '）');
+    step(30); G.me.st = 60; G.me.atkCd = 0; pressed.atk = true; held.atk = true; step(25);       // 按住攻擊：先揮一刀，然後開始蓄力
+    if (!G.me.charging) throw new Error('按住攻擊沒有開始蓄力');
+    const st0 = G.me.st; step(40); const stHold = G.me.st;
+    if (stHold > st0 + .5) throw new Error('蓄力時體力還在回（' + st0.toFixed(1) + ' → ' + stHold.toFixed(1) + '）');
+    held.atk = false; step(3); if (G.me.st > stHold - 15) throw new Error('放出蓄力沒有扣體力（' + stHold.toFixed(1) + ' → ' + G.me.st.toFixed(1) + '）');
+    step(40, { god: true });
   });
 
   run('每種小怪都打一輪', () => {
