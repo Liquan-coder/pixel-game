@@ -17,6 +17,7 @@ import { genWorld, reachable } from './world/gen';
 import './world/tileArt';
 import { bakeChunk, bakeCount, chunks } from './world/chunks';
 import { bakeFullMap, redrawMini, reveal } from './world/minimap';
+import { sightReveal } from './world/sight';
 import { calcStats, cam, curEq, held, input, keys, resetPlayers, pressed, recalc } from './game/player';
 import './game/collision';
 import { initAudio } from './core/audio';
@@ -59,7 +60,7 @@ function frame(ts) {
   if (!G.paused) { if (G.hitStop > 0) { G.hitStop -= dt; G.time += dt * .2; } else update(dt); } else G.time += dt;   // 重擊時停頓一下（hit-stop）
   updateMotes(dt);
   render(); updateHUD();
-  G.miniT -= dt; if (G.miniT <= 0) { if (G.started) reveal(); renderMini(); if (openMenu === 'map' && mapTab === 'map') renderBigMap(); G.miniT = .2; }   // 地圖開著時也一直更新（主線菱形會閃）
+  G.miniT -= dt; if (G.miniT <= 0) { if (G.started) { reveal(); sightReveal(); } renderMini(); if (openMenu === 'map' && mapTab === 'map') renderBigMap(); G.miniT = .2; }   // 地圖開著時也一直更新（主線菱形會閃）
   for (const k in pressed) pressed[k] = false;
 }
 

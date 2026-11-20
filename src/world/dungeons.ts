@@ -11,7 +11,7 @@
    新增地城：在 DUNGEONS 加一筆，區塊會自動排好。 */
 import { G } from '../core/state';
 import { mulberry32 } from '../core/util';
-import { BRIDGE, CLIFF, GROUND, LAVA, MW, PILLAR, RFLOOR, ROCK, RWALL, STAIRS, SUBS, TREE, TS, WATER, glows, map, reg, spawns } from './map';
+import { BRIDGE, CLIFF, GROUND, LAVA, MW, PILLAR, RFLOOR, ROAD, RWALL, STAIRS, SUBS, TS, WATER, glows, map, reg, spawns } from './map';
 import { POIS } from '../data/poi';
 import type { Player } from '../types';
 
@@ -87,13 +87,32 @@ for (const d of DUNGEONS) if (d.style === 'ruin') POIS.push({ id: 'ruin_' + d.id
 export const inDZone = (tx: number, ty: number) => tx >= DZONE.x0 && tx <= DZONE.x1 && ty >= DZONE.y0 && ty <= DZONE.y1;
 export const dungeonAt = (x: number, y: number) => { const tx = x / TS, ty = y / TS; return inDZone(tx, ty) ? DUNGEONS.find(d => ty >= d.y0 && ty < d.y0 + SLOT_H && tx >= d.x0 && tx < d.x0 + d.w) || null : null; };
 
-/* ---- 野外入口：洞窟 / 古墓 = 在入口位置堆一座小山（正面就是山壁），前面清出一塊空地；地底遺跡 = 地上一格石階 ---- */
+/* ---- 野外入口：遠遠就看得出「那裡有個洞」 ----
+   洞窟 / 石窟 / 古墓 = 一座岩丘（正面是岩壁，洞口開在正中間，上面還有一根高高的尖岩，dungeonArt 畫）
+   + 洞口前清出一塊空地 + 一條小路接到最近的大路。地底遺跡 = 建築物裡的一格石階 */
 export function stampEntrances(inb: (x: number, y: number) => boolean) {
   for (const d of DUNGEONS) { const [ex, ey] = d.ent;
     if (d.stairs) { for (let y = ey - 1; y <= ey + 2; y++) for (let x = ex - 1; x <= ex + 1; x++) map[y * MW + x] = RFLOOR; map[ey * MW + ex] = STAIRS; continue; }
-    for (let y = ey - 4; y <= ey + 3; y++) for (let x = ex - 4; x <= ex + 4; x++) { if (!inb(x, y)) continue; const i = y * MW + x;
-      const hill = y <= ey && ((x - ex) / 4.6) ** 2 + ((y - ey + .5) / 4.2) ** 2 < 1;
-      if (hill) map[i] = CLIFF; else if (y > ey && Math.abs(x - ex) <= 2) map[i] = GROUND; else if (y > ey && (map[i] === TREE || map[i] === ROCK || map[i] === WATER || map[i] === LAVA)) map[i] = GROUND; } }
+    for (let y = ey - 8; y <= ey + 5; y++) for (let x = ex - 9; x <= ex + 9; x++) { if (!inb(x, y)) continue; const i = y * MW + x, t = map[i];
+      const e = ((x - ex) / 6.6) ** 2 + ((y - ey + 2.5) / 5) ** 2, wob = (((x * 7 + y * 13) % 5) - 2) * .04;
+      if (y <= ey && e < 1 + wob) { if (t !== RWALL && t !== RFLOOR && t !== ROAD) map[i] = CLIFF; }   // 岩丘
+      else if (y > ey && Math.abs(x - ex) <= 3 - (y > ey + 3 ? 1 : 0)) { if (t !== RWALL && t !== RFLOOR && t !== BRIDGE) map[i] = map[i] === ROAD ? ROAD : GROUND; }   // 洞口前的空地
+    }
+    trail(ex, ey + 2, inb);
+  }
+}
+/* 從洞口前面拉一條 2 格寬的小路，接到最近的大路（找 60 格內最近的路）；過水 = 木橋，遇到牆就停 */
+function trail(sx: number, sy: number, inb: (x: number, y: number) => boolean) {
+  let best: number[] | null = null, bd = 70 * 70;                        // 洞口朝南：往北的路要繞過岩丘，所以北邊的路算遠一點
+  for (let y = sy - 60; y <= sy + 70; y++) for (let x = sx - 70; x <= sx + 70; x++) { if (!inb(x, y) || map[y * MW + x] !== ROAD) continue;
+    const d = (x - sx) ** 2 + ((y - sy) * (y < sy ? 2.2 : 1)) ** 2 + (y < sy - 1 && Math.abs(x - sx) < 10 ? 1e6 : 0); if (d < bd) { bd = d; best = [x, y]; } }
+  if (!best) return;
+  const [tx, ty] = best, L = Math.hypot(tx - sx, ty - sy);
+  for (let k = 0; k <= L; k += .5) { const t = k / L, w = Math.sin(k * .3) * 1.2 * Math.min(1, k / 5, (L - k) / 5);
+    const x = Math.round(sx + (tx - sx) * t + w * (ty - sy) / L), y = Math.round(sy + (ty - sy) * t - w * (tx - sx) / L);
+    for (const [ox, oy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) { const X = x + ox, Y = y + oy; if (!inb(X, Y)) continue; const i = Y * MW + X, c = map[i];
+      if (c === RWALL || c === PILLAR || c === STAIRS || c === RFLOOR) continue;
+      map[i] = c === WATER || c === LAVA || c === BRIDGE ? BRIDGE : ROAD; } }
 }
 type Room = { x: number; y: number; rx: number; ry: number };
 /* ---- 地城裡面：房間鏈 ---- */
