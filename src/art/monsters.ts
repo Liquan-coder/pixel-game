@@ -1,6 +1,7 @@
 import { HK } from '../core/canvas';
 import { OL, makeSprite } from './sprite';
 import { ROWS } from './hero';
+import { bossCanvas } from './bossArt';
 import { SKEL_H, SKEL_PAD, SKEL_POSES, SKEL_W, SKEL_WALK, paintSkel, skelSmear } from './skeleton';
 
 export const SPR: Record<string, any> = {
@@ -293,61 +294,6 @@ function makeHD(c, extra?) {
   Object.defineProperty(sp, 'w', { get() { return this.aw * HK; } }); Object.defineProperty(sp, 'h', { get() { return this.ah * HK; } });
   return sp;
 }
-function hdQueen() { const G = RAMP.slime;                            // 史萊姆女王：大史萊姆 + 金色王冠
-  return sculpt(96, 82, [
-    { sh: SH.ell(48, 54, 46, 27, (x, y) => y < 81), ramp: G, rim: false, bias: .1, grp: 1 },
-    { sh: SH.poly([[28, 31], [31, 10], [39, 22], [48, 4], [57, 22], [65, 10], [68, 31]]), ramp: ['#7a4a1a', '#c0862c', '#f2c14e', '#fff0a8'], grp: 2 },
-  ], a => {
-    a.ell(26, 40, 9, 3.5, G[4]); a.ell(20, 46, 2, 2, G[4]);
-    for (const [x, y, r] of [[34, 66, 3.5], [22, 60, 2], [70, 67, 2.6], [58, 73, 2], [80, 58, 1.6]]) a.ell(x, y, r, r, '#a8f0a0');
-    for (const ex of [40, 58]) { a.ell(ex, 51, 4.5, 6.5, '#0e2a18'); a.ell(ex - 1.5, 48, 1.6, 2, '#ffffff'); }
-    a.line(34, 42, 44, 45, '#0e2a18'); a.line(64, 42, 54, 45, '#0e2a18');
-    a.ell(49, 65, 6, 2.5, '#0e2a18'); a.rect(46, 64, 2, 1, '#ffffff'); a.rect(51, 64, 2, 1, '#ffffff');
-    for (const [x, y, c] of [[31, 14, '#ff4a6a'], [48, 9, '#5a8cff'], [65, 14, '#ff4a6a']] as const) { a.ell(x, y, 2.2, 2.2, c); a.set(x - 1, y - 1, '#ffffff'); }
-    a.rect(30, 27, 37, 2, '#7a4a1a');
-  }); }
-function hdGeneral() {                                                 // 骸骨將軍：生鏽盔甲、角盔、破披風、巨劍
-  const ARM = ['#2a2524', '#4a403c', '#6e5e54', '#927e6c', '#b8a28a'], BN = RAMP.bone, CAPE = ['#3a0a10', '#6a1420', '#9a2030', '#c03040'];
-  return sculpt(96, 102, [
-    { sh: SH.poly([[30, 34], [56, 34], [64, 96], [22, 96]]), ramp: CAPE, tex: .3, grp: 1 },
-    { sh: SH.cap(38, 72, 35, 98, 4.5, 4), ramp: ARM, tex: .3, grp: 2 }, { sh: SH.cap(52, 72, 56, 98, 4.5, 4), ramp: ARM, tex: .3, grp: 3 },
-    { sh: SH.box(45, 55, 16, 19, 3), ramp: ARM, tex: .35, grp: 4 },
-    { sh: SH.ell(28, 42, 8.5, 7.5), ramp: ARM, tex: .3, grp: 5 }, { sh: SH.ell(62, 42, 8.5, 7.5), ramp: ARM, tex: .3, grp: 6 },
-    { sh: SH.ell(45, 26, 11, 11), ramp: BN, grp: 7 }, { sh: SH.box(47, 37, 7, 3, 4), ramp: BN, grp: 7 },
-    { sh: SH.ell(45, 22, 13, 10, (x, y) => y < 23), ramp: ARM, tex: .25, grp: 8 },
-    { sh: SH.poly([[33, 18], [21, 3], [36, 13]]), ramp: BN, grp: 8 }, { sh: SH.poly([[57, 18], [69, 3], [54, 13]]), ramp: BN, grp: 8 },
-    { sh: SH.cap(72, 66, 92, 6, 4, 2.6), ramp: ['#3e3b63', '#76739f', '#a9a7d0', '#dcdcf4'], grp: 9 },
-    { sh: SH.cap(63, 70, 79, 63, 2.6, 2.6), ramp: ['#7a4a1a', '#c0862c', '#f2c14e'], grp: 9 },
-    { sh: SH.cap(62, 46, 71, 64, 4, 3.5), ramp: ARM, tex: .3, grp: 10 },
-  ], a => {
-    for (const ex of [40, 51]) { a.ell(ex, 27, 2.6, 2.8, '#140c08'); a.set(ex, 27, '#ff9a3a'); a.set(ex, 26, '#ffd27a'); }
-    a.set(45, 31, '#140c08'); a.set(46, 32, '#140c08'); for (let x = 42; x <= 52; x += 2) a.set(x, 38, BN[0]);
-    for (const y of [48, 54, 60]) for (let x = 36; x <= 54; x++) if (a.get(x, y) && x !== 45) a.set(x, y, ARM[0]);
-    a.ell(45, 55, 3.5, 3.5, '#c0862c'); a.set(45, 55, '#ffd27a');
-    for (let k = 0; k < 20; k++) { const x = 26 + (k * 37) % 44, y = 40 + (k * 23) % 34; if (a.get(x, y)) a.set(x, y, '#8a4a20'); }
-    for (let i = 0; i < 6; i++) a.set(78 + i * 2.3, 52 - i * 7.5, '#ffffff');
-  }); }
-function hdDragon() {                                                  // 熔岩巨龍：黑紅鱗片、發光的腹部、翅膀、角
-  const SC = ['#1a0c0e', '#34161a', '#552220', '#7a3424', '#a04a2c'], BL = ['#9a3a14', '#d8582a', '#f8a840', '#ffe38a'], WG = ['#1e0808', '#3e1010', '#6a1c14', '#8e2c1a'];
-  return sculpt(132, 104, [
-    { sh: SH.poly([[56, 40], [14, 6], [22, 30], [6, 30], [26, 52], [16, 58], [48, 62]]), ramp: WG, tex: .25, grp: 1 },
-    { sh: SH.cap(40, 74, 6, 88, 7, 2), ramp: SC, tex: .3, grp: 2 }, { sh: SH.poly([[2, 84], [10, 92], [0, 96]]), ramp: SC, grp: 2 },
-    { sh: SH.cap(52, 82, 50, 101, 6, 5), ramp: SC, tex: .3, grp: 3 }, { sh: SH.cap(80, 82, 84, 101, 6, 5), ramp: SC, tex: .3, grp: 4 },
-    { sh: SH.ell(66, 66, 30, 20), ramp: SC, tex: .35, grp: 5 },
-    { sh: SH.ell(70, 74, 20, 8), ramp: BL, grp: 5, rim: false },
-    { sh: SH.cap(84, 58, 104, 30, 9, 7), ramp: SC, tex: .3, grp: 6 },
-    { sh: SH.ell(110, 26, 13, 10), ramp: SC, tex: .25, grp: 7 }, { sh: SH.cap(112, 30, 128, 34, 6, 4.5), ramp: SC, grp: 7 },
-    { sh: SH.poly([[104, 18], [92, 2], [110, 14]]), ramp: ['#5a5054', '#8a8084', '#c8c0c4'], grp: 7 }, { sh: SH.poly([[112, 16], [106, 0], [118, 14]]), ramp: ['#5a5054', '#8a8084', '#c8c0c4'], grp: 7 },
-    { sh: SH.poly([[76, 44], [100, 2], [108, 26], [126, 22], [104, 54], [92, 60]]), ramp: WG, tex: .25, grp: 8 },
-    { sh: SH.cap(90, 80, 92, 101, 6, 5), ramp: SC, tex: .3, grp: 9 },
-  ], a => {
-    a.rect(112, 23, 3, 2, '#ffe38a'); a.set(113, 23, '#ffffff');
-    for (let x = 114; x < 128; x += 3) a.set(x, 37, '#fff0d0');
-    a.line(118, 35, 127, 36, '#3a0a08'); a.set(128, 33, '#ffb040');
-    for (const [x0, y0, x1, y1] of [[100, 4, 96, 58], [100, 4, 112, 42], [14, 6, 40, 52], [14, 6, 24, 54]]) a.line(x0, y0, x1, y1, '#140606');
-    for (let k = 0; k < 6; k++) { const x = 46 + k * 7, y = 56 + (k % 2) * 3; a.set(x, y, '#ff8a3a'); a.set(x + 1, y, '#ffb040'); }
-    for (const [x, y] of [[60, 50], [72, 48], [84, 52], [96, 42]]) { a.set(x, y, '#c8c0c4'); a.set(x, y - 1, '#8a8084'); }
-  }); }
 function hdMimic(ph: number | string = -1) {                          // 寶箱怪：蓋子張開變成嘴，上下兩排牙，蓋子上有一對發光的眼睛
   // 走路：整個箱子一跳一跳，蓋子跟著一開一合；'crouch' 蓋子咬緊、壓低發抖，'strike' 張到最大撲過去，'land' 喀一聲咬下去
   const pose = typeof ph === 'string' ? ph : '', w = typeof ph === 'number' && ph >= 0 ? ph : -1;
@@ -365,52 +311,6 @@ function hdMimic(ph: number | string = -1) {                          // 寶箱�
     for (const bx of [8, 32]) for (let y = by - 7; y < by + 7; y++) if (a.get(bx, y)) a.set(bx, y, B[2]);
     for (const ex of [14, 26]) { a.ell(ex, ly - 1, 2.6, 2, '#140808'); a.set(ex, ly - 1, '#ffd04a'); a.set(ex + 1, ly - 1, '#fff6a0'); }
   }, { t: 4 }); }
-function hdMushKing() {                                              // 蘑菇王：巨大的紅色菇傘 + 白點 + 金冠，菇柄上一張生氣的臉，兩隻短手
-  const CAP = ['#4a0a14', '#7a1424', '#b02a38', '#d84a52', '#f08a84'], ST = ['#7a6a4a', '#a89a7a', '#d8ccae', '#f4ead2'], GD = ['#7a4a1a', '#c0862c', '#f2c14e', '#fff0a8'];
-  return sculpt(92, 86, [
-    { sh: SH.ell(30, 82, 9, 4), ramp: ST, grp: 1 }, { sh: SH.ell(62, 82, 9, 4), ramp: ST, grp: 1 },
-    { sh: SH.box(46, 64, 19, 18, 2.6), ramp: ST, tex: .12, grp: 2 },
-    { sh: SH.cap(28, 58, 16, 70, 5, 4), ramp: ST, grp: 3 }, { sh: SH.cap(64, 58, 76, 70, 5, 4), ramp: ST, grp: 4 },
-    { sh: SH.ell(46, 42, 44, 7), ramp: ['#5a4a36', '#8a7a5a', '#b8a882'], grp: 5, rim: false },
-    { sh: SH.ell(46, 36, 45, 28, (x, y) => y < 41), ramp: CAP, tex: .1, grp: 6 },
-    { sh: SH.poly([[30, 12], [33, 0], [39, 8], [46, -2], [53, 8], [59, 0], [62, 12]]), ramp: GD, grp: 7 },
-  ], a => {
-    for (const [x, y, rx, ry] of [[20, 24, 6, 4], [42, 14, 7, 4], [66, 22, 7, 4.5], [30, 34, 4, 2.5], [56, 33, 5, 3], [80, 32, 3.5, 2.5], [10, 34, 3, 2]]) { a.ell(x, y, rx, ry, '#fff4f6'); a.ell(x + 1, y + ry * .6, rx * .7, 1, '#e6c2cc'); }
-    for (const ex of [38, 54]) { a.ell(ex, 60, 3.2, 4, '#1a1012'); a.set(ex - 1, 58, '#ffffff'); a.line(ex - 5, 53 + (ex < 46 ? 0 : 2), ex + 4, 55 - (ex < 46 ? 0 : 2), '#3a2a1a'); }
-    a.ell(46, 71, 6, 2.5, '#3a1a1a'); a.rect(43, 70, 2, 1, '#ffffff'); a.rect(48, 70, 2, 1, '#ffffff');
-    for (const [x, y, c] of [[33, 6, '#ff4a6a'], [46, 2, '#5a8cff'], [59, 6, '#ff4a6a']] as const) { a.ell(x, y, 2, 2, c); a.set(x - 1, y - 1, '#ffffff'); }
-  }, { t: 4 }); }
-function hdYeti() {                                                   // 雪原巨人：白色長毛、藍色的臉、彎角、巨大的拳頭
-  const FUR = ['#5e6a88', '#8e9ab8', '#c4cedf', '#e8eef8', '#ffffff'], FACE = ['#1a3050', '#2a4a78', '#4a70a8', '#7aa0d0'], HORN = ['#5a5054', '#8a8084', '#c8c0c4', '#eee8ea'];
-  return sculpt(100, 104, [
-    { sh: SH.cap(34, 80, 30, 100, 9, 8), ramp: FUR, tex: .3, grp: 1 }, { sh: SH.cap(64, 80, 68, 100, 9, 8), ramp: FUR, tex: .3, grp: 2 },
-    { sh: SH.ell(49, 60, 30, 28), ramp: FUR, tex: .35, grp: 3 },
-    { sh: SH.cap(22, 48, 10, 84, 9, 11), ramp: FUR, tex: .3, grp: 4 }, { sh: SH.cap(76, 48, 88, 84, 9, 11), ramp: FUR, tex: .3, grp: 5 },
-    { sh: SH.ell(49, 30, 19, 17), ramp: FUR, tex: .3, grp: 6 },
-    { sh: SH.ell(49, 34, 11, 9), ramp: FACE, grp: 7 },
-    { sh: SH.cap(34, 20, 22, 6, 4, 2), ramp: HORN, grp: 8 }, { sh: SH.cap(64, 20, 76, 6, 4, 2), ramp: HORN, grp: 8 },
-  ], a => {
-    for (const ex of [44, 54]) { a.rect(ex, 31, 3, 2, '#bff4ff'); a.set(ex + 1, 31, '#ffffff'); }
-    a.rect(44, 38, 11, 2, '#0e1a2e'); for (const x of [45, 52]) { a.set(x, 37, '#ffffff'); a.set(x, 36, '#ffffff'); }
-    for (let k = 0; k < 40; k++) { const x = 20 + (k * 37) % 62, y = 40 + (k * 23) % 50; if (a.get(x, y)) a.set(x, y, FUR[1]); }
-    for (const [x, y] of [[10, 86], [88, 86]]) { a.ell(x, y, 7, 5, FACE[1]); a.ell(x, y - 1, 5, 3, FACE[2]); }
-  }, { t: 2 }); }
-function hdLich() {                                                   // 沼澤巫妖：飄在空中、破爛的斗篷、骷髏臉、綠色鬼火、手持骨杖
-  const ROBE = ['#0e140c', '#1a2416', '#2a3822', '#3e4e30', '#566a40'], BN = ['#8a8474', '#b8b2a0', '#e2dcc8', '#fffaf0'], GL = ['#1a6a1a', '#3ac83a', '#9aff6a', '#eaffd0'];
-  return sculpt(84, 104, [
-    { sh: SH.poly([[24, 30], [60, 30], [74, 96], [64, 88], [56, 100], [46, 90], [38, 102], [28, 88], [18, 98], [10, 92]]), ramp: ROBE, tex: .25, grp: 1 },
-    { sh: SH.cap(66, 18, 70, 100, 2, 2), ramp: ['#2a2018', '#4a3a28', '#6a5438'], grp: 2 },
-    { sh: SH.ell(68, 14, 7, 7), ramp: GL, grp: 2 },
-    { sh: SH.cap(26, 40, 12, 64, 5, 4), ramp: ROBE, grp: 3 }, { sh: SH.cap(58, 40, 66, 58, 5, 4), ramp: ROBE, grp: 4 },
-    { sh: SH.ell(42, 26, 13, 13), ramp: ROBE, tex: .2, grp: 5 },
-    { sh: SH.ell(42, 29, 8, 8.5), ramp: BN, grp: 6 },
-  ], a => {
-    for (const ex of [38, 46]) { a.ell(ex, 28, 2.4, 2.6, '#0a0e08'); a.set(ex, 28, '#9aff6a'); a.set(ex, 27, '#eaffd0'); }
-    a.set(42, 32, '#0a0e08'); a.set(42, 33, '#0a0e08'); for (let x = 38; x <= 46; x += 2) a.set(x, 36, BN[0]);
-    for (const [x, y] of [[12, 64], [66, 58]]) { a.ell(x, y, 3, 3, BN[2]); a.set(x - 1, y + 2, BN[1]); }
-    for (let k = 0; k < 14; k++) { const x = 16 + (k * 29) % 54, y = 44 + (k * 17) % 48; if (a.get(x, y)) a.set(x, y, '#4a6a2e'); }
-    a.set(66, 12, '#ffffff'); a.set(67, 11, '#ffffff');
-  }); }
 /* 換色：每個像素轉成 HSL → 交給 f 改 → 轉回來。黑色描邊（很暗的像素）不動。區域 Boss 的變體用（同一個身體，不同的顏色） */
 type HSL = [number, number, number];
 function recolor(c: HTMLCanvasElement, f: (h: HSL) => HSL) {
@@ -424,26 +324,26 @@ function recolor(c: HTMLCanvasElement, f: (h: HSL) => HSL) {
     d[i] = Math.round(hue(hh + 1 / 3) * 255); d[i + 1] = Math.round(hue(hh) * 255); d[i + 2] = Math.round(hue(hh - 1 / 3) * 255); }
   g.putImageData(img, 0, 0); return o;
 }
-const toward = (h: number, target: number, k: number) => { let d = ((target - h + 540) % 360) - 180; return h + d * k; };
 function withWalk(build: (ph: number | string) => HTMLCanvasElement, extra?, poses: string[] = [], frames = 4) {   // 站立圖 + 走路圖（預設 4 張）+ 攻擊動作
   const sp = makeHD(build(-1), extra); sp.walk = Array.from({ length: frames }, (_, ph) => makeHD(build(ph), extra));
   sp.atk = {}; for (const p of poses) sp.atk[p] = makeHD(build(p), extra); return sp;
 }
 function buildMonsters() { return {
-  dragon: makeHD(hdDragon()),
-  mushking: makeHD(hdMushKing()),
-  yeti: makeHD(hdYeti()),
-  lich: makeHD(hdLich()),
   mimic: withWalk(hdMimic, undefined, ['crouch', 'strike', 'land']),
-  general: makeHD(hdGeneral()),
-  queen: makeHD(hdQueen()),
-  // 區域 Boss（非主線）：沿用主線 Boss 的身體和招式，換顏色、換名字、換等級
-  generalMoss: makeHD(recolor(hdGeneral(), ([h, s, l]) => [toward(h, 105, .85), s * .8, l])),                      // 巨石陣的苔甲守衛：長滿青苔的盔甲
-  lichMist: makeHD(recolor(hdLich(), ([h, s, l]) => [toward(h, 200, .9), s * .45, l * 1.05])),                    // 霧林女妖：灰藍色的霧
-  yetiSand: makeHD(recolor(hdYeti(), ([h, s, l]) => [toward(h, 35, 1), Math.max(s, .35) * .9, l * .88])),          // 沙暴巨人：沙色的毛
-  queenSlag: makeHD(recolor(hdQueen(), ([h, s, l]) => [h > 30 && h < 70 && s > .5 ? h : toward(h, 18, 1), s, l])),  // 熔渣母體：橘紅色的熔岩史萊姆（王冠保持金色）
-  dragonFrost: makeHD(recolor(hdDragon(), ([h, s, l]) => [toward(h, 205, 1), s * .75, Math.min(1, l * 1.25)])),    // 冰霜飛龍
-  mushToxic: makeHD(recolor(hdMushKing(), ([h, s, l]) => [h > 30 && h < 70 && s > .5 ? h : toward(h, 285, .9), s, l])),   // 毒菇母后：紫色的菇傘
+  // 主線 / 區域 Boss：從參考圖描下來的格子圖（art/bossArt.ts）
+  queen: makeHD(bossCanvas('queen')),
+  mushking: makeHD(bossCanvas('mushking')),
+  general: makeHD(bossCanvas('general')),
+  dragon: makeHD(bossCanvas('dragon')),
+  yeti: makeHD(bossCanvas('yeti')),
+  lich: makeHD(bossCanvas('lich')),
+  // 區域 Boss（非主線）：沿用主線 Boss 的招式，但有自己的圖
+  generalMoss: makeHD(bossCanvas('generalMoss')),
+  lichMist: makeHD(bossCanvas('lichMist')),
+  yetiSand: makeHD(bossCanvas('yetiSand')),
+  queenSlag: makeHD(bossCanvas('queenSlag')),
+  dragonFrost: makeHD(bossCanvas('dragonFrost')),
+  mushToxic: makeHD(bossCanvas('mushToxic')),
   slime: makeHD(hdSlime(RAMP.slime, '#0e2a18', '#a8f0a0')),
   slimeM: makeHD(hdSlime(RAMP.slimeM, '#2a0a04', '#fff0a0')),
   wolf: withWalk(ph => hdWolf2(RAMP.wolf, {}, ph), undefined, WOLF_POSES, 6),
