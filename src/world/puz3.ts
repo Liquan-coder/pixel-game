@@ -169,7 +169,9 @@ MECHS.forge = {
   update(p, st, dt) {
     for (const pl of G.players) { if (pl.dead || busyMove(pl)) continue; const [tx, ty] = plTile(pl), d = st.belts.get(ty); if (d && inBox(st.r, tx, ty)) moveEnt(pl, d * 55 * dt, 0); }
     for (const h of st.hs) { const u = ((G.time / 2.2 + h.ph) % 1); if (u < .1) h.hit = false;
-      if (u > .78 && !h.hit) { h.hit = true; for (const pl of G.players) if (!pl.dead && Math.hypot(pl.x - h.x, pl.y - h.y) < 20) hitP(p, pl, 1.2, { stun: .5 }, h.x, h.y); shake(4, .15); sfx.boom(); burst(h.x, h.y, 10, '#ffb040', 70); } }
+      if (u > .78 && !h.hit) { h.hit = true; for (const pl of G.players) if (!pl.dead && Math.hypot(pl.x - h.x, pl.y - h.y) < 20) hitP(p, pl, 1.2, { stun: .5 }, h.x, h.y);
+        const d = Math.min(...G.players.filter(pl => !pl.dead).map(pl => Math.hypot(pl.x - h.x, pl.y - h.y)));   // 只有在鍛錘旁邊才震、才聽得到（以前不管在哪都會整個畫面震）
+        if (d < 80) shake(2.5, .12); if (d < 220) { sfx.boom(); burst(h.x, h.y, 10, '#ffb040', 70); } } }
   },
   draw(p, st, vis, list) {
     const r = st.r; if (!vis(r.x * TS, r.y * TS, r.rx * TS + 60)) return;
