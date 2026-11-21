@@ -1,8 +1,8 @@
 import { G } from '../core/state';
 import { $, clamp, pick, ri } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
-import { COIN_SP, DROP_WEAPONS, ICON_URL, MERCH_SP, RAR, SLOTN, armorStats, gearValue, itemName, makeArmor, makeSeal, makeTrinket, makeWeapon, slotOf } from '../data/items';
-import { ARMOR_BASIC, ARMOR_BUILD, ARMOR_REGION, TRINKET_KEYS } from '../data/gear';
+import { COIN_SP, DROP_WEAPONS, UP_MAX, ICON_URL, MERCH_SP, RAR, SLOTN, armorStats, gearValue, itemName, makeArmor, makeSeal, makeTrinket, makeWeapon, slotOf } from '../data/items';
+import { A_UP_MAX, ARMOR_BASIC, ARMOR_BUILD, ARMOR_REGION, TRINKET_KEYS } from '../data/gear';
 import { FX_KEYS } from '../game/weaponFx';
 import { MATS, ORE_URL, atkAt, canUpgrade, doUpgrade, maxUp, upCost } from '../data/forge';
 import type { MatKey } from '../data/forge';
@@ -57,7 +57,7 @@ export function drawMerchant() {
   drawShadow(m.x, m.y + 1, 14); drawArtSprite(MERCH_SP, m.x, m.y + 3 - bob);
   if (nearMerchant() || Math.floor(G.time * 1.5) % 3 === 0) { const sp = COIN_SP[Math.floor(G.time * 8) % 4]; ctx.drawImage(sp, snapF(m.x - sp.width * HK / 2), snapF(m.y - 24 + Math.sin(G.time * 4)), sp.width * HK, sp.height * HK); }
 }
-export function openShop(v?) { vendor = v || merchant; if (!vendor.stock) vendor.stock = rollSmith(vendor.lv); $('shopName').textContent = vendor.name || '流浪商人'; shopTab = 'buy'; shopSel = null; renderShop(); setMenu('shop'); }
+export function openShop(v?) { vendor = v || merchant; if (!vendor.stock) vendor.stock = rollSmith(vendor.lv); $('shopName').textContent = vendor.name || '流浪商人'; shopTab = vendor.smith ? 'forge' : 'buy'; shopSel = null; renderShop(); setMenu('shop'); }   // 鐵匠一打開就是「強化」（大多數人來找鐵匠就是要強化）
 function shopRow(icon, name, sub, price, col, key, dis) {
   return '<button type="button" class="shoprow' + (shopSel === key ? ' sel' : '') + '" data-s="' + key + '"' + (dis ? ' disabled' : '') + '><img alt="" src="' + ICON_URL[icon] + '"><span style="color:' + (col || 'var(--text)') + '">' + name + '<small>' + sub + '</small></span><b class="pr">' + price + '</b></button>';
 }
@@ -66,20 +66,45 @@ function oreShopRow(o: Stock, i: number) {
   const M = MATS[o.mat];
   return '<button type="button" class="shoprow' + (shopSel === i ? ' sel' : '') + '" data-s="' + i + '"' + (o.left ? '' : ' disabled') + '><img alt="" src="' + ORE_URL[o.mat] + '"><span style="color:' + M.c + '">' + M.n + '<small>' + M.d + ' · 剩 ' + o.left + ' 個 · 身上 ' + (G.me.mats[o.mat] || 0) + '</small></span><b class="pr">' + o.price + '</b></button>';
 }
-/* ---- 鐵匠的「強化」分頁：選一把武器 → 底部顯示要多少礦石和金幣 → 按強化 ---- */
+/* ---- 鐵匠的「強化」分頁：先選一件裝備（清單）→ 點進去才是詳細頁：左右對照「現在 / 強化後」+ 下面列素材、還缺多少 ---- */
 function forgeList() { return [G.me.weapon, G.me.armor, ...G.me.inv.filter(it => isW(it) || slotOf(it) === 'armor')].filter(Boolean); }
-const upInfo = (w: Item, up: number) => isW(w) ? '攻擊 ' + atkSplit(G.me, w, atkAt(w, up)).total + ' → ' + atkSplit(G.me, w, atkAt(w, up + 1)).total :   // 你拿起來的總攻擊（含能力值加成）
-   (() => { const a = armorStats({ ...w, up }), b = armorStats({ ...w, up: up + 1 }); return '防禦 ' + a.def + ' → ' + b.def + ' · 生命 ' + a.hp + ' → ' + b.hp; })();
+const COIN_URL = (() => { const c = COIN_SP[0], q = document.createElement('canvas'); q.width = q.height = 32; const g = q.getContext('2d');
+  g.imageSmoothingEnabled = false; g.drawImage(c, 4, 4, 24, 24); try { return q.toDataURL(); } catch (e) { return ''; } })();
+/** 某個強化等級的數值：武器 = 你拿起來的總攻擊（含能力值加成）+ 武器本身；防具 = 防禦、生命 */
+function gearStats(w: Item, up: number): [string, number][] {
+  if (isW(w)) { const base = atkAt(w, up); return [['攻擊力', atkSplit(G.me, w, base).total], ['武器本身', base]]; }
+  const a = armorStats({ ...w, up }); return [['防禦', a.def], ['生命', a.hp]];
+}
+let justUp = 0;                                                          // 剛強化完的那一件：左邊（現在的等級）的卡片閃一下
+function forgeSide(w: Item, up: number, prev?: [string, number][], cls = '') {
+  const st = gearStats(w, up);
+  return '<div class="fside' + cls + '"><div class="fico"><img alt="" src="' + ICON_URL[w.type] + '"><b>+' + up + '</b></div>' +
+    st.map(([n, v], i) => '<div class="fst"><span>' + n + '</span><b>' + v + (prev && v > prev[i][1] ? '<small>+' + (v - prev[i][1]) + '</small>' : '') + '</b></div>').join('') + '</div>';
+}
+function needRow(icon: string, name: string, col: string, have: number, need: number) {
+  const short = need - have;
+  return '<div class="fneed' + (short > 0 ? ' lack' : '') + '"><img alt="" src="' + icon + '"><span style="color:' + col + '">' + name + '<small>' + (short > 0 ? '還缺 ' + short : '足夠') + '</small></span><b>' + have + ' / ' + need + '</b></div>';
+}
 function renderForge(body: HTMLElement) {
   const list = forgeList(), sel = list.find(w => w.id === shopSel) || null;
-  const rows = list.map(w => { const c = upCost(w.up || 0, w), up = w.up || 0;
-    const sub = c ? upInfo(w, up) + ' · ' + MATS[c.mat].n + ' ×' + c.n + '（有 ' + (G.me.mats[c.mat] || 0) + '）' : '已經強化到最高';
-    return '<button type="button" class="shoprow' + (shopSel === w.id ? ' sel' : '') + '" data-fw="' + w.id + '"><img alt="" src="' + ICON_URL[w.type] + '"><span style="color:' + RAR[w.rarity].c + '">' + itemName(w) + (w === G.me.weapon || w === G.me.armor ? ' <small style="display:inline">（裝備中）</small>' : '') + '<small>' + sub + '</small></span><b class="pr">' + (c ? c.gold : '—') + '</b></button>'; });
-  body.innerHTML = '<div class="matline" style="margin:0 0 8px">' + matLine() + '</div><div class="shoplist">' + rows.join('') + '</div>' + (sel ? '<div style="margin-top:8px">' + itemCard(sel) + '</div>' : '') +
-    '<p class="hintp">武器每 +1 攻擊多 32%，最高 +10；防具每 +1 防禦和生命多 15%，最高 +5。素材是各地區的怪物掉的：狼牙（平原）、菌絲（森林）、骨片（荒地）、熔岩核、冰晶、腐沼珠，武器 +10 要 Boss 的魂核。</p>';
-  const c = sel && upCost(sel.up || 0, sel);
-  setFoot(sel ? (c ? '<button type="button" class="pri" data-forge="' + sel.id + '"' + (canUpgrade(G.me, sel) ? '' : ' disabled') + '>強化到 +' + ((sel.up || 0) + 1) + '（' + c.gold + ' 金幣）</button>' : '<button type="button" class="pri" disabled>已經 +' + maxUp(sel) + '</button>') : '',
-    sel && c ? MATS[c.mat].n + ' ' + (G.me.mats[c.mat] || 0) + '/' + c.n + ' · 金幣 ' + G.me.gold + '/' + c.gold : '');
+  if (!sel) {                                                            // 第一層：選裝備
+    shopSel = null;
+    const rows = list.map(w => { const c = upCost(w.up || 0, w), [[n, v]] = gearStats(w, w.up || 0), ok = c && canUpgrade(G.me, w);
+      return '<button type="button" class="shoprow" data-fw="' + w.id + '"><img alt="" src="' + ICON_URL[w.type] + '"><span style="color:' + RAR[w.rarity].c + '">' + itemName(w) + (w === G.me.weapon || w === G.me.armor ? ' <small style="display:inline">（裝備中）</small>' : '') +
+        '<small>' + n + ' ' + v + '</small></span><b class="pr' + (ok ? ' fok' : ' fno') + '">' + (!c ? '最高' : ok ? '可以強化' : '素材不足') + '</b></button>'; });
+    body.innerHTML = '<div class="matline" style="margin:0 0 8px">' + matLine() + '</div><div class="shoplist">' + (rows.join('') || '<div class="empty">沒有可以強化的裝備。</div>') + '</div>' +
+      '<p class="hintp">武器每 +1 攻擊多 32%，最高 +' + UP_MAX + '；防具每 +1 防禦和生命多 15%，最高 +' + A_UP_MAX + '。素材是各地區的怪物掉的。</p>';
+    setFoot('', ''); return;
+  }
+  const up = sel.up || 0, c = upCost(up, sel), flash = justUp === sel.id ? ' flash' : ''; justUp = 0;   // 第二層：這一件的強化頁
+  const head = '<div class="fhead"><button type="button" class="sbtn" data-fback>‹ 換一件</button><span style="color:' + RAR[sel.rarity].c + '">' + itemName(sel) + '</span></div>';
+  if (!c) { body.innerHTML = head + '<div class="fcmp one">' + forgeSide(sel, up, undefined, flash) + '</div><p class="fmax">已經強化到最高（+' + maxUp(sel) + '）</p>';
+    setFoot('<button type="button" class="pri" disabled>已經 +' + maxUp(sel) + '</button>', ''); return; }
+  const M = MATS[c.mat];
+  body.innerHTML = head + '<div class="fcmp">' + forgeSide(sel, up, undefined, ' now' + flash) + '<div class="farr">▶</div>' + forgeSide(sel, up + 1, gearStats(sel, up), ' next') + '</div>' +
+    '<div class="flbl">需要</div><div class="fneeds">' + needRow(ORE_URL[c.mat], M.n, M.c, G.me.mats[c.mat] || 0, c.n) + needRow(COIN_URL, '金幣', 'var(--gold)', G.me.gold, c.gold) + '</div>' +
+    '<p class="hintp">' + M.n + '：' + M.d.split(' · ')[0] + '會掉</p>';
+  setFoot('<button type="button" class="pri" data-forge="' + sel.id + '"' + (canUpgrade(G.me, sel) ? '' : ' disabled') + '>強化到 +' + (up + 1) + '</button>', '');
 }
 function renderShop() {
   $('shopGold').textContent = '金幣 ' + G.me.gold;
@@ -113,9 +138,10 @@ $('shopMenu').addEventListener('click', e => {
   if (t.dataset.stab) { shopTab = t.dataset.stab; shopSel = null; renderShop(); return; }
   if (t.dataset.s !== undefined) { shopSel = +t.dataset.s === shopSel ? null : +t.dataset.s; renderShop(); return; }
   if (t.dataset.sid) { shopSel = +t.dataset.sid === shopSel ? null : +t.dataset.sid; renderShop(); return; }
-  if (t.dataset.fw) { shopSel = +t.dataset.fw === shopSel ? null : +t.dataset.fw; renderShop(); return; }
+  if (t.dataset.fw) { shopSel = +t.dataset.fw; renderShop(); $('shopBody').scrollTop = 0; return; }
+  if (t.hasAttribute('data-fback')) { shopSel = null; renderShop(); return; }
   if (t.dataset.forge) { const w = forgeList().find(w => w.id === +t.dataset.forge); if (!w || !doUpgrade(G.me, w)) return;
-    if (w === G.me.weapon || w === G.me.armor) recalc(G.me); sfx.level(); toast('強化成功：' + itemName(w), '#f2c14e'); renderShop(); save(); return; }
+    if (w === G.me.weapon || w === G.me.armor) recalc(G.me); justUp = w.id; sfx.level(); toast('強化成功：' + itemName(w), '#f2c14e'); renderShop(); save(); return; }
   if (t.dataset.buy !== undefined) { const o = vendor.stock[+t.dataset.buy]; if (!o || G.me.gold < o.price) return; const price = o.price;   // 先記下價格：藥水上限買完會漲價，扣的要是買的那一刻的價格
     if (o.kind === 'pot') { if (G.me.pot >= G.potMax) return; G.me.pot++; }
     else if (o.kind === 'potUp') { if (!o.left || G.potMax >= 8) return; o.left--; G.potMax++; G.me.pot++; o.price = 250 * (G.potMax - 2); toast('藥水上限 +1（現在 ' + G.potMax + ' 瓶）', '#f2c14e'); }
