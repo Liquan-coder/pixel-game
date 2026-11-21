@@ -497,6 +497,28 @@ const pageScript = async () => {
     }
   });
 
+  run('Boss 招牌招：每隻都放得出自己的招，只有史萊姆女王會跳', () => {
+    setMenu(null); const was = new Set(RB.rbDead);
+    const SIG = { queen: 'jump', slagmother: 'boilWind', mushking: 'spiral', toxqueen: 'mineWind', yeti: 'ballWind', sandgiant: 'twisterWind',
+      dragon: 'sweep', frostwyrm: 'freezeWind', mistwitch: 'ringWind', mossguard: 'vine' };
+    const PROJ = { yeti: p => p.kind === 'snowball' && p.bounce >= 0, frostwyrm: p => !!p.pause, mistwitch: p => !!p.curve };
+    for (const [id, st] of Object.entries(SIG)) {
+      RB.rbDead.delete(id); RB.resetRegionBosses(); const b = RB.rbs.find(e => e.id === id); if (!b) throw new Error('找不到 ' + id);
+      G.projs = []; tp(b.def.x, b.def.y + 40); step(100, { god: true }); if (b.state === 'sleep') throw new Error(id + '：沒醒');
+      const seen = new Set(); let projOk = !PROJ[id], left = 4000;
+      while (left-- > 0 && !(seen.has(st) && projOk)) { G.me.iframe = 0; b.hp = b.maxHp; b.phase = left % 1200 < 600 ? 1 : 2;   // 滿血 → 不會觸發機制；一半時間在二階段
+        step(1, { god: true }); seen.add(b.state); if (!projOk && G.projs.some(PROJ[id])) projOk = true;
+        if (Math.hypot(G.me.x - b.def.x, G.me.y - b.def.y) > b.def.R - 20) tp(b.def.x, b.def.y + 40); }
+      if (!seen.has(st)) throw new Error(id + '：沒放出招牌招 ' + st + '，看到的狀態：' + [...seen].join(','));
+      if (!projOk) throw new Error(id + '：招牌招的子彈不對');
+      if (id !== 'queen' && seen.has('jump')) throw new Error(id + '：還會跳');
+      log.push('  ' + b.def.short + '：' + st);
+      G.projs = []; RB.rbDead.add(id); RB.resetRegionBosses(); step(2, { god: true });
+    }
+    RB.rbDead.clear(); for (const x of was) RB.rbDead.add(x); RB.resetRegionBosses();
+    menus.restAt(CAMPS[0]); setMenu(null); step(2, { god: true });
+  });
+
   run('地城前院：每個野外洞口都有雕像 / 旗子 / 符文石，雕像擋路', () => {
     const D = imp0.dg, M = await0.map;
     for (const d of D.DUNGEONS) { if (d.stairs) continue;
