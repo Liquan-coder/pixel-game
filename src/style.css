@@ -201,7 +201,7 @@ body:not(.touch) #controls{display:none}
 /* 角色面板：左 = 角色屬性（選了裝備 → 那件裝備的資料 + 按鈕），中 = 角色 + 裝備欄，右 = 背包。
    選了裝備時，資料和按鈕都在左欄、按鈕固定在底部 → 不用往下捲 */
 .panel.char{width:min(940px,calc(100% - 2 * var(--mx)));height:min(560px,calc(100% - 2 * var(--my)));padding:10px 12px 12px}
-.cwrap{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 190px minmax(0,1.2fr);gap:12px;align-items:stretch}   /* 背包欄比較寬：格子大一點 */
+.cwrap{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 190px minmax(0,1fr);gap:12px;align-items:stretch}
 .cwrap>section{min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch}
 .cinfo{display:flex;flex-direction:column}
 .cinfo .cscroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}
@@ -336,7 +336,7 @@ body:not(.touch) #controls{display:none}
 #rotate{position:absolute;inset:0;display:grid;place-items:center;background:var(--ink);font-size:18px;text-align:center;line-height:1.8;padding:24px}
 @media (prefers-reduced-motion:reduce){#actHint{animation:none}.toast,.toast.bump b{animation:none}}
 /* 手機橫放（矮螢幕）：角色縮小、裝備欄變小，整個角色面板一個畫面放得下 */
-@media (max-height:500px){.dollbox{width:120px;height:120px}#doll{width:104px;height:120px}.cwrap{grid-template-columns:minmax(0,1fr) 186px minmax(0,1.2fr);gap:10px}
+@media (max-height:500px){.dollbox{width:120px;height:120px}#doll{width:104px;height:120px}.cwrap{grid-template-columns:minmax(0,1fr) 186px minmax(0,1fr);gap:10px}
   .eqslot{min-height:58px}.eqslot img,.eqslot .ph0{width:30px;height:30px}.cdoll{gap:5px}.keystats b{font-size:16px}.keystats{margin-bottom:5px}}
 /* 互動提示：告訴你「攻擊鍵現在會做什麼」，直接點它也一樣 */
 #bAtk.act{color:var(--gold);border-color:#f2c14ecc;box-shadow:0 0 0 1px #100d1680,inset -2px -3px 0 #0004,0 0 10px #f2c14e55}   /* 靠近可以互動的東西：金邊 + 光暈 */
@@ -402,8 +402,7 @@ body:not(.touch) #controls{display:none}
 .cbox{background:#0004;border:2px solid var(--line);padding:6px 9px;margin-bottom:6px}
 .cbox .lbl{display:flex;justify-content:space-between;align-items:baseline;color:var(--text);letter-spacing:.1em}
 #attrList{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px}
-.cbag #bagGrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}   /* 一排 4 格（大格子），放不下就往下捲 */
-.cbag .bagtabs{position:sticky;top:0;z-index:1;background:var(--panel);padding-bottom:6px;margin-bottom:0}   /* 捲背包時分頁停在上面 */
+.cbag #bagGrid{grid-template-columns:repeat(5,minmax(0,1fr))}
 .matlist{grid-column:1/-1;display:grid;gap:4px}
 .matrow{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:8px;align-items:center;background:#0005;border:1px solid #4d416688;padding:2px 10px 2px 2px}
 .matrow img{width:28px;height:28px;image-rendering:pixelated}
