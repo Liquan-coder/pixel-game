@@ -87,7 +87,10 @@ export function objHit(o) {
 /* 每幀（world/regionBoss.ts 在跑 Boss 的 AI 之前呼叫）。回傳 true = 這一幀由機制接手，不跑原本的 AI */
 export function mechTick(e, dt: number): boolean {
   const M = mechOf(e); if (!M) return false;
-  if (e.mStun > 0) { e.mStun -= dt; e.state = 'idle'; e.tele = null; return true; }   // 破綻：站著不動
+  if (e.mStun > 0) { e.mStun -= dt; e.state = 'idle'; e.tele = null;   // 破綻：站著不動
+    if (e.z > 0) { e.z = Math.max(0, e.z - 420 * dt);   // 跳到一半被打破 → 先摔回地上（不然卡在空中打不到）
+      if (e.z === 0) { dust(e.x, e.y, 'dust', 20); quakeFx(e.x, e.y, 40); shake(4, .2); sfx.boom(); } }
+    return true; }
   if (!e.mech) { const i = e.mi || 0;
     if (i < AT.length && e.hp < e.maxHp * AT[i] && e.state === 'idle' && !(e.z > 8)) start(e, M); else return false; }   // z ≤ 8：巫妖、女妖一直飄著也算在地上
   const m = e.mech, d = e.def; m.t += dt;
