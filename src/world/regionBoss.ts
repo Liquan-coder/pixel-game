@@ -10,7 +10,7 @@ import { drawPools } from './bossAI2';
 import { flame } from './chunks';
 import { sfx } from '../core/audio';
 import { dropItem } from '../game/enemies';
-import { oreForLevel } from '../data/forge';
+import { PAGES, hasPage, oreForLevel, pageOfDungeon } from '../data/forge';
 import { dropGold, dropSouls, shake, dropMat, tagProjs } from '../game/worldUpdate';
 import { artDot, artPath, drawOrb } from '../render/fx';
 import { teleCircle, teleLane, teleRing, teleSector, warnMark } from '../render/enemy';
@@ -125,9 +125,11 @@ export function regionBossDie(e, by) {                                  // by = 
   for (let i = 0; i < 40; i++) G.parts.push({ x:e.x + rr(-12, 12), y:e.y - rr(0, 24), vx:rr(-15, 15), vy:-rr(40, 140), life:rr(.7, 1.4), max:1.4, col:pick(d.aura.concat(['#f2c14e', '#b49cff'])), star:rr(1, 3), drag:1 });
   dropSouls(e.x, e.y, d.souls, by);
   const it = d.reward(); dropItem(it, e.x, e.y); dropGold(e.x, e.y, d.gold);
-  dropMat(e.x, e.y, oreForLevel(d.lv), 3, by); if (d.star !== false) dropMat(e.x, e.y, 'ore4', 1, by);       // Boss 一定掉礦石；區域 Boss 和 20 級以上的地城 Boss 還有一顆強化 +10 用的隕星鐵
+  dropMat(e.x, e.y, oreForLevel(d.lv), 3, by); if (d.star !== false) dropMat(e.x, e.y, 'ore4', 1, by);       // Boss 一定掉素材；區域 Boss 和 20 級以上的地城 Boss 還有一顆強化 +10 用的隕星之心
   if (['queen', 'general', 'yeti'].includes(d.id)) { G.me.tears = (G.me.tears || 0) + 1; setTimeout(() => toast('得到「重生水滴」：在營火的升級畫面可以重新分配能力值', '#9ae8ff', true), 5000); }   // 這三隻各給一顆
+  const pg = d.dg ? pageOfDungeon(d.dg) : -1, newPage = pg >= 0 && !hasPage(pg);                  // 這個地區第一次打倒地城守護者 → 得到古代鍛造圖
   if (d.dg) flags.add('dgn:' + d.dg);                                                    // 地城 Boss：最深處的金箱解開封印、以後不再出現
+  if (newPage) setTimeout(() => { showBanner('得到古代鍛造圖・' + PAGES[pg].n, '鐵匠能把裝備鍛得更強了', 3000); sfx.epic(); }, 3600);
   sfx.win(); shake(8, .8); showBanner(d.dg ? '守護者倒下了' : '強敵已擊敗', '掉落：' + it.name + (d.dg ? ' · 最深處的寶箱解開了封印' : ''), 3200); save();
 }
 export function drawBarrier(e, faint?) {                                       // 結界：場地邊緣一圈會流動的虛線光（還沒開打時淡淡地顯示）

@@ -4,7 +4,7 @@ import { HK, ctx, snapF } from '../core/canvas';
 import { COIN_SP, DROP_WEAPONS, UP_MAX, ICON_URL, MERCH_SP, RAR, SLOTN, armorStats, gearValue, itemName, makeArmor, makeSeal, makeTrinket, makeWeapon, slotOf } from '../data/items';
 import { A_UP_MAX, ARMOR_BASIC, ARMOR_BUILD, ARMOR_REGION, TRINKET_KEYS } from '../data/gear';
 import { FX_KEYS } from '../game/weaponFx';
-import { MATS, ORE_URL, atkAt, canUpgrade, doUpgrade, maxUp, upCost } from '../data/forge';
+import { MATS, ORE_URL, PAGES, PAGE_URL, REGION_MAT, atkAt, canUpgrade, doUpgrade, hasPage, maxUp, upCost } from '../data/forge';
 import type { MatKey } from '../data/forge';
 import { recalc } from '../game/player';
 import { atkSplit } from '../data/attrs';
@@ -22,8 +22,9 @@ export let merchant = null, shopTab = 'buy', shopSel = null, vendor = null;   //
 const isW = it => slotOf(it) === 'weapon';
 const itemPrice = it => Math.round(6 * gearValue(it));
 const sellPrice = it => gearValue(it);                                  // 比分解換到的魂晶少一些
-type Stock = { kind: string; price: number; left?: number; item?: Item; mat?: MatKey; sold?: boolean };
-const oreRow = (mat: MatKey, price: number, left: number): Stock => ({ kind: 'ore', mat, price, left });
+type Stock = { kind: string; price: number; left?: number; item?: Item; mat?: MatKey; sold?: boolean; pg?: number };
+const oreRow = (mat: MatKey, price: number, left: number): Stock => ({ kind: 'ore', mat, price, left, pg: REGION_MAT.indexOf(mat) });   // pg = 要先打倒哪個地區的地城守護者才會賣
+const shown = (o: Stock) => o.kind !== 'ore' || hasPage(o.pg);         // 素材：探索過那個地區的地城才擺出來（貨先產生好，打完地城回來就看得到）
 function merchantSpot(c) { for (const [ox, oy] of [[42, 6], [-42, 6], [0, 42], [30, -30], [-30, -30]]) { const x = c.x + ox, y = c.y + oy; if (!collides(x, y, 7)) return [x, y]; } return [c.x + 20, c.y + 20]; }
 const REG_KEYS = ['plains', 'forest', 'wastes', 'lava', 'den', 'snow', 'swamp'];   // reg 編號 → 地區（跟 world/map.ts 的 REGIONS 同順序）
 function stockItem(it: Item, mul = 1): Stock { return { kind:'item', item:it, price:Math.round(itemPrice(it) * mul) }; }
@@ -31,7 +32,7 @@ function rollStock(c) {
   const R0 = reg[c.ty * MW + c.tx], deep = Math.min(4, [0, 1, 2, 3, 1, 4, 4][R0] ?? 0), rg = REG_KEYS[R0] || 'plains', st: Stock[] = [{ kind:'pot', price:25 }];
   if (G.potMax < 8) st.push({ kind:'potUp', price:250 * (G.potMax - 2), left:1 });
   st.push({ kind:'tear', price:1000, left:1 });                           // 重生水滴：每批一顆
-  st.push(oreRow('mat1', 80, 5)); if (deep >= 1) st.push(oreRow('mat2', 200, 3));                   // 流浪商人：少量前期素材（後面的要自己去打）
+  st.push(oreRow('mat1', 90, 4)); if (deep >= 1) st.push(oreRow('mat2', 220, 3));                   // 流浪商人：少量前期素材（後面的要自己去打）
   st.push(stockItem(makeWeapon(pick(DROP_WEAPONS))), stockItem(makeArmor(Math.random() < .2 ? pick(ARMOR_BUILD) : ARMOR_REGION[rg] && Math.random() < .6 ? ARMOR_REGION[rg] : pick(ARMOR_BASIC))));
   st.push(stockItem(makeTrinket(pick(TRINKET_KEYS))), stockItem(makeTrinket(pick(TRINKET_KEYS))));
   if (Math.random() < .5) st.push(stockItem(makeSeal(pick(FX_KEYS)), 1.5));
@@ -40,8 +41,8 @@ function rollStock(c) {
 export function placeMerchant(id, stock?) { const c = CAMPS.find(c => c.id === id) || CAMPS[0], [x, y] = merchantSpot(c); merchant = { camp:c.id, x, y, stock: stock || rollStock(c) }; }
 /* 鐵匠：只賣武器和防具，貨比較好（稀有以上），每次休息換一批 */
 export function rollSmith(lv) {
-  const st: Stock[] = [{ kind:'pot', price:25 }, oreRow('mat1', 70, 12)];                            // 鐵匠：前期素材比較便宜、比較多
-  if (lv >= 25) st.push(oreRow('mat2', 180, 6)); if (lv >= 50) st.push(oreRow('mat3', 420, 3));
+  const st: Stock[] = [{ kind:'pot', price:25 }];                     // 鐵匠的素材：打倒那個地區的地城守護者之後才賣，數量有限、休息才補
+  ([[70, 8], [180, 6], [420, 5], [700, 4], [1000, 3], [1400, 3]] as const).forEach(([pr, n], i) => st.push(oreRow(REGION_MAT[i], pr, n)));
   for (let i = 0; i < 3; i++) st.push(stockItem(makeWeapon(pick(DROP_WEAPONS), 0, Math.random() < .2 ? pick(FX_KEYS) : undefined), 1.1));
   for (const k of ARMOR_BASIC) st.push(stockItem(makeArmor(k), 1.1));
   if (lv >= 50) st.push(stockItem(makeArmor(lv >= 62 ? 'fur' : 'ember'), 1.1));
@@ -85,15 +86,19 @@ function needRow(icon: string, name: string, col: string, have: number, need: nu
   const short = need - have;
   return '<div class="fneed' + (short > 0 ? ' lack' : '') + '"><img alt="" src="' + icon + '"><span style="color:' + col + '">' + name + '<small>' + (short > 0 ? '還缺 ' + short : '足夠') + '</small></span><b>' + have + ' / ' + need + '</b></div>';
 }
+function pageRow(i: number) {                                          // 鍛造圖：有 / 沒有（不說在哪裡，要自己去地城找）
+  const ok = hasPage(i);
+  return '<div class="fneed' + (ok ? '' : ' lack') + '"><img alt="" src="' + PAGE_URL + '"><span style="color:#e8d8b0">古代鍛造圖・' + PAGES[i].n + '<small>' + (ok ? '已經找到' : '還沒找到 · 據說藏在地城的深處') + '</small></span><b>' + (ok ? '✓' : '✕') + '</b></div>';
+}
 function renderForge(body: HTMLElement) {
   const list = forgeList(), sel = list.find(w => w.id === shopSel) || null;
   if (!sel) {                                                            // 第一層：選裝備
     shopSel = null;
-    const rows = list.map(w => { const c = upCost(w.up || 0, w), [[n, v]] = gearStats(w, w.up || 0), ok = c && canUpgrade(G.me, w);
+    const rows = list.map(w => { const c = upCost(w.up || 0, w), [[n, v]] = gearStats(w, w.up || 0), ok = c && canUpgrade(G.me, w), locked = c && c.page >= 0 && !hasPage(c.page);
       return '<button type="button" class="shoprow" data-fw="' + w.id + '"><img alt="" src="' + ICON_URL[w.type] + '"><span style="color:' + RAR[w.rarity].c + '">' + itemName(w) + (w === G.me.weapon || w === G.me.armor ? ' <small style="display:inline">（裝備中）</small>' : '') +
-        '<small>' + n + ' ' + v + '</small></span><b class="pr' + (ok ? ' fok' : ' fno') + '">' + (!c ? '最高' : ok ? '可以強化' : '素材不足') + '</b></button>'; });
+        '<small>' + n + ' ' + v + '</small></span><b class="pr' + (ok ? ' fok' : ' fno') + '">' + (!c ? '最高' : ok ? '可以強化' : locked ? '需要鍛造圖' : '素材不足') + '</b></button>'; });
     body.innerHTML = '<div class="matline" style="margin:0 0 8px">' + matLine() + '</div><div class="shoplist">' + (rows.join('') || '<div class="empty">沒有可以強化的裝備。</div>') + '</div>' +
-      '<p class="hintp">武器每 +1 攻擊多 32%，最高 +' + UP_MAX + '；防具每 +1 防禦和生命多 15%，最高 +' + A_UP_MAX + '。素材是各地區的怪物掉的。</p>';
+      '<p class="hintp">武器每 +1 攻擊多 32%，最高 +' + UP_MAX + '；防具每 +1 防禦和生命多 15%，最高 +' + A_UP_MAX + '。素材是各地區的怪物掉的；更高的強化要先找到古代的鍛造圖。</p>';
     setFoot('', ''); return;
   }
   const up = sel.up || 0, c = upCost(up, sel), flash = justUp === sel.id ? ' flash' : ''; justUp = 0;   // 第二層：這一件的強化頁
@@ -102,7 +107,7 @@ function renderForge(body: HTMLElement) {
     setFoot('<button type="button" class="pri" disabled>已經 +' + maxUp(sel) + '</button>', ''); return; }
   const M = MATS[c.mat];
   body.innerHTML = head + '<div class="fcmp">' + forgeSide(sel, up, undefined, ' now' + flash) + '<div class="farr">▶</div>' + forgeSide(sel, up + 1, gearStats(sel, up), ' next') + '</div>' +
-    '<div class="flbl">需要</div><div class="fneeds">' + needRow(ORE_URL[c.mat], M.n, M.c, G.me.mats[c.mat] || 0, c.n) + needRow(COIN_URL, '金幣', 'var(--gold)', G.me.gold, c.gold) + '</div>' +
+    '<div class="flbl">需要</div><div class="fneeds">' + (c.page >= 0 ? pageRow(c.page) : '') + needRow(ORE_URL[c.mat], M.n, M.c, G.me.mats[c.mat] || 0, c.n) + needRow(COIN_URL, '金幣', 'var(--gold)', G.me.gold, c.gold) + '</div>' +
     '<p class="hintp">' + M.n + '：' + M.d.split(' · ')[0] + '會掉</p>';
   setFoot('<button type="button" class="pri" data-forge="' + sel.id + '"' + (canUpgrade(G.me, sel) ? '' : ' disabled') + '>強化到 +' + (up + 1) + '</button>', '');
 }
@@ -113,12 +118,12 @@ function renderShop() {
   for (const b of document.querySelectorAll<HTMLElement>('#shopMenu .tabs button')) b.classList.toggle('on', b.dataset.stab === shopTab);
   const body = $('shopBody');
   if (shopTab === 'buy') {
-    const rows = vendor.stock.map((o, i) => o.kind === 'pot' ? shopRow('potion', '藥水', '補 1 瓶（目前 ' + G.me.pot + '/' + G.potMax + '）', o.price, null, i, G.me.pot >= G.potMax)
+    const rows = vendor.stock.map((o, i) => !shown(o) ? '' : o.kind === 'pot' ? shopRow('potion', '藥水', '補 1 瓶（目前 ' + G.me.pot + '/' + G.potMax + '）', o.price, null, i, G.me.pot >= G.potMax)
       : o.kind === 'potUp' ? shopRow('potUp', '藥水上限 +1', '剩 ' + o.left + ' 個 · 永久增加', o.price, '#f2c14e', i, !o.left || G.potMax >= 8)
       : o.kind === 'tear' ? shopRow('tear', '重生水滴', '剩 ' + o.left + ' 個 · 在營火重新分配能力值', o.price, '#9ae8ff', i, !o.left)
       : o.kind === 'ore' ? oreShopRow(o, i)
       : shopRow(o.item.type, itemName(o.item), SLOTN[slotOf(o.item)] + (o.item.fx && isW(o.item) ? ' · 帶刻印' : ''), o.sold ? '售出' : o.price, RAR[o.item.rarity].c, i, o.sold));
-    const o = vendor.stock[shopSel];
+    const o = vendor.stock[shopSel] && shown(vendor.stock[shopSel]) ? vendor.stock[shopSel] : null;
     let det = '', act = '';                                             // det = 商品卡（在捲動區裡），act = 買下按鈕（固定在底部）
     if (o && o.kind === 'item' && !o.sold) { det = itemCard(o.item, slotOf(o.item) === 'trinket' || slotOf(o.item) === 'seal' ? null : G.me[slotOf(o.item)]); act = '<button type="button" class="pri" data-buy="' + shopSel + '"' + (G.me.gold < o.price || G.me.inv.length >= 24 ? ' disabled' : '') + '>買下（' + o.price + ' 金幣）</button>'; }
     else if (o && o.kind !== 'item') act = '<button type="button" class="pri" data-buy="' + shopSel + '"' + (G.me.gold < o.price ? ' disabled' : '') + '>買下（' + o.price + ' 金幣）</button>';

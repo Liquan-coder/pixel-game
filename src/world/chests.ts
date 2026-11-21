@@ -79,7 +79,7 @@ function giveLoot(c: Chest, pl: Player) {
   const lv = c.lv, t = tier(lv), T = c.tier;
   dropGold(c.x, c.y, Math.round([20 + t * 4, 40 + t * 8, 80 + t * 15][T] * rr(.85, 1.15)));
   dropSouls(c.x, c.y, Math.round([t * 5, t * 10, t * 20][T]), pl);
-  dropMat(c.x, c.y, oreForLevel(lv), 2 + T, pl); if (T === 2) dropMat(c.x, c.y, oreForLevel(lv + 25), 1, pl);   // 黃金寶箱多一顆下一級的礦石
+  dropMat(c.x, c.y, oreForLevel(lv), 2 + T, pl); if (T === 2) dropMat(c.x, c.y, oreForLevel(lv + 12), 1, pl);   // 黃金寶箱多一顆下一級的素材（一個地區差不多 12 級 = tier +5）
   if (c.uq) { const it = makeUnique(c.uq); dropItem(it, c.x, c.y); showBanner('獲得傳說武器', it.name, 2600); sfx.epic(); return; }   // 地城最深處：固定的獨特武器
   const q = Math.random();
   if (T === 0) { if (q < .65) dropItem(randomLoot(lv, q < .2 ? 2 : 1), c.x, c.y); }

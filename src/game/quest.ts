@@ -14,11 +14,13 @@ import { drawArtSprite } from '../world/chunks';
 import { drawShadow } from '../render/player';
 import { setMenu, showBanner, toast } from '../ui/hud';
 import { sfx } from '../core/audio';
+import { forgeFlags } from '../data/forge';
 import { save } from './save';
 import { fragCount, fragsHeld, updateStatues, ZONE_NAME } from '../world/statues';
 
 export const flags = new Set<string>(), loreRead = new Set<string>();
-dungeonHooks.cleared = d => flags.has('dgn:' + d.id);                   // 地城 Boss 倒下 → 大廳的傳送門打開
+dungeonHooks.cleared = d => flags.has('dgn:' + d.id);
+forgeFlags.has = f => flags.has(f);                                 // 鍛造圖看地城有沒有打過（data/forge.ts）                   // 地城 Boss 倒下 → 大廳的傳送門打開
 const qc: QuestCtx = { boss: id => rbDead.has(id), get wolf() { return G.bossDead; }, lit: id => !!CAMPS.find(c => c.id === id)?.lit, found: s => discovered.has(s), flag: f => flags.has(f), read: t => loreRead.has(t) };
 export const cores = () => CORES.filter(c => c.done(qc)).length, CORE_N = CORES.length;
 export const rumorsKnown = () => RUMORS.filter(r => flags.has('rumor:' + r.id));
