@@ -39,8 +39,11 @@ export function updateHUD() {
   const zn = (!G.paused && G.started) ? nearZone() : null, zk = zn ? zn.id : '';      // 靠近 boss 場地時的提示（不寫等級、不說你打不打得過）
   if (hudCache.zone !== zk) { hudCache.zone = zk; $('zoneHint').hidden = !zn;
     if (zn) $('zoneHint').innerHTML = zn.short + '的領域' + '<small>再往前走就會開打，打贏之前離不開結界</small>'; }
-  if (G.B && !G.bossDead && G.B.state !== 'sleep') setScale('bossHp', G.B.hp / G.B.maxHp);
-  const frb = fightingRB(); if (frb) setScale('bossHp', frb.hp / frb.maxHp);
+  // Boss 血條：只有「正在打」的時候才顯示（打死、玩家死掉重生、離開 → 自動收起來）
+  const wolf = G.B && !G.bossDead && G.B.state !== 'sleep' ? G.B : null, frb = fightingRB(), fb = wolf || frb;
+  const bk = fb ? (frb ? frb.def.name : '狼王・灰鬃') : '';
+  if (hudCache.boss !== bk) { hudCache.boss = bk; $('bossBar').hidden = !fb; if (fb) $('bossBar').querySelector('.bname').textContent = bk; }
+  if (fb) setScale('bossHp', fb.hp / fb.maxHp);
 }
 /* ---- 畫面上方的播報：最多疊 5 行，每行 2 秒後消失；金幣、魂晶短時間內連續撿到會合併成一行一直往上加 ---- */
 const TOAST_MAX = 5, TOAST_MS = 2000;

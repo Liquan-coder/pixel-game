@@ -1,5 +1,5 @@
 import { clamp } from '../core/util';
-import { ARENA, BIGT, CAMPS, CRATE, GRAVE, MH, MW, PILLAR, ROCK, TREE, TS, reg } from '../world/map';
+import { ARENA, BIGT, CAMPS, CLIFF, CRATE, GRAVE, HOUSE, MH, MW, PILLAR, ROCK, RWALL, TREE, TS, reg } from '../world/map';
 import { solidT, tileAt } from '../world/gen';
 
 /* ================= COLLISION ================= */
@@ -48,3 +48,12 @@ export function stepToward(e, tx, ty, spd, dt) {
 export const inArena = (x, y) => x > (ARENA.x0 + 1) * TS && x < ARENA.x1 * TS && y > (ARENA.y0 + 1) * TS && y < ARENA.y1 * TS - 4;
 export const regAt = (x, y) => reg[clamp(y / TS | 0, 0, MH - 1) * MW + clamp(x / TS | 0, 0, MW - 1)];
 
+
+/* 看不看得到：兩點之間有沒有隔著牆（懸崖、石牆、房子）。樹、石頭、柱子擋路但不擋視線。
+   每 6px 檢查一格 → 例：距離 120px 只要看 20 格 */
+const WALLT = new Set([CLIFF, RWALL, HOUSE]);
+export function canSee(ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay, n = Math.ceil(Math.hypot(dx, dy) / 6);
+  for (let i = 1; i < n; i++) { const t = tileAt(Math.floor((ax + dx * i / n) / TS), Math.floor((ay + dy * i / n) / TS)); if (WALLT.has(t)) return false; }
+  return true;
+}

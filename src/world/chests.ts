@@ -61,7 +61,8 @@ export function genChests(reach: Uint8Array) {
     }
   }
 }
-export const nearChest = (pl: Player) => { if (pl.dead) return null; for (const c of CHESTS) if (!c.opened && !c.foe && Math.abs(c.x - pl.x) < 22 && Math.hypot(c.x - pl.x, c.y - pl.y) < 22) return c; return null; };
+export const sealed = (c: Chest) => !!c.need && !flags.has(c.need);   // 地城最深處的金箱：守護者還活著 → 封著，靠近也不會變成「打開」
+export const nearChest = (pl: Player) => { if (pl.dead) return null; for (const c of CHESTS) if (!c.opened && !c.foe && !sealed(c) && Math.abs(c.x - pl.x) < 22 && Math.hypot(c.x - pl.x, c.y - pl.y) < 22) return c; return null; };
 export function openChest(pl: Player, c: Chest) {
   if (c.opened || c.foe) return;
   if (c.need && !flags.has(c.need)) { toast('寶箱被一股力量封住了……先打倒這裡的守護者', '#c8a8ff'); return; }
@@ -128,6 +129,15 @@ function drawGround(c: Chest, col: string, r: number) {                  // 箱�
   ctx.globalAlpha = .18 + .06 * Math.sin(G.time * 3 + c.tx); ctx.fillStyle = col;
   ctx.beginPath(); ctx.ellipse(snapF(c.x), snapF(c.y + 1), r, r * .35, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
 }
+function drawSealed(c: Chest) {                                           // 封住的金箱：暗暗的、沒有光柱；一圈紫色封印繞著它轉，偶爾飄出紫色光點
+  drawShadow(c.x, c.y + 1, 14); ctx.globalAlpha = .55; drawArtSprite(ART[c.tier][0], c.x, c.y + 3); ctx.globalAlpha = 1;
+  const t = G.time, cy = c.y - 6;
+  for (let k = 0; k < 10; k++) { const a = t * .9 + k * TAU10, x = c.x + Math.cos(a) * 15, y = cy + Math.sin(a) * 6;
+    ctx.globalAlpha = .55 + .35 * Math.sin(t * 3 + k); ctx.fillStyle = k % 2 ? '#c8a8ff' : '#8a5ad8'; ctx.fillRect(snapF(x - HK), snapF(y - HK), HK * 2, HK * 2); }
+  ctx.globalAlpha = 1;
+  if (Math.random() < .12) G.parts.push({ x: c.x + rr(-10, 10), y: c.y - rr(0, 8), vx: rr(-3, 3), vy: -rr(8, 18), life: rr(.6, 1), max: 1, col: pick(['#8a5ad8', '#c8a8ff']), star: rr(.5, 1), drag: 1 });
+}
+const TAU10 = Math.PI * 2 / 10;
 const VANISH = .7, GONE = 1.2;                                           // 打開後 0.7 秒開始化成光點，1.2 秒完全消失
 export function drawChests(L, vis, addLight, list) {
   for (const c of CHESTS) {
@@ -137,7 +147,8 @@ export function drawChests(L, vis, addLight, list) {
       const cols = GLOW[c.tier] || ['#c8a070', '#ffe38a', '#fff6d0'];
       for (let i = 0; i < 22 + c.tier * 8; i++) G.parts.push({ x: c.x + rr(-7, 7), y: c.y - rr(0, 10), vx: rr(-20, 20), vy: -rr(20, 60), life: rr(.5, 1), max: 1, col: pick(cols), star: rr(.6, 1.8), drag: 2 });
       G.fx.push({ k: 'warp', x: c.x, y: c.y - 4, r0: 4, r1: 22, th: 2, delay: 0, t: 0, d: .35, col: cols[1] }); }
-    const T = c.tier, closed = !c.opened;
+    const T = c.tier, closed = !c.opened, seal = closed && sealed(c);
+    if (seal) { list.push({ y: c.y, f: () => drawSealed(c) }); addLight(L, c.x, c.y - 6, 22, 3); continue; }
     if (closed && T === 2) list.push({ y: c.y - 30, f: () => drawBeam(c) });
     list.push({ y: c.y, f: () => {
       const fade = c.opened && c.t > VANISH ? 1 - (c.t - VANISH) / (GONE - VANISH) : 1;

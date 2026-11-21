@@ -78,14 +78,15 @@ function drawFog(ex: number, ey: number, crypt: boolean, seed: number) {
 
 export function drawDoors(vis, list, L, addLight) {
   for (const d of DUNGEONS) {
-    const ex = d.ent[0] * TS + 8, ey = (d.ent[1] + 1) * TS - 1;
-    if (d.stairs) { const sx = ex, sy = d.ent[1] * TS + 8; if (vis(sx, sy, 60)) { addLight(L, sx, sy, 28 + Math.sin(G.time * 3) * 2, 5);   // 地底遺跡的石階：格子已經畫好了，加白光 + 往上飄的白色光點
+    const ex = d.ent[0] * TS + 8, ey = (d.ent[1] + 1) * TS - 1, done = dungeonHooks.cleared(d);   // 打完了：洞口變回普通的洞口（沒有白霧、白光、白色光點），一看就知道「這裡來過了」
+    if (d.stairs && done) { /* 石階本身畫在地圖格子上，什麼都不加 */ }
+    else if (d.stairs) { const sx = ex, sy = d.ent[1] * TS + 8; if (vis(sx, sy, 60)) { addLight(L, sx, sy, 28 + Math.sin(G.time * 3) * 2, 5);   // 地底遺跡的石階：格子已經畫好了，加白光 + 往上飄的白色光點
       list.push({ y: sy + 8, f: () => { ctx.globalAlpha = .22 + .08 * Math.sin(G.time * 2); ctx.fillStyle = '#ffffff'; ctx.fillRect(snapF(sx - 7), snapF(sy - 8), 14, 16); ctx.globalAlpha = 1;
         if (Math.random() < .5) G.parts.push({ x: sx + rr(-7, 7), y: sy + rr(-6, 8), vx: rr(-4, 4), vy: -rr(8, 24), life: rr(.8, 1.5), max: 1.5, col: pick(['#ffffff', '#e8eeff']), star: rr(.4, 1.2), drag: 1 }); } }); } }
     else if (vis(ex, ey, 60) || vis(ex, ey - 70, 40)) {
       const crypt = d.style === 'crypt', sp = crypt ? CRYPT_SP : CAVE_SP, top = crypt ? OBELISK : CRAG[regAtT(d.ent[0], d.ent[1])] || CRAG[0];
       list.push({ y: ey - 40, f: () => drawArtSprite(top, ex + (crypt ? 0 : 10), ey - 40) });                 // 岩丘上的尖岩 / 方尖碑（排在洞口後面）
-      list.push({ y: ey - 2, f: () => { drawArtSprite(sp, ex, ey); drawFog(ex, ey, crypt, d.ent[0] * .13); } });
+      list.push({ y: ey - 2, f: () => { drawArtSprite(sp, ex, ey); if (!done) drawFog(ex, ey, crypt, d.ent[0] * .13); } });
       for (const s of [-1, 1]) { const tx = ex + s * 30, ty = ey + 22;                               // 洞口兩邊的火把
         list.push({ y: ty, f: () => { drawArtSprite(TORCH_POST, tx, ty); flame(tx, ty - 12, 4, d.ent[0] + s); } }); addLight(L, tx, ty - 14, 46 + Math.sin(G.time * 9 + s) * 2, 1); }
       list.push({ y: ey + 1, f: () => {                                                               // 從洞口飄出來的霧（一團一團，慢慢往外散開、變淡）
@@ -98,7 +99,7 @@ export function drawDoors(vis, list, L, addLight) {
           ctx.fillStyle = '#16121c'; ctx.fillRect(snapF(x - 1), snapF(y - 1), 2, 2);
           if (f) { ctx.fillRect(snapF(x - 4), snapF(y - 2), 3, 1); ctx.fillRect(snapF(x + 1), snapF(y - 2), 3, 1); } else { ctx.fillRect(snapF(x - 4), snapF(y), 3, 1); ctx.fillRect(snapF(x + 1), snapF(y), 3, 1); } }
       } });
-      addLight(L, ex, ey - 8, (crypt ? 34 : 30) + Math.sin(G.time * 3) * 2, 5); }                      // 洞口的白光（霧門）
+      if (!done) addLight(L, ex, ey - 8, (crypt ? 34 : 30) + Math.sin(G.time * 3) * 2, 5); }                      // 洞口的白光（霧門）
     if (d.exX !== undefined && vis(d.exX, d.exY, 60)) { const px = d.exX, py = d.exY + 4;            // 出口：一圈傳送門
       list.push({ y: py - 6, f: () => drawPortal(px, py) }); addLight(L, px, py - 14, 46 + Math.sin(G.time * 3) * 3, 2); }
     if (d.portal && vis(d.portal[0], d.portal[1], 60) && dungeonHooks.cleared(d)) { const [px, py] = d.portal;   // Boss 倒下 → 大廳中央打開一圈傳送門

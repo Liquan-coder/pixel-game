@@ -52,7 +52,8 @@ const pageScript = async () => {
   const { renderMini, renderBigMap } = await imp('render/map');
   const { updateHUD, setMenu } = await imp('ui/hud');
   const { ARENA, CAMPS, TS } = await imp('world/map');
-  const RB = await imp('world/regionBoss');   // 用命名空間讀，才會拿到最新的 rbs
+  const RB = await imp('world/regionBoss');
+  const { canSee } = await imp('game/collision');   // 用命名空間讀，才會拿到最新的 rbs
   const { damageEnemy, hurtPlayer } = await imp('game/combat');
   const { serialize, applySave, save, loadSave } = await imp('game/save');
   const { startGame } = await imp('main');
@@ -318,12 +319,15 @@ const pageScript = async () => {
       Q.flags.delete('dgn:' + d.id); RB.rbDead.delete('dg_' + d.id); RB.resetRegionBosses();          // 前面的「區域 Boss」測試已經打倒過 → 先讓它復活
       const chest = CH.CHESTS.find(c => c.id === 'd_' + d.id); if (!chest) throw new Error(d.id + '：找不到最深處的寶箱');
       chest.opened = false; tp(chest.x, chest.y + 6); step(14); CH.openChest(G.me, chest); if (chest.opened) throw new Error(d.id + '：Boss 還在，寶箱卻打開了');
+      if (CH.nearChest(G.me) === chest) throw new Error(d.id + '：Boss 還在，封住的寶箱卻能互動（攻擊鍵會變「打開」）');
       tp(d.portal[0], d.portal[1]); step(1); if (D.nearDoor(G.me)?.portal) throw new Error(d.id + '：Boss 還在，大廳的傳送門卻已經能用');
       const boss = RB.rbs.find(e => e.id === 'dg_' + d.id); if (!boss) throw new Error(d.id + '：找不到地城 Boss');
       tp(boss.def.x, boss.def.y + 30); step(120, { god: true }); if (boss.state === 'sleep') throw new Error(d.id + '：Boss 沒有醒來');
+      if (document.getElementById('bossBar').hidden) throw new Error(d.id + '：開打了卻沒有血條');
       boss.hp = boss.maxHp * .45; step(240, { god: true, atkEvery: 15 });
       const k0 = G.drops.length; if (!boss.dead) { boss.hp = 1; damageEnemy(G.me, boss, 5, G.me.x, G.me.y); step(5, { god: true }); }
       if (!boss.dead) throw new Error(d.id + '：Boss 沒死');
+      step(1, { god: true }); if (!document.getElementById('bossBar').hidden) throw new Error(d.id + '：Boss 死了血條還在');
       if (!Q.flags.has('dgn:' + d.id)) throw new Error(d.id + '：打倒 Boss 沒有記錄');
       const sig = G.drops.slice(k0).find(x => x.item.ug === d.sig); if (!sig) throw new Error(d.id + '：Boss 沒掉招牌裝備 ' + d.sig);
       const n0 = G.drops.length; tp(chest.x, chest.y + 6); CH.openChest(G.me, chest); step(3);
@@ -364,6 +368,32 @@ const pageScript = async () => {
     if (G.lastCamp !== 'west' || !W.lit || !S0.lit) throw new Error('營火沒有換算：' + G.lastCamp + ' west=' + W.lit + ' start=' + S0.lit);
     if (W.tx !== 30 || W.ty !== 165 + 216) throw new Error('西丘營火位置不對');
     save(); applySave(loadSave()); step(5);
+  });
+
+  run('打 Boss 打到一半死掉 → 血條收起來、Boss 回去睡、攻擊鍵可以互動', () => {
+    setMenu(null); RB.rbDead.delete('queen'); RB.resetRegionBosses(); const q = () => RB.rbs.find(e => e.id === 'queen');
+    tp(q().def.x, q().def.y + 30); step(120); if (q().state === 'sleep') throw new Error('Boss 沒有醒來');
+    if (document.getElementById('bossBar').hidden) throw new Error('開打了卻沒有血條');
+    G.me.iframe = 0; G.me.hp = 1; hurtPlayer(G.me, 9999, G.me.x + 5, G.me.y); step(400);
+    if (G.me.dead) throw new Error('沒有重生');
+    if (!document.getElementById('bossBar').hidden) throw new Error('死掉重生後 Boss 血條還在');
+    if (q().state !== 'sleep' || q().hp !== q().maxHp) throw new Error('死掉重生後 Boss 沒有重置：' + q().state);
+  });
+
+  run('仇恨：隔著牆的怪不會追你，也不會擋住互動', () => {
+    const E = await0.enemies, M = await0.map, D = imp0.dg, d = D.DUNGEONS[0];
+    tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2);
+    const px = G.me.x, py = G.me.y; let wall = null;                     // 找一個離玩家 50~100px、中間隔著牆的位置
+    for (let r = 50; r <= 190 && !wall; r += 6) for (let a = 0; a < 6.28 && !wall; a += .2) { const x = px + Math.cos(a) * r, y = py + Math.sin(a) * r, i = Math.floor(y / 16) * M.MW + Math.floor(x / 16);
+      const open = [-1, 0, 1].every(oy => [-1, 0, 1].every(ox => M.WALKABLE(M.map[i + oy * M.MW + ox])));   // 周圍一圈都是地板：怪不會被牆推到看得到的地方
+      if (open && !canSee(Math.floor(x / 16) * 16 + 8, Math.floor(y / 16) * 16 + 2, px, py - 6)) wall = [Math.floor(x / 16) * 16 + 8, Math.floor(y / 16) * 16 + 8]; }
+    if (!wall) throw new Error('找不到隔著牆的位置');
+    const e = E.makeEnemy('wolf', 1, wall[0], wall[1], { alive: true, timer: 0 }); e.aggro = 200; G.enemies = [e]; step(10, { god: true });
+    if (e.state !== 'idle') throw new Error('隔著牆的怪看到你了：' + e.state + ' e=' + Math.round(e.x - G.me.x) + ',' + Math.round(e.y - G.me.y) + ' start=' + Math.round(wall[0] - px) + ',' + Math.round(wall[1] - py) + ' see=' + canSee(e.x, e.y - 6, G.me.x, G.me.y - 6) + ' me=' + Math.round(G.me.x - px) + ',' + Math.round(G.me.y - py) + ' dead=' + G.me.dead);
+    e.state = 'chase'; step(150, { god: true });
+    if (e.state === 'chase' && !canSee(e.x, e.y - 6, G.me.x, G.me.y - 6)) throw new Error('看不到你還一直追');
+    G.enemies = [];
+    tp(d.exX, d.exY); step(1); imp0.input.enterDoor(); step(2);
   });
 
   run('死亡 → 重生', () => {

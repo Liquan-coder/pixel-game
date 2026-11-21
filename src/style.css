@@ -304,8 +304,8 @@ body:not(.touch) #controls{display:none}
 /* 手機橫放（矮螢幕）：角色縮小、裝備欄變小，整個角色面板一個畫面放得下 */
 @media (max-height:500px){.dollbox{width:120px;height:120px}#doll{width:104px;height:120px}.cwrap{grid-template-columns:minmax(0,1fr) 186px minmax(0,1fr);gap:10px}
   .eqslot{min-height:58px}.eqslot img,.eqslot .ph0{width:30px;height:30px}.cdoll{gap:5px}.keystats b{font-size:16px}.keystats{margin-bottom:5px}}
-/* 互動提示只是告訴你「攻擊鍵現在會做什麼」，本身不能點 */
-#restBtn,#shopBtn,#chestBtn,#readBtn,#doorBtn,#pickBtn{pointer-events:none}
+/* 互動提示：告訴你「攻擊鍵現在會做什麼」，直接點它也一樣 */
+#restBtn,#shopBtn,#chestBtn,#readBtn,#doorBtn,#pickBtn{pointer-events:auto;cursor:pointer;touch-action:manipulation}
 #restBtn small,#shopBtn small{font-size:11px;opacity:.7;margin-left:4px}
 .touch #restBtn small,.touch #shopBtn small{display:none}
 #bAtk.act{border-color:var(--gold);background:#5a4020dd;color:var(--gold);font-size:16px;box-shadow:inset -3px -4px 0 #0006,0 0 0 2px #100d16aa,0 0 16px #f2c14e88}

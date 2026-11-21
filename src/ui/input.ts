@@ -41,6 +41,9 @@ function bindBtn(id, key) {
   el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
   el.addEventListener('contextmenu', e => e.preventDefault());
 }
+// 畫面下方的互動提示（撿起 / 進入 / 打開…）：點下去 = 按攻擊鍵互動
+for (const id of ['pickBtn', 'chestBtn', 'readBtn', 'doorBtn', 'shopBtn', 'restBtn']) $(id).addEventListener('pointerdown', e => {
+  e.preventDefault(); e.stopPropagation(); initAudio(); if (openMenu) return; const it = interactTarget(); if (it) it.run(); });
 bindBtn('bAtk', 'atk'); bindBtn('bSkill', 'skill'); bindBtn('bDodge', 'dodge'); bindBtn('bPot', 'pot');
 document.addEventListener('gesturestart', e => e.preventDefault());
 document.addEventListener('touchmove', e => { const t = e.target as HTMLElement; if (!t.closest || !t.closest('.panel')) e.preventDefault(); }, { passive:false });

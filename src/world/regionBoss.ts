@@ -81,9 +81,12 @@ function startRB(e) {
 // 結界：把在結界裡（或剛好在邊上）的玩家關在裡面；離很遠的隊友不會被吸進來
 function keepPlayersIn(d) { for (const pl of G.players) if (Math.hypot(pl.x - d.x, pl.y - d.y) < d.R + 20) keepIn(pl, d, pl.r + 2); }
 export function updateRegionBosses(dt) {
-  for (const e of rbs) {
+  for (let i = 0; i < rbs.length; i++) {
+    const e = rbs[i];
     if (e.dead) continue; e.anim += dt; if (e.flash > 0) e.flash -= dt; const d = e.def;
     if (e.state === 'sleep') { if (G.players.some(pl => !pl.dead && Math.hypot(pl.x - d.x, pl.y - d.y) < d.R - 14)) startRB(e); continue; }
+    if (!G.players.some(pl => !pl.dead && Math.hypot(pl.x - d.x, pl.y - d.y) < d.R + 40)) {   // 結界裡沒有活著的玩家（死了 / 傳送走了）→ Boss 回去睡、血補滿，不會一直卡在「戰鬥中」
+      rbs[i] = makeRB(d); G.enemies = G.enemies.filter(x => x.rbAdd !== d.id); continue; }
     if (e.state === 'intro') { e.t -= dt; keepPlayersIn(d); if (e.t <= 0) { e.state = 'idle'; e.t = .6; } continue; }
     e.tgt = nearestPlayer(e.x, e.y);                                  // 每幀瞄準最近的活著的玩家
     if (e.tgt.dead) continue;

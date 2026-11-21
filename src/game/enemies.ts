@@ -2,7 +2,7 @@ import { G } from '../core/state';
 import { TAU, dist, rr } from '../core/util';
 import { BEH, DG, KIND, randomLoot } from '../data/items';
 import { spawns } from '../world/map';
-import { moveEnt, stepToward } from './collision';
+import { canSee, moveEnt, stepToward } from './collision';
 import { sfx } from '../core/audio';
 import { hurtPlayer } from './combat';
 import { nearestPlayer } from './player';
@@ -81,11 +81,12 @@ export function updateEnemy(e, dt) {
       e.t -= dt;
       if (e.t <= 0) { e.t = rr(1.5, 3.5); const a = rr(0, TAU), r = rr(8, 40); e.wx = e.hx + Math.cos(a) * r; e.wy = e.hy + Math.sin(a) * r; }
       stepToward(e, e.wx, e.wy, e.spd * .35, dt);
-      if (!e.tgt.dead && d < e.aggro) { e.state = 'chase'; G.nums.push({ x:e.x, y:e.y - 20, txt:'!', col:'#ffd04a', t:0, d:.6 });
+      if (!e.tgt.dead && d < e.aggro && canSee(e.x, e.y - 6, e.tgt.x, e.tgt.y - 6)) { e.state = 'chase'; e.blind = 0; G.nums.push({ x:e.x, y:e.y - 20, txt:'!', col:'#ffd04a', t:0, d:.6 });
         if (e.elite && !e.announced) { e.announced = true; toast('精英敵人：' + e.ename, '#f2c14e'); } }
       break;
     case 'chase':
-      if (e.tgt.dead || homeD > e.leash) { e.state = 'return'; e.t = 0; break; }
+      e.blind = canSee(e.x, e.y - 6, e.tgt.x, e.tgt.y - 6) ? 0 : (e.blind || 0) + dt;   // 被牆擋住看不到你超過 2 秒 → 放棄，走回家
+      if (e.tgt.dead || homeD > e.leash || e.blind > 2) { e.state = 'return'; e.t = 0; break; }
       if (e.beh === 'ranged') {
         if (d < 55) { stepToward(e, e.x - dx, e.y - dy, e.spd, dt); e.flip = dx < 0; }
         else if (d > 115) stepToward(e, e.tgt.x, e.tgt.y, e.spd, dt);
