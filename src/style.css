@@ -267,6 +267,13 @@ body:not(.touch) #controls{display:none}
 #quest{grid-column:1/-1;margin-top:2px;max-width:min(320px,42vw);pointer-events:auto;cursor:pointer;text-shadow:1px 1px 0 #000,-1px 0 0 #000;font-size:13px;line-height:1.35;
   padding:4px 9px 5px;background:#0e0b1499;border-left:2px solid #f2c14ecc;box-shadow:0 0 0 1px #ffffff12}   /* 半透明暗底 + 左邊一條金線 */
 #quest:empty{display:none}
+#quest .qh{display:flex;align-items:flex-start;gap:8px}#quest .qh b{flex:1}
+#quest .qfold{flex:none;width:20px;height:18px;padding:0;font-size:13px;line-height:1;background:#0006;border:1px solid #ffffff30;color:var(--muted)}   /* 收起 */
+#quest .qrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:2px}
+#quest .qnav{font-style:normal;font-size:11px;color:var(--muted)}
+#quest.nav .qnav{color:#ffe38a}
+#quest.fold{display:flex;align-items:center;gap:6px;padding:3px 8px}                   /* 收起來：只剩一個小標籤 */
+#quest.fold b{display:inline}#quest.fold i{display:inline-flex;align-items:center}
 #quest b{display:block;font-weight:400;color:#ffe38a}
 #quest small{display:block;color:var(--text);font-size:12px;opacity:.85}
 #quest i{display:block;font-style:normal;font-size:11px;color:#c8b8ff}

@@ -33,15 +33,31 @@ export function updateQuest() {
     const nx = current(); setTimeout(() => showBanner('旅程更新', nx.title, 2600), 3400); save();
   }
   doneBefore = done;
-  const c = current(), k = c.id + (G.questOpen ? 1 : 0);
-  if (k !== hudKey) { hudKey = k; $('quest').innerHTML = '<b>◆ ' + c.title + '</b>' + (G.questOpen ? '<small>' + c.hint + '</small>' : '') + '<i title="星核"><svg class="hi" viewBox="0 0 15 15" aria-hidden="true"><path d="M7 0h1v1h-1zM6 2h1v1h-1zM8 2h1v1h-1zM5 3h1v1h-1zM9 3h1v1h-1zM4 4h1v1h-1zM10 4h1v1h-1zM3 5h1v1h-1zM11 5h1v1h-1zM2 6h1v1h-1zM12 6h1v1h-1zM0 7h1v1h-1zM14 7h1v1h-1zM2 8h1v1h-1zM12 8h1v1h-1zM3 9h1v1h-1zM11 9h1v1h-1zM4 10h1v1h-1zM10 10h1v1h-1zM5 11h1v1h-1zM9 11h1v1h-1zM6 12h1v1h-1zM8 12h1v1h-1zM7 14h1v1h-1z" fill="#4a2a08"/><path d="M7 1h1v1h-1zM7 2h1v1h-1zM6 3h2v1h-2zM5 4h3v1h-3zM4 5h4v1h-4zM3 6h4v1h-4zM1 7h5v1h-5zM5 8h2v1h-2zM6 9h1v1h-1z" fill="#ffe38a"/><path d="M8 3h1v1h-1zM8 4h2v1h-2zM8 5h3v1h-3zM8 6h4v1h-4zM3 8h2v1h-2zM4 9h2v1h-2zM5 10h2v1h-2zM6 11h1v1h-1z" fill="#f2c14e"/><path d="M7 6h1v1h-1zM6 7h3v1h-3zM7 8h1v1h-1z" fill="#ffffff"/><path d="M9 7h5v1h-5zM8 8h4v1h-4zM7 9h4v1h-4zM7 10h3v1h-3zM7 11h2v1h-2zM7 12h1v1h-1zM7 13h1v1h-1z" fill="#c0862c"/></svg>' + cores() + '/' + CORE_N + '</i>'; }
+  const c = current();
+  if (c.id !== lastCur) { if (lastCur || c === STEPS[0]) { nav = true; setFold(false, true); } lastCur = c.id; }   // 接到新目標（或剛開新遊戲）→ 自動導航、展開
+  const k = c.id + '|' + fold + '|' + nav + '|' + cores();
+  if (k !== hudKey) { hudKey = k; const Q = $('quest'); Q.classList.toggle('fold', fold); Q.classList.toggle('nav', nav);
+    Q.title = fold ? '展開目標' : nav ? '點一下關閉導航' : '點一下開始導航';
+    Q.innerHTML = fold ? '<b>◆</b><i>' + STAR + cores() + '/' + CORE_N + '</i>' + (nav ? '<em class="qnav">導航中</em>' : '')
+      : '<div class="qh"><b>◆ ' + c.title + '</b><button class="qfold" type="button" title="收起">－</button></div><small>' + c.hint + '</small>'
+      + '<div class="qrow"><i>' + STAR + cores() + '/' + CORE_N + '</i><em class="qnav">' + (nav ? '➤ 導航中' : '➤ 點一下導航') + '</em></div>'; }
 }
-$('quest').addEventListener('click', () => { G.questOpen = !G.questOpen; hudKey = ''; updateQuest(); });
-/* 角色旁邊的金色小箭頭：目標在畫面外時指方向 */
+/* ---- 左上角的目標：可以收起來（不擋畫面）；點一下 = 開 / 關導航（角色旁邊的金色箭頭） ----
+   黃色箭頭平常不出現：接到新目標時自動開，走到目標附近自動關，或自己點掉。收起來的狀態記在這台裝置上 */
+const STAR = '<svg class="hi" viewBox="0 0 15 15" aria-hidden="true"><path d="M7 0h1v1h-1zM6 2h1v1h-1zM8 2h1v1h-1zM5 3h1v1h-1zM9 3h1v1h-1zM4 4h1v1h-1zM10 4h1v1h-1zM3 5h1v1h-1zM11 5h1v1h-1zM2 6h1v1h-1zM12 6h1v1h-1zM0 7h1v1h-1zM14 7h1v1h-1zM2 8h1v1h-1zM12 8h1v1h-1zM3 9h1v1h-1zM11 9h1v1h-1zM4 10h1v1h-1zM10 10h1v1h-1zM5 11h1v1h-1zM9 11h1v1h-1zM6 12h1v1h-1zM8 12h1v1h-1zM7 14h1v1h-1z" fill="#4a2a08"/><path d="M7 1h1v1h-1zM7 2h1v1h-1zM6 3h2v1h-2zM5 4h3v1h-3zM4 5h4v1h-4zM3 6h4v1h-4zM1 7h5v1h-5zM5 8h2v1h-2zM6 9h1v1h-1z" fill="#ffe38a"/><path d="M8 3h1v1h-1zM8 4h2v1h-2zM8 5h3v1h-3zM8 6h4v1h-4zM3 8h2v1h-2zM4 9h2v1h-2zM5 10h2v1h-2zM6 11h1v1h-1z" fill="#f2c14e"/><path d="M7 6h1v1h-1zM6 7h3v1h-3zM7 8h1v1h-1z" fill="#ffffff"/><path d="M9 7h5v1h-5zM8 8h4v1h-4zM7 9h4v1h-4zM7 10h3v1h-3zM7 11h2v1h-2zM7 12h1v1h-1zM7 13h1v1h-1z" fill="#c0862c"/></svg>';
+let fold = (() => { try { return localStorage.getItem('pw-qfold') === '1'; } catch (e) { return false; } })(), nav = false, lastCur = '';
+function setFold(v: boolean, quiet = false) { fold = v; if (!quiet) { try { localStorage.setItem('pw-qfold', v ? '1' : '0'); } catch (e) { /* 私密模式 */ } } hudKey = ''; }
+$('quest').addEventListener('click', e => {
+  if ((e.target as HTMLElement).closest('.qfold')) setFold(true);
+  else if (fold) setFold(false);
+  else { nav = !nav; hudKey = ''; if (nav) sfx.pick(); }
+  updateQuest();
+});
+/* 角色旁邊的金色小箭頭：開著導航、目標在畫面外時指方向。走到目標附近就自動關掉導航 */
 export function drawQuestArrow() {
-  if (!G.started || G.me.dead) return;
+  if (!G.started || G.me.dead || !nav) return;
   const c = current(), x = c.tx * TS + 8, y = c.ty * TS + 8, dx = x - G.me.x, dy = y - G.me.y, d = Math.hypot(dx, dy);
-  if (d < 120) return;
+  if (d < 120) { nav = false; hudKey = ''; return; }
   const a = Math.atan2(dy, dx), r = 20 + Math.sin(G.time * 4) * 1.5, cx = G.me.x + Math.cos(a) * r, cy = G.me.y - 8 + Math.sin(a) * r * .8;
   ctx.save(); ctx.translate(snapF(cx), snapF(cy)); ctx.rotate(a); ctx.globalAlpha = .85;
   ctx.fillStyle = '#1a1020'; ctx.beginPath(); ctx.moveTo(5, 0); ctx.lineTo(-3, -4); ctx.lineTo(-1, 0); ctx.lineTo(-3, 4); ctx.closePath(); ctx.fill();
