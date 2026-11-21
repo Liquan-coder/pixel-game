@@ -195,11 +195,6 @@ body:not(.touch) #controls{display:none}
 .slot.sel{outline:2px solid #fff;outline-offset:1px}
 .slot i{position:absolute;left:2px;top:1px;font-style:normal;font-size:10px;text-shadow:1px 1px 0 #000}
 .empty{font-size:13px;color:var(--muted);padding:6px 0;grid-column:1/-1}
-.acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
-.acts button{flex:1;padding:8px;font-size:14px;background:var(--panel2);border:2px solid var(--line)}
-.acts .pri{background:#2e4a2a;border-color:#5f9a52}
-.acts .warn{background:#3a1d24;border-color:#8a3446}
-.acts button:disabled{opacity:.45;filter:grayscale(1)}
 /* 角色面板：左 = 角色屬性（選了裝備 → 那件裝備的資料 + 按鈕），中 = 角色 + 裝備欄，右 = 背包。
    選了裝備時，資料和按鈕都在左欄、按鈕固定在底部 → 不用往下捲 */
 .panel.char{width:min(940px,calc(100% - 2 * var(--mx)));height:min(560px,calc(100% - 2 * var(--my)));padding:10px 12px 12px}
@@ -207,7 +202,6 @@ body:not(.touch) #controls{display:none}
 .cwrap>section{min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch}
 .cinfo{display:flex;flex-direction:column}
 .cinfo .cscroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}
-.cinfo .acts{flex:none;margin-top:6px;padding-top:6px;border-top:2px solid var(--line)}
 .cinfo .card{margin-bottom:6px}
 .keystats.sm b{font-size:16px}
 @media (max-width:600px){.cwrap{grid-template-columns:1fr;overflow-y:auto;touch-action:pan-y}.cwrap>section{overflow:visible}.cdoll{order:-1}.cinfo{order:1}}
@@ -332,6 +326,7 @@ body:not(.touch) #controls{display:none}
 .touch #chestBtn small,.touch #pickBtn small{display:none}
 .matline{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:8px;font-size:12px;padding:5px 8px;background:#0005;border:1px solid #4d416688}
 .matline b{font-weight:400;color:var(--text);font-variant-numeric:tabular-nums}
+#salvAll.one{color:#ffb0b8;border-color:#8a3446;background:#3a1d24}
 #salvAll{margin-top:10px;width:100%;padding:7px;font-size:13px;background:var(--panel2);border:2px solid var(--line);color:var(--muted)}
 
 .screen{position:absolute;inset:0;display:grid;place-items:center;text-align:center;background:radial-gradient(ellipse at center,#05040a55 20%,#05040ae6 80%);padding:20px}
@@ -403,3 +398,8 @@ body:not(.touch) #controls{display:none}
 .tearrow img{width:32px;height:32px;image-rendering:pixelated}
 .tearrow span{flex:1;color:#9ae8ff}.tearrow small{display:block;color:var(--muted);font-size:12px}
 .freep{color:#9ae8ff;margin:0 0 8px}
+
+/* 角色頁：點一下選、再點發亮的格子放進去 */
+.eqslot.drop,.slot.drop{border-color:#ffe38a!important;box-shadow:0 0 0 1px #ffe38a66,inset 0 0 10px #ffe38a33;animation:dropglow 1s ease-in-out infinite}
+@keyframes dropglow{50%{box-shadow:0 0 0 1px #ffe38a22,inset 0 0 4px #ffe38a11}}
+.cinfo .seltip{flex:none;margin:6px 0 0;padding-top:6px;border-top:2px solid var(--line);font-size:12px;color:var(--muted);text-align:center}
