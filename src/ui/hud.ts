@@ -12,7 +12,8 @@ import { SNAME } from '../game/status';
 /* ================= HUD / UI ================= */
 const hudCache: Record<string, unknown> = {};
 function setText(id, v) { if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } }
-function setScale(id, v) { v = Math.round(clamp(v, 0, 1) * 200) / 200; if (hudCache[id] !== v) { hudCache[id] = v; $(id).style.transform = 'scaleX(' + v + ')'; } }
+/* 血條 / 體力條的長度：直接改寬度（以前用 scaleX 縮放，iPhone 的 Safari 會在空掉的那段留下一條條殘影） */
+function setScale(id, v) { v = Math.round(clamp(v, 0, 1) * 200) / 200; if (hudCache[id] !== v) { hudCache[id] = v; $(id).style.width = v * 100 + '%'; } }
 /* 條的長度跟著上限變長（像艾爾登法環）：用平方根，前期每升一級就看得出變長，後期不會長到撞到小地圖（最長由 CSS 限制）
    例：生命 100 → 96px、122 → 106px、200 → 136px、400 → 192px、700 → 254px；體力 80 → 84px、160 → 119px */
 export const hpBarW = (maxHp: number) => Math.round(96 * Math.sqrt(Math.max(100, maxHp) / 100));
