@@ -168,8 +168,8 @@ export function renderInv() {
   if (!sel) {
     const now = calcStats(G.me, eq);
     info.innerHTML = '<div class="keystats">' + keyTile('hp', '生命', 'maxHp', now, null) + keyTile('atk', '攻擊', 'atk', now, null) + keyTile('df', '防禦', 'def', now, null) + '</div>' +
-      '<div class="lbl">能力值<small class="lvhint">在營火用魂晶升級</small></div><div id="attrList">' + ATTRS.map(a => '<div class="attr" title="' + a.d + '"><span>' + a.n + '</span><div class="bar2"><i style="width:' + Math.min(100, G.me[a.k] / 40 * 100) + '%"></i></div><b>' + G.me[a.k] + '</b></div>').join('') + '</div>' +
-      '<div class="lbl" style="margin-top:6px">詳細屬性</div><div class="stattbl">' + statRows(now, null) + '</div>' +
+      '<div class="lbl">詳細屬性</div><div class="stattbl">' + statRows(now, null) + '</div>' +   // 詳細屬性比較常看 → 放上面
+      '<div class="lbl" style="margin-top:6px">能力值<small class="lvhint">在營火用魂晶升級</small></div><div id="attrList">' + ATTRS.map(a => '<div class="attr" title="' + a.d + '"><span>' + a.n + '</span><div class="bar2"><i style="width:' + Math.min(100, G.me[a.k] / 40 * 100) + '%"></i></div><b>' + G.me[a.k] + '</b></div>').join('') + '</div>' +
       '<p class="hintp">' + (G.me.inv.length ? '點一件裝備，這裡會顯示它的資料和比較。' : '還沒有撿到裝備。武器主要在寶箱、地城和 Boss 身上。') + '</p>';
   } else {
     const it = sel.it, sl = slotOf(it), cmp = sl === 'weapon' ? eq.weapon : sl === 'armor' ? eq.armor : null;
