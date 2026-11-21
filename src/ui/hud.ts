@@ -7,15 +7,19 @@ import { itemCard } from './menus';
 import { interactTarget, type IKind } from './interact';
 import { SCALE } from '../core/canvas';
 import { view } from '../render/render';
+import { SNAME } from '../game/status';
 
 /* ================= HUD / UI ================= */
 const hudCache: Record<string, unknown> = {};
 function setText(id, v) { if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } }
 function setScale(id, v) { v = Math.round(clamp(v, 0, 1) * 200) / 200; if (hudCache[id] !== v) { hudCache[id] = v; $(id).style.transform = 'scaleX(' + v + ')'; } }
-/* 條的長度：上限 100 生命 = 96px，每多 1 點生命 +0.25px；體力 80 = 84px，每多 1 點 +0.5px（最長由 CSS 限制） */
-export const hpBarW = (maxHp: number) => Math.round(96 + Math.max(0, maxHp - 100) * .25);
-export const stBarW = (maxSt: number) => Math.round(84 + Math.max(0, maxSt - 80) * .5);
-function setW(id, px) { const k = id + 'W'; if (hudCache[k] !== px) { hudCache[k] = px; $(id).parentElement.style.setProperty('--w', px + 'px'); } }
+/* 條的長度跟著上限變長（像艾爾登法環）：用平方根，前期每升一級就看得出變長，後期不會長到撞到小地圖（最長由 CSS 限制）
+   例：生命 100 → 96px、122 → 106px、200 → 136px、400 → 192px、700 → 254px；體力 80 → 84px、160 → 119px */
+export const hpBarW = (maxHp: number) => Math.round(96 * Math.sqrt(Math.max(100, maxHp) / 100));
+export const stBarW = (maxSt: number) => Math.round(84 * Math.sqrt(Math.max(80, maxSt) / 80));
+function setW(id, px) { const k = id + 'W'; if (hudCache[k] !== px) { const grew = hudCache[k] !== undefined && px > (hudCache[k] as number); hudCache[k] = px;
+  const bar = $(id).parentElement; bar.style.setProperty('--w', px + 'px');
+  if (grew) { bar.classList.remove('grow'); void bar.offsetWidth; bar.classList.add('grow'); } } }   // 變長時閃一下
 const PROMPTS: [IKind, string][] = [['pick', 'pickBtn'], ['chest', 'chestBtn'], ['read', 'readBtn'], ['door', 'doorBtn'], ['shop', 'shopBtn'], ['rest', 'restBtn']];
 export function updateHUD() {
   setW('hpBar', hpBarW(G.me.maxHp)); setW('stBar', stBarW(G.me.maxSt));
@@ -36,6 +40,9 @@ export function updateHUD() {
     if (it?.text) $(it.kind === 'door' ? 'doorTxt' : 'shopTxt').textContent = it.text;
     $('bAtk').textContent = it ? it.btn : '攻擊'; $('bAtk').classList.toggle('act', !!it); }
   setText('goldTxt', String(G.me.gold));
+  const S = G.me.sx, sk = S && !G.me.dead ? (['frozen', 'stun', 'root', 'poison', 'burn', 'slow', 'silence', 'blind'] as const).filter(k => S[k] > 0).map(k => k + ':' + Math.ceil(S[k])).join(',') : '';
+  if (hudCache.sx !== sk) { hudCache.sx = sk; $('statusRow').hidden = !sk;                      // 身上的異常狀態 + 剩幾秒（game/status.ts）
+    $('statusRow').innerHTML = sk ? sk.split(',').map(p => { const [k, n] = p.split(':'), [nm, c] = SNAME[k]; return '<span style="color:' + c + '">' + nm + '<b>' + n + '</b></span>'; }).join('') : ''; }
   const zn = (!G.paused && G.started) ? nearZone() : null, zk = zn ? zn.id : '';      // 靠近 boss 場地時的提示（不寫等級、不說你打不打得過）
   if (hudCache.zone !== zk) { hudCache.zone = zk; $('zoneHint').hidden = !zn;
     if (zn) $('zoneHint').innerHTML = zn.short + '的領域' + '<small>再往前走就會開打，打贏之前離不開結界</small>'; }

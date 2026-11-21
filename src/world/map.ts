@@ -7,6 +7,8 @@ export const HOUSE = 15;                                              // 城鎮�
 export const STAIRS = 16;                                             // 地底遺跡的入口：地上一個往下的石階（走得過去，站在上面按 E 進去）
 export const SOLID = new Set([WATER, LAVA, CLIFF, RWALL, TREE, ROCK, PILLAR, CRATE, GRAVE, BIGT, HOUSE]);
 export const BLOCKP = new Set([CLIFF, RWALL, TREE, ROCK, PILLAR, CRATE, GRAVE, BIGT, HOUSE]);
+/* 擋路的小東西（地城前院的雕像、石碑、旗桿）：圓形碰撞，game/collision.ts 會檢查。世界座標 */
+export const PROPS: { x: number; y: number; r: number }[] = [];
 export const WALKABLE = t => t === GROUND || t === ROAD || t === RFLOOR || t === BRIDGE || t === FOG || t === STAIRS;
 export const map = new Uint8Array(MW * MH), reg = new Uint8Array(MW * MH), shade = new Uint8Array(MW * MH);
 export const hgt = new Uint8Array(MW * MH);                            // 岩壁 / 山有多「高」：離山腳幾格（gen 最後算，tileArt 用來畫山峰的層次）

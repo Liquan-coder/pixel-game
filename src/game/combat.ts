@@ -4,7 +4,9 @@ import { ANIM, HAND_R, HSY, REACH, STYLE, WLEN } from '../art/hero';
 import { BEH, RAR, WT } from '../data/items';
 import { ACLS } from '../data/gear';
 import { rbs, regionBossDie } from '../world/regionBoss';
-import { input } from './player';
+import { input, level } from './player';
+import { applyFx, type FX } from './status';
+import { gapDealt, gapTaken } from './bossTuning';
 import { collides, moveEnt } from './collision';
 import { sfx } from '../core/audio';
 import { killEnemy } from './enemies';
@@ -35,6 +37,7 @@ function calcDmg(pl: Player, mult) {
 export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: number, opts: { heavy?: boolean; stun?: number; crit?: boolean; heal?: number; proc?: boolean } = {}) {
   if (e.hp <= 0) return;
   let { v, crit } = calcDmg(pl, mult);
+  v = Math.max(1, Math.round(v * gapDealt(level(pl), e.lv || 0)));   // 等級差（見 bossTuning.ts）
   if (opts.crit && !crit) { crit = true; v = Math.round(v * 1.8); }      // 居合：一定暴擊
   if (opts.heal) { if (G.time - (pl.healT0 || -9) > .6) { pl.healT0 = G.time; pl.healN = 0; }   // 鐮刀收割：打中一隻回一點血，一次技能最多算 3 隻
     if (pl.healN < 3) { pl.healN++; pl.hp = Math.min(pl.maxHp, pl.hp + Math.round(pl.maxHp * opts.heal * (e.boss ? .5 : 1))); } }
@@ -378,17 +381,23 @@ export function tryPot(pl: Player) {
   if (pl.pot <= 0 || busy(pl)) { if (pl.pot <= 0) toast('藥水用完了，回營火休息可以補滿', '#ff8a8a'); return; }
   pl.pot--; pl.drink = .55; sfx.drink();
 }
-export function hurtPlayer(pl: Player, v, sx, sy) {
+/* 這一下是誰打的：怪 / Boss 更新時設定 G.hitCtx = { lv: 等級, fx: 這隻怪的異常狀態 }（子彈射出去時也記著），
+   extra = 這一招額外的狀態（例如 Boss 砸地 = 暈眩） */
+export function hurtPlayer(pl: Player, v, sx, sy, extra?: FX) {
   if (pl.iframe > 0 || pl.dead) return false;
-  const T = pl.tfx || {}, res = (T['res_' + G.region] || 0) / 100, guard = (T.guard || 0) / 100;   // 地區抗性、飾品減傷
-  v = Math.max(1, Math.round(v * (G.dmgMul || 1) * (1 - (pl.defRed || 0)) * (1 - res) * (1 - guard)));   // 防禦：減少受到的傷害
+  const C = G.hitCtx, T = pl.tfx || {}, res = (T['res_' + G.region] || 0) / 100, guard = (T.guard || 0) / 100;   // 地區抗性、飾品減傷
+  v = Math.max(1, Math.round(v * (G.dmgMul || 1) * gapTaken(C ? C.lv : 0, level(pl)) * (1 - (pl.defRed || 0)) * (1 - res) * (1 - guard)));   // 等級差、防禦
   pl.hp -= v; pl.hurt = .3; pl.iframe = .4;
   const a = Math.atan2(pl.y - sy, pl.x - sx), kb = pl.acls === 'heavy' ? 0 : 120; pl.kx = Math.cos(a) * kb; pl.ky = Math.sin(a) * kb;   // 重甲：不會被擊退
   G.nums.push({ x:pl.x, y:pl.y - 28, txt:String(v), col:'#ff5a5a', t:0, d:.8 });
   if (pl === G.me) { shake(3, .2); sfx.hurt(); }                       // 震動、音效只給自己（隊友受傷不震你的畫面）
   burst(pl.x, pl.y - 6, 8, '#d8434e', 60);
-  if (pl.hp <= 0) { pl.hp = 0; pl.dead = true; pl.deathT = 0; stopCharge(pl); pl.lunge = null;
-    if (pl === G.me) { sfx.death(); showBanner('力竭倒下', pl.souls > 0 ? '魂晶掉在原地，回去撿就能拿回來' : '', 2400); } }
+  if (C && C.fx) applyFx(pl, C.fx); if (extra) applyFx(pl, extra);
+  if (pl.hp <= 0) downPlayer(pl);
   return true;
+}
+export function downPlayer(pl: Player) {                                 // 倒下（被打死、被毒 / 火燒死）
+  pl.hp = 0; pl.dead = true; pl.deathT = 0; stopCharge(pl); pl.lunge = null;
+  if (pl === G.me) { sfx.death(); showBanner('力竭倒下', pl.souls > 0 ? '魂晶掉在原地，回去撿就能拿回來' : '', 2400); }
 }
 

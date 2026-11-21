@@ -7,6 +7,7 @@ export const G = {
   uid: 1,
   fogLocked: false,
   dmgMul: 1,                    // 區域 Boss 的變體：同一套招式，傷害照等級縮放（world/regionBoss.ts 跑 AI 時設定）
+  hitCtx: null as null | { lv: number; fx?: import('../game/status').FX },   // 現在打人的是誰（等級、異常狀態）：怪 / Boss 更新時設定，game/combat.ts 的 hurtPlayer 用
   bossDead: false,
   RB_L: [],
   frameNo: 0,

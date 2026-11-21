@@ -13,6 +13,7 @@ import { cam, light } from '../game/player';
 import { regAt } from '../game/collision';
 import { drawCoin } from '../game/worldUpdate';
 import { drawNum, drawPlayer, drawShadow, heroSlices } from './player';
+import { drawBlind, drawStatus } from '../game/status';
 import { artLine, artPath, asn, drawCrescent, drawLance, drawOrb, drawQuake, drawRibbon, drawRune, drawSmear, drawSpikes, drawStar, drawWarp, drawWaveP, fxCols } from './fx';
 import { addLight, drawCamp, drawDrop, drawEnemy, drawTelegraph } from './enemy';
 import { drawMerchant, merchant } from '../ui/shop';
@@ -98,7 +99,7 @@ export function render() {
   ctx.globalAlpha = 1;
   for (const pl of G.players) {                                       // 每個玩家都畫，跟其他東西一起依 y 排序
     if (pl.dash) addLight(L, pl.x, pl.y - 8, 50, 3);
-    list.push({ y:pl.y, f:() => drawPlayer(pl) });
+    list.push({ y:pl.y, f:() => { drawPlayer(pl); drawStatus(pl); } });   // 身上的冰塊、星星、藤蔓、累積條（game/status.ts）
   }
   list.sort((a, b) => a.y - b.y); for (const it of list) it.f();
   drawQuestArrow();
@@ -170,6 +171,7 @@ export function render() {
     const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, tint[l.warm] + '.16)'); g.addColorStop(1, tint[l.warm] + '0)'); ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); }
   ctx.globalCompositeOperation = 'source-over';
   if (G.region === 'wastes') { ctx.fillStyle = 'rgba(255,190,110,.06)'; ctx.fillRect(0, 0, LW, LH); }
+  drawBlind(cx, cy, LW, LH);                                              // 目盲：周圍變暗
   for (const n of G.nums) {                                               // 傷害數字：彈出來 → 往上飄 → 淡掉（畫在光影上面，暗處也看得到）
     const k = n.t / n.d, rise = 1 - (1 - Math.min(1, k * 2.2)) ** 2, pop = k < .12 ? 1 + (1 - k / .12) * .6 : 1;
     const sc = (n.big ? 4 / 3 : 1) * (pop > 1.3 ? 4 / 3 : 1);           // 剛出來時大一號，再縮回來（只用 1/3 的倍數，像素才不會糊）

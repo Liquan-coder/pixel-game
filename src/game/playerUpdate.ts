@@ -8,7 +8,8 @@ import { canSee, collides, moveEnt, regAt } from './collision';
 import { sfx } from '../core/audio';
 import { respawnAll } from './enemies';
 import { resetBoss } from './boss';
-import { blinkFx, busy, damageEnemy, releaseCharge, stopCharge, targets, tryAttack, tryDodge, tryPot, trySkill, updFlip, updateCharge } from './combat';
+import { clearStatus, locked, moveMul, rollOut, rooted, silenced, struggle, tickStatus } from './status';
+import { blinkFx, busy, damageEnemy, downPlayer, releaseCharge, stopCharge, targets, tryAttack, tryDodge, tryPot, trySkill, updFlip, updateCharge } from './combat';
 import { burst, shake } from './worldUpdate';
 import { STARC } from '../render/fx';
 import { hideBanner, showArea, toast } from '../ui/hud';
@@ -18,6 +19,7 @@ import type { Player } from '../types';
 /* ================= PLAYER UPDATE ================= */
 export function updatePlayer(pl: Player, dt) {
   if (pl.dead) { pl.deathT += dt; if (pl.deathT > 2.6) respawn(pl); return; }
+  if (tickStatus(pl, dt)) { downPlayer(pl); return; }                  // 中毒 / 燃燒（game/status.ts）
   for (const k of ['atkCd','skillCd','iframe','hurt','aimLock','spin','thrust','slam','comboT','blinkIn']) if (pl[k] > 0) pl[k] -= dt;
   if (pl.lunge) { pl.lunge.t -= dt; moveEnt(pl, pl.lunge.vx * dt, pl.lunge.vy * dt); G.ghosts.push({ x:pl.x, y:pl.y, flip:pl.flip, life:.2, max:.2 }); if (pl.lunge.t <= 0) pl.lunge = null; }
   if (pl.skillLock > 0) pl.skillLock -= dt;
@@ -57,14 +59,20 @@ export function updatePlayer(pl: Player, dt) {
     G.fx.push({ k:'aline', x:ox, y:oy - 8 + rr(-5, 5), a:Math.atan2(pl.y - oy, pl.x - ox), len:Math.hypot(pl.x - ox, pl.y - oy) + 4, t:0, d:.16, col:'#d8c8ff' });
     if (Math.random() < .7) G.parts.push({ x:pl.x + rr(-4, 4), y:pl.y - rr(2, 16), vx:rr(-15, 15), vy:rr(-20, 0), life:rr(.25, .45), max:.45, col:pick(STARC), star:rr(.6, 1.8), drag:3 });
     if (pl.dodge <= 0) { blinkFx(pl, pl.x, pl.y, false); sfx.blinkIn(); }
-  } else if (m > .05) {
-    const spd = 84 * (pl.drink > 0 ? .45 : 1) * (pl.skillLock > 0 ? .25 : 1) * (pl.swing ? .6 : 1) * (pl.charging ? .45 : 1) * (map[(pl.y / TS | 0) * MW + (pl.x / TS | 0)] === ROAD ? 1.12 : 1);
+  } else if (m > .05 && !locked(pl) && !rooted(pl)) {
+    const spd = 84 * moveMul(pl) * (pl.drink > 0 ? .45 : 1) * (pl.skillLock > 0 ? .25 : 1) * (pl.swing ? .6 : 1) * (pl.charging ? .45 : 1) * (map[(pl.y / TS | 0) * MW + (pl.x / TS | 0)] === ROAD ? 1.12 : 1);
     moveEnt(pl, input.mx * spd * dt, input.my * spd * dt);
     if (pl.aimLock <= 0) { pl.face = Math.atan2(input.my, input.mx); updFlip(pl); }
   }
-  pl.moving = m > .05 && !pl.dodge;
+  pl.moving = m > .05 && !pl.dodge && !locked(pl) && !rooted(pl);
   if (pl.moving) pl.anim += dt;
 
+  if (locked(pl) || (rooted(pl) && pressed.dodge)) {                  // 冰凍 / 暈眩：什麼都不能做；被冰住 / 纏住時狂按攻擊或瞬移可以提早掙脫
+    if (pressed.atk || pressed.dodge) struggle(pl);
+    if (locked(pl)) { stopCharge(pl); pl.atkBuf = 0; pl.chargeArm = false; pressed.atk = pressed.dodge = pressed.skill = pressed.pot = false; }
+    else pressed.dodge = false;
+  }
+  if (pressed.skill && silenced(pl)) { pressed.skill = false; if (pl === G.me && G.time - (pl.silT || -9) > 1.2) { pl.silT = G.time; toast('被封印了，暫時不能用技能', '#c8a8ff'); } }
   const atkDown = held.atk || keys.atk;                               // 點一下 = 普通攻擊；按住 = 蓄力，放開放招
   if (pl.atkBuf > 0) { pl.atkBuf -= dt; if (tryAttack(pl)) pl.atkBuf = 0; }      // 連點太快時先記住，冷卻一好就出手
   if (pressed.atk) { if (!tryAttack(pl)) pl.atkBuf = .25; pl.chargeArm = true; pl.chargeHold = 0; pl.charging = false; pl.charge = 0; pl.chargeLv = 0; }
@@ -73,7 +81,7 @@ export function updatePlayer(pl: Player, dt) {
     else if (pl.charging) { if (pl.dodge > 0 || pl.drink > 0 || pl.dash) stopCharge(pl); else updateCharge(pl, dt); }
     else { pl.chargeHold += dt; if (pl.chargeHold > .22 && !busy(pl) && pl.st > 0) { pl.charging = true; pl.charge = 0; pl.chargeLv = 0; } }
   }
-  if (pressed.dodge) tryDodge(pl);
+  if (pressed.dodge) { tryDodge(pl); if (pl.dodge > 0) rollOut(pl); }
   if (pressed.skill) trySkill(pl);
   if (pressed.pot) tryPot(pl);
 
@@ -104,7 +112,7 @@ export function nearCamp(pl: Player) {
   return null;
 }
 export function restoreWorld() {                                       // 營火休息/重生：所有玩家補滿，世界重置
-  for (const pl of G.players) { pl.hp = pl.maxHp; pl.st = pl.maxSt; pl.pot = G.potMax; pl.timers = []; pl.dash = null; pl.dodge = 0; }
+  for (const pl of G.players) { pl.hp = pl.maxHp; pl.st = pl.maxSt; pl.pot = G.potMax; pl.timers = []; pl.dash = null; pl.dodge = 0; clearStatus(pl); }
   G.projs = []; G.drops = G.drops.filter(d => d.item.rarity >= 2); respawnAll(); resetBoss(); resetRegionBosses();
 }
 export function placeAtCamp(pl: Player, id) {

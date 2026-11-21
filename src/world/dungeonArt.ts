@@ -1,6 +1,7 @@
 /* 地城入口、出口傳送門的圖（跟 world/dungeons.ts 分開放：那邊會被地圖生成 import，不能牽到 tileArt） */
 import { G } from '../core/state';
-import { ctx, snapF } from '../core/canvas';
+import { HK, ctx, snapF } from '../core/canvas';
+import { drawShadow } from '../render/player';
 import { SH, sculpt } from '../art/monsters';
 import { MW, TS, reg } from './map';
 import { SRAMP } from './tileArt';
@@ -76,6 +77,78 @@ function drawFog(ex: number, ey: number, crypt: boolean, seed: number) {
   for (let n = 0; n < 2; n++) if (Math.random() < .6) G.parts.push({ x: ex + rr(-W, W), y: ey - rr(0, H), vx: rr(-7, 7), vy: -rr(8, 28), life: rr(.9, 1.8), max: 1.8, col: pick(['#ffffff', '#ffffff', '#eef2ff']), star: rr(.6, 1.6), drag: .6 });   // 白色光點從霧裡飄出來
 }
 
+/* ================= 地城前院的裝飾（位置在 world/dungeons.ts 的 dressEntrances） =================
+   石板地 + 發黑的地面 + 守門雕像 + 破旗 + 符文石 + 頭骨 / 舊劍。打完以後雕像的眼睛、符文石的光會熄掉 */
+const STONE = ['#2e2a36', '#4a4558', '#6a6478', '#8e88a0'], BONE = ['#6a6456', '#a8a08a', '#d8d0b8', '#f4f0e0'], STEEL = ['#3a3a4e', '#6a6a80', '#a8a8c0', '#e8e8f8'];
+const WOOD = ['#2e1c0e', '#4a3018', '#6a4626', '#86603a'], CLOTH = ['#1e0e30', '#3a1c5a', '#5a2e88', '#7a4ab0'], DCOL = '#c8a8ff';
+const pedestal = (R: string[], w: number, y: number) => [{ sh: SH.box(w / 2, y + 12, w / 2 - 4, 11, 4), ramp: R, tex: .3, grp: 1 }, { sh: SH.box(w / 2, y, w / 2 - 1, 4, 6), ramp: R, tex: .2, bias: .15, grp: 2 }];
+const statueCache: Record<string, HTMLCanvasElement> = {};
+function statueArt(kind: 'garg' | 'hood', R: string[]) {                  // 守門雕像：石像鬼（洞窟、石窟）/ 拿劍的兜帽騎士（古墓）。60×124 細像素
+  const key = kind + R[1]; if (statueCache[key]) return statueCache[key];
+  const parts: any[] = pedestal(R, 60, 98);
+  if (kind === 'garg') parts.push({ sh: SH.poly([[18, 58], [3, 30], [0, 60], [7, 78], [18, 76]]), ramp: R, tex: .3, grp: 3 }, { sh: SH.poly([[42, 58], [57, 30], [60, 60], [53, 78], [42, 76]]), ramp: R, tex: .3, grp: 3 },
+    { sh: SH.ell(19, 88, 8, 7), ramp: R, tex: .3, grp: 4 }, { sh: SH.ell(41, 88, 8, 7), ramp: R, tex: .3, grp: 4 }, { sh: SH.ell(30, 70, 15, 22, (x, y) => y < 94), ramp: R, tex: .3, grp: 5 },
+    { sh: SH.ell(30, 44, 11, 10), ramp: R, tex: .3, grp: 6 }, { sh: SH.poly([[22, 38], [14, 20], [26, 34]]), ramp: R, grp: 7 }, { sh: SH.poly([[38, 38], [46, 20], [34, 34]]), ramp: R, grp: 7 });
+  else parts.push({ sh: SH.poly([[13, 96], [47, 96], [39, 50], [21, 50]]), ramp: R, tex: .25, grp: 3 }, { sh: SH.ell(30, 52, 13, 7), ramp: R, tex: .25, grp: 4 },
+    { sh: SH.ell(30, 38, 10, 13), ramp: R, tex: .25, grp: 5 }, { sh: SH.box(30, 78, 2, 18, 2), ramp: STEEL, bias: .1, grp: 6 }, { sh: SH.box(30, 59, 8, 2, 2), ramp: STEEL, grp: 7 }, { sh: SH.ell(30, 55, 4, 3), ramp: R, grp: 8 });
+  return statueCache[key] = sculpt(60, 124, parts, a => {
+    if (kind === 'garg') { a.rect(24, 43, 4, 2, '#0a0810'); a.rect(32, 43, 4, 2, '#0a0810'); a.rect(26, 51, 8, 1, '#1a1620'); }
+    else { a.ell(30, 42, 6, 7, '#0a0810'); a.ell(30, 43, 4, 5, '#000000'); }
+    for (let k = 0; k < 26; k++) { const x = 6 + ((k * 37) % 48), y = 30 + ((k * 53) % 90); if (a.get(x, y)) a.set(x, y, k % 3 ? R[0] : '#3e5a3a'); }   // 裂痕、青苔
+  });
+}
+const BANNER = sculpt(34, 112, [{ sh: SH.box(6, 58, 2, 52, 2), ramp: WOOD, grp: 1 }, { sh: SH.ell(6, 5, 3, 3), ramp: STEEL, grp: 2 }, { sh: SH.box(17, 13, 13, 1.6, 2), ramp: WOOD, grp: 3 },
+  { sh: SH.poly([[8, 15], [31, 15], [31, 70], [27, 62], [23, 78], [18, 64], [13, 74], [8, 64]]), ramp: CLOTH, tex: .25, grp: 4 }], a => {
+  for (const [x, y] of [[19, 30], [19, 31], [19, 32], [19, 33], [19, 34], [17, 32], [18, 32], [20, 32], [21, 32], [19, 29], [19, 35]]) a.set(x, y, '#c8a060');   // 褪色的金色星紋
+  for (let k = 0; k < 10; k++) { const x = 10 + ((k * 7) % 20), y = 40 + ((k * 11) % 26); if (a.get(x, y)) a.set(x, y, CLOTH[0]); } });               // 破洞、污漬
+const RUNE = sculpt(26, 56, [{ sh: SH.ell(13, 52, 11, 4), ramp: ['#1e1a14', '#3a3226', '#4e4434'], grp: 1 }, { sh: SH.cap(13, 49, 13, 12, 10, 7), ramp: STONE, tex: .35, grp: 2 }]);
+const SKULL = sculpt(30, 18, [{ sh: SH.cap(2, 15, 28, 14, 1.6, 1.6), ramp: BONE, grp: 1 }, { sh: SH.ell(9, 10, 5.5, 5), ramp: BONE, grp: 2 }, { sh: SH.ell(21, 11, 4.5, 4.5), ramp: BONE, grp: 3 }], a => {
+  for (const [x, y] of [[7, 10], [11, 10], [20, 11], [23, 11]]) { a.set(x, y, '#1a1612'); a.set(x, y + 1, '#1a1612'); } a.set(9, 13, '#3a3428'); });
+const BONES = sculpt(30, 14, [{ sh: SH.cap(3, 4, 26, 11, 1.5, 1.5), ramp: BONE, grp: 1 }, { sh: SH.cap(4, 11, 24, 5, 1.4, 1.4), ramp: BONE, grp: 2 }, { sh: SH.ell(3, 4, 2.4, 2.4), ramp: BONE, grp: 3 },
+  { sh: SH.ell(26, 11, 2.4, 2.4), ramp: BONE, grp: 3 }, { sh: SH.ell(4, 11, 2.2, 2.2), ramp: BONE, grp: 4 }, { sh: SH.ell(24, 5, 2.2, 2.2), ramp: BONE, grp: 4 }]);
+const SWORD = sculpt(16, 40, [{ sh: SH.ell(8, 37, 7, 3), ramp: ['#1e1a14', '#3a3226', '#4e4434'], grp: 1 }, { sh: SH.box(8, 24, 1.8, 13, 2), ramp: STEEL, grp: 2 },
+  { sh: SH.box(8, 10, 6.5, 1.4, 2), ramp: ['#3a2a14', '#6a4a24', '#a07a3a', '#d0a860'], grp: 3 }, { sh: SH.box(8, 5, 1.3, 3.5, 2), ramp: WOOD, grp: 4 }, { sh: SH.ell(8, 1.5, 1.8, 1.6), ramp: STEEL, grp: 5 }], a => {
+  for (let y = 18; y < 34; y += 3) if (a.get(9, y)) a.set(9, y, '#7a5a3a'); });                 // 生鏽
+const plazaCache = new Map<string, HTMLCanvasElement>();
+function plaza(d: any, R: string[]) {                                    // 碎石板地：一片 144×88 世界像素的圖（細像素 ×3），邊緣的石板一塊一塊缺掉
+  if (plazaCache.has(d.id)) return plazaCache.get(d.id);
+  const W = 432, H = 264, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); let seed = d.ent[0] * 131 + d.ent[1];
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed & 0xffff) / 0x10000; };
+  for (let y = 0, row = 0; y < H; y += 18, row++) for (let x = -(row % 2) * 14; x < W;) { const w = 22 + Math.floor(rnd() * 16), mx = (x + w / 2 - W / 2) / (W / 2), my = (y + 9 - 10) / (H - 10);
+    const keep = mx * mx + my * my * 1.1 < .95 - rnd() * .35;                                     // 越外面越容易缺
+    if (keep) { const sh = rnd(); g.fillStyle = R[sh < .45 ? 0 : sh < .9 ? 1 : 2]; g.fillRect(x + 2, y + 2, w - 3, 15);
+      g.fillStyle = R[2]; g.globalAlpha = .4; g.fillRect(x + 2, y + 2, w - 3, 2); g.globalAlpha = 1;   // 上緣亮一點
+      g.fillStyle = '#0c0a10'; g.globalAlpha = .4; g.fillRect(x + 2, y + 15, w - 3, 2); g.globalAlpha = 1;
+      if (rnd() < .3) { g.fillStyle = '#16121c'; let cx = x + 4 + rnd() * (w - 8), cy = y + 3; for (let k = 0; k < 6; k++) { g.fillRect(cx, cy, 1, 2); cx += rnd() < .5 ? -1 : 1; cy += 2; } }   // 裂縫
+      if (rnd() < .35) { g.fillStyle = rnd() < .5 ? '#3e5a3a' : '#4e6e3a'; for (let k = 0; k < 5; k++) g.fillRect(x + 2 + rnd() * (w - 4), y + (rnd() < .5 ? 2 : 13) + rnd() * 3, 2, 1); } }   // 縫裡的青苔
+    x += w; }
+  plazaCache.set(d.id, c); return c;
+}
+function drawDeco(d: any, vis, list, L, addLight, done: boolean) {
+  const ex = d.ent[0] * TS + 8, cy = (d.ent[1] + 1) * TS, r = regAtT(d.ent[0], d.ent[1]), R = d.style === 'crypt' ? STONE : (SRAMP.rock[r] || STONE);
+  if (vis(ex, cy + 50, 150)) list.push({ y: cy - 600, f: () => {                                  // 地面：發黑的一大片 + 石板地（最先畫，在所有東西底下）
+    const g = ctx.createRadialGradient(ex, cy + 44, 10, ex, cy + 44, 150); g.addColorStop(0, done ? 'rgba(20,14,28,.22)' : 'rgba(26,10,40,.42)'); g.addColorStop(1, 'rgba(26,10,40,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(ex, cy + 44, 150, 100, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = .8; drawArtSprite(plaza(d, R), ex, cy + 90); ctx.globalAlpha = 1;
+    if (!done && Math.random() < .25) G.parts.push({ x: ex + rr(-110, 110), y: cy + rr(0, 100), vx: rr(-3, 3), vy: -rr(6, 14), life: rr(1.2, 2), max: 2, col: pick(['#3a1c5a', '#5a2e88', '#1e0e30']), s: 1, drag: .5 });   // 地上飄起來的黑紫色塵
+  } });
+  for (const o of d.deco || []) { if (!vis(o.x, o.y, 60)) continue; const { x, y } = o;
+    if (o.k === 'statue') { const sp = statueArt(d.style === 'crypt' ? 'hood' : 'garg', R);
+      list.push({ y, f: () => { drawShadow(x, y + 1, 20); drawArtSprite(sp, x, y + 2);
+        if (!done) { const eyY = y + 2 - 124 * HK + (d.style === 'crypt' ? 42 : 44) * HK, gl = .65 + .35 * Math.sin(G.time * 3 + x);   // 眼睛發紫光
+          ctx.globalAlpha = gl; ctx.fillStyle = DCOL; for (const ox of d.style === 'crypt' ? [-2, 1] : [-5, 2]) ctx.fillRect(snapF(x + ox * HK), snapF(eyY), HK * 3, HK * 2); ctx.globalAlpha = 1; } } });
+      if (!done) addLight(L, x, y - 30, 14, 3); }
+    else if (o.k === 'banner') list.push({ y, f: () => { ctx.save(); ctx.translate(snapF(x), 0); if (o.flip) ctx.scale(-1, 1); drawArtSprite(BANNER, 5 * HK * 2, y + 1); ctx.restore(); } });
+    else if (o.k === 'rune') { list.push({ y, f: () => { drawArtSprite(RUNE, x, y + 2);
+        const gl = done ? .25 : .55 + .45 * Math.sin(G.time * 2 + x * .1); ctx.globalAlpha = gl; ctx.fillStyle = done ? '#6a6478' : DCOL;   // 刻在石頭上的符文
+        const top = y + 2 - 44 * HK; for (const [ox, oy, w, h] of [[0, 0, 1, 7], [-2, 2, 5, 1], [-1, 5, 3, 1], [-2, 8, 1, 2], [2, 8, 1, 2]]) ctx.fillRect(snapF(x + (ox - .5) * HK), snapF(top + oy * HK), w * HK, h * HK);
+        ctx.globalAlpha = 1; } });
+      if (!done) addLight(L, x, y - 8, 16, 3); }
+    else { const sp = o.k === 'skull' ? SKULL : o.k === 'bones' ? BONES : SWORD;
+      list.push({ y: y - 4, f: () => { if (o.flip) { ctx.save(); ctx.translate(snapF(x), 0); ctx.scale(-1, 1); drawArtSprite(sp, 0, y + 1); ctx.restore(); } else drawArtSprite(sp, x, y + 1); } }); }
+  }
+}
+
 export function drawDoors(vis, list, L, addLight) {
   for (const d of DUNGEONS) {
     const ex = d.ent[0] * TS + 8, ey = (d.ent[1] + 1) * TS - 1, done = dungeonHooks.cleared(d);   // 打完了：洞口變回普通的洞口（沒有白霧、白光、白色光點），一看就知道「這裡來過了」
@@ -83,7 +156,8 @@ export function drawDoors(vis, list, L, addLight) {
     else if (d.stairs) { const sx = ex, sy = d.ent[1] * TS + 8; if (vis(sx, sy, 60)) { addLight(L, sx, sy, 28 + Math.sin(G.time * 3) * 2, 5);   // 地底遺跡的石階：格子已經畫好了，加白光 + 往上飄的白色光點
       list.push({ y: sy + 8, f: () => { ctx.globalAlpha = .22 + .08 * Math.sin(G.time * 2); ctx.fillStyle = '#ffffff'; ctx.fillRect(snapF(sx - 7), snapF(sy - 8), 14, 16); ctx.globalAlpha = 1;
         if (Math.random() < .5) G.parts.push({ x: sx + rr(-7, 7), y: sy + rr(-6, 8), vx: rr(-4, 4), vy: -rr(8, 24), life: rr(.8, 1.5), max: 1.5, col: pick(['#ffffff', '#e8eeff']), star: rr(.4, 1.2), drag: 1 }); } }); } }
-    else if (vis(ex, ey, 60) || vis(ex, ey - 70, 40)) {
+    if (!d.stairs) drawDeco(d, vis, list, L, addLight, done);                                       // 前院：石板地、雕像、破旗、符文石……
+    if (!d.stairs && (vis(ex, ey, 60) || vis(ex, ey - 70, 40))) {
       const crypt = d.style === 'crypt', sp = crypt ? CRYPT_SP : CAVE_SP, top = crypt ? OBELISK : CRAG[regAtT(d.ent[0], d.ent[1])] || CRAG[0];
       list.push({ y: ey - 40, f: () => drawArtSprite(top, ex + (crypt ? 0 : 10), ey - 40) });                 // 岩丘上的尖岩 / 方尖碑（排在洞口後面）
       list.push({ y: ey - 2, f: () => { drawArtSprite(sp, ex, ey); if (!done) drawFog(ex, ey, crypt, d.ent[0] * .13); } });

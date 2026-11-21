@@ -1,5 +1,5 @@
 import { clamp } from '../core/util';
-import { ARENA, BIGT, CAMPS, CLIFF, CRATE, GRAVE, HOUSE, MH, MW, PILLAR, ROCK, RWALL, TREE, TS, reg } from '../world/map';
+import { ARENA, BIGT, CAMPS, CLIFF, CRATE, GRAVE, HOUSE, MH, MW, PILLAR, PROPS, ROCK, RWALL, TREE, TS, reg } from '../world/map';
 import { solidT, tileAt } from '../world/gen';
 
 /* ================= COLLISION ================= */
@@ -18,6 +18,7 @@ export function collides(x, y, r) {
   const x0 = Math.floor((x - r) / TS), x1 = Math.floor((x + r) / TS), y0 = Math.floor((y - r) / TS), y1 = Math.floor((y + r) / TS);
   for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) { const t = tileAt(tx, ty); if (solidT(t) && tilePen(x, y, r, tx, ty, t)) return true; }
   for (const c of CAMPS) if (Math.abs(x - c.x) < 20 && (x - c.x) ** 2 + (y - c.y) ** 2 < (r + 5) ** 2) return true;
+  for (const p of PROPS) if (Math.abs(x - p.x) < 24 && (x - p.x) ** 2 + (y - p.y) ** 2 < (r + p.r) ** 2) return true;
   return false;
 }
 function pushOut(e) {                                                   // 把重疊的部分沿著表面法線推出去 → 自然沿著牆滑
@@ -28,6 +29,8 @@ function pushOut(e) {                                                   // 把�
     for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) { const t = tileAt(tx, ty); if (!solidT(t)) continue;
       const p = tilePen(e.x, e.y, r, tx, ty, t); if (p && p[0] > 0 && (!best || p[0] > best[0])) best = p; }
     for (const c of CAMPS) { if (Math.abs(e.x - c.x) > 20) continue; const dx = e.x - c.x, dy = e.y - c.y, d = Math.hypot(dx, dy), pen = r + 5 - d;
+      if (pen > 0 && d > 1e-4 && (!best || pen > best[0])) best = [pen, dx / d, dy / d]; }
+    for (const p of PROPS) { if (Math.abs(e.x - p.x) > 24) continue; const dx = e.x - p.x, dy = e.y - p.y, d = Math.hypot(dx, dy), pen = r + p.r - d;   // 前院的雕像、石碑
       if (pen > 0 && d > 1e-4 && (!best || pen > best[0])) best = [pen, dx / d, dy / d]; }
     if (!best) return;
     e.x += best[1] * (best[0] + .01); e.y += best[2] * (best[0] + .01);   // 一次只推最深的那個，再重算（角落兩面牆也推得乾淨）

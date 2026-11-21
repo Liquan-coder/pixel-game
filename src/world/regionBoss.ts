@@ -10,15 +10,19 @@ import { flame } from './chunks';
 import { sfx } from '../core/audio';
 import { dropItem } from '../game/enemies';
 import { oreForLevel } from '../data/forge';
-import { dropGold, dropSouls, shake, dropMat } from '../game/worldUpdate';
+import { dropGold, dropSouls, shake, dropMat, tagProjs } from '../game/worldUpdate';
 import { artDot, artPath, drawOrb } from '../render/fx';
-import { teleCircle, teleLane, teleSector, warnMark } from '../render/enemy';
+import { teleCircle, teleLane, teleRing, teleSector, warnMark } from '../render/enemy';
 import { showBanner, toast } from '../ui/hud';
 import { save } from '../game/save';
 import { flags } from '../game/quest';
 import { nearestPlayer } from '../game/player';
 import { DEFAULT_COLS, REGION_FX, recolorNew, rmapCols } from './bossThemes';
 import { drawFall } from '../render/bossFx';
+import { EXTRA_STATES, extraStates, startExtra } from './bossAI3';
+import { REXTRA } from './dungeonBoss';
+import { DB_FX, RB_FX } from '../data/ailments';
+import { BOSS_HP } from '../game/bossTuning';
 
 export const RBDEF: Record<string, any> = {
   queen: { id:'queen', name:'史萊姆女王・翠凝', short:'史萊姆女王', sub:'聖堂的聖壇前，湖水凝成了女王', tx:34, ty:322, tr:8.5, lv:6, hp:950, kind:'queen', ai:'queen',
@@ -62,8 +66,9 @@ export const RBDEF: Record<string, any> = {
 for (const d of Object.values(RBDEF)) { d.x = d.tx * TS + 8; d.y = d.ty * TS + 8; d.R = d.tr * TS; }
 export let rbs = [];
 export const rbDead = new Set();
-function makeRB(d) { return { rb:true, boss:true, def:d, id:d.id, kind:d.kind, beh:'slime', x:d.x, y:d.y, r:14, lv:d.lv, hp:d.hp, maxHp:d.hp, state:'sleep', t:0, wt:0, phase:1,
-  flash:0, kx:0, ky:0, stun:0, flip:false, anim:0, aim:0, z:0, tele:null, splitT:0 }; }
+function makeRB(d) { const hp = Math.round(d.hp * BOSS_HP); return { rb:true, boss:true, def:d, id:d.id, kind:d.kind, beh:'slime', x:d.x, y:d.y, r:14, lv:d.lv, hp, maxHp:hp, state:'sleep', t:0, wt:0, phase:1,
+  flash:0, kx:0, ky:0, stun:0, flip:false, anim:0, aim:0, z:0, tele:null, splitT:0,
+  hc: { lv: d.lv, fx: RB_FX[d.id] || (d.dg ? DB_FX[String(d.kind).slice(3)] : undefined) } }; }   // 打中你時：等級差 + 這隻 Boss 的異常狀態（data/ailments.ts）
 export function resetRegionBosses() {
   G.enemies = G.enemies.filter(e => !e.rbAdd);
   rbs = Object.values(RBDEF).filter(d => !rbDead.has(d.id) && !(d.dg && flags.has('dgn:' + d.dg))).map(makeRB);   // 地城 Boss：打倒過（舊存檔的守護者也算）就不再出現
@@ -97,8 +102,12 @@ export function updateRegionBosses(dt) {
     }
     if (e.splitT > 0) e.splitT -= dt;
     const dx = e.tgt.x - e.x, dy = e.tgt.y - e.y, dist2 = Math.hypot(dx, dy);
-    const n0 = G.projs.length, f0 = G.fx.length, p0 = G.parts.length; G.dmgMul = d.dmgMul || 1;
-    AI[d.ai](e, dt, dist2, dx, dy);
+    const n0 = G.projs.length, f0 = G.fx.length, p0 = G.parts.length; G.dmgMul = d.dmgMul || 1; G.hitCtx = e.hc;
+    const xs = REXTRA[d.id];                                           // 主線 / 區域 Boss 二階段：偶爾插一招新招（吸引、甜甜圈、十字光束、追蹤彈）
+    if (xs && e.phase === 2 && e.state === 'idle' && !(e.z > 0) && (e.xT = (e.xT ?? 3) - dt) <= 0) { const [m, , mo] = pick(xs); startExtra(e, m, mo, dx, dy); e.xT = rr(6, 9); }
+    if (EXTRA_STATES.has(e.state)) { G.dmgMul = 1; extraStates(e, dt); }  // 新招的傷害本來就照等級算，不要再乘一次
+    else AI[d.ai](e, dt, dist2, dx, dy);
+    tagProjs(n0); G.hitCtx = null;
     recolorNew(e, f0, p0, n0);                                         // 區域 Boss：沿用來的特效換成自己的顏色（world/bossThemes.ts）
     for (let i = n0; i < G.projs.length; i++) if (G.projs[i].owner === 'e' && !G.projs[i].scaled) { G.projs[i].dmg = Math.max(1, Math.round(G.projs[i].dmg * G.dmgMul)); G.projs[i].scaled = true; }
     G.dmgMul = 1;
@@ -140,5 +149,6 @@ export function drawRBTele(e) {
   for (const t of e.tele || []) { const qq = t.q !== undefined ? t.q : q;
     if (t.k === 'circle') teleCircle(t.x !== undefined ? t.x : e.x, t.y !== undefined ? t.y : e.y, t.r, qq);
     else if (t.k === 'lane') teleLane(e.x, e.y - 6, t.a, t.L, t.W, qq);
-    else if (t.k === 'sector') teleSector(e.x, e.y - 6, t.r, t.a, t.half, qq); }
+    else if (t.k === 'sector') teleSector(e.x, e.y - 6, t.r, t.a, t.half, qq);
+    else if (t.k === 'ring') teleRing(e.x, e.y, t.r0, t.r, qq); }
 }

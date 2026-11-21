@@ -67,6 +67,26 @@ export const DBOSS: Record<string, DBossDef> = {
     p2: [['summon', 1, { n: 3, max: 4 }], ['charge', 2, { L: 170, W: 24, spd: 380, k: 1.2 }]] },
 };
 
+/* ---- 新招（world/bossAI3.ts 的 pull / donut / cross / homing）：[一階段就會用, 二階段才會用] ----
+   吸引 → 要往外走；甜甜圈 → 要往內衝；十字光束 → 站斜角；追蹤彈 → 繞圈甩掉。配合每隻 Boss 的異常狀態（data/ailments.ts）就很難站著硬砍 */
+const PULL = (r = 54, k = 1.3): Move => ['pull', 2, { r, k, pull: 62 }], DONUT = (r0 = 44, r = 124, k = 1.3): Move => ['donut', 2, { r0, r, k }];
+const CROSS = (L = 170, k = 1.2): Move => ['cross', 2, { L, W: 18, k }], HOMING = (n = 3, k = .9): Move => ['homing', 2, { n, spd: 90, turn: 2.2, k }];
+const EXTRA: Record<string, [Move[], Move[]]> = {
+  snail: [[], [DONUT(40, 110)]],            warden: [[HOMING(3)], [CROSS()]],          tidecrab: [[DONUT()], [PULL()]],
+  broodmother: [[HOMING(4, .8)], [PULL(50)]], rootheart: [[PULL(58)], [HOMING(4)]],     scorpion: [[], [DONUT(42, 118)]],
+  sandking: [[PULL(56)], [CROSS(), HOMING(4)]], salamander: [[], [DONUT()]],          magmaworm: [[PULL(56)], [DONUT()]],
+  icequeen: [[HOMING(3)], [DONUT(), CROSS()]], frostknight: [[DONUT(46, 120)], [CROSS()]], toadking: [[PULL(56, 1.4)], [HOMING(4)]],
+  drowned: [[PULL(58)], [HOMING(4), DONUT()]], captain: [[CROSS(160, 1.3)], [DONUT()]],  forgeguard: [[DONUT(48, 128, 1.4)], [CROSS(), PULL(60)]],
+  starwarden: [[CROSS(190), HOMING(4)], [PULL(60), DONUT(46, 130)]],
+};
+for (const k in EXTRA) { DBOSS[k].moves.push(...EXTRA[k][0]); DBOSS[k].p2.push(...EXTRA[k][1]); }
+/* 主線 / 區域 Boss：二階段每 6~9 秒插一招新招（world/regionBoss.ts）。牠們原本的招式不變 */
+export const REXTRA: Record<string, Move[]> = {
+  queen: [DONUT(40, 120), HOMING(3)], general: [CROSS(170, 1.3), PULL(56)], dragon: [DONUT(48, 140, 1.4), PULL(60)], mushking: [PULL(56), HOMING(4)],
+  yeti: [DONUT(48, 140, 1.4), PULL(60)], lich: [CROSS(190, 1.3), HOMING(4), PULL(60)], mossguard: [PULL(52)], mistwitch: [HOMING(3), CROSS(170)],
+  sandgiant: [PULL(58), DONUT(46, 130)], slagmother: [DONUT(46, 124), HOMING(3)], frostwyrm: [CROSS(190, 1.3), DONUT(48, 140)], toxqueen: [PULL(58), HOMING(4)],
+};
+
 /* 把每座地城的 Boss 放進 RBDEF（id = 'dg_' + 地城編號）。打倒 → flags 'dgn:編號'（金箱解封、不再出現）+ 招牌裝備 */
 export function registerDungeonBosses() {
   for (const d of DUNGEONS) { const B = DBOSS[d.boss]; if (!B || !d.bossAt) continue;

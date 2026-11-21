@@ -43,6 +43,11 @@ export function teleLane(x, y, a, L, W, q) { const e = HK * 2.5, c = Math.cos(a)
     for (let al = (G.time * 90) % 18; al < L - 4; al += 18) { const mx = x + c * al, my = y + s * al; artLine(mx - s * W * .28, my + c * W * .28, mx + s * W * .28, my - c * W * .28, 1); }
     ctx.fill(); ctx.globalAlpha = a0; }); }
 export function teleCircle(x, y, R, q) { teleDraw(y - R, y + R, shEll(x, y, R), shEll(x, y, R * q), shEll(x, y, R - HK * 2.5)); }
+export function teleRing(x, y, r0, R, q) {                                    // 甜甜圈預警：外圈紅色（從內往外填滿），裡面一圈白色虛光 = 安全區
+  const p = .7 + .3 * Math.sin(G.time * 26), e = HK * 2.5, inner = shEll(x, y, r0);
+  fillSpans(y - R, y + R, [{ sh:shEll(x, y, R), sub:inner, col:TELE[0], a:.22 * p }, { sh:shEll(x, y, r0 + (R - r0) * q), sub:inner, col:TELE[1], a:.3 },
+    { sh:shEll(x, y, R), sub:shEll(x, y, R - e), col:TELE[2], a:.85 * p }, { sh:shEll(x, y, r0 + e), sub:inner, col:TELE[2], a:.85 * p },
+    { sh:inner, col:'#ffffff', a:.1 + .06 * p }]); }
 export function warnMark(x, y) {                                              // 頭上的紅色驚嘆號
   const q = HK, X = asn(x), Y = asn(y), b = Math.sin(G.time * 20) > 0 ? '#ff3b3b' : '#ffd0d0';
   ctx.fillStyle = OL; ctx.fillRect(X - 2 * q, Y - 2 * q, 5 * q, 13 * q); ctx.fillStyle = b; ctx.fillRect(X - q, Y - q, 3 * q, 7 * q); ctx.fillRect(X - q, Y + 7 * q, 3 * q, 3 * q);

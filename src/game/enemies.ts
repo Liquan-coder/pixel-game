@@ -8,6 +8,7 @@ import { hurtPlayer } from './combat';
 import { nearestPlayer } from './player';
 import { burst, dropGold, dropMat, dropPot, dropSouls, killFx, quakeFx, shake } from './worldUpdate';
 import { oreForLevel } from '../data/forge';
+import { mobFx } from '../data/ailments';
 import { soft } from '../data/attrs';
 import { showBanner, toast } from '../ui/hud';
 import { flags } from './quest';
@@ -21,7 +22,8 @@ export function makeEnemy(kind: string, lv: number, x: number, y: number, sp?): 
   const hp = Math.round(D.hp(lv) * (el ? 4 : 1));
   return { kind, beh:K.beh, lv, sp, x, y, hx: x, hy: y, r: D.r + (el ? 1 : 0), hp, maxHp: hp, dmg: Math.round(D.dmg(lv) * (el ? 1.35 : 1)), spd: D.spd * (el ? 1.1 : 1),
     state:'idle', t: rr(0, 2), flip: Math.random() < .5, flash:0, kx:0, ky:0, stun:0, atkCd:0, anim: Math.random() * 10,
-    wx: x, wy: y, aim:0, leash: sp ? (el ? 300 : 230) : 600, aggro: D.aggro + (el ? 30 : 0), elite: !!el, ename: sp && sp.ename, announced:false };
+    wx: x, wy: y, aim:0, leash: sp ? (el ? 300 : 230) : 600, aggro: D.aggro + (el ? 30 : 0), elite: !!el, ename: sp && sp.ename, announced:false,
+    hc: { lv, fx: mobFx(kind, !!el) } };                               // 打中你時：等級差 + 異常狀態（data/ailments.ts）
 }
 export function respawnAll() {
   G.enemies = []; resetMimics();

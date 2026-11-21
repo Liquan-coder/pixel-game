@@ -59,7 +59,7 @@ const pageScript = async () => {
   const { startGame } = await imp('main');
   const menus = await imp('ui/menus');
   const shop = await imp('ui/shop');
-  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies') };
+  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies'), status: await imp('game/status'), bt: await imp('game/bossTuning'), ai3: await imp('world/bossAI3'), coll: await imp('game/collision') };
 
   const imp0 = { map: await imp('render/map'), dg: await imp('world/dungeons'), input: await imp('ui/interact'), inp: await imp('ui/input'), hud: await imp('ui/hud') };
   const step = (n, opts = {}) => {
@@ -67,6 +67,7 @@ const pageScript = async () => {
       if (opts.god && G.me) { G.me.hp = G.me.maxHp; G.me.st = G.me.maxSt; }
       if (opts.atkEvery && i % opts.atkEvery === 0) pressed.atk = true;
       update(1 / 60); render(); updateHUD();
+      if (opts.god && G.me && G.me.dead) { G.me.dead = false; G.me.hp = G.me.maxHp; }   // 無敵：等級差讓高等怪一下就打死 1 級的測試角色 → 倒下就馬上扶起來（不然會重生回營火）
       for (const k in pressed) pressed[k] = false;
     }
     renderMini();
@@ -394,6 +395,54 @@ const pageScript = async () => {
     if (e.state === 'chase' && !canSee(e.x, e.y - 6, G.me.x, G.me.y - 6)) throw new Error('看不到你還一直追');
     G.enemies = [];
     tp(d.exX, d.exY); step(1); imp0.input.enterDoor(); step(2);
+  });
+
+  run('異常狀態：冰凍 / 暈眩不能動、狂按掙脫、中毒扣血、出血爆發、目盲、封印', () => {
+    const ST = await0.status; setMenu(null); G.enemies = []; ST.clearStatus(G.me); G.me.hp = G.me.maxHp;
+    G.me.iframe = 0; hurtPlayer(G.me, 1, G.me.x + 5, G.me.y, { frost: 120 }); G.me.kx = G.me.ky = 0; const x0 = G.me.x;   // 擊退不算
+    if (!(G.me.sx.frozen > 0)) throw new Error('凍傷滿了沒有冰凍');
+    input.mx = 1; step(20); input.mx = 0; if (Math.abs(G.me.x - x0) > 6) throw new Error('冰凍中還能走路：' + (G.me.x - x0));
+    const f0 = G.me.sx.frozen; pressed.atk = true; step(1); if (!(G.me.sx.frozen < f0 - .1)) throw new Error('狂按沒有比較快掙脫');
+    step(80); if (G.me.sx.frozen > 0) throw new Error('冰凍沒有解除');
+    G.me.iframe = 0; hurtPlayer(G.me, 1, G.me.x + 5, G.me.y, { stun: .5 }); if (!ST.locked(G.me)) throw new Error('沒有暈眩');
+    step(40); G.me.iframe = 0; hurtPlayer(G.me, 1, G.me.x + 5, G.me.y, { stun: .5 }); if (ST.locked(G.me)) throw new Error('剛暈完又被暈（應該有一段時間不會再暈）');
+    G.me.hp = G.me.maxHp; G.me.iframe = 0; hurtPlayer(G.me, 1, G.me.x + 5, G.me.y, { poison: 3 }); const h0 = G.me.hp; step(120);
+    if (!(G.me.hp < h0 - 1)) throw new Error('中毒沒有扣血');
+    G.me.hp = G.me.maxHp; G.me.iframe = 0; const h1 = G.me.hp; hurtPlayer(G.me, 1, G.me.x + 5, G.me.y, { bleed: 100 }); if (!(G.me.hp < h1 - G.me.maxHp * .1)) throw new Error('出血沒有爆發');
+    G.me.iframe = 0; hurtPlayer(G.me, 1, G.me.x + 5, G.me.y, { silence: 2, blind: 2, root: 1, slow: 2 });
+    step(2); if (document.getElementById('statusRow').hidden) throw new Error('HUD 沒有顯示異常狀態');
+    G.me.skillCd = 0; pressed.skill = true; step(1); if (G.me.skillCd > 0) throw new Error('封印中還能用技能');
+    ST.clearStatus(G.me); G.me.hp = G.me.maxHp; step(2); if (!document.getElementById('statusRow').hidden) throw new Error('狀態解除了 HUD 還在');
+  });
+
+  run('等級差：低等打高等怪比較痛、比較難打', () => {
+    const BT = await0.bt;
+    if (!(BT.gapTaken(20, 10) > 1.3 && BT.gapTaken(10, 20) < 1 && BT.gapTaken(0, 5) === 1)) throw new Error('被打的倍率不對');
+    if (!(BT.gapDealt(10, 20) < .8 && BT.gapDealt(20, 10) > 1)) throw new Error('打怪的倍率不對');
+  });
+
+  run('Boss 新招：吸引 / 甜甜圈 / 十字光束 / 追蹤彈（地城 Boss 和主線 Boss 都能用）', () => {
+    const A3 = await0.ai3; setMenu(null);
+    for (const id of ['dg_' + imp0.dg.DUNGEONS[0].id, 'yeti']) {
+      RB.rbDead.delete(id); await0.quest.flags.delete('dgn:' + imp0.dg.DUNGEONS[0].id); RB.resetRegionBosses(); const b = RB.rbs.find(e => e.id === id); if (!b) throw new Error('找不到 ' + id);
+      if (id.startsWith('dg_')) { tp(imp0.dg.DUNGEONS[0].ent[0] * 16 + 8, (imp0.dg.DUNGEONS[0].ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2); }
+      tp(b.def.x, b.def.y + 40); step(100, { god: true }); if (b.state === 'sleep') throw new Error(id + '：沒醒');
+      for (const [m, mo] of [['pull', { r: 56, k: 1.3, pull: 62 }], ['donut', { r0: 44, r: 124, k: 1.3 }], ['cross', { L: 170, W: 18, k: 1.2 }], ['homing', { n: 3, spd: 90, turn: 2.2, k: .9 }]]) {
+        b.state = 'idle'; b.phase = 2; A3.startExtra(b, m, mo, 10, 10); if (!A3.EXTRA_STATES.has(b.state)) throw new Error(id + '：' + m + ' 沒有開始');
+        const p0 = G.projs.length; let left = 300; while (A3.EXTRA_STATES.has(b.state) && left-- > 0) { G.me.iframe = 0; step(1, { god: true }); b.hp = b.maxHp; }
+        if (A3.EXTRA_STATES.has(b.state)) throw new Error(id + '：' + m + ' 一直沒結束 t=' + b.t + ' same=' + RB.rbs.includes(b) + ' d=' + Math.round(Math.hypot(G.me.x - b.def.x, G.me.y - b.def.y)) + ' R=' + b.def.R + ' dead=' + G.me.dead + ' paused=' + G.paused);
+        if (m === 'homing' && !G.projs.some(p => p.home)) throw new Error(id + '：追蹤彈沒射出來'); }
+      log.push('  ' + b.def.name + '：四招都放得出來');
+      G.projs = []; menus.restAt(CAMPS[0]); setMenu(null); step(2, { god: true });
+    }
+  });
+
+  run('地城前院：每個野外洞口都有雕像 / 旗子 / 符文石，雕像擋路', () => {
+    const D = imp0.dg, M = await0.map;
+    for (const d of D.DUNGEONS) { if (d.stairs) continue;
+      const k = new Set((d.deco || []).map(o => o.k)); if (!k.has('rune') || (!k.has('statue') && !k.has('banner'))) throw new Error(d.name + '：前院裝飾太少 ' + [...k].join(','));
+      for (const o of d.deco) if (o.k === 'statue' && !(await0.coll.collides(o.x, o.y, 4))) throw new Error(d.name + '：雕像不會擋路'); }
+    if (!M.PROPS.length) throw new Error('沒有任何擋路的裝飾');
   });
 
   run('死亡 → 重生', () => {

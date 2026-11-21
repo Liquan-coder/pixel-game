@@ -11,7 +11,7 @@
    新增地城：在 DUNGEONS 加一筆，區塊會自動排好。 */
 import { G } from '../core/state';
 import { mulberry32 } from '../core/util';
-import { BRIDGE, CLIFF, GROUND, LAVA, MW, PILLAR, RFLOOR, ROAD, RWALL, STAIRS, SUBS, TS, WATER, glows, map, reg, spawns } from './map';
+import { BIGT, BRIDGE, CLIFF, CRATE, GRAVE, GROUND, LAVA, MW, PILLAR, PROPS, RFLOOR, ROAD, ROCK, RWALL, STAIRS, SUBS, TREE, TS, WALKABLE, WATER, glows, map, reg, spawns } from './map';
 import { POIS } from '../data/poi';
 import type { Player } from '../types';
 
@@ -33,6 +33,7 @@ export interface Dungeon {
   x0?: number; y0?: number; w?: number; inX?: number; inY?: number; exX?: number; exY?: number;
   bossAt?: [number, number, number]; bossChest?: [number, number]; sideChests?: [number, number][]; tablet?: [number, number];
   portal?: [number, number];                                              // Boss 大廳的傳送門（世界座標，打倒 Boss 後才出現）
+  deco?: Deco[];                                                          // 野外入口前院的裝飾（dressEntrances）
 }
 export const DUNGEONS: Dungeon[] = [
   // ---- 翠風平原 ----
@@ -100,6 +101,28 @@ export function stampEntrances(inb: (x: number, y: number) => boolean) {
       else if (y > ey && Math.abs(x - ex) <= 3 - (y > ey + 3 ? 1 : 0)) { if (t !== RWALL && t !== RFLOOR && t !== BRIDGE) map[i] = map[i] === ROAD ? ROAD : GROUND; }   // 洞口前的空地
     }
     trail(ex, ey + 2, inb);
+  }
+}
+/* ---- 地城的前院：讓人一眼看出「這裡是地城」 ----
+   洞口前面鋪一片碎掉的石板地、地面發黑；兩尊守門的雕像（洞窟 / 石窟 = 石像鬼，古墓 = 拿劍的兜帽騎士）、
+   兩根破旗、一圈發著紫光的符文石，地上散著頭骨和插在土裡的舊劍（world/dungeonArt.ts 畫）。
+   在 main.ts 生成完寶箱、怪物之後才跑：只清掉前院的樹和石頭，不會讓其他東西的位置跑掉（舊存檔照樣對得上）。
+   deco 的座標都是世界座標；雕像、石碑、旗桿會擋路（PROPS） */
+export interface Deco { k: 'statue' | 'banner' | 'rune' | 'skull' | 'bones' | 'sword'; x: number; y: number; flip?: boolean }
+export function dressEntrances(avoid: { x: number; y: number }[] = []) {   // avoid = 寶箱：不要把雕像蓋在寶箱上
+  PROPS.length = 0;
+  const CLEAR = new Set([TREE, ROCK, BIGT, GRAVE, CRATE]);
+  for (const d of DUNGEONS) { d.deco = []; if (d.stairs) continue; const [ex, ey] = d.ent;
+    for (let y = ey + 1; y <= ey + 8; y++) for (let x = ex - 7; x <= ex + 7; x++) { const i = y * MW + x;   // 前院：清掉樹和石頭（水、懸崖不動）
+      if (((x - ex) / 7.5) ** 2 + ((y - ey - 1) / 7.5) ** 2 <= 1 && CLEAR.has(map[i])) map[i] = GROUND; }
+    const cx = ex * TS + 8, cy = (ey + 1) * TS;                                                  // 洞口正下方
+    const free = (x: number, y: number, r: number) => { const t = map[Math.floor(y / TS) * MW + Math.floor(x / TS)];
+      return WALKABLE(t) && t !== ROAD && t !== BRIDGE && !PROPS.some(p => Math.hypot(p.x - x, p.y - y) < p.r + r + 6) && !avoid.some(c => Math.hypot(c.x - x, c.y - y) < r + 16); };
+    const put = (k: Deco['k'], x: number, y: number, r = 0, flip = false) => { if (r && !free(x, y, r)) return; d.deco.push({ k, x, y, flip }); if (r) PROPS.push({ x, y, r }); };
+    for (const s of [-1, 1]) { put('statue', cx + s * 52, cy + 40, 7, s > 0); put('banner', cx + s * 88, cy + 14, 2.5, s > 0); }
+    for (let k = 0; k < 6; k++) { const a = Math.PI * (.12 + .76 * k / 5); put('rune', cx + Math.cos(a) * 118, cy + 30 + Math.sin(a) * 72, 5); }   // 前院外圍半圈符文石
+    for (const [k, ox, oy] of [['skull', -30, 30], ['sword', 34, 66], ['bones', -42, 84], ['skull', 24, 22], ['sword', -16, 98], ['bones', 46, 40], ['skull', 62, 92]] as [Deco['k'], number, number][]) {
+      const x = cx + ox, y = cy + oy, t = map[Math.floor(y / TS) * MW + Math.floor(x / TS)]; if (WALKABLE(t) && t !== ROAD) d.deco.push({ k, x, y, flip: ox < 0 }); }
   }
 }
 /* 從洞口前面拉一條 2 格寬的小路，接到最近的大路（找 60 格內最近的路）；過水 = 木橋，遇到牆就停 */

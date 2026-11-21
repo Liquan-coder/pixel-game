@@ -8,7 +8,16 @@
 import { RBDEF } from '../world/regionBoss';
 import { makeUnique, makeUniqueGear } from '../data/items';
 
-export const BOSS_K = .85;                                              // 整體倍率：1 = 跟地城 Boss 一樣痛（.85 = 穿好裝的人能扛 6 下左右，npm run balance）
+/* ---- Boss 血量倍率：每隻 Boss 的血量都乘上這個（區域 / 主線 / 地城 Boss 都算，world/regionBoss.ts 的 makeRB） ---- */
+export const BOSS_HP = 1.6;
+
+/* ---- 等級差：怪比你高幾級，你就被打得比較痛、打牠比較不痛（不顯示在畫面上，玩家只會覺得「這裡好難」）----
+   例：你 10 級打 20 級的 Boss → 被打 ×1.5、打牠 ×0.65；你 20 級打 10 級的怪 → 被打 ×0.8、打牠 ×1.1
+   上限：被打最多 ×2、最少 ×0.6；打牠最少 ×0.4、最多 ×1.2 */
+export function gapTaken(srcLv: number, plLv: number) { if (!srcLv) return 1; const g = srcLv - plLv; return g > 0 ? Math.min(2, 1 + .05 * g) : Math.max(.6, 1 + .02 * g); }
+export function gapDealt(plLv: number, eLv: number) { if (!eLv) return 1; const g = eLv - plLv; return g > 0 ? Math.max(.4, 1 - .035 * g) : Math.min(1.2, 1 - .01 * g); }
+
+export const BOSS_K = 1;                                                 // 整體倍率：1 = 跟地城 Boss 一樣痛（.85 = 穿好裝的人能扛 6 下左右，npm run balance）
 export const BOSS_REF = 34;                                              // 主線 Boss 招式的「標準一擊」大約是 34
 export const bossMul = (lv: number) => BOSS_K * (10 + 3 * lv) / BOSS_REF;
 

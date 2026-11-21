@@ -23,6 +23,7 @@ import './game/collision';
 import { initAudio } from './core/audio';
 import { respawnAll } from './game/enemies';
 import { resetBoss } from './game/boss';
+import { dressEntrances } from './world/dungeons';
 import { hurtPlayer } from './game/combat';
 import { placeAtCamp, restoreWorld } from './game/playerUpdate';
 import { update, updateMotes } from './game/worldUpdate';
@@ -65,7 +66,7 @@ function frame(ts) {
 }
 
 function boot(data) {
-  genWorld(); genChests(reachable); placeTablets(); bakeFullMap();
+  genWorld(); genChests(reachable); placeTablets(); dressEntrances(CHESTS); bakeFullMap();   // dressEntrances 要在寶箱之後：只清前院的樹，其他東西的位置不變
   resetPlayers(); placeAtCamp(G.me, 'start'); respawnAll(); resetBoss();
   resize(); window.addEventListener('resize', resize);
   initTitle();                                                          // 標題畫面：三格存檔（ui/title.ts）

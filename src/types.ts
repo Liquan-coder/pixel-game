@@ -70,6 +70,9 @@ export interface Player {
   charging?: boolean; charge?: number; chargeLv?: number; chargeHold?: number; chargeArm?: boolean;
   wHist?: number[][] | null; wRec?: number; wRecD?: number; wFrom?: number; wTy?: number; wRot?: number;   // 武器殘影、收招（wRot = 剛剛那一下往哪邊轉）
 
+  // 異常狀態（game/status.ts）：冰凍、暈眩、中毒……沒中過就是 undefined
+  sx?: import('./game/status').Status; silT?: number;   // silT = 上次跳「被封印了」提示的時間
+
   // 死亡
   dead: boolean;
   deathT: number;                 // 倒下後經過幾秒（到 2.6 秒重生）

@@ -37,7 +37,7 @@ AI.queen = (e, dt, d, dx, dy) => {                                    // 史萊�
       e.tele = [{ k:'circle', x:e.tx, y:e.ty, r:40, q:.5 + .5 * u }];
       if (e.t <= 0) {
         e.z = 0; e.tele = null;
-        if (Math.hypot(e.tgt.x - e.x, e.tgt.y - e.y) < 40 - DG && hurtPlayer(e.tgt, 22, e.x, e.y)) hitSpark(e.tgt.x, e.tgt.y - 8, true, Math.atan2(e.tgt.y - e.y, e.tgt.x - e.x));
+        if (Math.hypot(e.tgt.x - e.x, e.tgt.y - e.y) < 40 - DG && hurtPlayer(e.tgt, 22, e.x, e.y, { stun: .45 })) hitSpark(e.tgt.x, e.tgt.y - 8, true, Math.atan2(e.tgt.y - e.y, e.tgt.x - e.x));
         for (const dl of [0, .08]) G.fx.push({ k:'warp', x:e.x, y:e.y, r0:6, r1:52, th:6, delay:dl, t:0, d:.4 + dl, col:'#4fbf5a' });
         for (let i = 0; i < 22; i++) { const a = rr(0, TAU), sp = rr(60, 150); G.parts.push({ x:e.x, y:e.y - 4, vx:Math.cos(a) * sp, vy:Math.sin(a) * sp * .6 - 40, life:rr(.4, .7), max:.7, col:pick(['#4fbf5a', '#7fe07a', '#c8ffc0']), s:2, g:240 }); }
         sfx.boom(); shake(6, .3); G.hitStop = Math.max(G.hitStop, .07); e.state = 'idle'; e.t = .9;
@@ -156,7 +156,7 @@ AI.dragon = (e, dt, d, dx, dy) => {                                   // 熔岩�
       break;
     case 'tailWind':
       e.t -= dt;
-      if (e.t <= 0) { e.tele = null; if (d < 50 - DG && hurtPlayer(e.tgt, 26, e.x, e.y)) hitSpark(e.tgt.x, e.tgt.y - 8, true, Math.atan2(dy, dx));
+      if (e.t <= 0) { e.tele = null; if (d < 50 - DG && hurtPlayer(e.tgt, 26, e.x, e.y, { stun: .45 })) hitSpark(e.tgt.x, e.tgt.y - 8, true, Math.atan2(dy, dx));
         G.fx.push({ k:'smear', x:e.x, y:e.y - 8, a0:e.aim + Math.PI, a1:e.aim + Math.PI + TAU * .95, r:48, w:12, sw:.16, hold:.14, delay:0, t:0, d:.3, cols:FIREC, sy:.75 });
         sfx.swing(); shake(4, .2); e.state = 'idle'; e.t = rr(.6, .9); }
       break;
@@ -196,7 +196,7 @@ AI.dragon = (e, dt, d, dx, dy) => {                                   // 熔岩�
     case 'dive':
       e.t -= dt; e.z = Math.max(0, e.t / .22 * 90);
       if (e.t <= 0) { e.z = 0; e.tele = null;
-        if (Math.hypot(e.tgt.x - e.x, e.tgt.y - e.y) < 54 - DG && hurtPlayer(e.tgt, 34, e.x, e.y)) hitSpark(e.tgt.x, e.tgt.y - 8, true, Math.atan2(e.tgt.y - e.y, e.tgt.x - e.x));
+        if (Math.hypot(e.tgt.x - e.x, e.tgt.y - e.y) < 54 - DG && hurtPlayer(e.tgt, 34, e.x, e.y, { stun: .55 })) hitSpark(e.tgt.x, e.tgt.y - 8, true, Math.atan2(e.tgt.y - e.y, e.tgt.x - e.x));
         quakeFx(e.x, e.y, 60, true); for (const dl of [0, .1]) G.fx.push({ k:'warp', x:e.x, y:e.y, r0:6, r1:62, th:6, delay:dl, t:0, d:.45 + dl, col:'#ff8a3a' });
         for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; G.projs.push({ x:e.x + Math.cos(a) * 16, y:e.y - 8 + Math.sin(a) * 12, vx:Math.cos(a) * 170, vy:Math.sin(a) * 170, r:5, life:1.1, dmg:16, owner:'e', kind:'ember' }); }
         sfx.boom(); shake(8, .4); G.hitStop = Math.max(G.hitStop, .09); e.state = 'idle'; e.t = 1.1; }

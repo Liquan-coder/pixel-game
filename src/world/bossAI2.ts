@@ -32,8 +32,8 @@ export function summon(e, kind, n, max, lvOff = 2) {
     const w = makeEnemy(kind, Math.max(1, e.lv - lvOff), x, y, null); w.state = 'chase'; w.rbAdd = D.id; G.enemies.push(w);
     G.fx.push({ k: 'warp', x, y, r0: 2, r1: 16, th: 3, t: 0, d: .4, col: D.ring[0] }); }
 }
-export function landHit(e, r, dmg) {                                          // 落地的範圍傷害
-  for (const pl of G.players) if (Math.hypot(pl.x - e.x, pl.y - e.y) < r - DG && hurtPlayer(pl, dmg, e.x, e.y)) hitSpark(pl.x, pl.y - 8, true, Math.atan2(pl.y - e.y, pl.x - e.x));
+export function landHit(e, r, dmg) {                                          // 落地的範圍傷害（砸到會暈一下）
+  for (const pl of G.players) if (Math.hypot(pl.x - e.x, pl.y - e.y) < r - DG && hurtPlayer(pl, dmg, e.x, e.y, { stun: .5 })) hitSpark(pl.x, pl.y - 8, true, Math.atan2(pl.y - e.y, pl.x - e.x));
   for (const dl of [0, .08]) G.fx.push({ k: 'warp', x: e.x, y: e.y, r0: 6, r1: r + 10, th: 6, delay: dl, t: 0, d: .4 + dl, col: e.def.aura[0] });
   quakeFx(e.x, e.y, r); sfx.boom(); shake(6, .3); G.hitStop = Math.max(G.hitStop, .07);
 }

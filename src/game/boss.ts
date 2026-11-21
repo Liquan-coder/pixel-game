@@ -10,14 +10,16 @@ import { sfx } from '../core/audio';
 import { dropItem, makeEnemy } from './enemies';
 import { hurtPlayer } from './combat';
 import { nearestPlayer } from './player';
-import { burst, dropGold, dropSouls, hitSpark, quakeFx, shake } from './worldUpdate';
+import { burst, dropGold, dropSouls, hitSpark, quakeFx, shake, tagProjs } from './worldUpdate';
 import { showBanner, toast } from '../ui/hud';
 import { save } from './save';
+import { RB_FX } from '../data/ailments';
+import { BOSS_HP } from './bossTuning';
 
 /* ================= BOSS ================= */
 const BOSS_HOME = { x: DOOR[1] * TS + 8, y: (ARENA.y0 + 7) * TS };
 function makeBoss() {
-  return { boss:true, kind:'boss', x:BOSS_HOME.x, y:BOSS_HOME.y, r:13, hp:1500, maxHp:1500, state:'sleep', t:0, phase:1,
+  return { boss:true, kind:'boss', lv:WOLF_LV, x:BOSS_HOME.x, y:BOSS_HOME.y, r:13, hp:Math.round(1500 * BOSS_HP), maxHp:Math.round(1500 * BOSS_HP), state:'sleep', t:0, phase:1,
     flash:0, kx:0, ky:0, stun:0, flip:false, howlT:0, combo:0, anim:0, aim:0, lvx:0, lvy:0, hitDone:false };
 }
 export function resetBoss() {
@@ -42,7 +44,8 @@ function chooseBossAttack() {
 }
 function bossGhost() { G.fx.push({ k:'bghost', x:G.B.x, y:G.B.y - (G.B.z || 0), flip:G.B.flip, t:0, d:.22 }); }
 /* 狼王的招式傷害也照等級放大（跟其他 Boss 同一條曲線，game/bossTuning.ts） */
-export function updateBoss(dt) { G.dmgMul = bossMul(WOLF_LV); try { updateBoss0(dt); } finally { G.dmgMul = 1; } }
+export function updateBoss(dt) { const n0 = G.projs.length; G.dmgMul = bossMul(WOLF_LV); G.hitCtx = { lv: WOLF_LV, fx: RB_FX.wolf };
+  try { updateBoss0(dt); tagProjs(n0); } finally { G.dmgMul = 1; G.hitCtx = null; } }
 const WOLF_LV = 8;
 function updateBoss0(dt) {
   if (!G.B || G.bossDead) return;
@@ -103,7 +106,7 @@ function updateBoss0(dt) {
       if (Math.random() < .5) bossGhost();
       if (G.B.t <= 0) {
         G.B.z = 0; G.B.x = G.B.tx; G.B.y = G.B.ty;
-        if (Math.hypot(G.B.tgt.x - G.B.x, G.B.tgt.y - G.B.y) < 46 - DG && hurtPlayer(G.B.tgt, 32, G.B.x, G.B.y)) hitSpark(G.B.tgt.x, G.B.tgt.y - 8, true, Math.atan2(G.B.tgt.y - G.B.y, G.B.tgt.x - G.B.x));
+        if (Math.hypot(G.B.tgt.x - G.B.x, G.B.tgt.y - G.B.y) < 46 - DG && hurtPlayer(G.B.tgt, 32, G.B.x, G.B.y, { stun: .5 })) hitSpark(G.B.tgt.x, G.B.tgt.y - 8, true, Math.atan2(G.B.tgt.y - G.B.y, G.B.tgt.x - G.B.x));
         quakeFx(G.B.x, G.B.y, 54, true); G.fx.push({ k:'warp', x:G.B.x, y:G.B.y, r0:6, r1:56, th:6, t:0, d:.4, col:'#ff3b3b' });
         sfx.boom(); shake(7, .35); G.hitStop = Math.max(G.hitStop, .08);
         G.B.state = 'idle'; G.B.t = 1.0;                                      // 落地後有一段破綻
@@ -124,7 +127,7 @@ function updateBoss0(dt) {
         sfx.howl(); shake(6, .5); G.fx.push({ k:'flash', col:'#ff2a2a', a:.22, t:0, d:.35 });
         for (const dl of [0, .08, .16]) G.fx.push({ k:'warp', x:G.B.x, y:G.B.y - 4, r0:10, r1:84, th:6, sy:.7, delay:dl, t:0, d:.45 + dl, col:'#ff6a5a' });
         for (let i = 0; i < 16; i++) { const a = rr(0, TAU), sp = rr(60, 130); G.parts.push({ x:G.B.x + Math.cos(a) * 10, y:G.B.y, vx:Math.cos(a) * sp, vy:Math.sin(a) * sp * .5 - 30, life:rr(.4, .7), max:.7, col:pick(['#5a5468', '#7a7488', '#a8a2b8']), s:1, g:200 }); }
-        if (d < 80 - DG && hurtPlayer(G.B.tgt, 16, G.B.x, G.B.y)) hitSpark(G.B.tgt.x, G.B.tgt.y - 8, false, Math.atan2(dy, dx));
+        if (d < 80 - DG && hurtPlayer(G.B.tgt, 16, G.B.x, G.B.y, { stun: .8 })) hitSpark(G.B.tgt.x, G.B.tgt.y - 8, false, Math.atan2(dy, dx));
         const adds = G.enemies.filter(e => !e.sp).length;
         for (let i = 0; i < Math.min(2, 4 - adds); i++) {
           const a = rr(0, TAU), x = BOSS_HOME.x + Math.cos(a) * 60, y = BOSS_HOME.y + 30 + Math.sin(a) * 30;

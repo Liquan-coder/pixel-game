@@ -22,9 +22,15 @@ import { gain, toast } from '../ui/hud';
 import { nearestPlayer } from './player';
 
 /* ================= WORLD UPDATE ================= */
+/* 剛射出去的子彈記住是誰射的（G.hitCtx），打中人的時候才算得出等級差和異常狀態 */
+export function tagProjs(n0: number) { for (let i = n0; i < G.projs.length; i++) if (G.projs[i].owner === 'e' && G.projs[i].hc === undefined) G.projs[i].hc = G.hitCtx; }
 function updateProjectiles(dt) {
   for (let i = G.projs.length - 1; i >= 0; i--) {
-    const p = G.projs[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
+    const p = G.projs[i];
+    if (p.home && p.owner === 'e') { const tg = nearestPlayer(p.x, p.y);         // 追蹤彈：慢慢轉向最近的玩家（轉得不快，繞圈或瞬移就甩得掉）
+      if (tg && !tg.dead) { const sp = Math.hypot(p.vx, p.vy), cur = Math.atan2(p.vy, p.vx), want = Math.atan2(tg.y - 6 - p.y, tg.x - p.x);
+        let d = want - cur; d = Math.atan2(Math.sin(d), Math.cos(d)); const a = cur + Math.max(-p.home * dt, Math.min(p.home * dt, d)); p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; } }
+    p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
     let dead = p.life <= 0 || BLOCKP.has(tileAt(Math.floor(p.x / TS), Math.floor((p.y + 6) / TS)));
     if (p.kind === 'fire' && Math.random() < .8) G.parts.push({ x:p.x, y:p.y, vx:rr(-15, 15), vy:rr(-15, 15), life:.3, max:.3, col: Math.random() < .5 ? '#f2c14e' : '#e8743b', s:2 });
     if (p.kind === 'ember' && Math.random() < .7) G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:-p.vx * .1, vy:-p.vy * .1 - 10, life:.35, max:.35, col:pick(p.cols ? [p.cols[1], p.cols[2]] : ['#ffb040', '#ff6a2a']), s:1 });
@@ -35,7 +41,7 @@ function updateProjectiles(dt) {
     projTrail(p);                                                      // Boss 專屬子彈的拖尾（world/bossThemes.ts）
     if (p.kind === 'spore' && Math.random() < .3) G.parts.push({ x:p.x, y:p.y, vx:0, vy:-5, life:.4, max:.4, col:'#c46ad8', s:1 });
     if (!dead && p.owner === 'e') {
-      for (const pl of G.players) if (!dead && Math.hypot(pl.x - p.x, pl.y - 6 - p.y) < p.r + pl.r - 4) { hurtPlayer(pl, p.dmg, p.x, p.y); dead = true; }   // 打到哪個玩家就傷哪個
+      for (const pl of G.players) if (!dead && Math.hypot(pl.x - p.x, pl.y - 6 - p.y) < p.r + pl.r - 4) { G.hitCtx = p.hc || null; hurtPlayer(pl, p.dmg, p.x, p.y, p.fx); G.hitCtx = null; dead = true; }   // 打到哪個玩家就傷哪個
     } else if (!dead && p.owner === 'p') {
       for (const e of targets(p.by)) if (Math.hypot(e.x - p.x, e.y - 6 - p.y) < p.r + e.r) {
         if (p.pierce) { if (p.hit.has(e)) continue; p.hit.add(e); damageEnemy(p.by, e, p.mult, p.x, p.y, { heavy:true }); continue; }
@@ -156,7 +162,9 @@ export function update(dt) {
   G.time += dt;
   for (const pl of G.players) updatePlayer(pl, dt);
   const near = e => G.players.some(pl => Math.abs(e.x - pl.x) < 520 && Math.abs(e.y - pl.y) < 380);   // 只更新任何玩家附近的怪
-  for (let i = G.enemies.length - 1; i >= 0; i--) { const e = G.enemies[i]; if (near(e)) updateEnemy(e, dt); }
+  for (let i = G.enemies.length - 1; i >= 0; i--) { const e = G.enemies[i]; if (!near(e)) continue;
+    const n0 = G.projs.length; G.hitCtx = e.hc || null; updateEnemy(e, dt); tagProjs(n0); }   // hitCtx = 等級差 + 異常狀態（game/combat.ts 的 hurtPlayer）
+  G.hitCtx = null;
   tickWeaponFx(dt, targets(G.me));
   updateNPCs(); updateQuest(); updateBoss(dt); updateRegionBosses(dt); separate(); updateProjectiles(dt); updateDrops(dt); updateSpawns(dt);
   for (let i = G.fx.length - 1; i >= 0; i--) { G.fx[i].t += dt; if (G.fx[i].t >= G.fx[i].d) G.fx.splice(i, 1); }
