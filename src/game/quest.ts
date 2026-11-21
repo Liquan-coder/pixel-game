@@ -39,7 +39,7 @@ export function updateQuest() {
   const k = (top ? top.id : '') + '|' + fold + '|' + (navT ? navT.key : '') + '|' + cores() + '|' + fragCount() + '|' + held;
   if (k !== hudKey) { hudKey = k; const Q = $('quest'); Q.classList.toggle('fold', fold); Q.classList.toggle('nav', !!navT);
     const navEl = navT ? '<em class="qnav">➤ ' + navT.name + '<button class="qnavx" type="button" title="取消導航">✕</button></em>' : '';
-    const stat = '<i>' + STAR + cores() + '/' + CORE_N + '</i><i class="qmap">地圖 ' + fragCount() + '/5' + (held ? ' · 殘頁 ' + held : '') + '</i>';
+    const stat = '<i>' + STAR + cores() + '/' + CORE_N + '</i><i class="qmap">地圖 ' + fragCount() + '/5' + (held ? ' · <span class="qfrag">殘頁 ' + held + ' → 製圖師</span>' : '') + '</i>';
     Q.title = fold ? '展開' : '';
     Q.innerHTML = fold ? '<b>◆</b>' + stat + navEl
       : '<div class="qh"><b>◆ 旅程</b><button class="qfold" type="button" title="收起">－</button></div>'

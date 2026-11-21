@@ -13,7 +13,7 @@ import { SH, sculpt } from '../art/monsters';
 import { MH, MW, PROPS, REGIONS, ROAD, TS, WALKABLE, explored, map, reg } from './map';
 import { drawArtSprite } from './chunks';
 import { redrawMini } from './minimap';
-import { flags } from '../game/quest';
+import { flags, setNav } from '../game/quest';
 import { showBanner, toast } from '../ui/hud';
 import { save } from '../game/save';
 import { drawShadow } from '../render/player';
@@ -68,7 +68,8 @@ export const fragCount = () => DEF.filter(D => flags.has('statue:' + D.k)).lengt
 export function updateStatues(bossDead: (id: string) => boolean) {
   if (!charted(0)) chartZone(0);
   for (const D of DEF) if (!flags.has('frag:' + D.k) && bossDead(D.frag)) { flags.add('frag:' + D.k);
-    setTimeout(() => toast('得到「地圖殘頁」——上面畫著一座神像，但看不出在哪裡', '#e8d8b0', true), 3600); save(); }
+    setTimeout(() => { showBanner('得到 地圖殘頁', '上面畫著一座神像……城鎮的製圖師也許看得懂', 3200);
+      toast('地圖殘頁：拿給晨風鎮或霜寒鎮的製圖師', '#e8d8b0', true); }, 6400); save(); }
 }
 
 /* ---- 互動（ui/interact.ts）：神像 = 祈禱；製圖師 = 交出殘頁 ---- */
@@ -86,7 +87,11 @@ function pray(s: Statue) {
 export function cartoTarget(pl: Player, npc: { name: string; x: number; y: number } | null): { btn: string; text: string; run: () => void } | null {
   if (!npc || npc.name !== '製圖師' || !fragsHeld().length) return null;
   return { btn: '交出', text: '把地圖殘頁交給製圖師', run: () => { const ks = fragsHeld(); for (const k of ks) flags.add('given:' + k);
-    sfx.pick(); toast('製圖師把殘頁拼好，在你的地圖上畫了' + (ks.length > 1 ? ' ' + ks.length + ' 個' : '一個') + '記號：「星之神像。去那裡祈禱，地圖就會亮起來。」', '#e8d8b0'); save(); } };
+    sfx.pick(); toast('製圖師把殘頁拼好，在你的地圖上畫了' + (ks.length > 1 ? ' ' + ks.length + ' 個' : '一個') + '記號：「星之神像。去那裡祈禱，地圖就會亮起來。」', '#e8d8b0');
+    let to: Statue | null = null, bd = Infinity;                       // 自動導航到最近的那座（角色旁邊出現金色箭頭）
+    for (const s of STATUES) if (ks.includes(s.k) && !statueLit(s)) { const d = Math.hypot(s.x - pl.x, s.y - pl.y); if (d < bd) { bd = d; to = s; } }
+    if (to) setNav({ x: to.x, y: to.y, name: '星之神像', key: 'statue:' + to.k });
+    save(); } };
 }
 
 /* ---- 畫：石座上的女神像，雙手捧著一顆星。祈禱過 = 星星發光、頭上一道淡淡的光柱 ---- */
@@ -98,15 +103,16 @@ const ART = sculpt(54, 140, [{ sh: SH.box(27, 128, 24, 11, 4), ramp: STONE, tex:
   for (let k = 0; k < 30; k++) { const x = 8 + ((k * 37) % 40), y = 40 + ((k * 53) % 96); if (a.get(x, y)) a.set(x, y, k % 3 ? STONE[0] : '#3e5a3a'); }
   a.rect(23, 44, 8, 2, '#1e1a24'); });
 export function drawStatues(vis, list, L, addLight) {
-  for (const s of STATUES) { if (!vis(s.x, s.y, 80)) continue; const lit = statueLit(s), orbY = s.y + 2 - 140 * HK + 29 * HK;
+  for (const s of STATUES) { if (!vis(s.x, s.y, 240)) continue; const lit = statueLit(s), orbY = s.y + 2 - 140 * HK + 29 * HK;
     if (!flags.has('seen:s' + s.k) && vis(s.x, s.y, -20)) flags.add('seen:s' + s.k);                     // 在畫面上看到了 → 地圖上記下來
     list.push({ y: s.y, f: () => { drawShadow(s.x, s.y + 1, 22); drawArtSprite(ART, s.x, s.y + 2);
       const p = .6 + .4 * Math.sin(G.time * 3 + s.k);
       ctx.globalAlpha = lit ? 1 : .35 + .25 * p; ctx.fillStyle = lit ? '#ffe38a' : '#8a84a0';                       // 捧著的星星
       for (const [dx, dy, w, h] of [[-1, -3, 2, 6], [-3, -1, 6, 2], [-.5, -.5, 1, 1]]) ctx.fillRect(snapF(s.x + dx), snapF(orbY + dy), w, h);
       ctx.globalAlpha = 1;
-      if (lit) { const g = ctx.createLinearGradient(0, orbY - 80, 0, orbY); g.addColorStop(0, 'rgba(255,226,140,0)'); g.addColorStop(1, 'rgba(255,236,170,' + (.22 * p) + ')');
-        ctx.fillStyle = g; ctx.fillRect(snapF(s.x - 3), snapF(orbY - 80), 6, 80); } } });
+      const H = lit ? 80 : 220, g = ctx.createLinearGradient(0, orbY - H, 0, orbY);   // 光柱：點亮 = 金色短柱；還沒祈禱 = 很高的紫柱（遠遠就看得到）
+      g.addColorStop(0, lit ? 'rgba(255,226,140,0)' : 'rgba(200,168,255,0)'); g.addColorStop(1, lit ? 'rgba(255,236,170,' + (.22 * p) + ')' : 'rgba(200,168,255,' + (.18 + .12 * p) + ')');
+      ctx.fillStyle = g; ctx.fillRect(snapF(s.x - (lit ? 3 : 4)), snapF(orbY - H), lit ? 6 : 8, H); } });
     addLight(L, s.x, orbY, lit ? 54 : 26, lit ? 4 : 3);
     if (!lit && Math.random() < .08) G.parts.push({ x: s.x + rr(-4, 4), y: orbY, vx: rr(-3, 3), vy: -rr(6, 14), life: 1.2, max: 1.2, col: '#c8a8ff', star: rr(.5, 1.1), drag: 1 }); }
 }

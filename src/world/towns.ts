@@ -2,13 +2,14 @@
    台詞都放在這裡，之後寫劇情時直接改這個表就好 */
 import { G } from '../core/state';
 import { $ } from '../core/util';
-import { HK } from '../core/canvas';
+import { HK, ctx } from '../core/canvas';
 import { SH, sculpt } from '../art/monsters';
 import { TOWNS, TS } from './map';
 import { drawArtSprite } from './chunks';
 import { drawShadow } from '../render/player';
 import { moveEnt } from '../game/collision';
 import { flags } from '../game/quest';
+import { fragsHeld } from './statues';
 
 type Look = { robe: string[]; hair: string[]; skin?: string[]; beard?: boolean; helm?: boolean; apron?: boolean; hood?: boolean; spear?: boolean; small?: boolean };
 const SKIN = ['#8a5a44', '#c8907a', '#ecc0a4', '#fadcc8'];
@@ -98,7 +99,16 @@ export function drawNPCs(vis, list) {
   for (const n of NPCS) { if (!vis(n.x, n.y)) continue;
     list.push({ y: n.y, f: () => { const bob = Math.floor(G.time * 2 + n.dx) % 2 ? HK : 0, c = ART[n.look];
       drawShadow(n.x, n.y + 1, 10);
-      drawFlip(c, n.x, n.y + 3 - bob, n.flip); } }); }
+      drawFlip(c, n.x, n.y + 3 - bob, n.flip);
+      if (n.look === 'carto' && fragsHeld().length) drawScroll(n.x, n.y - 30 + Math.sin(G.time * 4) * 1.5); } }); }   // 身上有殘頁：製圖師頭上浮一張小地圖
+}
+/* 小小的捲軸（像素）：米色紙 + 深色框 + 一個紅點，微微發光閃爍 */
+function drawScroll(x, y) {
+  const X = Math.round(x / HK) * HK, Y = Math.round(y / HK) * HK, P = (a, b, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(X + a * HK, Y + b * HK, w * HK, h * HK); };
+  ctx.globalAlpha = .75 + .25 * Math.sin(G.time * 6);
+  P(-5, -4, 10, 8, '#2a1e10'); P(-4, -3, 8, 6, '#e8d8b0'); P(-4, -3, 8, 1, '#fff6e0'); P(-5, -4, 1, 8, '#8a6a3a'); P(4, -4, 1, 8, '#8a6a3a');
+  P(-2, -1, 3, 1, '#8a7e64'); P(-3, 1, 2, 1, '#8a7e64'); P(1, 0, 1, 1, '#d8434e');
+  ctx.globalAlpha = 1;
 }
 const FLIP = new Map();
 function drawFlip(c, x, y, flip) { if (!flip) return drawArtSprite(c, x, y);

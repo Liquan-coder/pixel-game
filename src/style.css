@@ -366,6 +366,7 @@ body:not(.touch) #controls{display:none}
 /* ---- 主線（碎片化）：左上角的傳聞、地圖進度；旅程裡的記憶碎片 ---- */
 #quest .qsrc{display:block;font-style:normal;font-size:11px;color:var(--muted);margin-top:1px}
 #quest .qmap{color:#e8d8b0}
+#quest .qfrag{color:#ffe38a;animation:qfrag 1.2s ease-in-out infinite}@keyframes qfrag{50%{opacity:.45}}
 #quest small{font-style:italic}
 .memx{padding:6px 8px;margin:3px 0;border:1px dashed #ffffff22;color:var(--muted);font-size:14px}.memx small{margin-left:8px;opacity:.6}
 #journal details summary small{margin-left:8px;color:var(--gold);font-size:12px}

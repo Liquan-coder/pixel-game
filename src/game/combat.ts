@@ -25,7 +25,7 @@ export function targets(pl: Player) { const t = []; for (const e of G.enemies) i
   for (const e of rbs) { if (e.dead || e.state === 'sleep' || e.state === 'intro') continue; if (!(e.z > 8) && !e.hidden) t.push(e);
     if (e.mech) for (const o of e.mech.objs) if (!o.dead) t.push(o); }                // Boss 機制的物件（裂口、水晶、卵……）也打得到
   return t; }
-function nearestTarget(pl: Player, maxD) { let best = null, bd = maxD; for (const e of targets(pl)) { const d = Math.hypot(e.x - pl.x, e.y - pl.y) - e.r; if (d < bd) { bd = d; best = e; } } return best; }
+function nearestTarget(pl: Player, maxD) { let best = null, bd = maxD; for (const e of targets(pl)) { const d = Math.hypot(e.x - pl.x, e.y - pl.y) - e.r; if (d < bd && canSee(pl.x, pl.y - 6, e.x, e.y - 6)) { bd = d; best = e; } } return best; }   // 隔著牆的不算（不會瞄準 / 撲向牆後的敵人）
 function autoFace(pl: Player, maxD) { const t = nearestTarget(pl, maxD); if (t) pl.face = Math.atan2(t.y - pl.y, t.x - pl.x); pl.aimLock = .3; updFlip(pl); }
 export function updFlip(pl: Player) { const c = Math.cos(pl.face); if (c < -.1) pl.flip = true; else if (c > .1) pl.flip = false; }
 function spendSt(pl: Player, v) { pl.st = Math.max(0, pl.st - v); pl.stDelay = .55; }
@@ -364,7 +364,9 @@ export function trySkill(pl: Player) {
           trail(pl.x, pl.y, nx, ny);
           for (let k = 0; k < 16; k++) { const u = Math.random(); G.parts.push({ x:pl.x + (nx - pl.x) * u + rr(-3, 3), y:pl.y - rr(2, 12) + (ny - pl.y) * u, vx:rr(-12, 12), vy:-rr(10, 30), life:rr(.3, .55), max:.55, col:pick(['#3a2470', '#6a4ad0', '#9a6cff', '#e0d0ff']), star:rr(.6, 1.6), drag:2 }); }   // 路徑上的狼影紫霧
           for (let k = 0; k < 10; k++) { const b = a + rr(-1, 1), v = rr(60, 150); G.parts.push({ x:t.x, y:t.y - 7, vx:Math.cos(b) * v, vy:Math.sin(b) * v, life:rr(.15, .3), max:.3, col:pick(['#9a6cff', '#e0d0ff', '#ffffff']), star:rr(.8, 2), drag:6 }); }   // 撲到時的爪擊火花
-          if (!collides(nx, ny, pl.r)) { pl.x = nx; pl.y = ny; }
+          const bx = t.x - Math.cos(a) * (t.r + pl.r + 2), by = t.y - Math.sin(a) * (t.r + pl.r + 2);   // 穿過去會撞牆 → 停在敵人這一側
+          if (!collides(nx, ny, pl.r) && canSee(t.x, t.y - 6, nx, ny - 6)) { pl.x = nx; pl.y = ny; }
+          else if (!collides(bx, by, pl.r)) { pl.x = bx; pl.y = by; }
           pl.face = a + Math.PI; updFlip(pl); aoeHit(pl, t.x, t.y, 22, 1.8);
           G.fx.push({ k:'arc', x:t.x, y:t.y - 6, a:a, arc:2.2, r:22, t:0, d:.18, col:'#b49cff' }); }
         else { const nx = pl.x + Math.cos(pl.face) * 40, ny = pl.y + Math.sin(pl.face) * 40; trail(pl.x, pl.y, nx, ny); moveEnt(pl, nx - pl.x, ny - pl.y); }
