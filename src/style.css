@@ -33,7 +33,11 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .souls{grid-column:1/-1;font-size:13px;color:#c8b8ff;text-shadow:1px 1px 0 #000;display:flex;gap:4px}
 /* 魂晶 / 金幣 / 藥水：各自一個半透明的暗底，亮的地面（沙地、雪地）上才看得清楚 */
 .souls span{padding:2px 7px 3px;background:#0e0b1499;box-shadow:0 0 0 1px #ffffff12}
-.souls b{color:#fff;font-variant-numeric:tabular-nums;margin-left:2px}
+.souls b{color:#fff;font-variant-numeric:tabular-nums}
+.souls span{display:inline-flex;align-items:center;gap:4px}
+/* 左上角的小圖示（魂晶、金幣、藥水、星核） */
+.hi{width:14px;height:14px;flex:none;shape-rendering:crispEdges;filter:drop-shadow(1px 1px 0 #000a);vertical-align:-2px}
+#quest i .hi{width:12px;height:12px;margin-right:4px}
 .souls .gold{color:var(--gold)}
 .tr{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));right:calc(10px + env(safe-area-inset-right,0px));display:flex;flex-direction:column;align-items:flex-end;gap:6px;pointer-events:auto}
 #mini{cursor:pointer;width:128px;height:80px;image-rendering:pixelated;border:2px solid var(--line);box-shadow:0 0 0 2px var(--ink);background:#000;display:block}

@@ -34,7 +34,7 @@ export function updateQuest() {
   }
   doneBefore = done;
   const c = current(), k = c.id + (G.questOpen ? 1 : 0);
-  if (k !== hudKey) { hudKey = k; $('quest').innerHTML = '<b>◆ ' + c.title + '</b>' + (G.questOpen ? '<small>' + c.hint + '</small>' : '') + '<i>星核 ' + cores() + '/' + CORE_N + '</i>'; }
+  if (k !== hudKey) { hudKey = k; $('quest').innerHTML = '<b>◆ ' + c.title + '</b>' + (G.questOpen ? '<small>' + c.hint + '</small>' : '') + '<i title="星核"><svg class="hi" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0l2.2 5.8L16 8l-5.8 2.2L8 16l-2.2-5.8L0 8l5.8-2.2z" fill="#ffd04a"/><path d="M8 4.5l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5L4.5 8 7 7z" fill="#fff6d0"/></svg>' + cores() + '/' + CORE_N + '</i>'; }
 }
 $('quest').addEventListener('click', () => { G.questOpen = !G.questOpen; hudKey = ''; updateQuest(); });
 /* 角色旁邊的金色小箭頭：目標在畫面外時指方向 */
