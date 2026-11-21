@@ -21,7 +21,8 @@ import { save } from '../game/save';
 import { ATTRS, ATTR_NAME, atkSplit, grade, reqOf, scaleOf, unmet } from '../data/attrs';
 import { HERO, HERO_W } from '../art/hero';
 import { drawWeapon } from '../art/weapon';
-import { renderJournal } from '../game/quest';
+import { navT, renderJournal, setNav } from '../game/quest';
+import { TS } from '../world/map';
 
 export function restAt(c) {
   moveMerchant(); restockSmiths();
@@ -235,11 +236,12 @@ function travelBlock() {
 function renderMapFoot(p: MapPick | null) {                              // 點了地圖上的圖示：營火 → 名字 + 傳送；其他 → 名字 + 說明
   const f = $('mapFoot'); f.hidden = !p; if (!p) return;
   const rg = REGIONS[reg[Math.floor(p.ty) * MW + Math.floor(p.tx)]];
-  if (p.kind !== 'camp') { f.innerHTML = '<span class="lvfoot"><b>' + p.name + '</b>' + (rg && p.kind !== 'quest' ? ' · ' + rg.name : '') + (p.desc ? '<span class="gain">' + p.desc + '</span>' : '') + '</span><button type="button" class="sec" data-mapx>關閉</button>'; return; }
+  const navOn = navT && navT.key === p.kind + ':' + p.id, navB = p.kind === 'me' ? '' : '<button type="button" class="sec" data-nav>' + (navOn ? '取消導航' : '導航') + '</button>';   // 導航：角色旁邊出現箭頭指過去
+  if (p.kind !== 'camp') { f.innerHTML = '<span class="lvfoot"><b>' + p.name + '</b>' + (rg && p.kind !== 'quest' ? ' · ' + rg.name : '') + (p.desc ? '<span class="gain">' + p.desc + '</span>' : '') + '</span><button type="button" class="sec" data-mapx>關閉</button>' + navB; return; }
   const c = CAMPS.find(c => c.id === p.id); if (!c) { f.hidden = true; return; }
   const blk = !c.lit ? '還沒點燃：走到那裡點燃後才能傳送' : travelBlock();
   f.innerHTML = '<span class="lvfoot"><b>' + p.name + '</b> · ' + REGIONS[reg[c.ty * MW + c.tx]].name + (blk ? '<span class="gain" style="color:#ff8a7a">' + blk + '</span>' : '<span class="gain">傳送後會在營火休息（補滿、怪物復活）</span>') + '</span>' +
-    '<button type="button" class="sec" data-mapx>取消</button><button type="button" class="pri" data-travel="' + c.id + '"' + (blk ? ' disabled' : '') + '>傳送</button>';
+    '<button type="button" class="sec" data-mapx>取消</button>' + navB + '<button type="button" class="pri" data-travel="' + c.id + '"' + (blk ? ' disabled' : '') + '>傳送</button>';
 }
 onMapPick(renderMapFoot);
 $('mapMenu').addEventListener('click', e => { const t = (e.target as HTMLElement).closest('button'); if (!t || (t as HTMLButtonElement).disabled) return;
@@ -247,6 +249,9 @@ $('mapMenu').addEventListener('click', e => { const t = (e.target as HTMLElement
   else if (t.dataset.mt) { mapTab = t.dataset.mt; showMapTab(); }
   else if (t.dataset.mz) { if (t.dataset.mz === 'me') centerMap(); else zoomAt(mv.w / 2, mv.h / 2, mv.z * (t.dataset.mz === 'in' ? 1.5 : 1 / 1.5)); renderBigMap(); }
   else if (t.hasAttribute('data-mapx')) { clearMapSel(); renderMapFoot(null); renderBigMap(); }
+  else if (t.hasAttribute('data-nav')) { const p = mapPick(); if (!p) return; const key = p.kind + ':' + p.id;
+    if (navT && navT.key === key) { setNav(null); renderMapFoot(p); return; }
+    setNav({ x: (p.tx + .5) * TS, y: (p.ty + .5) * TS, name: p.name.replace(/^主線：/, ''), key }); clearMapSel(); setMenu(null); }
   else if (t.dataset.travel) { const c = CAMPS.find(c => c.id === t.dataset.travel); if (!c || !c.lit || travelBlock()) return;
     clearMapSel(); G.lastCamp = c.id; placeAtCamp(G.me, c.id); restoreWorld(); save(); setMenu(null); G.region = ''; sfx.level(); burst(G.me.x, G.me.y - 6, 14, '#f2c14e', 40); }
 });

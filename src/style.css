@@ -270,8 +270,9 @@ body:not(.touch) #controls{display:none}
 #quest .qh{display:flex;align-items:flex-start;gap:8px}#quest .qh b{flex:1}
 #quest .qfold{flex:none;width:20px;height:18px;padding:0;font-size:13px;line-height:1;background:#0006;border:1px solid #ffffff30;color:var(--muted)}   /* 收起 */
 #quest .qrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:2px}
-#quest .qnav{font-style:normal;font-size:11px;color:var(--muted)}
-#quest.nav .qnav{color:#ffe38a}
+#quest .qnav{font-style:normal;font-size:11px;color:#ffe38a;display:inline-flex;align-items:center;gap:5px}
+#quest .qnavx,#quest .qgo{padding:1px 6px;font-size:11px;line-height:1.3;background:#0006;border:1px solid #ffffff30;color:var(--muted)}
+#quest .qgo{color:#ffe38a}
 #quest.fold{display:flex;align-items:center;gap:6px;padding:3px 8px}                   /* 收起來：只剩一個小標籤 */
 #quest.fold b{display:inline}#quest.fold i{display:inline-flex;align-items:center}
 #quest b{display:block;font-weight:400;color:#ffe38a}

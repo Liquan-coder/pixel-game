@@ -74,7 +74,7 @@ export function renderBigMap() {
   if (merchant) icon('merchant', { kind: 'merchant', id: 'merchant', name: '流浪商人', desc: '會在點燃過的營火之間移動，賣藥水、礦石和裝備', tx: merchant.x / TS - .5, ty: merchant.y / TS - .5 });
   if (G.lost) icon('lost', { kind: 'lost', id: 'lost', name: '掉落的魂晶', desc: '上次倒下時掉的 ' + G.lost.amount + ' 魂晶 · 走過去就能撿回來（再死一次就沒了）', tx: G.lost.x / TS - .5, ty: G.lost.y / TS - .5 });
   for (const c of CAMPS) icon(c.lit ? 'camp' : 'campOff', { kind: 'camp', id: c.id, name: c.lit || seen(c.tx, c.ty) ? c.name : '未知的營火', desc: '', tx: c.tx, ty: c.ty });   // 沒去過的營火也標出來（熄滅的樣子），讓人想去點燃
-  { const q = current(); hits.push({ kind: 'quest', id: q.id, name: '主線：' + q.title, desc: '跟著金色箭頭走 · 不一定要照順序', tx: q.tx, ty: q.ty, ...(([x, y]) => ({ x, y }))(toScr(q.tx, q.ty)) }); }
+  { const q = current(); hits.push({ kind: 'quest', id: q.id, name: '主線：' + q.title, desc: '按「導航」會有金色箭頭指路 · 不一定要照順序', tx: q.tx, ty: q.ty, ...(([x, y]) => ({ x, y }))(toScr(q.tx, q.ty)) }); }
   mapMarker(g, mv.z, mv.x - mv.w / 2 / mv.z, mv.y - mv.h / 2 / mv.z);
   // 你：魔女帽 + 一圈閃爍的光（在地城裡 → 標在入口）
   const dg = dungeonAt(G.me.x, G.me.y), mt = dg ? [dg.ent[0], dg.ent[1] + .5] : [G.me.x / TS - .5, G.me.y / TS - .5];
