@@ -114,12 +114,12 @@ $('shopMenu').addEventListener('click', e => {
   if (t.dataset.fw) { shopSel = +t.dataset.fw === shopSel ? null : +t.dataset.fw; renderShop(); return; }
   if (t.dataset.forge) { const w = forgeList().find(w => w.id === +t.dataset.forge); if (!w || !doUpgrade(G.me, w)) return;
     if (w === G.me.weapon || w === G.me.armor) recalc(G.me); sfx.level(); toast('強化成功：' + itemName(w), '#f2c14e'); renderShop(); save(); return; }
-  if (t.dataset.buy !== undefined) { const o = vendor.stock[+t.dataset.buy]; if (!o || G.me.gold < o.price) return;
+  if (t.dataset.buy !== undefined) { const o = vendor.stock[+t.dataset.buy]; if (!o || G.me.gold < o.price) return; const price = o.price;   // 先記下價格：藥水上限買完會漲價，扣的要是買的那一刻的價格
     if (o.kind === 'pot') { if (G.me.pot >= G.potMax) return; G.me.pot++; }
     else if (o.kind === 'potUp') { if (!o.left || G.potMax >= 8) return; o.left--; G.potMax++; G.me.pot++; o.price = 250 * (G.potMax - 2); toast('藥水上限 +1（現在 ' + G.potMax + ' 瓶）', '#f2c14e'); }
     else if (o.kind === 'ore') { if (!o.left) return; o.left--; G.me.mats[o.mat] = (G.me.mats[o.mat] || 0) + 1; toast(MATS[o.mat].n + ' +1', MATS[o.mat].c); }
     else { if (o.sold || G.me.inv.length >= 24) return; o.sold = true; G.me.inv.push(o.item); toast('買到 ' + o.item.name, RAR[o.item.rarity].c); shopSel = null; }
-    G.me.gold -= o.price; sfx.buy(); renderShop(); save(); return; }
+    G.me.gold -= price; sfx.buy(); renderShop(); save(); return; }
   if (t.dataset.sell) { const i = G.me.inv.findIndex(x => x.id === +t.dataset.sell); if (i < 0) return; const it = G.me.inv.splice(i, 1)[0];
     G.me.gold += sellPrice(it); sfx.coin(); shopSel = null; renderShop(); save(); }
 });

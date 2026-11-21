@@ -37,7 +37,7 @@ export function applySave(d) {
   if (d.weapon && WT[d.weapon.type]) { G.me.weapon = d.weapon; G.me.weapon.slot = 'weapon'; G.me.weapon.aff = G.me.weapon.aff || {}; migrateWeapon(G.me.weapon); fixWeapon(G.me.weapon); }
   G.me.mats = {}; for (const k in d.mats || {}) { const m = (ORE_TO_MAT[k] || k) as any; if (MAT_KEYS.includes(m) && d.mats[k] > 0) G.me.mats[m] = (G.me.mats[m] || 0) + (d.mats[k] | 0); }   // 舊的礦石 → 新素材
   rbDead.clear(); for (const id of d.rbDead || []) rbDead.add(id);
-  G.me.gold = d.gold || 0; G.me.armor = d.armor && AT[d.armor.type] ? fix(d.armor) : null;
+  G.me.gold = Math.max(0, d.gold || 0); G.me.armor = d.armor && AT[d.armor.type] ? fix(d.armor) : null;
   const ts = Array.isArray(d.trinkets) ? d.trinkets : [d.trinket];       // 舊存檔只有一個飾品欄
   G.me.trinkets = [0, 1, 2, 3].map(i => ts[i] && TT[ts[i].type] ? fix(ts[i]) : null);
   G.potMax = d.potMax || 3; G.bossDead = !!d.bossDead; G.uid = Math.max(G.uid, d.uid || 1);
