@@ -98,7 +98,8 @@ export function itemCard(it, cmp?, cls = '') {
     head += ' · 強化 +' + (it.up || 0) + '/' + UP_MAX + (U ? ' · 獨特' : '');
     const A = atkSplit(G.me, it), B = c && slotOf(c) === 'weapon' ? atkSplit(G.me, c) : null;            // 攻擊 = 武器本身 + 你的能力值給的；▲▼ 比總攻擊
     main = '攻擊 ' + A.base + ' <span class="bn">+ ' + A.bonus + '</span>' + (B ? dv(A.total, B.total) : '') + ' <small style="color:var(--muted)">· ' + W.trait + '</small>';
-    tail = Object.keys(it.aff || {}).map(k => '<div class="aff">＋' + it.aff[k] + AFFIX[k].u + ' ' + AFFIX[k].n + '</div>').join('') +
+    const affs = Object.keys(it.aff || {}).map(k => '＋' + it.aff[k] + AFFIX[k].u + ' ' + AFFIX[k].n);
+    tail = (affs.length ? '<div class="aff">' + affs.join('　') + '</div>' : '') +
       '<div class="scal">加成 ' + Object.keys(S).map(k => ATTR_NAME[k] + ' ' + grade(S[k])).join(' · ') + '</div>' +
       (fx ? '<div class="sk">刻印 <b style="color:' + WFXD[fx].c + '">' + WFXD[fx].n + '</b>：' + WFXD[fx].d + '</div>' : (U ? '' : '<div class="sk" style="color:var(--muted)">沒有刻印（可以從背包裝上）</div>')) +
       '<div class="sk">技能 <b>' + W.sn + '</b>：' + W.sd + '</div>' + (U ? '<div class="sk lore">' + U.lore + '<br><small>來源：' + U.from + '</small></div>' : ''); }
@@ -116,7 +117,7 @@ export function itemCard(it, cmp?, cls = '') {
 function reqLine(it) {                                                  // 需求：夠的白字、不夠的紅字
   const r = reqOf(it), ks = Object.keys(r); if (!ks.length || !G.me) return '';
   const bad = unmet(G.me, it);
-  return '<div class="req">需求 ' + ks.map(k => '<b class="' + (bad.includes(k as any) ? 'no' : '') + '">' + ATTR_NAME[k] + ' ' + r[k] + '</b>').join('') + (bad.length ? '（能力值不夠，不能裝備）' : '') + '</div>';
+  return '<div class="req">需求 ' + ks.map(k => '<b class="' + (bad.includes(k as any) ? 'no' : '') + '">' + ATTR_NAME[k] + ' ' + r[k] + '</b>').join('') + (bad.length ? '<small class="reqno">（能力值不夠，不能裝備）</small>' : '') + '</div>';
 }
 function statRows(now, nxt) {                                           // 屬性表；有預覽時顯示「現在 → 換上後」
   const pct = v => Math.round(v * 100) + '%';
@@ -196,15 +197,14 @@ export function renderInv() {
   const info = $('cInfo'), keepY = info.querySelector('.cscroll')?.scrollTop || 0;
   const now = calcStats(G.me, eq), sl = sel ? slotOf(sel.it) : '', pv = bagIt && sl !== 'seal' ? calcStats(G.me, eqWith(bagIt)) : null;
   if (sel && salvArm && salvArm !== sel.it.id) salvArm = 0;
+  if (!sel || sel.it.id !== lastSelId) infoMode = false;                  // 換選別件 → 回到數值
   const R = sel ? RAR[sel.it.rarity] : null, U = sel && sel.it.uq;
-  const head = sel ? '<div class="selcard" style="border-color:' + R.c + '"><img alt="" src="' + ICON_URL[sel.it.type] + '"><div class="selmid"><div class="selname"><b style="color:' + R.c + '">' + itemName(sel.it) + '</b><i>' + (U ? '獨特' : SLOTN[sl]) + '</i></div>' +
+  const head = sel ? '<div class="selcard" style="border-color:' + R.c + '"><button type="button" class="sico' + (infoMode ? ' on' : '') + '" data-act="info" aria-label="說明"><img alt="" src="' + ICON_URL[sel.it.type] + '"><i>' + (infoMode ? '↩' : '?') + '</i></button><div class="selmid"><div class="selname"><b style="color:' + R.c + '">' + itemName(sel.it) + '</b><i>' + (U ? '獨特' : SLOTN[sl]) + '</i></div>' +
     '<div class="selsum">' + selSummary(sel, now, pv) + '</div></div>' + selActs(sel) + '</div>' : '';
-  info.innerHTML = head + '<div class="cscroll">' +
+  info.innerHTML = head + '<div class="cscroll">' + (sel && infoMode ? itemCard(sel.it, null, 'det') :   // 「說明」：這件的刻印、技能、需求、背景故事（取代下面的數值，不用往下捲）
     '<div class="keystats">' + keyTile('hp', '生命', 'maxHp', now, pv) + keyTile('atk', '攻擊', 'atk', now, pv) + keyTile('df', '防禦', 'def', now, pv) + '</div>' +
     '<div class="cbox"><div class="lbl">詳細屬性</div><div class="stattbl">' + statRows(now, pv) + '</div></div>' +
-    (sel ? itemCard(sel.it, null, 'det') : '') +                          // 這件的刻印、技能、需求、背景故事
-    '<div class="cbox"><div class="lbl">能力值<small class="lvhint">在營火用魂晶升級</small></div><div id="attrList">' + ATTRS.map(a => '<div class="attr" title="' + a.d + '"><span>' + a.n + '</span><div class="bar2"><i style="width:' + Math.min(100, G.me[a.k] / 40 * 100) + '%"></i></div><b>' + G.me[a.k] + '</b></div>').join('') + '</div></div>' +
-    (sel ? '' : '<p class="hintp">' + (G.me.inv.length ? '點一件裝備看它的資料；再點發亮的欄位就能換上。' : '還沒有撿到裝備。武器主要在寶箱、地城和 Boss 身上。') + '</p>') + '</div>';
+    '<div class="cbox"><div class="lbl">能力值<small class="lvhint">在營火用魂晶升級</small></div><div id="attrList">' + ATTRS.map(a => '<div class="attr" title="' + a.d + '"><span>' + a.n + '</span><div class="bar2"><i style="width:' + Math.min(100, G.me[a.k] / 40 * 100) + '%"></i></div><b>' + G.me[a.k] + '</b></div>').join('') + '</div></div>') + '</div>';
   const sc = info.querySelector('.cscroll'); if (sc && sel && sel.it.id === lastSelId) sc.scrollTop = keepY; lastSelId = sel ? sel.it.id : null;
   $('dollLv').textContent = 'Lv ' + level(G.me); drawDoll();
   // 中間：武器、防具、4 個飾品欄（還沒開放的鎖著）
@@ -227,7 +227,7 @@ export function renderInv() {
   else if (drop.has('bag')) cells.push(blank);                                // 篩選中：多放一個空格讓你卸下
   $('bagGrid').innerHTML = cells.length ? cells.join('') : '<div class="empty">這一類還沒有東西。</div>';
 }
-let lastSelId = null;
+let lastSelId = null, infoMode = false;                                 // infoMode = 左欄顯示物品說明（不是數值）
 /* 點一下選、再點目標放進去：選了背包裡的東西 → 能放的欄位發亮；選了身上的防具 / 飾品 → 背包空格發亮（卸下） */
 const canUnequip = (sel) => !!sel && sel.where === 'eq' && sel.slot !== 'weapon' && G.me.inv.length < 24;   // 武器不能空手
 function dropTargets(sel, nSlots: number) {
@@ -264,6 +264,7 @@ $('invMenu').addEventListener('click', e => {
     return done(); };
   if (t.dataset.act && sel) { const a = t.dataset.act, it = sel.it;
     if (a === 'cancel') { G.selItem = null; salvArm = 0; renderInv(); return; }
+    if (a === 'info') { infoMode = !infoMode; renderInv(); return; }
     if (a === 'equip' && sel.where === 'bag') { const sl = slotOf(it);                // 「裝備」按鈕：飾品放第一個空的欄位（都滿了就換掉第 1 格）
       if (sl === 'trinket') { const n = tSlots(), k = G.me.trinkets.slice(0, n).findIndex(x => !x); return put('t' + (k >= 0 ? k : 0)); }
       return put(sl === 'seal' ? 'weapon' : sl); }
