@@ -98,7 +98,7 @@ function renderForge(body: HTMLElement) {
       return '<button type="button" class="shoprow" data-fw="' + w.id + '"><img alt="" src="' + ICON_URL[w.type] + '"><span style="color:' + RAR[w.rarity].c + '">' + itemName(w) + (w === G.me.weapon || w === G.me.armor ? ' <small style="display:inline">（裝備中）</small>' : '') +
         '<small>' + n + ' ' + v + '</small></span><b class="pr' + (ok ? ' fok' : ' fno') + '">' + (!c ? '最高' : ok ? '可以強化' : locked ? '需要鍛造圖' : '素材不足') + '</b></button>'; });
     body.innerHTML = '<div class="matline" style="margin:0 0 8px">' + matLine() + '</div><div class="shoplist">' + (rows.join('') || '<div class="empty">沒有可以強化的裝備。</div>') + '</div>' +
-      '<p class="hintp">武器每 +1 攻擊多 32%，最高 +' + UP_MAX + '；防具每 +1 防禦和生命多 15%，最高 +' + A_UP_MAX + '。素材是各地區的怪物掉的；更高的強化要先找到古代的鍛造圖。</p>';
+      '<p class="hintp">武器每 +1 攻擊多 32%，最高 +' + UP_MAX + '；防具每 +1 防禦和生命多 15%，最高 +' + A_UP_MAX + '。素材是各地區的怪物掉的；更高的強化要先找到古代的鍛造圖。獨特武器只能用黯星石強化。</p>';
     setFoot('', ''); return;
   }
   const up = sel.up || 0, c = upCost(up, sel), flash = justUp === sel.id ? ' flash' : ''; justUp = 0;   // 第二層：這一件的強化頁

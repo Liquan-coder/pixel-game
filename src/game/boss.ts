@@ -10,7 +10,7 @@ import { sfx } from '../core/audio';
 import { dropItem, makeEnemy } from './enemies';
 import { hurtPlayer } from './combat';
 import { nearestPlayer } from './player';
-import { burst, dropGold, dropSouls, hitSpark, quakeFx, shake, tagProjs } from './worldUpdate';
+import { burst, dropGold, dropMat, dropSouls, hitSpark, quakeFx, shake, tagProjs } from './worldUpdate';
 import { showBanner, toast } from '../ui/hud';
 import { save } from './save';
 import { RB_FX } from '../data/ailments';
@@ -154,7 +154,7 @@ export function bossDie(by) {                                          // by = �
   for (const dl of [0, .12, .24]) G.fx.push({ k:'warp', x:G.B.x, y:G.B.y, r0:6, r1:90, th:5, delay:dl, t:0, d:.6 + dl, col:dl ? '#f2c14e' : '#b49cff' });
   for (let i = 0; i < 40; i++) G.parts.push({ x:G.B.x + rr(-10, 10), y:G.B.y - rr(0, 20), vx:rr(-15, 15), vy:-rr(40, 140), life:rr(.7, 1.4), max:1.4, col:pick(['#b49cff', '#e8dcff', '#f2c14e', '#ffffff']), star:rr(1, 3), drag:1 });
   dropSouls(G.B.x, G.B.y, 600, by);
-  dropItem(bossWeapon(), G.B.x, G.B.y); dropGold(G.B.x, G.B.y, 400);
+  dropItem(bossWeapon(), G.B.x, G.B.y); dropGold(G.B.x, G.B.y, 400); dropMat(G.B.x, G.B.y, 'umat', 1, by);   // 黯星石（獨特武器強化）
   G.potMax += 1; by.pot = G.potMax;
   sfx.win(); shake(8, .8);
   showBanner('強敵已擊敗', '掉落：狼牙雙刃 · 藥水上限 +1', 3200);

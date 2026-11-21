@@ -11,14 +11,18 @@
    +9         星髓（幽影沼澤）×12            星髓篇（雪原的地城）
    +10        隕星之心 ×2                    隕星篇（沼澤的地城）
    防具 +1 ～ +5 依序用星砂、星屑、星片、星石、星晶（同樣要對應的鍛造圖）
-   鍛造圖不會用掉：找到之後每一件裝備都能強化到那裡。打倒某地區的地城守護者之後，鐵匠也會開始賣那個地區的素材。 */
+   鍛造圖不會用掉：找到之後每一件裝備都能強化到那裡。打倒某地區的地城守護者之後，鐵匠也會開始賣那個地區的素材。
+
+   獨特武器（橘色）走另一條路：不用上面那些素材，每一級都只用「黯星石」，而且不能買。
+   黯星石只有 Boss / 地城守護者各掉一顆（打過就沒了），精英怪偶爾掉一顆。全部撿完大概只夠一把獨特武器升到 +8 左右，
+   所以要選一把來養；同時期的刻印武器會比較好升（中期刻印 +6、獨特 +4 左右）。鍛造圖的限制一樣（+3 要星屑篇……）。 */
 import { tier } from './levels';
 import { SH, sculpt } from '../art/monsters';
 import { RAR, UP_MAX, WT, refreshWeapon, upMult, wBase } from './items';
 import { A_UP_MAX } from './gear';
 import type { Item, Player } from '../types';
 
-export type MatKey = 'mat1' | 'mat2' | 'mat3' | 'mat4' | 'mat5' | 'mat6' | 'core';
+export type MatKey = 'mat1' | 'mat2' | 'mat3' | 'mat4' | 'mat5' | 'mat6' | 'core' | 'umat';
 export const MATS: Record<MatKey, { n: string; c: string; d: string; ramp: string[] }> = {
   mat1: { n: '星砂', c: '#efe6d2', d: '翠風平原的怪物 · 武器 +1、+2', ramp: ['#4a4030', '#8a7e64', '#c8bc9e', '#fff6e0'] },
   mat2: { n: '星屑', c: '#9ae08a', d: '迷霧森林的怪物 · 武器 +3、+4', ramp: ['#1e3a1a', '#3a6a30', '#6aaa52', '#c0f0a8'] },
@@ -27,10 +31,12 @@ export const MATS: Record<MatKey, { n: string; c: string; d: string; ramp: strin
   mat5: { n: '星晶', c: '#9ae8ff', d: '霜寒雪原的怪物 · 武器 +8', ramp: ['#0e3a4e', '#2a7a9a', '#6ac8e8', '#e0faff'] },
   mat6: { n: '星髓', c: '#c8a0f0', d: '幽影沼澤的怪物 · 武器 +9', ramp: ['#2a1640', '#5a3480', '#9a6ac8', '#e8d0ff'] },
   core: { n: '隕星之心', c: '#ffd04a', d: '主線 / 區域 Boss · 武器 +10', ramp: ['#4a2a0a', '#a06a14', '#f2c14e', '#fff6c0'] },
+  umat: { n: '黯星石', c: '#ff9f3a', d: 'Boss、地城守護者、偶爾精英怪 · 獨特武器強化', ramp: ['#2a1a3a', '#5a3a6a', '#c0702a', '#ffd8a0'] },
 };
 export const MAT_KEYS = Object.keys(MATS) as MatKey[];
 const W_MAT: MatKey[] = ['mat1', 'mat1', 'mat2', 'mat2', 'mat3', 'mat3', 'mat4', 'mat5', 'mat6', 'core'];
 const W_N = [3, 6, 4, 8, 5, 10, 8, 10, 12, 2], W_GOLD = [100, 180, 280, 420, 600, 850, 1200, 1600, 2200, 3500];
+const U_N = [2, 2, 3, 3, 4, 4, 5, 5, 6, 6];                               // 獨特武器每一級要幾顆黯星石（合計 40）
 const A_MAT: MatKey[] = ['mat1', 'mat2', 'mat3', 'mat4', 'mat5'], A_N = [3, 5, 6, 8, 10], A_GOLD = [100, 250, 500, 900, 1500];
 const isWeapon = (it: Item) => it.slot === 'weapon' || !!WT[it.type];
 export const maxUp = (it: Item) => isWeapon(it) ? UP_MAX : it.slot === 'armor' ? A_UP_MAX : 0;
@@ -58,6 +64,7 @@ export const REGION_MAT: MatKey[] = ['mat1', 'mat2', 'mat3', 'mat4', 'mat5', 'ma
 export function upCost(up: number, it?: Item): { mat: MatKey; n: number; gold: number; page: number } | null {
   if (it && !isWeapon(it)) { if (it.slot !== 'armor' || up >= A_UP_MAX) return null; return { mat: A_MAT[up], n: A_N[up], gold: A_GOLD[up], page: pageFor(A_MAT[up]) }; }
   if (up >= UP_MAX) return null;
+  if (it && it.uq) return { mat: 'umat', n: U_N[up], gold: Math.round(W_GOLD[up] * 1.5), page: pageFor(W_MAT[up]) };   // 獨特武器：只用黯星石，鍛造圖照一般武器的
   return { mat: W_MAT[up], n: W_N[up], gold: W_GOLD[up], page: pageFor(W_MAT[up]) };
 }
 export const canUpgrade = (pl: Player, it: Item) => { const c = upCost(it.up || 0, it); return !!c && (c.page < 0 || hasPage(c.page)) && (pl.mats[c.mat] || 0) >= c.n && pl.gold >= c.gold; };

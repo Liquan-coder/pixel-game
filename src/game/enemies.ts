@@ -134,7 +134,8 @@ export function killEnemy(e, by) {                                     // by = �
   dropGold(e.x, e.y, Math.round((3 + tier(e.lv) * 1.6) * rr(.7, 1.3) * (e.elite ? 8 : 1) * (e.sp ? 1 : .3)));
   /* 掉落：小怪主要給魂晶、礦石、藥水；武器很少（主要從地城、Boss、寶箱拿） */
   if (e.sp || e.elite) { const luk = by ? soft(by.luk) : 0, n = e.elite ? 2 + (Math.random() < .5 ? 1 : 0) : Math.random() < .25 + .008 * luk ? 1 : 0;   // 強化素材：這個地區的素材（幸運越高越常掉）
-    if (n) dropMat(e.x, e.y, oreForLevel(e.lv), n, by); }
+    if (n) dropMat(e.x, e.y, oreForLevel(e.lv), n, by);
+    if (e.elite && Math.random() < .04) dropMat(e.x, e.y, 'umat', 1, by); }   // 精英怪：4% 掉一顆黯星石（獨特武器強化）
   if (by && by.pot < G.potMax && Math.random() < (e.elite ? .6 : e.sp ? .07 : 0)) dropPot(e.x, e.y, by);                          // 藥水：只有喝過才會掉（補一瓶）
   if (e.sp && e.sp.once && !flags.has(e.sp.once)) { flags.add(e.sp.once); showBanner('守護者倒下了', e.ename + ' · 最深處的寶箱解開了封印', 2800); dropMat(e.x, e.y, oreForLevel(e.lv), 2, by); save(); }
   if (e.elite) { toast('擊敗了 ' + e.ename, '#f2c14e'); const q = Math.random();

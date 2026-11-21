@@ -21,7 +21,7 @@ export let slot = 0;                                                     // 現�
 export function setSlot(n: number) { slot = n; try { localStorage.setItem(LAST_KEY, String(n)); } catch (e) {} }
 export function lastSlot() { try { const n = Number(localStorage.getItem(LAST_KEY)); return n >= 0 && n < SLOTS ? n : 0; } catch (e) { return 0; } }
 export function serialize() {
-  return { v:9, at:Date.now(), mats:G.me.mats, vit:G.me.vit, str:G.me.str, end:G.me.end, dex:G.me.dex, int:G.me.int, luk:G.me.luk, souls:G.me.souls, gold:G.me.gold, tears:G.me.tears, freePts:G.me.freePts, inv:G.me.inv, weapon:G.me.weapon, armor:G.me.armor, trinkets:G.me.trinkets,
+  return { v:10, at:Date.now(), mats:G.me.mats, vit:G.me.vit, str:G.me.str, end:G.me.end, dex:G.me.dex, int:G.me.int, luk:G.me.luk, souls:G.me.souls, gold:G.me.gold, tears:G.me.tears, freePts:G.me.freePts, inv:G.me.inv, weapon:G.me.weapon, armor:G.me.armor, trinkets:G.me.trinkets,
     merchant: merchant ? { camp:merchant.camp, stock:merchant.stock } : null, rbDead: [...rbDead], potMax: G.potMax, bossDead: G.bossDead,
     camps: CAMPS.filter(c => c.lit).map(c => c.id), lastCamp: G.lastCamp, lost: G.lost, uid: G.uid, map: packExplored(), mw: MW, chests: CHESTS.filter(c => c.opened).map(c => c.id), flags: [...flags], lore: [...loreRead], disc: [...discovered] };
 }
@@ -37,6 +37,7 @@ export function applySave(d) {
   if (d.weapon && WT[d.weapon.type]) { G.me.weapon = d.weapon; G.me.weapon.slot = 'weapon'; G.me.weapon.aff = G.me.weapon.aff || {}; migrateWeapon(G.me.weapon); fixWeapon(G.me.weapon); }
   G.me.mats = {}; for (const k in d.mats || {}) { const m = (ORE_TO_MAT[k] || k) as any; if (MAT_KEYS.includes(m) && d.mats[k] > 0) G.me.mats[m] = (G.me.mats[m] || 0) + (d.mats[k] | 0); }   // 舊的礦石 → 新素材
   rbDead.clear(); for (const id of d.rbDead || []) rbDead.add(id);
+  if ((d.v || 0) < 10) { const n = rbDead.size + (d.bossDead ? 1 : 0); if (n) G.me.mats.umat = (G.me.mats.umat || 0) + n; }   // v10：舊存檔打過的 Boss 補發黯星石（每隻一顆）
   G.me.gold = Math.max(0, d.gold || 0); G.me.tears = d.tears | 0; G.me.freePts = d.freePts | 0; G.me.armor = d.armor && AT[d.armor.type] ? fix(d.armor) : null;
   const ts = Array.isArray(d.trinkets) ? d.trinkets : [d.trinket];       // 舊存檔只有一個飾品欄
   G.me.trinkets = [0, 1, 2, 3].map(i => ts[i] && TT[ts[i].type] ? fix(ts[i]) : null);
