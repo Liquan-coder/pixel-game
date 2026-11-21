@@ -195,7 +195,11 @@ const pageScript = async () => {
 
   run('寶箱：一般寶箱、寶箱怪、存檔記得打開過', () => {
     const CH = (await0.chests).CHESTS;
-    log.push('  寶箱數量 ' + CH.length + '（寶箱怪 ' + CH.filter(c => c.mimic).length + '）');
+    log.push('  寶箱數量 ' + CH.length + '（野外 ' + CH.filter(c => c.wild).length + '、寶箱怪 ' + CH.filter(c => c.mimic).length + '）');
+    if (!CH.some(c => c.mimic)) throw new Error('整個遊戲沒有寶箱怪');
+    if (CH.some(c => c.wild && c.tier > 1)) throw new Error('野外有黃金寶箱');
+    const IT = await0.items; for (let k = 0; k < 2000; k++) { const it = IT.randomLoot(40, k % 2 ? 3 : 2, undefined, await0.chests.WILD_CAP);
+      if (it.rarity > 2 || it.slot === 'seal' || it.fx) throw new Error('野外寶箱開出了藍色以上的東西：' + it.name); }
     const c = CH.find(c => !c.mimic && !c.opened); tp(c.x, c.y + 4); step(2);
     const coins = G.coins.length, drops = G.drops.length;
     if (await0.chests.nearChest(G.me) !== c) throw new Error('站在寶箱旁邊卻沒偵測到');
@@ -273,12 +277,12 @@ const pageScript = async () => {
 
   run('強化：鐵匠分頁、素材 + 金幣 → +1、舊存檔武器換算', () => {
     const F = await0.forge, towns = await0.towns, sm = towns.NPCS.find(n => n.smith);
-    G.me.weapon = makeItem('sword', 0, 0); recalc(G.me); G.me.mats = { mat1: 5 }; G.me.gold = 1000;
+    G.me.weapon = makeItem('sword', 0, 0); recalc(G.me); const c0 = F.upCost(0, G.me.weapon); G.me.mats = { [c0.mat]: c0.n + 2 }; G.me.gold = c0.gold + 900;
     const a0 = G.me.weapon.atk, p0 = G.me.atkPow;
     tp(sm.x, sm.y + 12); step(2); shop.openShop(towns.nearSmith()); step(1);
     document.querySelector('#forgeTab').click(); document.querySelector('#shopMenu [data-fw]').click(); document.querySelector('#shopMenu [data-forge]').click(); step(1);
     if (G.me.weapon.up !== 1 || G.me.weapon.atk <= a0 || G.me.atkPow <= p0) throw new Error('強化沒有生效：up=' + G.me.weapon.up + ' atk ' + a0 + '→' + G.me.weapon.atk);
-    if (G.me.mats.mat1 !== 3 || G.me.gold !== 940) throw new Error('沒有扣素材 / 金幣：' + JSON.stringify(G.me.mats) + ' ' + G.me.gold);
+    if (G.me.mats[c0.mat] !== 2 || G.me.gold !== 900) throw new Error('沒有扣素材 / 金幣（要 ' + c0.n + ' 個 ' + c0.mat + ' + ' + c0.gold + ' 金）：' + JSON.stringify(G.me.mats) + ' ' + G.me.gold);
     G.me.mats = {}; if (F.doUpgrade(G.me, G.me.weapon)) throw new Error('沒有素材也能強化');
     setMenu(null);
     const old = { id: 999, type: 'axe', ilvl: 25, rarity: 3, atk: 120, aff: {}, name: '舊斧頭' }; F.migrateWeapon(old);
@@ -292,10 +296,10 @@ const pageScript = async () => {
     const I = ITEMS, F = await0.forge, P = PLAYER; setMenu(null);
     // 刻印：裝上 → 武器有效果；拆下 → 變回道具
     G.me.weapon = makeItem('sword', 0, 0); G.me.inv = [I.makeSeal('bleed')]; recalc(G.me);
-    menus.toggleInv(); G.selItem = G.me.inv[0].id; menus.renderInv();
-    document.querySelector('#cInfo [data-act="seal"]').click();
+    const slot = k => document.querySelector('#invMenu [data-eq="' + k + '"]');   // 中間的裝備欄（選了東西之後點它 = 放進去）
+    menus.toggleInv(); G.selItem = G.me.inv[0].id; menus.renderInv(); slot('weapon').click();
     if (G.me.weapon.fx !== 'bleed' || G.me.inv.length) throw new Error('刻印沒有裝上：' + JSON.stringify(G.me.weapon));
-    G.selItem = G.me.weapon.id; menus.renderInv(); document.querySelector('#cInfo [data-act="unseal"]').click();
+    G.selItem = G.me.weapon.id; menus.renderInv(); document.getElementById('salvAll').click();   // 選著有刻印的武器 → 背包下面的按鈕變成「拆下刻印」
     if (G.me.weapon.fx || G.me.inv[0]?.fx !== 'bleed') throw new Error('刻印沒有拆下來');
     // 飾品：一開始 2 格，第 3 件要換掉一件
     const rb0 = [...RB.rbDead], bd0 = G.bossDead; RB.rbDead.clear(); G.bossDead = false;   // 還沒打倒主線 Boss → 2 格
@@ -303,16 +307,14 @@ const pageScript = async () => {
     RB.rbDead.add('queen'); RB.rbDead.add('general'); if (menus.tSlots() !== 3) throw new Error('打倒 2 隻主線 Boss 應該變 3 格');
     RB.rbDead.clear(); for (const id of rb0) RB.rbDead.add(id); G.bossDead = bd0; const n = menus.tSlots();
     G.me.inv = [...Array(n).fill(0).map(() => I.makeTrinket('hawk')), I.makeTrinket('might')]; G.me.trinkets = [null, null, null, null];
-    for (let k = 0; k < n; k++) { G.selItem = G.me.inv[0].id; menus.renderInv(); document.querySelector('#cInfo [data-act="equip"]').click(); }
+    for (let k = 0; k < n; k++) { G.selItem = G.me.inv[0].id; menus.renderInv(); slot('t' + k).click(); }
     if (G.me.trinkets.filter(Boolean).length !== n) throw new Error('飾品沒有裝滿 ' + n + ' 格');
-    G.selItem = G.me.inv[0].id; menus.renderInv();
-    if (document.querySelector('#cInfo [data-act="equip"]')) throw new Error('飾品欄滿了還能直接裝');
-    document.querySelector('#cInfo [data-act="tswap"]').click();
-    if (!G.me.trinkets.some(t => t && t.tk === 'might')) throw new Error('換飾品失敗');
+    G.selItem = G.me.inv[0].id; menus.renderInv(); slot('t0').click();                // 滿了：點有東西的那一格 → 換下來，舊的回背包
+    if (G.me.trinkets[0]?.tk !== 'might' || G.me.inv[0]?.tk !== 'hawk') throw new Error('換飾品失敗：' + JSON.stringify(G.me.trinkets.map(t => t && t.tk)));
     if (G.me.atkPow <= P.calcStats(G.me, { weapon: G.me.weapon, armor: G.me.armor, trinkets: [] }).atk) throw new Error('力之戒沒有加攻擊');
     // 防具：重甲不會被擊退、強化 +1 防禦變高
     G.me.armor = I.makeArmor('chain'); G.me.str = 12; G.me.end = 10; recalc(G.me);
-    const d0 = G.me.def; G.me.mats = { mat1: 2 }; G.me.gold = 500; if (!F.doUpgrade(G.me, G.me.armor)) throw new Error('防具不能強化'); recalc(G.me);
+    const d0 = G.me.def, ac = F.upCost(0, G.me.armor); G.me.mats = { [ac.mat]: ac.n }; G.me.gold = ac.gold; if (!F.doUpgrade(G.me, G.me.armor)) throw new Error('防具不能強化'); recalc(G.me);
     if (!(G.me.def > d0) || G.me.armor.up !== 1) throw new Error('防具強化沒有生效');
     G.me.iframe = 0; G.me.hp = G.me.maxHp; hurtPlayer(G.me, 10, G.me.x - 10, G.me.y); if (G.me.kx !== 0) throw new Error('重甲還是會被擊退');
     // 地區抗性：在熔岩高地穿燼鱗甲，受到的傷害變少
@@ -621,8 +623,11 @@ const pageScript = async () => {
       const t = st.tor[0]; use(t.x, t.y, '取火'); tp(x, y + 2); step(50); if (st.webs.get(k) !== -1) throw new Error('拿著火網沒有燒掉');
       const g = p.gate[1]; tp(g.x, g.y + 24); step(3); if (!Q.flags.has('puz:nest:fire')) throw new Error('拿著火碰巨網沒有開門'); leave(p.d); out.push('蛛網'); }
     // 強風：颳風時會被推走
-    { const p = P('windcave'), st = p.m.wind; enter(p.d); const r = st.r; while ((G.time % 5.9) < 3.6) step(1);
-      tp(r.x * 16 + 8, (r.y + r.ry) * 16 + 4); const x0 = G.me.x; step(10); if (Math.abs(G.me.x - x0) < 3 && !await0.coll.collides(G.me.x + 8, G.me.y, 5)) throw new Error('颳風沒有推人'); leave(p.d); out.push('強風'); }
+    { const p = P('windcave'), st = p.m.wind; enter(p.d); const r = st.r, sx = r.x * 16 + 8, sy = (r.y + r.ry) * 16 + 4, WT_ = 5.9;   // 一輪 = 平靜 2.6 + 預警 0.9 + 颳風 2.4 秒（world/puz2.ts 的 WIND）
+      const shielded = d => st.rocks.some(k => (k.x - sx) * d < 0 && Math.abs(k.x - sx) < 40 && Math.abs(k.y - sy) < 12) || await0.coll.collides(sx + d * 12, sy, 5);   // 上風有石頭擋、或下風是牆 → 推不動
+      const dir = shielded(1) ? -1 : 1; if (shielded(dir)) throw new Error('強風房的測試位置兩邊都推不動，換個位置');
+      let cyc = Math.floor(G.time / WT_) + 2; if ((cyc % 2 ? -1 : 1) !== dir) cyc++; G.time = cyc * WT_ + 3.6;   // 遊戲裡第偶數輪往右吹、奇數輪往左吹
+      tp(sx, sy); const x0 = G.me.x; step(10); if (Math.abs(G.me.x - x0) < 3) throw new Error('颳風沒有推人（往 ' + dir + ' 吹，只移動 ' + (G.me.x - x0).toFixed(1) + '）'); leave(p.d); out.push('強風'); }
     // 推石：把兩塊石頭推到壓力板
     { const p = P('sandtemple'), st = p.m.boulders, inp = imp0.inp; enter(p.d);
       const push = (b, dx, dy, n) => { for (let i = 0; i < n; i++) { tp(b.x - dx * 15, b.y - dy * 15 + 2); input.mx = dx; input.my = dy; step(20); input.mx = input.my = 0; step(14); } };
@@ -647,7 +652,9 @@ const pageScript = async () => {
     { const p = P('sunkgrotto'), st = p.m.maze; enter(p.d); const pr = st.pearls[0] || { x: st.r.x * 16 + 8, y: st.r.y * 16 + 8 }; tp(pr.x, pr.y + 2); step(2);
       if (!PU.puzzleDark(G.me)) throw new Error('迷宮裡沒有變黑'); leave(p.d); out.push('迷宮'); }
     // 潛行：被亡衛看到 → 鐘響、拉桿鎖住；沒被看到 → 拉下開門
-    { const p = P('undercroft'), st = p.m.stealth; enter(p.d); const g = st.gs[0]; tp(g.x + Math.cos(g.a) * 40, g.y + Math.sin(g.a) * 40 + 2); step(2);
+    { const p = P('undercroft'), st = p.m.stealth; enter(p.d); const g = st.gs[0];
+      g.i = 0; g.x = g.pts[0].x; g.y = g.pts[0].y; g.wait = 0; g.spd = 0; st.alarm = 0; step(1);   // 亡衛停在起點、面向下一個點：結果不再看運氣
+      tp(g.x + Math.cos(g.a) * 40, g.y + Math.sin(g.a) * 40 + 2); step(2);
       if (!(st.alarm > 0)) throw new Error('站在亡衛面前沒有被發現'); G.enemies = [];
       use(st.lever.x, st.lever.y, '拉下'); if (Q.flags.has('puz:undercroft:fire')) throw new Error('鐘響時拉桿還拉得動');
       st.alarm = 0; for (const q of st.gs) { q.x = -9999; q.pts.forEach(pt => { pt.x = -9999; pt.y = -9999; }); } use(st.lever.x, st.lever.y, '拉下');

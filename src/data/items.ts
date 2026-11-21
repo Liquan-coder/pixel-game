@@ -180,13 +180,14 @@ function pickWeaponType() {                                              // 你�
 }
 const regionOfLv = (lv: number) => { const t = tier(lv); return t <= 5 ? 'plains' : t <= 10 ? 'forest' : t <= 15 ? 'wastes' : t <= 20 ? 'lava' : t <= 25 ? 'snow' : 'swamp'; };
 /** 隨機裝備。kind：'weapon' = 武器、'gear' = 防具 / 飾品 / 刻印、不給 = 寶箱那種混著來。
-    rarity 是舊參數：越高越容易出飾品和刻印（而不是一般防具） */
-export function randomLoot(lv, rarity = 1, kind?: 'weapon' | 'gear') {
+    rarity 是舊參數：越高越容易出飾品和刻印（而不是一般防具）
+    cap = 最高到哪個顏色（RAR 的編號）：野外寶箱是 2（藍色）→ 不會開出刻印，武器也不會帶刻印 */
+export function randomLoot(lv, rarity = 1, kind?: 'weapon' | 'gear', cap = 4) {
   const q = Math.random();
-  if (kind === 'weapon' || (!kind && q < .3)) return makeWeapon(pickWeaponType(), 0, rarity >= 3 && Math.random() < .35 ? pick(FX_KEYS) : undefined);
+  if (kind === 'weapon' || (!kind && q < .3)) return makeWeapon(pickWeaponType(), 0, cap >= 3 && rarity >= 3 && Math.random() < .35 ? pick(FX_KEYS) : undefined);
   const r = Math.random() * (1 + rarity * .15), rg = regionOfLv(lv);
   if (r < .45) return makeArmor(Math.random() < .15 ? pick(ARMOR_BUILD) : ARMOR_REGION[rg] && Math.random() < .6 ? ARMOR_REGION[rg] : pick(ARMOR_BASIC));   // 15%：流派防具（反傷、閃避）
-  if (r < .9) return makeTrinket(pick(TRINKET_KEYS));
+  if (r < .9 || cap < 3) return makeTrinket(pick(TRINKET_KEYS));
   return makeSeal(pick(FX_KEYS));
 }
 export const bossWeapon = () => makeUnique('wolfblade');
