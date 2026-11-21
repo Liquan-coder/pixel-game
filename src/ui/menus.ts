@@ -18,7 +18,7 @@ import { openMenu, setMenu, toast } from './hud';
 import { moveMerchant } from './shop';
 import { restockSmiths } from '../world/towns';
 import { save } from '../game/save';
-import { ATTRS, ATTR_NAME, atkSplit, grade, reqOf, scaleOf, unmet } from '../data/attrs';
+import { ATTRS, ATTR_BASE, ATTR_NAME, atkSplit, grade, reqOf, scaleOf, unmet } from '../data/attrs';
 import { HERO, HERO_W } from '../art/hero';
 import { drawWeapon } from '../art/weapon';
 import { navT, renderJournal, setNav } from '../game/quest';
@@ -36,10 +36,11 @@ clearPend();
 const pendN = () => ATTRS.reduce((n, a) => n + pend[a.k], 0);
 function pendCost(extra = 0) {                                          // 分配中的 n 點（再多 extra 點）總共要多少魂晶：每一級的價錢都不一樣，要一級一級加
   const tmp = { ...G.me }, n = pendN() + extra; let c = 0;
-  for (let i = 0; i < n; i++) { c += lvCost(tmp); tmp.vit++; }
+  for (let i = 0; i < n; i++) { if (tmp.freePts > 0) tmp.freePts--; else c += lvCost(tmp); tmp.vit++; }   // 重生水滴洗出來的點數先用（免費、等級不變）
   return c;
 }
-const withPend = () => { const p = { ...G.me }; for (const a of ATTRS) p[a.k] += pend[a.k]; return p; };
+const withPend = () => { const p = { ...G.me }; for (const a of ATTRS) p[a.k] += pend[a.k]; p.freePts = Math.max(0, p.freePts - pendN()); return p; };
+let tearArm = false;                                                     // 重生水滴要按兩次（第一次只是確認）
 function renderCamp() {
   $('campName').textContent = G.curCamp ? G.curCamp.name : '營火';
   for (const b of document.querySelectorAll<HTMLElement>('#campMenu .tabs button')) b.classList.toggle('on', b.dataset.tab === G.campTab);
@@ -53,7 +54,10 @@ function renderCamp() {
       if (Math.abs(nx.aspd - now.aspd) > 1e-6) p.push('攻速 +' + ((nx.aspd - now.aspd) * 100).toFixed(1) + '%'); if (Math.abs(nx.cdr - now.cdr) > 1e-6) p.push('冷卻 -' + ((nx.cdr - now.cdr) * 100).toFixed(1) + '%');
       return p.length ? p.join('、') : '目前的武器用不到'; };
     const keepY = body.scrollTop;                                       // 重畫時記住捲到哪裡（按 ＋ 不會跳回最上面）
-    body.innerHTML = '<div class="lvgrid">' + ATTRS.map(a => '<div class="statrow' + (pend[a.k] ? ' pend' : '') + '"><div class="nm">' + a.n + '<small>' + a.d + '</small><small class="nx">下一點：' + gain(a.k) + '</small></div>' +
+    const free = Math.max(0, G.me.freePts - pendN());
+    body.innerHTML = (G.me.tears > 0 ? '<div class="tearrow"><img alt="" src="' + ICON_URL.tear + '"><span>重生水滴 ×' + G.me.tears + '<small>把所有能力值洗回 5，點數全部還給你重新分配</small></span><button type="button" class="sec" data-tear>' + (tearArm ? '確定要洗？' : '使用') + '</button></div>' : '') +
+      (free ? '<p class="freep">還有 <b>' + free + '</b> 點可以免費分配</p>' : '') +
+      '<div class="lvgrid">' + ATTRS.map(a => '<div class="statrow' + (pend[a.k] ? ' pend' : '') + '"><div class="nm">' + a.n + '<small>' + a.d + '</small><small class="nx">下一點：' + gain(a.k) + '</small></div>' +
       '<button type="button" class="minus" data-dec="' + a.k + '"' + (pend[a.k] ? '' : ' disabled') + ' aria-label="減少' + a.n + '">−</button>' +
       '<div class="val">' + (G.me[a.k] + pend[a.k]) + (pend[a.k] ? '<small>+' + pend[a.k] + '</small>' : '') + '</div>' +
       '<button type="button" class="plus" data-stat="' + a.k + '"' + (canAdd ? '' : ' disabled') + ' aria-label="提升' + a.n + '">+</button></div>').join('') + '</div>' +
@@ -62,7 +66,7 @@ function renderCamp() {
     const n = pendN(), cost = pendCost(), base = calcStats(G.me, curEq(G.me)), d = [];
     if (n) { if (now.maxHp !== base.maxHp) d.push('生命 +' + (now.maxHp - base.maxHp)); if (now.maxSt !== base.maxSt) d.push('體力 +' + (now.maxSt - base.maxSt)); if (now.atk !== base.atk) d.push('攻擊 +' + (now.atk - base.atk)); if (now.def !== base.def) d.push('防禦 +' + (now.def - base.def)); }
     foot.innerHTML = '<div class="lvfoot">魂晶 <b class="soulv">' + (G.me.souls - cost) + '</b>' + (n ? ' <small>(−' + cost + ')</small>' : '') + '<i>|</i>等級 <b class="lvv">' + (level(G.me) + n) + '</b>' + (n ? ' <small>(+' + n + ')</small>' : '') +
-      '<i>|</i>' + (canAdd ? '下一點 <b>' + nxtCost + '</b>' : '下一點要 ' + nxtCost + '，魂晶不夠') + (d.length ? '<span class="gain">' + d.join('、') + '</span>' : '') + '</div>' +
+      '<i>|</i>' + (free ? '下一點 <b>免費</b>' : canAdd ? '下一點 <b>' + nxtCost + '</b>' : '下一點要 ' + nxtCost + '，魂晶不夠') + (d.length ? '<span class="gain">' + d.join('、') + '</span>' : '') + '</div>' +
       '<button type="button" class="sec" data-reset' + (n ? '' : ' disabled') + '>重設</button><button type="button" class="pri" data-confirm' + (n ? '' : ' disabled') + '>確定</button>';
   } else {
     body.innerHTML = '<div class="camplist">' + CAMPS.map(c => '<button type="button" data-tp="' + c.id + '"' + (c.lit && c !== G.curCamp ? '' : ' disabled') + '><span>' + c.name + '<small> · ' + REGIONS[reg[c.ty * MW + c.tx]].name + '</small></span><small>' +
@@ -71,12 +75,16 @@ function renderCamp() {
 }
 $('campMenu').addEventListener('click', e => {
   const t = (e.target as HTMLElement).closest('button'); if (!t) return;
-  if (t.dataset.tab) { G.campTab = t.dataset.tab; clearPend(); renderCamp(); }
+  if (t.dataset.tab) { G.campTab = t.dataset.tab; clearPend(); tearArm = false; renderCamp(); }
+  else if (t.hasAttribute('data-tear')) { if (G.me.tears <= 0) return;
+    if (!tearArm) { tearArm = true; renderCamp(); return; }
+    tearArm = false; G.me.tears--; clearPend(); G.me.freePts = level(G.me) - 1; for (const a of ATTRS) G.me[a.k] = ATTR_BASE;   // 等級不變：洗掉的點數全部變成免費點數
+    recalc(G.me); G.me.hp = G.me.maxHp; G.me.st = G.me.maxSt; sfx.level(); toast('能力值洗回去了，' + G.me.freePts + ' 點可以重新分配', '#9ae8ff'); renderCamp(); save(); }
   else if (t.dataset.stat) { if (G.me.souls < pendCost(1)) return; pend[t.dataset.stat]++; sfx.pick(); renderCamp(); }
   else if (t.dataset.dec) { if (pend[t.dataset.dec] > 0) pend[t.dataset.dec]--; renderCamp(); }
   else if (t.hasAttribute('data-reset')) { clearPend(); renderCamp(); }
   else if (t.hasAttribute('data-confirm')) { const cost = pendCost(); if (!pendN() || G.me.souls < cost) return;
-    G.me.souls -= cost; for (const a of ATTRS) G.me[a.k] += pend[a.k]; clearPend(); recalc(G.me); G.me.hp = G.me.maxHp; G.me.st = G.me.maxSt; sfx.level(); renderCamp(); save(); }
+    G.me.souls -= cost; G.me.freePts = Math.max(0, G.me.freePts - pendN()); for (const a of ATTRS) G.me[a.k] += pend[a.k]; clearPend(); recalc(G.me); G.me.hp = G.me.maxHp; G.me.st = G.me.maxSt; sfx.level(); renderCamp(); save(); }
   else if (t.dataset.tp) { const c = CAMPS.find(c => c.id === t.dataset.tp); G.lastCamp = c.id; placeAtCamp(G.me, c.id); restoreWorld(); save(); setMenu(null); G.region = ''; }
   else if (t.hasAttribute('data-close')) setMenu(null);
 });

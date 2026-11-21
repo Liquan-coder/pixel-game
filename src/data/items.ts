@@ -21,7 +21,7 @@ export const WT = {
   katana:{name:'太刀',base:13,cd:.34,range:27,arc:110,stam:10,skill:'iai',sn:'居合一閃',scd:6,trait:'出手快、容易暴擊',sd:'瞬間穿過前方一整排敵人（300%），一定會暴擊'},
   hammer:{name:'戰鎚',base:24,cd:.8,range:27,arc:150,stam:22,skill:'quake',sn:'三重震波',scd:9,trait:'最重的一擊',sd:'連砸三下，震波一圈比一圈大（每圈 200%）並暈眩敵人'},
   scythe:{name:'鐮刀',base:14,cd:.5,range:33,arc:200,stam:13,skill:'reap',sn:'死神收割',scd:8,trait:'掃一大圈、打中會回血',sd:'把周圍的敵人拉過來一起砍（260%），每打中一隻回 4% 生命'},
-  wolfblade:{name:'狼牙雙刃',base:15,cd:.3,range:24,arc:130,stam:9,skill:'wolfrush',sn:'狼影連襲',scd:7,trait:'狼王的獠牙',sd:'化為狼影，連續撲向三個敵人（每下 180%），期間無敵'},
+  wolfblade:{name:'狼牙雙刃',base:14,cd:.38,range:24,arc:130,stam:9,skill:'wolfrush',sn:'狼影連襲',scd:7,trait:'狼王的獠牙',sd:'化為狼影，連續撲向三個敵人（每下 180%），期間無敵'},
 };
 /* 顏色（沒有品階了，只用來分辨是哪一種東西）：0 一般、2 地區防具 / 飾品、3 刻印（或裝了刻印的武器）、4 獨特。m 只給舊存檔換算用 */
 export const RAR = [
@@ -207,6 +207,8 @@ for (const type of Object.keys(WT)) {
     seal: sculpt(24, 26, [{ sh: SH.poly([[12, 1], [22, 8], [20, 24], [4, 24], [2, 8]]), ramp: ['#2a1640', '#4a2a78', '#7a52b8', '#a888e0'], tex: .25, grp: 1 }],   // 刻印：刻著發光符文的紫色石片
       a => { a.line(12, 6, 12, 19, '#f0e0ff'); a.line(8, 10, 16, 15, '#e0c8ff'); a.line(16, 10, 8, 15, '#e0c8ff'); a.set(12, 12, '#ffffff'); }),
     potion: sculpt(22, 26, [{ sh: SH.box(11, 4, 3, 3, 3), ramp: ['#5a3c26', '#7a5434', '#9a7048'], grp: 1 }, { sh: SH.ell(11, 16, 8.5, 9), ramp: ['#5a1018', '#a8202e', '#e04a5a', '#ff9aa8'], grp: 2 }], a => { a.set(7, 12, '#ffffff'); a.set(8, 11, '#ffffff'); }),
+    tear: sculpt(22, 28, [{ sh: SH.ell(11, 18, 8, 8), ramp: ['#0e3a4e', '#2a7a9a', '#6ac8e8', '#e0faff'], grp: 1 }, { sh: SH.poly([[11, 1], [18, 15], [4, 15]]), ramp: ['#0e3a4e', '#2a7a9a', '#6ac8e8', '#e0faff'], grp: 1 }],   // 重生水滴
+      a => { a.set(8, 14, '#ffffff'); a.set(7, 16, '#ffffff'); a.set(7, 17, '#ffffff'); }),
     potUp: sculpt(26, 28, [{ sh: SH.box(13, 5, 3, 3, 3), ramp: ['#5a3c26', '#7a5434', '#9a7048'], grp: 1 }, { sh: SH.ell(13, 17, 10, 10), ramp: GLD, grp: 2 }, { sh: SH.ell(13, 17, 7.5, 7.5), ramp: ['#5a1018', '#a8202e', '#e04a5a', '#ff9aa8'], grp: 3 }],
       a => { a.rect(12, 13, 3, 9, '#ffffff'); a.rect(9, 16, 9, 3, '#ffffff'); }),
   };

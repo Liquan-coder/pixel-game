@@ -126,6 +126,7 @@ export function regionBossDie(e, by) {                                  // by = 
   dropSouls(e.x, e.y, d.souls, by);
   const it = d.reward(); dropItem(it, e.x, e.y); dropGold(e.x, e.y, d.gold);
   dropMat(e.x, e.y, oreForLevel(d.lv), 3, by); if (d.star !== false) dropMat(e.x, e.y, 'ore4', 1, by);       // Boss 一定掉礦石；區域 Boss 和 20 級以上的地城 Boss 還有一顆強化 +10 用的隕星鐵
+  if (['queen', 'general', 'yeti'].includes(d.id)) { G.me.tears = (G.me.tears || 0) + 1; setTimeout(() => toast('得到「重生水滴」：在營火的升級畫面可以重新分配能力值', '#9ae8ff', true), 5000); }   // 這三隻各給一顆
   if (d.dg) flags.add('dgn:' + d.dg);                                                    // 地城 Boss：最深處的金箱解開封印、以後不再出現
   sfx.win(); shake(8, .8); showBanner(d.dg ? '守護者倒下了' : '強敵已擊敗', '掉落：' + it.name + (d.dg ? ' · 最深處的寶箱解開了封印' : ''), 3200); save();
 }

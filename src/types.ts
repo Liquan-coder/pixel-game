@@ -41,6 +41,7 @@ export interface Player {
   vit: number; str: number; end: number;          // 體魄 / 力量 / 耐力
   dex: number; int: number; luk: number;          // 敏捷 / 智識 / 幸運（見 data/attrs.ts）
   souls: number; gold: number; pot: number;
+  tears: number; freePts: number;   // 重生水滴的數量；用了之後還沒分配回去的點數（算在等級裡）
   mats: Record<string, number>;   // 強化素材：{ mat1: 3, core: 1, … }（data/forge.ts）
 
   // 裝備

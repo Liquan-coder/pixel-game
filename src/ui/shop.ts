@@ -30,6 +30,7 @@ function stockItem(it: Item, mul = 1): Stock { return { kind:'item', item:it, pr
 function rollStock(c) {
   const R0 = reg[c.ty * MW + c.tx], deep = Math.min(4, [0, 1, 2, 3, 1, 4, 4][R0] ?? 0), rg = REG_KEYS[R0] || 'plains', st: Stock[] = [{ kind:'pot', price:25 }];
   if (G.potMax < 8) st.push({ kind:'potUp', price:250 * (G.potMax - 2), left:1 });
+  st.push({ kind:'tear', price:1000, left:1 });                           // 重生水滴：每批一顆
   st.push(oreRow('mat1', 80, 5)); if (deep >= 1) st.push(oreRow('mat2', 200, 3));                   // 流浪商人：少量前期素材（後面的要自己去打）
   st.push(stockItem(makeWeapon(pick(DROP_WEAPONS))), stockItem(makeArmor(Math.random() < .2 ? pick(ARMOR_BUILD) : ARMOR_REGION[rg] && Math.random() < .6 ? ARMOR_REGION[rg] : pick(ARMOR_BASIC))));
   st.push(stockItem(makeTrinket(pick(TRINKET_KEYS))), stockItem(makeTrinket(pick(TRINKET_KEYS))));
@@ -89,6 +90,7 @@ function renderShop() {
   if (shopTab === 'buy') {
     const rows = vendor.stock.map((o, i) => o.kind === 'pot' ? shopRow('potion', '藥水', '補 1 瓶（目前 ' + G.me.pot + '/' + G.potMax + '）', o.price, null, i, G.me.pot >= G.potMax)
       : o.kind === 'potUp' ? shopRow('potUp', '藥水上限 +1', '剩 ' + o.left + ' 個 · 永久增加', o.price, '#f2c14e', i, !o.left || G.potMax >= 8)
+      : o.kind === 'tear' ? shopRow('tear', '重生水滴', '剩 ' + o.left + ' 個 · 在營火重新分配能力值', o.price, '#9ae8ff', i, !o.left)
       : o.kind === 'ore' ? oreShopRow(o, i)
       : shopRow(o.item.type, itemName(o.item), SLOTN[slotOf(o.item)] + (o.item.fx && isW(o.item) ? ' · 帶刻印' : ''), o.sold ? '售出' : o.price, RAR[o.item.rarity].c, i, o.sold));
     const o = vendor.stock[shopSel];
@@ -117,6 +119,7 @@ $('shopMenu').addEventListener('click', e => {
   if (t.dataset.buy !== undefined) { const o = vendor.stock[+t.dataset.buy]; if (!o || G.me.gold < o.price) return; const price = o.price;   // 先記下價格：藥水上限買完會漲價，扣的要是買的那一刻的價格
     if (o.kind === 'pot') { if (G.me.pot >= G.potMax) return; G.me.pot++; }
     else if (o.kind === 'potUp') { if (!o.left || G.potMax >= 8) return; o.left--; G.potMax++; G.me.pot++; o.price = 250 * (G.potMax - 2); toast('藥水上限 +1（現在 ' + G.potMax + ' 瓶）', '#f2c14e'); }
+    else if (o.kind === 'tear') { if (!o.left) return; o.left--; G.me.tears = (G.me.tears || 0) + 1; toast('重生水滴 +1（在營火的升級畫面使用）', '#9ae8ff'); }
     else if (o.kind === 'ore') { if (!o.left) return; o.left--; G.me.mats[o.mat] = (G.me.mats[o.mat] || 0) + 1; toast(MATS[o.mat].n + ' +1', MATS[o.mat].c); }
     else { if (o.sold || G.me.inv.length >= 24) return; o.sold = true; G.me.inv.push(o.item); toast('買到 ' + o.item.name, RAR[o.item.rarity].c); shopSel = null; }
     G.me.gold -= price; sfx.buy(); renderShop(); save(); return; }

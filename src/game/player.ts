@@ -19,7 +19,7 @@ export const input = { mx:0, my:0 };
 // 建立一個新玩家（還沒放進 G.players）
 export function newPlayer(id = 'local'): Player {
   const pl = { id, x:0, y:0, r:5, face:0, flip:false, hp:100, maxHp:100, st:80, maxSt:80, stDelay:0, vit:5, str:5, end:5, dex:5, int:5, luk:5, souls:0, mats:{},
-    inv:[], weapon: makeWeapon('sword'), armor:null, trinkets:[null, null, null, null], gold:0, def:0, defRed:0, pot:3, atkCd:0, skillCd:0, iframe:0, hurt:0, dodge:0, dvx:0, dvy:0, drink:0,
+    inv:[], weapon: makeWeapon('sword'), armor:null, trinkets:[null, null, null, null], gold:0, tears:0, freePts:0, def:0, defRed:0, pot:3, atkCd:0, skillCd:0, iframe:0, hurt:0, dodge:0, dvx:0, dvy:0, drink:0,
     skillLock:0, aimLock:0, swing:null, dash:null, timers:[], kx:0, ky:0, moving:false, dead:false, deathT:0,
     crit:5, ls:0, aspd:1, cdr:0, spin:0, thrust:0, slam:0, anim:0 };
   pl.weapon.name = '鏽鐵長劍';
@@ -41,7 +41,7 @@ export function nearestPlayer(x, y) {
   }
   return best;
 }
-export const level = (pl: Player) => pl.vit + pl.end + pl.str + pl.dex + pl.int + pl.luk - 29;   // 六種都是 5 的時候是 1 級
+export const level = (pl: Player) => pl.vit + pl.end + pl.str + pl.dex + pl.int + pl.luk - 29 + (pl.freePts || 0);   // 六種都是 5 的時候是 1 級；用重生水滴洗掉、還沒分配的點數也算
 /* 升一級要多少魂晶：照 tier 算（data/levels.ts），每一級大約是以前的 0.8 倍、但要升 2.5 倍的級數 → 總共大約多刷一倍 */
 export const lvCost = (pl: Player) => { const t = tier(level(pl)); return Math.floor(.8 * (16 * Math.pow(1.16, t - 1) + 6 * t)) + 4; };
 export const curEq = (pl: Player) => ({ weapon:pl.weapon, armor:pl.armor, trinkets:pl.trinkets });
