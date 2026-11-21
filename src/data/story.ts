@@ -1,42 +1,41 @@
-/* ================= 主線劇情（草稿，之後可以整份換掉） =================
-   這個檔案只放「文字和條件」，邏輯在 game/quest.ts。改世界觀時只要改這裡。
+/* ================= 主線（碎片化的敘事） =================
+   像艾爾登法環 / 黑暗靈魂：沒有「去哪裡、做什麼」的任務清單。故事散在這些地方，要自己拼：
+   · 記憶碎片：每顆星核裡封著一段記憶（I～VII）。照劇情時間排序，但打 Boss 的順序是亂的 → 拿到的時候是一片一片、跳著看
+   · 傳聞：村民、石碑、Boss 會讓你「聽說」某個地方有什麼。地圖上只畫一個模糊的圈，不給精確位置
+   · 石碑、居民的話
+   這個檔案只放文字和條件，邏輯在 game/quest.ts。
 
-   暫定前提「星墜之夜」：
-   很久以前，一顆星星墜落在荒野，碎成七顆「星核」。吞下星核的生物變得巨大又兇暴，
-   就是現在各地的強敵。主角是被起始營火喚醒的見習魔女，她身上帶著和星星同樣的光。
-   主線 = 一路往外探索、取回七顆星核；石碑和居民的話會慢慢拼出星星墜落的真相（結局待定）。
+   QuestCtx：從遊戲狀態判斷（打倒了誰、點了哪個營火、讀過哪塊石碑……），不用另外存。 */
 
-   step.done(ctx)：這一步完成了沒（看遊戲狀態就能判斷，不用另外存）。
-   順序只是「建議」：玩家先打後面的 Boss 也會直接打勾，畫面永遠指向第一個還沒完成的目標。 */
+export interface QuestCtx { boss: (id: string) => boolean; wolf: boolean; lit: (id: string) => boolean; found: (sub: string) => boolean; flag: (f: string) => boolean; read: (tablet: string) => boolean }
 
-export interface QuestCtx { boss: (id: string) => boolean; wolf: boolean; lit: (id: string) => boolean; found: (sub: string) => boolean; flag: (f: string) => boolean }
-export interface Step { id: string; title: string; hint: string; tx: number; ty: number; done: (q: QuestCtx) => boolean; lore?: string; core?: boolean }
+export const PREMISE = '你在營火旁醒來，帽子上的星星還在發光。你不記得自己是誰——只記得，有什麼東西碎掉了。';
 
-export const PREMISE = '星墜之夜過後，荒野裡出現了七顆星核。把它們找回來，就能知道那天晚上發生了什麼。';
+/* ---- 七顆星核 = 七段記憶。mem = 劇情順序（I～VII），跟打 Boss 的順序無關 ---- */
+export interface Core { id: string; name: string; mem: number; done: (q: QuestCtx) => boolean; text: string }
+export const CORES: Core[] = [
+  { id: 'general', name: '星核・骨', mem: 1, done: q => q.boss('general'), text: '王都的觀星塔上，七位看守者輪流守著一顆星。星是活的，夜裡會唱歌。看守者裡有一位戴尖帽的魔女，她最年輕，也最常對著星星說話。' },
+  { id: 'mushking', name: '星核・菌', mem: 2, done: q => q.boss('mushking'), text: '魔女發現星星的歌一夜比一夜微弱。「它很痛，」她對其他看守者說，「它想回家。」沒有人相信她。' },
+  { id: 'yeti', name: '星核・霜', mem: 3, done: q => q.boss('yeti'), text: '第七夜，魔女獨自爬上觀星塔，解開了繫住星星的七道鎖鏈。她以為，星星會飛回天上。' },
+  { id: 'queen', name: '星核・翠', mem: 4, done: q => q.boss('queen'), text: '星星沒有飛走。它掉了下來——碎成七塊，墜進荒野。湖水、菌絲、狼群、骸骨……碰到碎片的東西，全都變了。' },
+  { id: 'dragon', name: '星核・焰', mem: 5, done: q => q.boss('dragon'), text: '看守者們追著碎片散去，一個也沒有回來。魔女留在火光裡，把自己剩下的光，分給了一座小小的營火。' },
+  { id: 'wolf', name: '星核・牙', mem: 6, done: q => q.wolf, text: '她對營火說：「等我把星星找回來的時候，就叫醒我。」然後她睡著了。營火記得這句話，記了很多很多年。' },
+  { id: 'lich', name: '星核・影', mem: 7, done: q => q.boss('lich'), text: '最後的看守者在沉沒的大殿裡等她。「你終於回來了，」他說。可是醒來的你，帽子上的星星和她一模一樣——卻什麼也不記得。' },
+];
+export const MEM_N = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
-export const STEPS: Step[] = [
-  { id: 'town', title: '前往晨風鎮', hint: '沿著路往北走，鎮上的人或許知道些什麼。', tx: 62, ty: 346, done: q => q.found('晨風鎮'),
-    lore: '晨風鎮是荒野裡最後一座還有人住的小鎮。鎮上的人說，星墜之夜以後，怪物就越來越多了。' },
-  { id: 'elder', title: '和晨風鎮的村長談談', hint: '村長就在廣場旁邊。', tx: 60, ty: 343, done: q => q.flag('talk:dawn:村長'),
-    lore: '村長說：「那天晚上，天空裂開一道光，碎片落在荒野各處。拿到碎片的東西……都變了。」' },
-  { id: 'queen', title: '擊敗鏡湖聖堂的史萊姆女王', hint: '鎮的西邊有一座圓湖，湖心的聖堂有一座橋通過去。', tx: 34, ty: 322, done: q => q.boss('queen'), core: true,
-    lore: '星核・翠：史萊姆女王體內的星核，摸起來像一塊溫熱的果凍。湖面映出的星星，比天上的還多一顆。' },
-  { id: 'forest', title: '進入迷霧森林，點燃林間營火', hint: '從村落往東走，森林裡很暗，小心腳步。', tx: 180, ty: 368, done: q => q.lit('forest') },
-  { id: 'mushking', title: '擊敗孢子深谷的蘑菇王', hint: '林間營火往東，岩壁圍起來的深谷只有東邊一個開口。', tx: 212, ty: 342, done: q => q.boss('mushking'), core: true,
-    lore: '星核・菌：孢子在星核周圍長成了王冠的形狀。蘑菇王只是想被誰認可吧。' },
-  { id: 'wolf', title: '進入月嚎獵宮，擊敗狼王', hint: '巢穴在森林東北的岩丘上，是一座舊獵宮。前院裡有一座營火。', tx: 300, ty: 276, done: q => q.wolf, core: true,
-    lore: '星核・牙：狼王死前望向天空，像是在等誰回來。' },
-  { id: 'castle', title: '抵達古王城', hint: '骸骨荒地在平原北邊。順著路一直往北，王城的城門前有一座營火。', tx: 100, ty: 150, done: q => q.lit('castle') },
-  { id: 'general', title: '擊敗王城中庭的骸骨將軍', hint: '從城門進去、穿過內門，將軍守在內城前面的中庭。', tx: 100, ty: 128, done: q => q.boss('general'), core: true,
-    lore: '星核・骨：將軍的盔甲上刻著一行字：「守住光，直到她回來。」' },
-  { id: 'dragon', title: '擊敗燼龍火口的熔岩巨龍', hint: '熔岩高地在森林北邊，斷崖只有幾個缺口。火口在高地中央，外圍有一座要塞，從南邊的要塞門進去。', tx: 330, ty: 68, done: q => q.boss('dragon'), core: true,
-    lore: '星核・焰：巨龍守著星核，不是為了力量，而是怕它再次墜落。' },
-  { id: 'frost', title: '抵達霜歌鎮', hint: '從熔岩高地往東，越過山口就是雪原。', tx: 500, ty: 118, done: q => q.found('霜歌鎮') },
-  { id: 'yeti', title: '登上霜頂城塞，擊敗雪原巨人', hint: '雪原東北角的山頂上有一座城塞，從山腳的營火沿著山路往上走。', tx: 600, ty: 34, done: q => q.boss('yeti'), core: true,
-    lore: '星核・霜：祭壇上的壁畫畫著一位戴著尖帽的魔女，和你長得很像。' },
-  { id: 'lich', title: '擊敗腐沼大殿的沼澤巫妖', hint: '霜歌鎮往南就是沼澤。大殿在沼澤最深處的東南邊，半沉在水裡，從北邊的長橋進去。', tx: 590, ty: 442, done: q => q.boss('lich'), core: true,
-    lore: '星核・影：巫妖原本是看守星星的人。他說：「你終於回來了。」' },
-  { id: 'end', title: '七顆星核都到手了……（待續）', hint: '故事的下一章還在寫。', tx: 30, ty: 381, done: () => false },
+/* ---- 傳聞：learn = 什麼時候聽到；done = 什麼時候算「解決了」；(tx, ty, r) = 地圖上畫的模糊圈（故意偏一點、畫大一點） ---- */
+export interface Rumor { id: string; text: string; src: string; learn: (q: QuestCtx) => boolean; done: (q: QuestCtx) => boolean; tx: number; ty: number; r: number }
+export const RUMORS: Rumor[] = [
+  { id: 'town', text: '往北走，河的那一邊有人住。', src: '山丘上的石碑', learn: () => true, done: q => q.found('晨風鎮'), tx: 70, ty: 352, r: 18 },
+  { id: 'queen', text: '鏡湖的湖心有一座聖堂。晴朗的夜裡，湖水會自己站起來。', src: '晨風鎮的村長', learn: q => q.flag('talk:dawn:村長') || q.read('t10'), done: q => q.boss('queen'), tx: 40, ty: 318, r: 18 },
+  { id: 'frag', text: '你撿到的那張舊地圖……晨風鎮有個製圖師，他看得懂這種東西。', src: '自己的直覺', learn: q => q.flag('frag:1'), done: q => q.flag('given:1'), tx: 62, ty: 346, r: 10 },
+  { id: 'wolf', text: '森林東北的岩丘上，有狼每晚朝著星星墜落的方向嚎叫。', src: '晨風鎮的衛兵', learn: q => q.flag('talk:dawn:衛兵') || q.read('t12') || q.boss('queen'), done: q => q.wolf, tx: 296, ty: 282, r: 24 },
+  { id: 'mushking', text: '森林深處的深谷裡，所有的蘑菇只聽一個聲音。', src: '晨風鎮的少女', learn: q => q.flag('talk:dawn:少女') || q.read('t19') || q.lit('forest'), done: q => q.boss('mushking'), tx: 220, ty: 336, r: 22 },
+  { id: 'general', text: '北方的古王城關上城門很多年了。守城的人，一個也沒有離開。', src: '王城城門的石碑', learn: q => q.read('t14') || q.boss('mushking') || q.lit('castle'), done: q => q.boss('general'), tx: 106, ty: 134, r: 26 },
+  { id: 'dragon', text: '高地的火口被粗重的鐵鍊鎖住。鎖住的不是火。', src: '要塞門前的石碑', learn: q => q.read('t16') || q.boss('general'), done: q => q.boss('dragon'), tx: 324, ty: 74, r: 26 },
+  { id: 'yeti', text: '雪原東北的山頂上，有一個巨大的白色身影。', src: '霜歌鎮的獵人', learn: q => q.flag('talk:frost:獵人') || q.read('t21') || q.boss('dragon'), done: q => q.boss('yeti'), tx: 594, ty: 40, r: 26 },
+  { id: 'lich', text: '沼澤最深處沉著一座大殿。裡面有人，一直在等誰回來。', src: '霜歌鎮的修女', learn: q => q.flag('talk:frost:修女') || q.read('t18') || q.boss('yeti'), done: q => q.boss('lich'), tx: 584, ty: 436, r: 26 },
 ];
 
 /* 石碑：散落在各地，走近按 E 閱讀，讀過的會收進「旅程」 */

@@ -59,7 +59,7 @@ const pageScript = async () => {
   const { startGame } = await imp('main');
   const menus = await imp('ui/menus');
   const shop = await imp('ui/shop');
-  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies'), status: await imp('game/status'), bt: await imp('game/bossTuning'), ai3: await imp('world/bossAI3'), coll: await imp('game/collision'), pause: await imp('ui/pause'), puz: await imp('world/puzzles'), mech: await imp('world/bossMech') };
+  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies'), status: await imp('game/status'), bt: await imp('game/bossTuning'), ai3: await imp('world/bossAI3'), coll: await imp('game/collision'), pause: await imp('ui/pause'), puz: await imp('world/puzzles'), mech: await imp('world/bossMech'), statues: await imp('world/statues') };
 
   const imp0 = { map: await imp('render/map'), dg: await imp('world/dungeons'), input: await imp('ui/interact'), inp: await imp('ui/input'), hud: await imp('ui/hud'), title: await imp('ui/title') };
   const step = (n, opts = {}) => {
@@ -210,19 +210,64 @@ const pageScript = async () => {
     if (!c.opened || !m.opened) throw new Error('讀檔後寶箱又關起來了');
   });
 
-  run('主線：目標會跟著進度前進、石碑可以閱讀', () => {
-    const Q = await0.quest, first = Q.current().id;
-    log.push('  主線目前目標：' + Q.current().title + '（星核 ' + Q.cores() + '/' + Q.CORE_N + '）');
+  run('主線（碎片化）：傳聞、記憶碎片、石碑、旅程', () => {
+    const Q = await0.quest, SY = await0.story;
+    step(2); if (!Q.rumorsKnown().some(r => r.id === 'town')) throw new Error('一開始沒有「往北走」的傳聞');
+    Q.flags.add('talk:dawn:村長'); step(2); if (!Q.rumorsKnown().some(r => r.id === 'queen')) throw new Error('和村長說話後沒有鏡湖的傳聞');
     const t = Q.TAB[0]; tp(t.x, t.y + 6); step(2); if (Q.nearTablet() !== t) throw new Error('站在石碑旁邊卻沒偵測到');
     Q.readTablet(t); step(2); if (!Q.loreRead.has(t.id)) throw new Error('石碑沒有記下來'); setMenu(null);
     menus.toggleMap(); document.querySelector('#mapTabs [data-mt=journal]').click(); step(2);
-    if (!document.querySelector('#journal .qsteps li')) throw new Error('旅程分頁是空的'); setMenu(null);
-    if (first === Q.current().id && Q.current().id !== 'end') {
-      for (const s of (await0.story).STEPS) if (s.id === first) { /* 用旗標 / 探索直接完成第一步 */ }
-      (await0.map).discovered.add('晨風鎮'); Q.flags.add('talk:dawn:村長'); step(3);
-      if (Q.current().id === first) throw new Error('完成後目標沒有前進：' + first);
-    }
-    log.push('  完成前兩步後：' + Q.current().title);
+    const J = document.getElementById('journal'); if (!J.querySelector('.qsteps li') || J.querySelectorAll('.memx').length + J.querySelectorAll('details').length < 7) throw new Error('旅程分頁不完整'); setMenu(null);
+    log.push('  傳聞 ' + Q.rumorsKnown().length + ' 則（未解 ' + Q.rumorsOpen().length + '）· 記憶碎片 ' + Q.cores() + '/' + Q.CORE_N);
+    if (SY.CORES.map(c => c.mem).sort().join() !== '1,2,3,4,5,6,7') throw new Error('記憶碎片編號不是 I～VII');
+  });
+
+  run('地圖：一開始只亮平原 → 殘頁 → 製圖師 → 神像祈禱 → 整片地區亮起來', () => {
+    const ST = await0.statues, Q = await0.quest, M = await0.map, towns = await0.towns;
+    if (ST.STATUES.length !== 5) throw new Error('神像不是 5 座：' + ST.STATUES.length);
+    for (const s of ST.STATUES) if (await0.coll.collides(s.x, s.y + 18, 5) && await0.coll.collides(s.x + 18, s.y, 5) && await0.coll.collides(s.x - 18, s.y, 5)) throw new Error('神像 ' + s.k + ' 四周走不到');
+    step(2); if (!Q.flags.has('chart:0')) throw new Error('平原沒有一開始就亮');
+    const s1 = ST.STATUES[0], fz = M.REGIONS.findIndex(r => r.key === 'forest'), fi = M.reg.findIndex((r, i) => r === fz && !M.explored[i]);
+    if (fi < 0) throw new Error('森林一開始就全亮了');
+    Q.flags.delete('given:1'); Q.flags.delete('statue:1'); Q.flags.delete('seen:s1');
+    RB.rbDead.add('queen'); step(2); if (!Q.flags.has('frag:1')) throw new Error('打倒史萊姆女王沒拿到地圖殘頁');
+    if (ST.statueKnown(s1)) throw new Error('還沒交殘頁，地圖上就有神像');
+    const c = towns.NPCS.find(n => n.name === '製圖師'); tp(c.x, c.y + 14); step(2);
+    let it = imp0.input.interactTarget(); if (!it || it.btn !== '交出') throw new Error('站在製圖師旁邊沒有「交出」：' + (it && it.btn)); it.run();
+    if (!ST.statueKnown(s1)) throw new Error('交了殘頁地圖上還是沒有神像');
+    tp(s1.x, s1.y + 18); step(2); it = imp0.input.interactTarget(); if (!it || it.btn !== '祈禱') throw new Error('站在神像旁邊沒有「祈禱」'); it.run(); step(2);
+    if (!M.explored[fi]) throw new Error('祈禱後森林沒有亮');
+    log.push('  神像：' + ST.STATUES.map(s => s.k + '@' + s.tx + ',' + s.ty).join(' '));
+    RB.rbDead.delete('queen'); RB.resetRegionBosses();
+  });
+
+  run('更多機關：符文踏板（苔石洞窟）、轉動雕像（潮音石窟）、崩塌石橋（潮音石窟）', () => {
+    const PU = await0.puz, Q = await0.quest, P = id => PU.PUZZLES.find(p => p.d.id === id);
+    const enter = d => { tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2); G.enemies = []; };
+    const leave = d => { G.enemies = []; tp(d.exX, d.exY); step(1); imp0.input.enterDoor(); step(2); };
+    // 符文踏板
+    const sp = P('moss'); if (!sp || sp.plates.length !== 4 || !sp.stone) throw new Error('苔石洞窟的符文踏板不完整'); Q.flags.delete('puz:moss:fire'); enter(sp.d);
+    tp(sp.stone.x, sp.stone.y + 16); step(2); let it = imp0.input.interactTarget(); if (!it || it.btn !== '觸摸') throw new Error('記憶石沒有「觸摸」'); it.run();
+    step(Math.ceil(sp.seq.length * .85 * 60) + 10);
+    const wrong = sp.plates.findIndex((_, k) => k !== sp.seq[0]); tp(sp.plates[wrong].x, sp.plates[wrong].y + 2); G.me.iframe = 0; step(2); if (sp.step !== 0 || !(sp.plates[0].bad > 0)) throw new Error('踩錯沒有懲罰');
+    G.me.dead = false; G.me.hp = G.me.maxHp; tp(sp.stone.x, sp.stone.y + 30); step(30);
+    for (const k of sp.seq) { tp(sp.stone.x, sp.stone.y + 30); step(2); tp(sp.plates[k].x, sp.plates[k].y + 2); G.me.iframe = 9; step(2); }
+    if (!Q.flags.has('puz:moss:fire')) throw new Error('照順序踩完門沒開（踩到第 ' + sp.step + ' 步）'); leave(sp.d);
+    // 轉動雕像
+    const so = P('grotto'); if (!so || so.stats.length < 3 || !so.altar) throw new Error('潮音石窟的雕像不完整'); Q.flags.delete('puz:grotto:fire'); step(2); enter(so.d);
+    const n = so.stats.length; let guard = 0;                                // 解法：從第一座開始，一直轉到它對準，再換下一座（最後一座會跟著第一座轉，用暴力找）
+    const solve = () => { const tryAll = (depth, off) => { if (off.every(o => o === 0)) return []; if (depth === 0) return null;
+      for (let i = 0; i < n; i++) { const o2 = [...off]; o2[i] = (o2[i] + 1) % 4; o2[(i + 1) % n] = (o2[(i + 1) % n] + 1) % 4; const r = tryAll(depth - 1, o2); if (r) return [i, ...r]; } return null; };
+      for (let dpt = 1; dpt <= 8; dpt++) { const r = tryAll(dpt, [...so.off]); if (r) return r; } return null; };
+    const moves = solve(); if (!moves) throw new Error('雕像謎題解不開：' + so.off);
+    for (const i of moves) { const s2 = so.stats[i]; tp(s2.x + (s2.want === 1 || s2.want === 3 ? 18 : 0), s2.y + (s2.want === 0 || s2.want === 2 ? 18 : 0)); step(1); it = imp0.input.interactTarget(); if (!it || it.btn !== '轉動') throw new Error('雕像旁邊沒有「轉動」'); it.run(); if (++guard > 20) break; }
+    if (!Q.flags.has('puz:grotto:fire')) throw new Error('雕像都對準了門沒開');
+    // 崩塌石橋：站在會碎的石頭上 → 裂開 → 掉下去 → 回到起點
+    if (!so.crumb.length) throw new Error('潮音石窟沒有崩塌石橋');
+    const c = so.crumb[Math.floor(so.crumb.length / 2)]; tp(c.x, c.y + 2); G.me.hp = G.me.maxHp; const h0 = G.me.hp; step(80);
+    if (!(G.me.hp < h0) || Math.hypot(G.me.x - so.start.x, G.me.y - so.start.y) > 4) throw new Error('站在石橋上沒有掉下去 / 沒回到起點');
+    G.me.dead = false; leave(so.d);
+    log.push('  有機關的地城：' + PU.PUZZLES.map(p => p.d.name).join('、'));
   });
 
   run('強化：鐵匠分頁、素材 + 金幣 → +1、舊存檔武器換算', () => {
@@ -288,7 +333,8 @@ const pageScript = async () => {
     const FX = await0.fx, items = await0.items, out = [];
     for (const fx of FX.FX_KEYS) {
       G.me.weapon = items.makeWeapon('sword', 3); G.me.weapon.fx = fx; recalc(G.me);
-      const e = G.enemies.filter(e => !e.dead && !e.rb && !e.chest).sort((a, b) => Math.hypot(a.x - G.me.x, a.y - G.me.y) - Math.hypot(b.x - G.me.x, b.y - G.me.y))[0];
+      let e = G.enemies.filter(e => !e.dead && !e.rb && !e.chest).sort((a, b) => Math.hypot(a.x - G.me.x, a.y - G.me.y) - Math.hypot(b.x - G.me.x, b.y - G.me.y))[0];
+      if (!e) { for (let k = 0; k < 2; k++) G.enemies.push(await0.enemies.makeEnemy('wolf', 10, G.me.x + 20 + k * 20, G.me.y, { alive: true, timer: 0 })); e = G.enemies[G.enemies.length - 2]; }   // 附近剛好沒有怪 → 放兩隻
       tp(e.x - 10, e.y); e.hp = e.maxHp = 1e6; const twin = G.enemies.find(o => o !== e && !o.rb && !o.dead && !o.gone && !o.chest && Math.hypot(o.x - e.x, o.y - e.y) < 200);
       if (fx === 'shock' && twin) { twin.x = e.x + 20; twin.y = e.y; twin.hp = twin.maxHp = 1e6; }
       let hit = false; const tw0 = twin ? twin.hp : 0;
@@ -494,7 +540,7 @@ const pageScript = async () => {
   });
 
   run('無名古墓的機關：尖刺、火盆謎題、鐵柵門、隱藏的牆', () => {
-    const PU = await0.puz, Q = await0.quest, p = PU.PUZZLES[0]; if (!p) throw new Error('沒有機關');
+    const PU = await0.puz, Q = await0.quest, p = PU.PUZZLES.find(p => p.d.id === 'barrow'); if (!p) throw new Error('沒有機關');
     if (p.braz.length !== 4 || !p.gate.length || p.wall.length !== 3 || p.spikes.length < 30) throw new Error('機關不完整：' + [p.braz.length, p.gate.length, p.wall.length, p.spikes.length]);
     Q.flags.delete('puz:barrow:fire'); Q.flags.delete('puz:barrow:wall'); recalc(G.me);
     const d = p.d; tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2); G.enemies = [];

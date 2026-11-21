@@ -251,7 +251,7 @@ $('mapMenu').addEventListener('click', e => { const t = (e.target as HTMLElement
   else if (t.hasAttribute('data-mapx')) { clearMapSel(); renderMapFoot(null); renderBigMap(); }
   else if (t.hasAttribute('data-nav')) { const p = mapPick(); if (!p) return; const key = p.kind + ':' + p.id;
     if (navT && navT.key === key) { setNav(null); renderMapFoot(p); return; }
-    setNav({ x: (p.tx + .5) * TS, y: (p.ty + .5) * TS, name: p.name.replace(/^主線：/, ''), key }); clearMapSel(); setMenu(null); }
+    setNav({ x: (p.tx + .5) * TS, y: (p.ty + .5) * TS, name: p.kind === 'rumor' ? '傳聞的地方' : p.name, key }); clearMapSel(); setMenu(null); }
   else if (t.dataset.travel) { const c = CAMPS.find(c => c.id === t.dataset.travel); if (!c || !c.lit || travelBlock()) return;
     clearMapSel(); G.lastCamp = c.id; placeAtCamp(G.me, c.id); restoreWorld(); save(); setMenu(null); G.region = ''; sfx.level(); burst(G.me.x, G.me.y - 6, 14, '#f2c14e', 40); }
 });

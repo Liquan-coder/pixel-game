@@ -1,11 +1,11 @@
-/* ---- 主線：永遠不強制。畫面左上角顯示「下一個建議目標」，地圖上有標記，角色旁邊有一個小箭頭指方向。
-   完成條件全部從遊戲狀態判斷（打倒了哪隻 Boss、點了哪個營火…），所以順序亂打也沒關係。
-   石碑：走近按 E 閱讀，內容收進地圖畫面的「旅程」分頁。文字都在 data/story.ts ---- */
+/* ---- 主線（碎片化）：沒有任務清單。左上角只顯示「星核 n/7 · 地圖 k/5」和最近聽到的一則傳聞。
+   故事從記憶碎片（星核）、傳聞、石碑、居民的話拼起來；全部收進地圖畫面的「旅程」分頁。文字在 data/story.ts。
+   完成條件全部從遊戲狀態判斷（打倒了誰、點了哪個營火、讀過哪塊石碑…），順序亂打也沒關係 ---- */
 import { G } from '../core/state';
 import { $ } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
 import { SH, sculpt } from '../art/monsters';
-import { STEPS, TABLETS, PREMISE, type QuestCtx } from '../data/story';
+import { CORES, MEM_N, PREMISE, RUMORS, TABLETS, type QuestCtx } from '../data/story';
 import { CAMPS, GROUND, MW, ROAD, TS, WALKABLE, discovered, map } from '../world/map';
 import { rbDead } from '../world/regionBoss';
 import { DUNGEONS, dungeonAt, dungeonHooks } from '../world/dungeons';
@@ -15,46 +15,47 @@ import { drawShadow } from '../render/player';
 import { setMenu, showBanner, toast } from '../ui/hud';
 import { sfx } from '../core/audio';
 import { save } from './save';
+import { fragCount, fragsHeld, updateStatues, ZONE_NAME } from '../world/statues';
 
 export const flags = new Set<string>(), loreRead = new Set<string>();
 dungeonHooks.cleared = d => flags.has('dgn:' + d.id);                   // 地城 Boss 倒下 → 大廳的傳送門打開
-const qc: QuestCtx = { boss: id => rbDead.has(id), get wolf() { return G.bossDead; }, lit: id => !!CAMPS.find(c => c.id === id)?.lit, found: s => discovered.has(s), flag: f => flags.has(f) };
-let doneBefore: Set<string> = null;                                     // 上一次檢查時已經完成的步驟（用來偵測「剛剛完成」）
-export const cores = () => STEPS.filter(s => s.core && s.done(qc)).length, CORE_N = STEPS.filter(s => s.core).length;
-export const current = () => STEPS.find(s => !s.done(qc)) || STEPS[STEPS.length - 1];
-export function resetQuest() { flags.clear(); loreRead.clear(); doneBefore = null; }
-let hudKey = '';
+const qc: QuestCtx = { boss: id => rbDead.has(id), get wolf() { return G.bossDead; }, lit: id => !!CAMPS.find(c => c.id === id)?.lit, found: s => discovered.has(s), flag: f => flags.has(f), read: t => loreRead.has(t) };
+export const cores = () => CORES.filter(c => c.done(qc)).length, CORE_N = CORES.length;
+export const rumorsKnown = () => RUMORS.filter(r => flags.has('rumor:' + r.id));
+export const rumorsOpen = () => rumorsKnown().filter(r => !r.done(qc));
+export function resetQuest() { flags.clear(); loreRead.clear(); coresBefore = null; }
+let hudKey = '', coresBefore: Set<string> | null = null;
 export function updateQuest() {
   if (!G.started) return;
-  const done = new Set(STEPS.filter(s => s.done(qc)).map(s => s.id));
-  if (doneBefore) for (const s of STEPS) if (done.has(s.id) && !doneBefore.has(s.id)) {      // 剛完成一步：播報 + 把這一步的記載收進旅程
-    if (s.lore) loreRead.add('step:' + s.id);
-    if (s.core) toast('取回星核（' + cores() + '/' + CORE_N + '）', '#ffe38a', true);
-    const nx = current(); setTimeout(() => showBanner('旅程更新', nx.title, 2600), 3400); save();
-  }
-  doneBefore = done;
-  const c = current();
-  if (c.id !== lastCur) { if (lastCur) setFold(false, true); lastCur = c.id; }       // 接到新目標 → 展開一次讓你看到（不會自動導航）
-  const k = c.id + '|' + fold + '|' + (navT ? navT.key : '') + '|' + cores();
+  updateStatues(id => rbDead.has(id));                                   // 地圖殘頁、一開始亮的平原（world/statues.ts）
+  const got = new Set(CORES.filter(c => c.done(qc)).map(c => c.id));
+  if (coresBefore) for (const c of CORES) if (got.has(c.id) && !coresBefore.has(c.id)) {   // 剛拿到一顆星核：記憶碎片收進旅程
+    loreRead.add('mem:' + c.id); toast('取回' + c.name + '（' + cores() + '/' + CORE_N + '）', '#ffe38a', true);
+    setTimeout(() => showBanner('記憶碎片 ' + MEM_N[c.mem - 1], '在地圖的「旅程」裡閱讀', 2800), 3400); save(); }
+  coresBefore = got;
+  for (const r of RUMORS) if (!flags.has('rumor:' + r.id) && r.learn(qc)) {                  // 聽到新的傳聞
+    flags.add('rumor:' + r.id); if (r.id !== 'town') toast('傳聞：「' + r.text + '」', '#e8d8b0'); hudKey = ''; }
+  const top = rumorsOpen().slice(-1)[0], held = fragsHeld().length;
+  const k = (top ? top.id : '') + '|' + fold + '|' + (navT ? navT.key : '') + '|' + cores() + '|' + fragCount() + '|' + held;
   if (k !== hudKey) { hudKey = k; const Q = $('quest'); Q.classList.toggle('fold', fold); Q.classList.toggle('nav', !!navT);
     const navEl = navT ? '<em class="qnav">➤ ' + navT.name + '<button class="qnavx" type="button" title="取消導航">✕</button></em>' : '';
-    Q.title = fold ? '展開目標' : '';
-    Q.innerHTML = fold ? '<b>◆</b><i>' + STAR + cores() + '/' + CORE_N + '</i>' + navEl
-      : '<div class="qh"><b>◆ ' + c.title + '</b><button class="qfold" type="button" title="收起">－</button></div><small>' + c.hint + '</small>'
-      + '<div class="qrow"><i>' + STAR + cores() + '/' + CORE_N + '</i>' + (navEl || '<button class="qgo" type="button">➤ 導航</button>') + '</div>'; }
+    const stat = '<i>' + STAR + cores() + '/' + CORE_N + '</i><i class="qmap">地圖 ' + fragCount() + '/5' + (held ? ' · 殘頁 ' + held : '') + '</i>';
+    Q.title = fold ? '展開' : '';
+    Q.innerHTML = fold ? '<b>◆</b>' + stat + navEl
+      : '<div class="qh"><b>◆ 旅程</b><button class="qfold" type="button" title="收起">－</button></div>'
+      + (top ? '<small>「' + top.text + '」</small><i class="qsrc">——' + top.src + '</i>' : '<small>沒有新的傳聞。也許該到處走走，和人說說話。</small>')
+      + '<div class="qrow">' + stat + navEl + '</div>'; }
 }
-/* ---- 左上角的目標：可以收起來（不擋畫面），收起來的狀態記在這台裝置上 ---- */
+/* ---- 左上角：可以收起來（不擋畫面），收起來的狀態記在這台裝置上 ---- */
 const STAR = '<svg class="hi" viewBox="0 0 15 15" aria-hidden="true"><path d="M7 0h1v1h-1zM6 2h1v1h-1zM8 2h1v1h-1zM5 3h1v1h-1zM9 3h1v1h-1zM4 4h1v1h-1zM10 4h1v1h-1zM3 5h1v1h-1zM11 5h1v1h-1zM2 6h1v1h-1zM12 6h1v1h-1zM0 7h1v1h-1zM14 7h1v1h-1zM2 8h1v1h-1zM12 8h1v1h-1zM3 9h1v1h-1zM11 9h1v1h-1zM4 10h1v1h-1zM10 10h1v1h-1zM5 11h1v1h-1zM9 11h1v1h-1zM6 12h1v1h-1zM8 12h1v1h-1zM7 14h1v1h-1z" fill="#4a2a08"/><path d="M7 1h1v1h-1zM7 2h1v1h-1zM6 3h2v1h-2zM5 4h3v1h-3zM4 5h4v1h-4zM3 6h4v1h-4zM1 7h5v1h-5zM5 8h2v1h-2zM6 9h1v1h-1z" fill="#ffe38a"/><path d="M8 3h1v1h-1zM8 4h2v1h-2zM8 5h3v1h-3zM8 6h4v1h-4zM3 8h2v1h-2zM4 9h2v1h-2zM5 10h2v1h-2zM6 11h1v1h-1z" fill="#f2c14e"/><path d="M7 6h1v1h-1zM6 7h3v1h-3zM7 8h1v1h-1z" fill="#ffffff"/><path d="M9 7h5v1h-5zM8 8h4v1h-4zM7 9h4v1h-4zM7 10h3v1h-3zM7 11h2v1h-2zM7 12h1v1h-1zM7 13h1v1h-1z" fill="#c0862c"/></svg>';
-let fold = (() => { try { return localStorage.getItem('pw-qfold') === '1'; } catch (e) { return false; } })(), lastCur = '';
-function setFold(v: boolean, quiet = false) { fold = v; if (!quiet) { try { localStorage.setItem('pw-qfold', v ? '1' : '0'); } catch (e) { /* 私密模式 */ } } hudKey = ''; }
-/* ---- 導航：平常沒有箭頭。在地圖上點一個地方（洞窟、營火、城鎮…）按「導航」，或按目標面板的「➤ 導航」，
-   角色旁邊才會出現金色箭頭指過去；走到旁邊自動結束，也可以按 ✕ 取消 ---- */
+let fold = (() => { try { return localStorage.getItem('pw-qfold') === '1'; } catch (e) { return false; } })();
+function setFold(v: boolean) { fold = v; try { localStorage.setItem('pw-qfold', v ? '1' : '0'); } catch (e) { /* 私密模式 */ } hudKey = ''; }
+/* ---- 導航：在地圖上點一個地方（營火、城鎮、傳聞的圈…）按「導航」，角色旁邊才會出現金色箭頭；走到旁邊自動結束 ---- */
 export let navT: { x: number; y: number; name: string; key: string } | null = null;
 export function setNav(t: typeof navT) { navT = t; hudKey = ''; if (t) sfx.pick(); updateQuest(); }
 $('quest').addEventListener('click', e => {
-  const el = e.target as HTMLElement, c = current();
+  const el = e.target as HTMLElement;
   if (el.closest('.qnavx')) setNav(null);
-  else if (el.closest('.qgo')) setNav({ x: c.tx * TS + 8, y: c.ty * TS + 8, name: c.title, key: 'quest:' + c.id });
   else if (el.closest('.qfold')) setFold(true);
   else if (fold) setFold(false);
   updateQuest();
@@ -70,11 +71,13 @@ export function drawQuestArrow() {
   ctx.fillStyle = '#ffd04a'; ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(-2, -3); ctx.lineTo(-.5, 0); ctx.lineTo(-2, 3); ctx.closePath(); ctx.fill();
   ctx.restore(); ctx.globalAlpha = 1;
 }
-/* 地圖上的目標標記（大地圖、小地圖共用）：s = 每格幾個像素，ox/oy = 地圖偏移 */
-export function mapMarker(g, s, ox = 0, oy = 0) {
-  const c = current(), x = (c.tx - ox) * s, y = (c.ty - oy) * s, p = 3 + Math.sin(G.time * 5) * 1;
-  g.fillStyle = '#1a1020'; g.beginPath(); g.moveTo(x, y - p - 3); g.lineTo(x + p + 3, y); g.lineTo(x, y + p + 3); g.lineTo(x - p - 3, y); g.closePath(); g.fill();
-  g.fillStyle = '#ffd04a'; g.beginPath(); g.moveTo(x, y - p - 1); g.lineTo(x + p + 1, y); g.lineTo(x, y + p + 1); g.lineTo(x - p - 1, y); g.closePath(); g.fill();
+/* 地圖上的傳聞：一個模糊的虛線圈（不給精確位置）。s = 每格幾個像素，ox/oy = 地圖偏移 */
+export function drawRumors(g, s, ox = 0, oy = 0) {
+  for (const r of rumorsOpen()) { const x = (r.tx - ox) * s, y = (r.ty - oy) * s, R = r.r * s;
+    g.save(); g.setLineDash([Math.max(2, s * 2), Math.max(2, s * 2)]); g.lineDashOffset = -G.time * 6; g.lineWidth = Math.max(1, s * .5);
+    g.strokeStyle = 'rgba(232,216,176,.75)'; g.beginPath(); g.arc(x, y, R, 0, Math.PI * 2); g.stroke(); g.restore();
+    g.fillStyle = 'rgba(232,216,176,.08)'; g.beginPath(); g.arc(x, y, R, 0, Math.PI * 2); g.fill();
+    if (s >= 2) { g.font = Math.round(Math.min(16, 6 + s * 2)) + 'px "DotGothic16", sans-serif'; g.textAlign = 'center'; g.fillStyle = '#e8d8b0'; g.fillText('?', x, y + 5); } }
 }
 
 /* ---- 石碑 ---- */
@@ -104,12 +107,17 @@ export function drawTablets(vis, list, L, addLight) {
     addLight(L, t.x, t.y - 6, loreRead.has(t.id) ? 14 : 22, 2); }
 }
 
-/* ---- 旅程分頁（地圖畫面裡） ---- */
+/* ---- 旅程分頁（地圖畫面裡）：記憶碎片（照 I～VII 排，沒拿到的是 ？？？）、傳聞、碑文 ---- */
 export function renderJournal() {
-  const c = current();
-  const steps = STEPS.map(s => { const d = s.done(qc), cur = s === c; return '<li class="' + (d ? 'done' : cur ? 'cur' : '') + '"><span>' + (d ? '✓' : cur ? '◆' : '·') + '</span>' + s.title + (cur ? '<small>' + s.hint + '</small>' : '') + '</li>'; }).join('');
-  const lore = STEPS.filter(s => s.lore && loreRead.has('step:' + s.id)).map(s => '<details><summary>' + s.title + '</summary><p>' + s.lore + '</p></details>')
-    .concat(TAB.filter(t => loreRead.has(t.id)).map(t => '<details><summary>' + t.title + '</summary><p>' + t.text + '</p></details>')).join('');
-  $('journal').innerHTML = '<p class="premise">' + PREMISE + '</p><div class="lbl">主線（照自己的步調走，順序可以打亂）・星核 ' + cores() + '/' + CORE_N + '</div><ol class="qsteps">' + steps + '</ol>' +
-    '<div class="lbl" style="margin-top:10px">記載・' + (loreRead.size) + ' 則</div>' + (lore || '<p class="hintp">完成主線目標、閱讀各地的石碑，會一點一點拼出星墜之夜的真相。</p>');
+  const mem = [...CORES].sort((a, b) => a.mem - b.mem).map(c => c.done(qc)
+    ? '<details><summary>記憶碎片 ' + MEM_N[c.mem - 1] + '<small>' + c.name + '</small></summary><p>' + c.text + '</p></details>'
+    : '<div class="memx">記憶碎片 ' + MEM_N[c.mem - 1] + '<small>？？？</small></div>').join('');
+  const rum = rumorsKnown().map(r => { const d = r.done(qc); return '<li class="' + (d ? 'done' : 'cur') + '"><span>' + (d ? '✓' : '?') + '</span>「' + r.text + '」<small>——' + r.src + '</small></li>'; }).reverse().join('');
+  const tabs = TAB.filter(t => loreRead.has(t.id)).map(t => '<details><summary>' + t.title + '</summary><p>' + t.text + '</p></details>').join('');
+  const lit = ZONE_NAME.filter((_, z) => flags.has('chart:' + z)).join('、');
+  $('journal').innerHTML = '<p class="premise">' + PREMISE + '</p>' +
+    '<div class="lbl">記憶碎片・' + cores() + '/' + CORE_N + '</div>' + mem +
+    '<div class="lbl" style="margin-top:10px">傳聞</div><ol class="qsteps">' + (rum || '<li>還沒有聽到什麼。</li>') + '</ol>' +
+    '<div class="lbl" style="margin-top:10px">地圖・' + fragCount() + '/5 座神像</div><p class="hintp">已經點亮：' + (lit || '—') + (fragsHeld().length ? '。身上有 ' + fragsHeld().length + ' 張還沒交出去的地圖殘頁' : '') + '</p>' +
+    '<div class="lbl" style="margin-top:10px">碑文・' + TAB.filter(t => loreRead.has(t.id)).length + ' 則</div>' + (tabs || '<p class="hintp">荒野各處的石碑上刻著當年的事。</p>');
 }

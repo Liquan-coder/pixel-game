@@ -38,6 +38,7 @@ const LOOK: Record<string, Look> = {
   hunter: { robe: ['#3a2a18', '#5a4226', '#7a5c38', '#9a784c'], hair: ['#a8b4c8', '#dce4f0', '#ffffff'], hood: true },
   nun: { robe: ['#141a2a', '#222c44', '#344262', '#4a5a80'], hair: ['#c8d0e0', '#e8ecf4', '#ffffff'], hood: true },
   kid: { robe: ['#1a4a2a', '#2a6a3a', '#3a8a4a', '#5aaa62'], hair: ['#5a3a1a', '#8a5a2a', '#b07a3a'], small: true },
+  carto: { robe: ['#2a2414', '#4a3e24', '#6a5a36', '#8a784c'], hair: ['#6a6660', '#9a968c', '#c8c4b8'], beard: true },   // 製圖師
 };
 const ART: Record<string, HTMLCanvasElement> = {}; for (const k in LOOK) ART[k] = hdVillager(LOOK[k]);
 
@@ -45,7 +46,7 @@ const ART: Record<string, HTMLCanvasElement> = {}; for (const k in LOOK) ART[k] 
 const DEF = [
   { town: 'dawn', look: 'elder', name: '村長', dx: -2, dy: -3, lines: [
     '歡迎來到晨風鎮，旅人。最近森林深處的狼王越來越兇了……',
-    '鎮的西邊有一座鏡湖，湖心的島上住著一隻史萊姆女王。先拿她練練身手吧。',
+    '鎮的西邊有一座鏡湖。晴朗的夜裡……別盯著湖面看太久。',
     '營火可以休息、升級，還能傳送到點燃過的營火。',
     '荒野的盡頭還有雪原和沼澤……聽說星星的碎片，最後都落在那些地方。'] },
   { town: 'dawn', look: 'guard', name: '衛兵', dx: 6, dy: 1, lines: [
@@ -56,6 +57,10 @@ const DEF = [
     '聽說荒野裡藏著寶箱，閃閃發光的那種！',
     '有些寶箱會咬人……要小心喔。',
     '地圖上的小黃點，就是還沒打開的寶箱。'] },
+  { town: 'dawn', look: 'carto', name: '製圖師', dx: -7, dy: -4, lines: [
+    '我在畫荒野的地圖，可是星墜之夜以後，很多地方都畫不出來了。',
+    '如果你撿到舊地圖的殘頁，拿來給我看看。上面常常畫著神像——向神像祈禱的人，就看得見那一整片土地。',
+    '平原我畫完了。剩下的……就靠你的腳了。'] },
   { town: 'dawn', look: 'smith', name: '鐵匠', dx: 6, dy: 8, smith: true, lines: ['要武器嗎？我這裡的貨比流浪商人好。'] },
   { town: 'dawn', look: 'kid', name: '小孩', dx: 2, dy: 6, lines: ['我長大要當冒險者！', '你的帽子好大喔。'] },
   { town: 'frost', look: 'hunter', name: '獵人', dx: -3, dy: -3, lines: [
@@ -66,6 +71,7 @@ const DEF = [
     '南邊的沼澤被詛咒了。據說最深處祭壇上的巫妖，會把整片地變成毒沼。',
     '站在綠色的毒沼上會一直扣血，記得快點離開。',
     '願營火的光守護你。'] },
+  { town: 'frost', look: 'carto', name: '製圖師', dx: 2, dy: -5, lines: ['晨風鎮的老傢伙是我師父。殘頁拿給我也一樣。', '雪原的神像在山口那邊……大概吧。'] },
   { town: 'frost', look: 'smith', name: '鐵匠', dx: 6, dy: 8, smith: true, lines: ['在這種冷天打鐵最舒服了。看看吧。'] },
   { town: 'frost', look: 'kid', name: '小孩', dx: -5, dy: 2, lines: ['下雪了！你看，雪花！', '媽媽說不可以去冰封湖玩。'] },
 ];

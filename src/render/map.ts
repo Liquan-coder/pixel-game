@@ -2,9 +2,10 @@ import { G } from '../core/state';
 import { $, clamp } from '../core/util';
 import { OL } from '../art/sprite';
 import { CAMPS, MH, MW, OPEN_REGIONS, REGIONS, SUBS, TOWNS, TS, discovered, explored } from '../world/map';
-import { mctx, miniBase, miniFull } from '../world/minimap';
+import { mctx, miniBase } from '../world/minimap';
 import { merchant } from '../ui/shop';
-import { current, flags, mapMarker } from '../game/quest';
+import { drawRumors, flags, rumorsOpen } from '../game/quest';
+import { STATUES, statueKnown, statueLit, ZONE_NAME, zoneOfReg } from '../world/statues';
 import { DUNGEONS, DZONE, dungeonAt } from '../world/dungeons';
 import { POIS } from '../data/poi';
 import { MAP_ICONS, MAP_ICON_SCALE } from '../art/mapIcons';
@@ -23,11 +24,12 @@ export function renderMini() {
   const dg = dungeonAt(G.me.x, G.me.y);
   if (dg) { const b = dungeonBox(dg), bx = b.x0 - ox, by = b.y0 - oy, bw = b.x1 - b.x0, bh = b.y1 - b.y0;   // 在地城裡：只顯示這一座，其他地城塗黑
     mctx.fillStyle = '#07060b'; mctx.fillRect(0, 0, 128, Math.max(0, by)); mctx.fillRect(0, by + bh, 128, 80); mctx.fillRect(0, by, Math.max(0, bx), bh); mctx.fillRect(bx + bw, by, 128, bh); }
-  else for (const c of CAMPS) { mctx.fillStyle = c.lit ? '#f2c14e' : '#8a869a'; mctx.fillRect(c.tx - ox - 1, c.ty - oy - 1, 3, 3); }   // 營火：沒去過的也標出來（灰色），讓人想去點燃
+  else { for (const c of CAMPS) if (c.lit || seen(c.tx, c.ty)) { mctx.fillStyle = c.lit ? '#f2c14e' : '#8a869a'; mctx.fillRect(c.tx - ox - 1, c.ty - oy - 1, 3, 3); }   // 營火：點燃過的、或那一塊地圖亮了才標
+    for (const s of STATUES) if (statueKnown(s)) { mctx.fillStyle = statueLit(s) ? '#ffe38a' : '#c8a8ff'; mctx.fillRect(s.tx - ox - 1, s.ty - oy - 2, 3, 4); } }
   // Boss、寶箱不標：讓玩家自己去找
   if (merchant) { const mx = Math.floor(merchant.x / TS) - ox, my = Math.floor(merchant.y / TS) - oy; mctx.fillStyle = OL; mctx.fillRect(mx - 2, my - 2, 5, 5); mctx.fillStyle = '#5ae0b0'; mctx.fillRect(mx - 1, my - 1, 3, 3); }
   if (G.lost) { mctx.fillStyle = '#b49cff'; mctx.fillRect(Math.floor(G.lost.x / TS) - ox - 1, Math.floor(G.lost.y / TS) - oy - 1, 3, 3); }
-  mapMarker(mctx, 1, ox, oy);
+  drawRumors(mctx, 1, ox, oy);
   mctx.fillStyle = Math.floor(G.time * 4) % 2 ? '#ffffff' : '#7fdcff'; mctx.fillRect(px - ox - 1, py - oy - 1, 3, 3);
 }
 /* ================= 世界地圖：拖曳平移、雙指 / 滾輪縮放、點營火快速傳送 =================
@@ -57,11 +59,11 @@ export function renderBigMap() {
   const g = bctx; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.imageSmoothingEnabled = false;
   g.fillStyle = '#07060b'; g.fillRect(0, 0, mv.w, mv.h);
   const [x0, y0] = toScr(0, 0), W = MW * mv.z, H = MH * mv.z;
-  g.globalAlpha = .22; g.drawImage(miniFull, x0, y0, W, H); g.globalAlpha = 1; g.drawImage(miniBase, x0, y0, W, H);   // 沒去過的地方淡淡的，去過的亮起來
+  g.drawImage(miniBase, x0, y0, W, H);   // 只畫看過的地方：自己走過的路 + 星之神像點亮的整塊地區（world/statues.ts）；其他地方一片黑
   { const [zx, zy] = toScr(DZONE.x0 - 1, DZONE.y0 - 1), [zx1, zy1] = toScr(DZONE.x1 + 1, DZONE.y1 + 1); g.fillStyle = '#07060b'; g.fillRect(zx, zy, zx1 - zx, zy1 - zy); }   // 地城裡面是蓋在海上的，地圖上不顯示
   const label = (txt, x, y, col, size) => { g.font = size + 'px "DotGothic16", "PingFang TC", sans-serif'; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = '#07060b'; g.strokeText(txt, x, y); g.fillStyle = col; g.fillText(txt, x, y); };
   const big = mv.z >= 2.2;                                               // 拉近才顯示小地名
-  if (mv.z < 5) for (const k of OPEN_REGIONS) { const [x, y] = toScr(REGIONS[k].c[0], REGIONS[k].c[1]); label(REGIONS[k].name, x, y, '#f1e7d0', 16); }
+  if (mv.z < 5) for (const k of OPEN_REGIONS) if (flags.has('chart:' + zoneOfReg(k))) { const [x, y] = toScr(REGIONS[k].c[0], REGIONS[k].c[1]); label(REGIONS[k].name, x, y, '#f1e7d0', 16); }   // 地名：那一塊點亮了才寫
   if (big) for (const s of SUBS) if (discovered.has(s.name)) { const [x, y] = toScr(s.x, s.y); label(s.name, x, y + 18, '#c9bfa8', 11); }
   // 圖示：放大 2 倍的像素圖，中心對準那一格；同時記下位置給「點一下」用
   hits = [];
@@ -73,9 +75,14 @@ export function renderBigMap() {
     icon(done ? 'dungeonDone' : 'dungeon', { kind: 'dungeon', id: d.id, name: d.name, desc: done ? '地城 · 已經攻略完了' : '地城 · 最深處有守護者看守著寶物', tx: d.ent[0], ty: d.ent[1] }); }
   if (merchant) icon('merchant', { kind: 'merchant', id: 'merchant', name: '流浪商人', desc: '會在點燃過的營火之間移動，賣藥水、礦石和裝備', tx: merchant.x / TS - .5, ty: merchant.y / TS - .5 });
   if (G.lost) icon('lost', { kind: 'lost', id: 'lost', name: '掉落的魂晶', desc: '上次倒下時掉的 ' + G.lost.amount + ' 魂晶 · 走過去就能撿回來（再死一次就沒了）', tx: G.lost.x / TS - .5, ty: G.lost.y / TS - .5 });
-  for (const c of CAMPS) icon(c.lit ? 'camp' : 'campOff', { kind: 'camp', id: c.id, name: c.lit || seen(c.tx, c.ty) ? c.name : '未知的營火', desc: '', tx: c.tx, ty: c.ty });   // 沒去過的營火也標出來（熄滅的樣子），讓人想去點燃
-  { const q = current(); hits.push({ kind: 'quest', id: q.id, name: '主線：' + q.title, desc: '按「導航」會有金色箭頭指路 · 不一定要照順序', tx: q.tx, ty: q.ty, ...(([x, y]) => ({ x, y }))(toScr(q.tx, q.ty)) }); }
-  mapMarker(g, mv.z, mv.x - mv.w / 2 / mv.z, mv.y - mv.h / 2 / mv.z);
+  for (const c of CAMPS) if (c.lit || seen(c.tx, c.ty)) icon(c.lit ? 'camp' : 'campOff', { kind: 'camp', id: c.id, name: c.name, desc: '', tx: c.tx, ty: c.ty });   // 點燃過的、或那一塊地圖亮了才標（熄滅的樣子讓人想去點燃）
+  for (const st of STATUES) if (statueKnown(st)) { const [x, y] = toScr(st.tx + .5, st.ty + .5), lit = statueLit(st), k = 3 + Math.max(0, Math.min(4, mv.z - 2));   // 星之神像：小小的星星 + 石座
+    g.fillStyle = '#07060b'; g.fillRect(Math.round(x - k - 1), Math.round(y + k * .4 - 1), Math.round(k * 2 + 2), Math.round(k * .8 + 2));
+    g.fillStyle = '#8a84a0'; g.fillRect(Math.round(x - k), Math.round(y + k * .4), Math.round(k * 2), Math.round(k * .8));
+    g.fillStyle = lit ? '#ffe38a' : '#c8a8ff'; g.beginPath(); g.moveTo(x, y - k * 1.8); g.lineTo(x + k * .6, y - k * .6); g.lineTo(x, y + k * .3); g.lineTo(x - k * .6, y - k * .6); g.closePath(); g.fill();
+    hits.push({ kind: 'statue', id: 's' + st.k, name: '星之神像', desc: lit ? ZONE_NAME[st.k] + ' · 已經點亮了' : '去那裡祈禱，' + ZONE_NAME[st.k] + '的地圖就會亮起來', tx: st.tx, ty: st.ty, x, y }); }
+  drawRumors(g, mv.z, mv.x - mv.w / 2 / mv.z, mv.y - mv.h / 2 / mv.z);   // 傳聞：模糊的虛線圈
+  for (const r of rumorsOpen()) { const [x, y] = toScr(r.tx, r.ty); hits.push({ kind: 'rumor', id: r.id, name: '傳聞', desc: '「' + r.text + '」——' + r.src, tx: r.tx, ty: r.ty, x, y }); }
   // 你：魔女帽 + 一圈閃爍的光（在地城裡 → 標在入口）
   const dg = dungeonAt(G.me.x, G.me.y), mt = dg ? [dg.ent[0], dg.ent[1] + .5] : [G.me.x / TS - .5, G.me.y / TS - .5];
   { const [x, y] = toScr(mt[0] + .5, mt[1] + .5), k = .5 + .5 * Math.sin(performance.now() / 160);
