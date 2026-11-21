@@ -71,8 +71,6 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 #pickCard .card .rar{font-size:10px}
 #pickCard .card .atk{font-size:12px;margin-top:1px}
 #pickCard .card .sk{margin-top:3px;padding-top:3px}
-#pickBtn{align-self:center;white-space:nowrap;pointer-events:auto;background:#2a1a4a;border:3px solid var(--soul);color:#e8dcff;font-size:14px;padding:5px 14px;box-shadow:inset -3px -3px 0 #0007,0 0 0 2px var(--ink),0 0 18px #b49cff55}
-#pickBtn small{font-size:11px;opacity:.7;margin-left:4px}
 @keyframes tin{from{transform:translateY(-6px);opacity:0}}
 @keyframes talkin{from{transform:translate(-50%,6px);opacity:0}}   /* 對話框：動畫時也要保持置中（translateX(-50%)），不然會先偏一邊再跳回來 */
 /* 開著選單時，播報移到畫面最下面、疊在選單上面，才不會蓋住選單的標題和分頁 */
@@ -82,9 +80,14 @@ body.menu .toast{background:#000d;border:1px solid var(--line);padding:3px 12px}
 #bossBar .bname{font-size:14px;margin-bottom:3px;letter-spacing:.1em}
 #bossBar .bar{height:8px}
 #bossBar .bar i{background:#b8322f}
-#restBtn{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom,0px));pointer-events:auto;background:#3a2414;border:3px solid var(--gold);color:var(--gold);font-size:15px;padding:8px 18px;box-shadow:inset -3px -3px 0 #0007,0 0 0 2px var(--ink),0 0 18px #f2c14e55;animation:pulse 1.6s steps(4) infinite}
-@keyframes pulse{50%{box-shadow:inset -3px -3px 0 #0007,0 0 0 2px var(--ink),0 0 4px #f2c14e33}}
 
+/* 靠近東西時的小提示（按攻擊鍵互動）：不是按鈕、點不到，淡淡的一行字 */
+#actHint{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(26px + env(safe-area-inset-bottom,0px));pointer-events:none;display:flex;align-items:center;gap:7px;white-space:nowrap;
+  font-size:13px;color:#efe4ffdd;background:#0b0814b0;border:1px solid #4d416688;padding:3px 10px 3px 4px;text-shadow:1px 1px 0 #000;animation:hintIn .18s ease-out}
+#actHint .k{font-weight:400;font-size:11px;color:var(--ink);background:#e8dcff;padding:0 5px;line-height:16px;box-shadow:inset -1px -1px 0 #0005}
+#actHint .kt{display:none} .touch #actHint .kt{display:inline} .touch #actHint .kb{display:none}
+#actHint[data-k="rest"] .k{background:var(--gold)} #actHint[data-k="chest"] .k,#actHint[data-k="pick"] .k{background:#ffe9a8}
+@keyframes hintIn{from{opacity:0;transform:translate(-50%,4px)}}
 #controls{position:absolute;inset:0;pointer-events:none}
 /* 固定搖桿：底座固定在左下角；手指按在左下這一塊（比底座大一圈）都算在推搖桿 */
 #joyZone{position:absolute;left:0;bottom:0;width:min(300px,42%);height:min(280px,72%);pointer-events:auto;touch-action:none}
@@ -298,12 +301,6 @@ body:not(.touch) #controls{display:none}
 #quest b{display:block;font-weight:400;color:#ffe38a}
 #quest small{display:block;color:var(--text);font-size:12px;opacity:.85}
 #quest i{display:block;font-style:normal;font-size:11px;color:#c8b8ff}
-#readBtn{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom,0px));pointer-events:auto;background:#142438;border:3px solid #7ab8e8;color:#dcecff;font-size:15px;padding:8px 18px;box-shadow:inset -3px -3px 0 #0007,0 0 0 2px var(--ink),0 0 18px #7ab8e855}
-#readBtn small{font-size:11px;opacity:.7;margin-left:4px}
-#doorBtn{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom,0px));pointer-events:auto;background:#241a34;border:3px solid #c8a8ff;color:#efe4ff;font-size:15px;padding:8px 18px;box-shadow:inset -3px -3px 0 #0007,0 0 0 2px var(--ink),0 0 18px #c8a8ff55}
-#doorBtn small{font-size:11px;opacity:.7;margin-left:4px}
-.touch #doorBtn small{display:none}
-.touch #readBtn small{display:none}
 .loretext{font-size:16px;line-height:1.9;margin:6px 4px 10px;color:var(--text)}
 #journal .premise{font-size:14px;line-height:1.7;color:var(--text);margin:0 0 10px;padding:8px 10px;background:#0005;border-left:3px solid var(--gold)}
 .qsteps{list-style:none;margin:0;padding:0;display:grid;gap:3px}
@@ -320,10 +317,6 @@ body:not(.touch) #controls{display:none}
 #talk b{display:block;color:var(--gold);font-weight:400;font-size:12px;letter-spacing:.1em}
 #talk small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
 .touch #talk small{display:none}
-#shopBtn{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom,0px));pointer-events:auto;background:#1e3a30;border:3px solid #5ae0b0;color:#c8ffe8;font-size:15px;padding:8px 18px;box-shadow:inset -3px -3px 0 #0007,0 0 0 2px var(--ink),0 0 18px #5ae0b055}
-#chestBtn{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom,0px));pointer-events:auto;background:#3a2a10;border:3px solid #f2c14e;color:#ffe9a8;font-size:15px;padding:8px 18px;box-shadow:inset -3px -3px 0 #0007,0 0 0 2px var(--ink),0 0 18px #f2c14e66;animation:pulse 1.2s steps(4) infinite}
-#chestBtn small{font-size:11px;opacity:.7;margin-left:4px}
-.touch #chestBtn small,.touch #pickBtn small{display:none}
 .matline{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:8px;font-size:12px;padding:5px 8px;background:#0005;border:1px solid #4d416688}
 .matline b{font-weight:400;color:var(--text);font-variant-numeric:tabular-nums}
 #salvAll.one{color:#ffb0b8;border-color:#8a3446;background:#3a1d24}
@@ -356,16 +349,11 @@ body:not(.touch) #controls{display:none}
 /* 矮螢幕（手機橫放）：大標題、地名縮小一點，比較不會擋住角色 */
 @media (max-height:500px){#banner{font-size:24px;top:30%;padding:8px 0}#areaToast{top:16%}#areaToast b{font-size:22px}}
 #rotate{position:absolute;inset:0;display:grid;place-items:center;background:var(--ink);font-size:18px;text-align:center;line-height:1.8;padding:24px}
-@media (prefers-reduced-motion:reduce){#restBtn{animation:none}.toast,.toast.bump b{animation:none}}
+@media (prefers-reduced-motion:reduce){#actHint{animation:none}.toast,.toast.bump b{animation:none}}
 /* 手機橫放（矮螢幕）：角色縮小、裝備欄變小，整個角色面板一個畫面放得下 */
 @media (max-height:500px){.dollbox{width:120px;height:120px}#doll{width:104px;height:120px}.cwrap{grid-template-columns:minmax(0,1fr) 186px minmax(0,1fr);gap:10px}
   .eqslot{min-height:58px}.eqslot img,.eqslot .ph0{width:30px;height:30px}.cdoll{gap:5px}.keystats b{font-size:16px}.keystats{margin-bottom:5px}}
 /* 互動提示：告訴你「攻擊鍵現在會做什麼」，直接點它也一樣 */
-#useBtn{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom,0px));background:#2a1a34;border:3px solid #c88aff;color:#f0e0ff;font-size:15px;padding:8px 18px;box-shadow:inset -3px -3px 0 #0007,0 0 0 2px var(--ink),0 0 18px #c88aff55}
-#useBtn small{font-size:11px;opacity:.7;margin-left:4px}.touch #useBtn small{display:none}
-#restBtn,#shopBtn,#chestBtn,#readBtn,#doorBtn,#pickBtn,#useBtn{pointer-events:auto;cursor:pointer;touch-action:manipulation}
-#restBtn small,#shopBtn small{font-size:11px;opacity:.7;margin-left:4px}
-.touch #restBtn small,.touch #shopBtn small{display:none}
 #bAtk.act{color:var(--gold);border-color:#f2c14ecc;box-shadow:0 0 0 1px #100d1680,inset -2px -3px 0 #0004,0 0 10px #f2c14e55}   /* 靠近可以互動的東西：金邊 + 光暈 */
 #bAtk.act span{font-size:15px}
 #pickCard .card .atk .bn,.card .atk .bn{color:#c8b8ff}                       /* 攻擊的「+ 能力值加成」 */

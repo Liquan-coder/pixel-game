@@ -21,7 +21,7 @@ export const stBarW = (maxSt: number) => Math.round(84 * Math.sqrt(Math.max(80, 
 function setW(id, px) { const k = id + 'W'; if (hudCache[k] !== px) { const grew = hudCache[k] !== undefined && px > (hudCache[k] as number); hudCache[k] = px;
   const bar = $(id).parentElement; bar.style.setProperty('--w', px + 'px');
   if (grew) { bar.classList.remove('grow'); void bar.offsetWidth; bar.classList.add('grow'); } } }   // 變長時閃一下
-const PROMPTS: [IKind, string][] = [['pick', 'pickBtn'], ['chest', 'chestBtn'], ['read', 'readBtn'], ['door', 'doorBtn'], ['shop', 'shopBtn'], ['rest', 'restBtn'], ['use', 'useBtn']];
+const HINT: Record<IKind, string> = { pick:'撿起', chest:'打開寶箱', read:'閱讀石碑', door:'進入', shop:'交易', rest:'在營火休息', use:'調查' };   // 沒有 text 時的預設提示
 export function updateHUD() {
   setW('hpBar', hpBarW(G.me.maxHp)); setW('stBar', stBarW(G.me.maxSt));
   setText('lvTxt', String(level(G.me))); setScale('hpBar', G.me.hp / G.me.maxHp); setScale('stBar', G.me.st / G.me.maxSt);
@@ -37,8 +37,7 @@ export function updateHUD() {
   if (pk) placePickBox(pk);
   const it = interactTarget(), ik = it ? it.kind + ':' + (it.text || '') : '';             // 攻擊鍵現在會做什麼：撿起 / 休息 / 打開…
   if (hudCache.act !== ik) { hudCache.act = ik;
-    for (const [k, id] of PROMPTS) $(id).hidden = !it || it.kind !== k;
-    if (it?.text) $(it.kind === 'door' ? 'doorTxt' : it.kind === 'use' ? 'useTxt' : 'shopTxt').textContent = it.text;
+    $('actHint').hidden = !it; if (it) { $('actTxt').textContent = it.text || HINT[it.kind]; $('actHint').dataset.k = it.kind; }   // 畫面下方一行小提示，不是按鈕
     $('bAtkTxt').textContent = it ? it.btn : '攻擊'; $('bAtk').classList.toggle('act', !!it); }
   setText('goldTxt', String(G.me.gold));
   const S = G.me.sx, sk = S && !G.me.dead ? (['frozen', 'stun', 'root', 'poison', 'burn', 'slow', 'silence', 'blind'] as const).filter(k => S[k] > 0).map(k => k + ':' + Math.ceil(S[k])).join(',') : '';
