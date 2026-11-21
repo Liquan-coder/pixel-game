@@ -13,13 +13,13 @@ import { FX_KEYS, WFXD } from '../game/weaponFx';
 
 /* ================= DATA ================= */
 export const WT = {
-  sword:{name:'長劍',base:12,cd:.42,range:26,arc:120,stam:12,skill:'spin',sn:'迴旋斬',scd:6,trait:'攻守平均',sd:'揮出一圈劍氣，打中身邊所有敵人（220%）'},
+  sword:{name:'長劍',base:13,cd:.42,range:26,arc:120,stam:12,skill:'spin',sn:'迴旋斬',scd:6,trait:'第三下放出劍氣',sd:'揮出一圈劍氣，打中身邊所有敵人（220%）'},
   dagger:{name:'短刀',base:8,cd:.26,range:20,arc:100,stam:7,skill:'dash',sn:'疾風突刺',scd:5,trait:'出手很快',sd:'向前突進，穿過路上所有敵人（250%），突進時無敵'},
-  axe:{name:'戰斧',base:21,cd:.72,range:28,arc:140,stam:20,skill:'slam',sn:'裂地重擊',scd:8,trait:'很慢但很痛',sd:'蓄力砸地，前方大範圍傷害（350%）並暈眩敵人'},
-  spear:{name:'長槍',base:12,cd:.5,range:42,arc:44,stam:13,skill:'triple',sn:'三連刺',scd:5.5,trait:'攻擊距離長',sd:'快速刺出三槍（每下 140%）'},
+  axe:{name:'戰斧',base:21,cd:.72,range:28,arc:140,stam:20,skill:'slam',sn:'裂地重擊',scd:8,trait:'左右橫掃，越砍越快',sd:'蓄力砸地，前方大範圍傷害（350%）並暈眩敵人'},
+  spear:{name:'長槍',base:12,cd:.44,range:42,arc:44,stam:13,skill:'triple',sn:'三連刺',scd:5.5,trait:'刺穿一排，槍尖更痛',sd:'快速刺出三槍（每下 140%）'},
   staff:{name:'法杖',base:10,cd:.5,range:150,arc:0,stam:10,ranged:true,skill:'fireball',sn:'火球術',scd:6,trait:'遠程魔法彈',sd:'發射火球，爆炸傷害一整片（300%）'},
   katana:{name:'太刀',base:13,cd:.34,range:27,arc:110,stam:10,skill:'iai',sn:'居合一閃',scd:6,trait:'出手快、容易暴擊',sd:'瞬間穿過前方一整排敵人（300%），一定會暴擊'},
-  hammer:{name:'戰鎚',base:24,cd:.8,range:27,arc:150,stam:22,skill:'quake',sn:'三重震波',scd:9,trait:'最重的一擊',sd:'連砸三下，震波一圈比一圈大（每圈 200%）並暈眩敵人'},
+  hammer:{name:'戰鎚',base:24,cd:.8,range:27,arc:150,stam:22,skill:'quake',sn:'三重震波',scd:9,trait:'每一下都往下砸',sd:'連砸三下，震波一圈比一圈大（每圈 200%）並暈眩敵人'},
   scythe:{name:'鐮刀',base:14,cd:.5,range:33,arc:200,stam:13,skill:'reap',sn:'死神收割',scd:8,trait:'掃一大圈、打中會回血',sd:'把周圍的敵人拉過來一起砍（260%），每打中一隻回 4% 生命'},
   wolfblade:{name:'狼牙雙刃',base:14,cd:.38,range:24,arc:130,stam:9,skill:'wolfrush',sn:'狼影連襲',scd:7,trait:'狼王的獠牙',sd:'化為狼影，連續撲向三個敵人（每下 180%），期間無敵'},
 };

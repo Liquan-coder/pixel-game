@@ -48,7 +48,7 @@ function updateProjectiles(dt) {
       for (const pl of G.players) if (!dead && Math.hypot(pl.x - p.x, pl.y - 6 - p.y) < p.r + pl.r - 4) { G.hitCtx = p.hc || null; hurtPlayer(pl, p.dmg, p.x, p.y, p.fx); G.hitCtx = null; dead = true; }   // 打到哪個玩家就傷哪個
     } else if (!dead && p.owner === 'p') {
       for (const e of targets(p.by)) if (Math.hypot(e.x - p.x, e.y - 6 - p.y) < p.r + e.r) {
-        if (p.pierce) { if (p.hit.has(e)) continue; p.hit.add(e); damageEnemy(p.by, e, p.mult, p.x, p.y, { heavy:true }); continue; }
+        if (p.pierce) { if (p.hit.has(e)) continue; p.hit.add(e); damageEnemy(p.by, e, p.mult, p.x, p.y, { heavy:!p.light }); continue; }   // light = 長劍第三下的小劍氣（不停頓）
         if (p.kind === 'fire') explode(p); else if (p.kind === 'orb') explodeOrb(p); else damageEnemy(p.by, e, p.mult, p.x, p.y);
         dead = true; p.exploded = true; break; }
     }

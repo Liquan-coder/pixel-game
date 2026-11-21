@@ -59,6 +59,7 @@ export interface Player {
   atkCd: number; skillCd: number; iframe: number; hurt: number; dodge: number; drink: number;
   skillLock: number; aimLock: number; spin: number; thrust: number; slam: number;
   blinkIn?: number; comboT?: number; atkBuf?: number;
+  axeN?: number; axeSide?: boolean;   // 戰斧：連續砍中幾下（越砍越快）、這一下往哪邊掃
 
   // 速度
   kx: number; ky: number;         // 被擊退

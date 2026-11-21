@@ -6,6 +6,7 @@ import { pick, rr } from '../core/util';
 import { sfx } from '../core/audio';
 import type { Enemy, Item, Player } from '../types';
 import { UQ } from '../data/uniques';
+import { WT } from '../data/items';
 
 export const WFXD: Record<string, { n: string; c: string; d: string; pre: string }> = {
   bleed: { n: '出血', c: '#ff5a64', pre: '血棘', d: '連續命中會累積出血，滿了爆發「最大生命 15%」的傷害（Boss 5%）' },
@@ -25,10 +26,12 @@ export function bindFx(r: RawHit, t: Targets) { rawHit = r; targetsOf = t; }   /
 const num = (e: Enemy, txt: string, col: string) => G.nums.push({ x: e.x + rr(-4, 4), y: e.y - (e.boss ? 34 : 22), txt, col, t: 0, d: .8, big: true });
 function sparks(e: Enemy, col: string, n: number) { for (let i = 0; i < n; i++) G.parts.push({ x: e.x + rr(-5, 5), y: e.y - rr(2, 14), vx: rr(-40, 40), vy: -rr(20, 70), life: rr(.3, .6), max: .6, col, star: rr(.8, 1.8), drag: 2 }); }
 
-/** 每次命中（proc = 由效果本身造成的傷害，不再觸發，避免連鎖無限） */
+/** 每次命中（proc = 由效果本身造成的傷害，不再觸發，避免連鎖無限）
+    B 也照武器速度調：慢的武器每下累積比較多 / 比較容易觸發，所以每種武器大約一樣快爆（太刀 0.34 秒一下 = 1 倍；短刀 0.76 倍、戰鎚 2.35 倍） */
+export const SPD_REF = .34;
 export function onHit(pl: Player, e: Enemy, v: number, crit: boolean) {
   const fx = fxOf(pl.weapon); if (!fx || e.hp <= 0) return;
-  const pow = pl.atkPow || pl.weapon.atk || 10, B = 1 + ((pl.tfx && pl.tfx.fxBuild) || 0) / 100;   // B = 飾品「刻印效果加強」
+  const pow = pl.atkPow || pl.weapon.atk || 10, B = (1 + ((pl.tfx && pl.tfx.fxBuild) || 0) / 100) * (WT[pl.weapon.type]?.cd || SPD_REF) / SPD_REF;   // 飾品「刻印效果加強」× 武器速度
   if (fx === 'bleed') { e.bleedB = (e.bleedB || 0) + (22 + (crit ? 15 : 0)) * B;
     if (e.bleedB >= 100) { e.bleedB = 0; const d = Math.round(Math.max(pow * .6, e.maxHp * (e.boss ? .05 : .15)));
       num(e, '出血 ' + d, WFXD.bleed.c); sparks(e, '#e0303a', 16); sfx.crit(); rawHit(pl, e, d, WFXD.bleed.c); } }

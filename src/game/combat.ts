@@ -73,19 +73,27 @@ export function rawHit(pl: Player, e: Enemy, v: number, col: string) {
   finish(pl, e);
 }
 bindFx(rawHit, targets);
-function meleeHit(pl: Player, range, arcDeg, mult, opts?) {
-  const half = arcDeg / 2 * Math.PI / 180;
+function meleeHit(pl: Player, range, arcDeg, mult, opts?) {              // 回傳打中幾個（戰斧要知道有沒有砍到東西）
+  const half = arcDeg / 2 * Math.PI / 180; let n = 0;
   for (const e of targets(pl)) {
     const d = Math.hypot(e.x - pl.x, e.y - pl.y) - e.r;
     if (d > range) continue;
     if (arcDeg < 360 && d > 4 && angDiff(Math.atan2(e.y - pl.y, e.x - pl.x), pl.face) > half) continue;
-    damageEnemy(pl, e, mult, pl.x, pl.y, opts);
+    damageEnemy(pl, e, mult, pl.x, pl.y, opts); n++;
   }
+  return n;
 }
-function lineHit(pl: Player, x, y, a, len, w, mult, opts?) {                     // 直線範圍：長槍突刺用
+const TIP = .3, TIP_K = 1.5;                                             // 長槍普攻：敵人在最遠那 30% 的地方（槍尖）→ 傷害 ×1.5
+function lineHit(pl: Player, x, y, a, len, w, mult, opts?, tip = false) {         // 直線範圍：長槍突刺用（穿過整排）
   const c = Math.cos(a), s = Math.sin(a);
   for (const e of targets(pl)) { const dx = e.x - x, dy = e.y - y, al = dx * c + dy * s;
-    if (al < -e.r || al > len + e.r || Math.abs(dy * c - dx * s) > w + e.r) continue; damageEnemy(pl, e, mult, x, y, opts); }
+    if (al < -e.r || al > len + e.r || Math.abs(dy * c - dx * s) > w + e.r) continue;
+    if (tip && al >= len * (1 - TIP)) { damageEnemy(pl, e, mult * TIP_K, x, y, { ...opts, heavy:true }); tipFx(e); }
+    else damageEnemy(pl, e, mult, x, y, opts); }
+}
+function tipFx(e: Enemy) {                                               // 槍尖命中：白色小光圈 + 星屑
+  G.fx.push({ k:'warp', x:e.x, y:e.y - 8, r0:3, r1:16, th:2, t:0, d:.18, col:'#ffffff' });
+  for (let i = 0; i < 6; i++) { const a = rr(0, TAU), v = rr(50, 110); G.parts.push({ x:e.x, y:e.y - 8, vx:Math.cos(a) * v, vy:Math.sin(a) * v, life:.25, max:.25, col:'#e0fcff', star:rr(1.2, 2.2), drag:6 }); }
 }
 export function aoeHit(pl: Player, cx, cy, rad, mult, opts?) {
   for (const e of targets(pl)) if (Math.hypot(e.x - cx, e.y - cy) - e.r <= rad) damageEnemy(pl, e, mult, cx, cy, opts);
@@ -126,9 +134,13 @@ function swingSmear(pl: Player, s, type, cols, fin) {                           
 export function tryAttack(pl: Player) {
   if (pl.atkCd > 0 || busy(pl)) return false;                       // 普攻不耗體力（體力只用在瞬移和蓄力）
   const type = pl.weapon.type, W = WT[type], cols = wcols(pl, type), A = ANIM[type] || ANIM.sword;
-  pl.combo = pl.comboT > 0 ? (pl.combo + 1) % 3 : 0; pl.comboT = .8;
-  const fin = pl.combo === 2, st = (A.C || ['diag', 'rise', 'diag'])[pl.combo];   // 三下各用不同揮法（斜劈 → 橫掃 → 重劈）
-  pl.atkCd = W.cd / pl.aspd * (fin ? 1.3 : 1);
+  /* 戰鎚、戰斧沒有三連擊：戰鎚每一下都舉高往下砸；戰斧左右來回橫掃，連續砍中越砍越快（最多快 30%），停下來就重來 */
+  const solo = type === 'hammer' || type === 'axe', chain = pl.comboT > 0;
+  pl.combo = !solo && chain ? (pl.combo + 1) % 3 : 0; pl.comboT = type === 'axe' ? 1.1 : .8;
+  if (type === 'axe' && !chain) pl.axeN = 0;
+  const fin = !solo && pl.combo === 2;
+  const st = type === 'hammer' ? 'slam' : type === 'axe' ? ((pl.axeSide = !pl.axeSide) ? 'flatR' : 'flat') : (A.C || ['diag', 'rise', 'diag'])[pl.combo];   // 三下各用不同揮法（斜劈 → 橫掃 → 重劈）
+  pl.atkCd = W.cd / pl.aspd * (fin ? 1.3 : 1) * (type === 'axe' ? 1 - .1 * (pl.axeN || 0) : 1);
   if (W.ranged) {                                                     // 法杖：舉杖聚光 → 往前一推放出 → 杖放低收招
     autoFace(pl, 170);
     const s = pl.swing = newSwing(pl, type, A, false, null, { ranged:true, fin });
@@ -143,9 +155,10 @@ export function tryAttack(pl: Player) {
   autoFace(pl, W.range + 40);
   if (type === 'spear') {
     const L = W.range + (fin ? 14 : 4), s = pl.swing = newSwing(pl, type, A, fin, null, {});
-    pl.timers.push({ t:s.wu, fn: () => { pl.thrust = .14; lanceFx(pl, pl.face, L, fin ? 12 : 9, cols, .22, true); lineHit(pl, pl.x, pl.y, pl.face, L, 6, fin ? 1.25 : 1); sfx.swing(); } });
+    pl.timers.push({ t:s.wu, fn: () => { pl.thrust = .14; if (fin) moveEnt(pl, Math.cos(pl.face) * 12, Math.sin(pl.face) * 12);   // 第三下：先往前踏一步再刺
+      lanceFx(pl, pl.face, L, fin ? 12 : 9, cols, .22, true); lineHit(pl, pl.x, pl.y, pl.face, L, 6, fin ? 1.25 : 1, undefined, true); sfx.swing(); } });
     if (fin) pl.timers.push({ t:s.wu + .14, fn: () => { pl.thrust = .14; pl.swing = newSwing(pl, type, Object.assign({}, A, { wu:0 }), false, null, {}); pl.swing.t = 0;
-      lanceFx(pl, pl.face, L + 6, 11, cols, .2, true); lineHit(pl, pl.x, pl.y, pl.face, L + 6, 7, 1.1, { heavy:true }); sfx.swing(); } });
+      lanceFx(pl, pl.face, L + 6, 11, cols, .2, true); lineHit(pl, pl.x, pl.y, pl.face, L + 6, 7, 1.1, { heavy:true }, true); sfx.swing(); } });
     return true;
   }
   const s = pl.swing = newSwing(pl, type, A, fin, st, {});
@@ -157,16 +170,23 @@ export function tryAttack(pl: Player) {
   if (type === 'wolfblade') smearFx(pl, a1, as, Rs - 4, wv * .7, sw2, SHADOWBLADE, .12, d0 + .04, s.sy);
   if (type === 'dagger' && fin) smearFx(pl, s.f - s.r0 * s.sd * .55, s.f + s.r1 * s.sd * -1, Rv, wv, sw2, cols, .12, d0 + .07);   // 短刀收尾：交叉第二刀
   pl.timers.push({ t:d0 + sw2 * .3, fn: () => {
-    meleeHit(pl, R, W.arc * (fin ? 1.3 : 1), fin ? 1.35 : 1, fin ? { heavy:true } : undefined);
+    if (type === 'hammer') {                                           // 戰鎚：砸在前方地上，一圈範圍、每下都震地、小怪會暈一下
+      const cx = pl.x + Math.cos(pl.face) * 20, cy = pl.y + Math.sin(pl.face) * 20;
+      aoeHit(pl, cx, cy, 22, 1.05, { heavy:true, stun:.3 }); quakeFx(cx, cy, 26); shake(3, .12); G.hitStop = Math.max(G.hitStop, .04);
+    } else {
+      const n = meleeHit(pl, R, W.arc * (fin ? 1.3 : 1), fin ? 1.35 : 1, fin ? { heavy:true } : undefined);
+      if (type === 'axe') { pl.axeN = n ? Math.min(3, (pl.axeN || 0) + 1) : 0;   // 砍中 → 下一下快 10%（最多 3 層）；揮空就重來
+        if (n && pl.axeN >= 3) { shake(2, .08); for (let i = 0; i < 10; i++) { const a = pl.face + rr(-1.4, 1.4), v = rr(60, 150);   // 滿層：斧刃冒火
+          G.parts.push({ x:pl.x + Math.cos(a) * 16, y:pl.y - 8 + Math.sin(a) * 10, vx:Math.cos(a) * v, vy:Math.sin(a) * v - 30, life:rr(.25, .45), max:.45, col:pick(['#ff6a2a', '#ffb040', '#fff0a0']), star:rr(1, 2), drag:5 }); } } }
+      if (fin && type === 'sword') { const a = pl.face;                // 長劍第三下：往前飛一道小劍氣（約 70 px，穿透）
+        G.projs.push({ x:pl.x + Math.cos(a) * 10, y:pl.y - 7 + Math.sin(a) * 10, vx:Math.cos(a) * 300, vy:Math.sin(a) * 300, r:8, life:.24, mult:.8, owner:'p', by:pl, kind:'wave', pierce:true, hit:new Set(), R:11, th:5, cols, light:true }); }
+    }
     const mx = pl.x + Math.cos(pl.face) * Rv * .9, my = pl.y - 7 + Math.sin(pl.face) * Rv * .9 * HSY;   // 刀光前緣迸出火花
     for (let i = 0; i < (fin ? 18 : 12); i++) { const a = pl.face + rr(-1.1, 1.1), v = rr(40, 140);
       G.parts.push({ x:mx, y:my, vx:Math.cos(a) * v, vy:Math.sin(a) * v, life:rr(.15, .32), max:.32, col:pick(['#ffb070', '#ff7a5a', '#ffffff', cols[1]]), star:rr(.6, 1.8), drag:6 }); }
     for (let i = 0; i < (fin ? 6 : 3); i++) { const a = pl.face + rr(-.6, .6), v = rr(90, 170);   // 白色星屑往前飛
       G.parts.push({ x:mx, y:my, vx:Math.cos(a) * v, vy:Math.sin(a) * v - 20, life:rr(.3, .45), max:.45, col:'#ffffff', star:rr(1.6, 2.6), drag:4 }); }
-    if (fin) { moveEnt(pl, Math.cos(pl.face) * 7, Math.sin(pl.face) * 7);
-      if (type === 'hammer') { quakeFx(pl.x + Math.cos(pl.face) * 18, pl.y + Math.sin(pl.face) * 18, 36); shake(5, .18); G.hitStop = Math.max(G.hitStop, .05); }
-      if (type === 'axe') { quakeFx(pl.x + Math.cos(pl.face) * 18, pl.y + Math.sin(pl.face) * 18, 30); shake(4, .15); }
-    }
+    if (fin) moveEnt(pl, Math.cos(pl.face) * 7, Math.sin(pl.face) * 7);
     sfx.swing(); } });
   return true;
 }
