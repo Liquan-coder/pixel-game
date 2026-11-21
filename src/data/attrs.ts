@@ -4,6 +4,7 @@
 
    武器用「加成」決定吃哪種能力值：例如戰鎚吃力量、法杖吃智識、太刀吃敏捷。
    裝備有「需求」：能力值不夠就不能裝上。 */
+import { LV_K } from './levels';
 import type { Item, Player } from '../types';
 
 export type AttrKey = 'vit' | 'end' | 'str' | 'dex' | 'int' | 'luk';
@@ -18,8 +19,9 @@ export const ATTRS: { k: AttrKey; n: string; d: string }[] = [
 ];
 export const ATTR_NAME: Record<AttrKey, string> = Object.fromEntries(ATTRS.map(a => [a.k, a.n])) as any;
 
-/* 遞減曲線：從 5 點開始算，每點的價值 → 前 15 點 1、再 20 點 0.6、之後 0.2 */
-export function soft(v: number) { const x = Math.max(0, v - ATTR_BASE); return Math.min(x, 15) + .6 * Math.max(0, Math.min(x - 15, 20)) + .2 * Math.max(0, x - 35); }
+/* 遞減曲線：從 5 點開始算（先 ÷ LV_K），每點的價值 → 前 37 點 1、再 50 點 0.6、之後 0.2（以 LV_K = 2.5 算） */
+// ÷ LV_K：等級尺度放大 2.5 倍（data/levels.ts），每一點的效果跟著變小
+export function soft(v: number) { const x = Math.max(0, v - ATTR_BASE) / LV_K; return Math.min(x, 15) + .6 * Math.max(0, Math.min(x - 15, 20)) + .2 * Math.max(0, x - 35); }
 
 /* 武器加成：每種能力值的係數（加起來大約 1）。字母只是給玩家看的：S ≥ 1、A ≥ .75、B ≥ .5、C ≥ .3、D > 0 */
 export const WSCALE: Record<string, Partial<Record<AttrKey, number>>> = {
@@ -39,12 +41,13 @@ export const UQ_REQ: Record<string, Partial<Record<AttrKey, number>>> = {}, UQ_S
 export const scaleOf = (it: Item) => (it.uq && UQ_SCALE[it.uq]) || WSCALE[it.type] || {};
 /* 防具需求：看類型（重甲要力量和耐力、中甲要一點耐力、輕甲誰都能穿），獨特的再高一點 */
 const REQ: Record<string, Partial<Record<AttrKey, number>>> = { mail: { str: 10, end: 8 }, leather: { end: 7 }, robe: {} };
+const scaleReq = (r: Partial<Record<AttrKey, number>>) => { const o: Partial<Record<AttrKey, number>> = {}; for (const k in r) o[k] = ATTR_BASE + Math.round((r[k] - ATTR_BASE) * LV_K); return o; };   // 需求也照等級尺度放大
 export function reqOf(it: Item): Partial<Record<AttrKey, number>> {
-  if (it.uq && UQ_REQ[it.uq]) return { ...UQ_REQ[it.uq] };
-  if (REQW[it.type]) return { ...REQW[it.type] };
+  if (it.uq && UQ_REQ[it.uq]) return scaleReq(UQ_REQ[it.uq]);
+  if (REQW[it.type]) return scaleReq(REQW[it.type]);
   const R = REQ[it.type], out: Partial<Record<AttrKey, number>> = {}; if (!R) return out;
   for (const k in R) out[k] = R[k] + (it.ug ? 3 : 0);
-  return out;
+  return scaleReq(out);
 }
 export function unmet(pl: Player, it: Item | null): AttrKey[] { if (!it) return []; const r = reqOf(it); return (Object.keys(r) as AttrKey[]).filter(k => (pl[k] ?? ATTR_BASE) < r[k]); }
 export const meets = (pl: Player, it: Item | null) => unmet(pl, it).length === 0;
@@ -57,6 +60,8 @@ export function weaponAtk(pl: Player, w: Item) { return Math.round(w.atk * (1 + 
 export function atkSplit(pl: Player, w: Item, base = w.atk) { const total = Math.round(base * (1 + scaleBonus(pl, w))); return { base, bonus: total - base, total }; }
 /* 舊存檔（只有體魄 / 力量 / 耐力，從 1 開始）→ 新的六種能力值（從 5 開始），等級不變 */
 export function migrateAttrs(d) {
-  if (d.v >= 5) return { vit: d.vit, end: d.end, str: d.str, dex: d.dex, int: d.int, luk: d.luk };
-  return { vit: (d.vit || 1) + 4, end: (d.end || 1) + 4, str: (d.str || 1) + 4, dex: ATTR_BASE, int: ATTR_BASE, luk: ATTR_BASE };
+  const a = d.v >= 5 ? { vit: d.vit, end: d.end, str: d.str, dex: d.dex, int: d.int, luk: d.luk }
+    : { vit: (d.vit || 1) + 4, end: (d.end || 1) + 4, str: (d.str || 1) + 4, dex: ATTR_BASE, int: ATTR_BASE, luk: ATTR_BASE };
+  if (!(d.v >= 9)) for (const k in a) a[k] = ATTR_BASE + Math.round((a[k] - ATTR_BASE) * LV_K);   // v9：等級尺度 ×2.5 → 舊角色的能力值也 ×2.5，強度不變
+  return a;
 }

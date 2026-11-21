@@ -1,3 +1,4 @@
+import { tier } from '../data/levels';
 import { G } from '../core/state';
 import { TAU, dist, rr } from '../core/util';
 import { BEH, DG, KIND, randomLoot } from '../data/items';
@@ -130,7 +131,7 @@ export function killEnemy(e, by) {                                     // by = �
   dropSouls(e.x, e.y, s, by);
   burst(e.x, e.y - 5, e.elite ? 30 : 14, KIND[e.kind].col, 70); killFx(e);
   sfx.kill();
-  dropGold(e.x, e.y, Math.round((3 + e.lv * 1.6) * rr(.7, 1.3) * (e.elite ? 8 : 1) * (e.sp ? 1 : .3)));
+  dropGold(e.x, e.y, Math.round((3 + tier(e.lv) * 1.6) * rr(.7, 1.3) * (e.elite ? 8 : 1) * (e.sp ? 1 : .3)));
   /* 掉落：小怪主要給魂晶、礦石、藥水；武器很少（主要從地城、Boss、寶箱拿） */
   if (e.sp || e.elite) { const luk = by ? soft(by.luk) : 0, n = e.elite ? 2 + (Math.random() < .5 ? 1 : 0) : Math.random() < .25 + .008 * luk ? 1 : 0;   // 強化素材：這個地區的素材（幸運越高越常掉）
     if (n) dropMat(e.x, e.y, oreForLevel(e.lv), n, by); }

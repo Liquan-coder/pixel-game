@@ -40,10 +40,10 @@ export function placeMerchant(id, stock?) { const c = CAMPS.find(c => c.id === i
 /* 鐵匠：只賣武器和防具，貨比較好（稀有以上），每次休息換一批 */
 export function rollSmith(lv) {
   const st: Stock[] = [{ kind:'pot', price:25 }, oreRow('mat1', 70, 12)];                            // 鐵匠：前期素材比較便宜、比較多
-  if (lv >= 10) st.push(oreRow('mat2', 180, 6)); if (lv >= 20) st.push(oreRow('mat3', 420, 3));
+  if (lv >= 25) st.push(oreRow('mat2', 180, 6)); if (lv >= 50) st.push(oreRow('mat3', 420, 3));
   for (let i = 0; i < 3; i++) st.push(stockItem(makeWeapon(pick(DROP_WEAPONS), 0, Math.random() < .2 ? pick(FX_KEYS) : undefined), 1.1));
   for (const k of ARMOR_BASIC) st.push(stockItem(makeArmor(k), 1.1));
-  if (lv >= 20) st.push(stockItem(makeArmor(lv >= 25 ? 'fur' : 'ember'), 1.1));
+  if (lv >= 50) st.push(stockItem(makeArmor(lv >= 62 ? 'fur' : 'ember'), 1.1));
   return st;
 }
 export function moveMerchant() {

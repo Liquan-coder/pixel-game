@@ -109,8 +109,8 @@ export const ROADS = [
 export const torches = [], glows = [], braziers = [], spawns = [];
 /* 城鎮：中間是廣場和十字街，周圍一圈房子。snow = 屋頂積雪的雪國小鎮 */
 export const TOWNS = [
-  { id:'dawn', name:'晨風鎮', tx:62, ty:346, r:12, snow:false, lv:4 },
-  { id:'frost', name:'霜歌鎮', tx:500, ty:118, r:12, snow:true, lv:23 },
+  { id:'dawn', name:'晨風鎮', tx:62, ty:346, r:12, snow:false, lv:10 },
+  { id:'frost', name:'霜歌鎮', tx:500, ty:118, r:12, snow:true, lv:58 },
 ];
 /* 房子（genWorld 填）：tx/ty = 左上角那格，w/h = 佔幾格；roof = 屋頂顏色編號；smith = 鐵匠鋪（門口掛鐵砧招牌） */
 export const HOUSES: { tx: number; ty: number; w: number; h: number; roof: number; snow: boolean; smith?: boolean }[] = [];

@@ -6,6 +6,7 @@
    3. 隱藏的牆（探索）：寶箱房有一面裂開的牆，砍它一下就會碎掉，後面藏著一個金箱（像艾爾登法環的幻影牆）
    解開的狀態存在 quest 的 flags（'puz:古墓:fire'、'puz:古墓:wall'），讀檔 / 開新遊戲時每幀對一次，自動把門、牆變成對的樣子。
    之後要加到別的地城：在 PUZ 裡加一筆。 */
+import { tier } from '../data/levels';
 import { G } from '../core/state';
 import { TAU, pick, rr } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
@@ -69,7 +70,7 @@ export function setupPuzzles() {
       for (const [x, y] of room) map[y * MW + x] = RFLOOR;
       p.wall = cells.map(([tx, ty]) => ({ tx, ty })); p.wallHint = { x: ex * TS + 8, y: ey * TS + 8 };
       const [cx, cy] = room[4]; const id = 'pz_' + d.id;
-      if (!CHESTS.some(c => c.id === id)) CHESTS.push({ id, tx: cx, ty: cy, x: cx * TS + 8, y: cy * TS + 10, tier: 2, lv: d.lv + 3, mimic: false, opened: false, t: 0 });
+      if (!CHESTS.some(c => c.id === id)) CHESTS.push({ id, tx: cx, ty: cy, x: cx * TS + 8, y: cy * TS + 10, tier: 2, lv: d.lv + 8, mimic: false, opened: false, t: 0 });
       break; }
     PUZZLES.push(p);
   }
@@ -94,7 +95,7 @@ export function updatePuzzles(dt: number) {
       // 尖刺：站在「升起來」的那格 → 受傷 + 出血（瞬移中無敵，可以直接穿過去）
       const ph = spikePhase(p, pl.y);
       if (ph === 'up' && p.spikes.some(s => Math.abs(s.x - pl.x) < 9 && Math.abs(s.y - (pl.y - 2)) < 9)) {
-        G.hitCtx = { lv: p.d.lv }; hurtPlayer(pl, Math.round((10 + 3 * p.d.lv) * .75), pl.x, pl.y + 3, { bleed: 22 }); G.hitCtx = null; }
+        G.hitCtx = { lv: p.d.lv }; hurtPlayer(pl, Math.round((10 + 3 * tier(p.d.lv)) * .75), pl.x, pl.y + 3, { bleed: 22 }); G.hitCtx = null; }
       // 隱藏的牆：揮刀的那一下，靠近而且面向裂開的牆 → 碎掉
       if (!p.wallOpen && p.wall.length && pl.swing && pl.swing !== p.lastSwing) {
         p.lastSwing = pl.swing;
@@ -127,7 +128,7 @@ function light(p: Puz, b: Brazier, pl: Player) {
   // 點錯：火焰暴走 → 燒你一下、叫出兩隻守墓的食屍鬼，火全部熄掉
   p.got = 0; for (const x of p.braz) x.lit = false;
   for (const x of p.braz) { burst(x.x, x.y - 10, 16, '#ff6a2a', 90); G.fx.push({ k: 'warp', x: x.x, y: x.y - 6, r0: 4, r1: 30, th: 4, t: 0, d: .4, col: '#ff8a3a' }); }
-  G.hitCtx = { lv: p.d.lv }; hurtPlayer(pl, Math.round((10 + 3 * p.d.lv) * .6), b.x, b.y, { burn: 2 }); G.hitCtx = null;
+  G.hitCtx = { lv: p.d.lv }; hurtPlayer(pl, Math.round((10 + 3 * tier(p.d.lv)) * .6), b.x, b.y, { burn: 2 }); G.hitCtx = null;
   for (let k = 0; k < 2; k++) { const a = rr(0, TAU), e = makeEnemy(p.d.kinds[0], p.d.lv, pl.x + Math.cos(a) * 50, pl.y + Math.sin(a) * 30);
     e.state = 'chase'; G.enemies.push(e); G.fx.push({ k: 'warp', x: e.x, y: e.y, r0: 2, r1: 16, th: 3, t: 0, d: .4, col: '#c8a8ff' }); }
   sfx.howl(); shake(5, .3); toast('火焰暴走了……順序不對', '#ff8a6a');

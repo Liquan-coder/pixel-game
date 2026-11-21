@@ -1,3 +1,4 @@
+import { objHit } from '../world/bossMech';
 import { G } from '../core/state';
 import { TAU, angDiff, pick, rr } from '../core/util';
 import { ANIM, HAND_R, HSY, REACH, STYLE, WLEN } from '../art/hero';
@@ -21,7 +22,9 @@ import type { Player } from '../types';
 
 /* ================= PLAYER COMBAT ================= */
 export function targets(pl: Player) { const t = []; for (const e of G.enemies) if (Math.abs(e.x - pl.x) < 300 && Math.abs(e.y - pl.y) < 300) t.push(e); if (G.B && !G.bossDead && G.B.state !== 'sleep' && !(G.B.z > 8)) t.push(G.B);
-  for (const e of rbs) if (!e.dead && e.state !== 'sleep' && e.state !== 'intro' && !(e.z > 8)) t.push(e); return t; }
+  for (const e of rbs) { if (e.dead || e.state === 'sleep' || e.state === 'intro') continue; if (!(e.z > 8) && !e.hidden) t.push(e);
+    if (e.mech) for (const o of e.mech.objs) if (!o.dead) t.push(o); }                // Boss 機制的物件（裂口、水晶、卵……）也打得到
+  return t; }
 function nearestTarget(pl: Player, maxD) { let best = null, bd = maxD; for (const e of targets(pl)) { const d = Math.hypot(e.x - pl.x, e.y - pl.y) - e.r; if (d < bd) { bd = d; best = e; } } return best; }
 function autoFace(pl: Player, maxD) { const t = nearestTarget(pl, maxD); if (t) pl.face = Math.atan2(t.y - pl.y, t.x - pl.x); pl.aimLock = .3; updFlip(pl); }
 export function updFlip(pl: Player) { const c = Math.cos(pl.face); if (c < -.1) pl.flip = true; else if (c > .1) pl.flip = false; }
@@ -37,8 +40,10 @@ function calcDmg(pl: Player, mult) {
 export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: number, opts: { heavy?: boolean; stun?: number; crit?: boolean; heal?: number; proc?: boolean } = {}) {
   if (e.hp <= 0) return;
   if (!canSee(sx, sy - 6, e.x, e.y - 6)) return;                         // 隔著牆（懸崖、石牆、房子）打不到
+  if (e.obj) { objHit(e); return; }                                      // Boss 機制的物件：每下 -1（world/bossMech.ts）
+  if (e.immune) { G.fx.push({ k:'warp', x:e.x, y:e.y - 14, r0:16, r1:26, th:2, t:0, d:.2, col:'#ffffff' }); sfx.hit(); return; }   // 護盾：打不進去
   let { v, crit } = calcDmg(pl, mult);
-  v = Math.max(1, Math.round(v * gapDealt(level(pl), e.lv || 0)));   // 等級差（見 bossTuning.ts）
+  v = Math.max(1, Math.round(v * gapDealt(level(pl), e.lv || 0) * (e.mStun > 0 ? 1.5 : 1)));   // 等級差（見 bossTuning.ts）；Boss 露出破綻時 ×1.5
   if (opts.crit && !crit) { crit = true; v = Math.round(v * 1.8); }      // 居合：一定暴擊
   if (opts.heal) { if (G.time - (pl.healT0 || -9) > .6) { pl.healT0 = G.time; pl.healN = 0; }   // 鐮刀收割：打中一隻回一點血，一次技能最多算 3 隻
     if (pl.healN < 3) { pl.healN++; pl.hp = Math.min(pl.maxHp, pl.hp + Math.round(pl.maxHp * opts.heal * (e.boss ? .5 : 1))); } }
@@ -62,7 +67,7 @@ function finish(pl: Player, e: Enemy) {                                  // 血�
 }
 /** 效果造成的傷害：不暴擊、不擊退、不再觸發效果 */
 export function rawHit(pl: Player, e: Enemy, v: number, col: string) {
-  if (e.hp <= 0 || e.dead) return;
+  if (e.hp <= 0 || e.dead || e.obj || e.immune) return;
   e.hp -= v; e.flash = .08; if (!e.boss && (e.state === 'idle' || e.state === 'return')) e.state = 'chase';
   if (col === '#ffe85a') G.nums.push({ x:e.x + rr(-3, 3), y:e.y - (e.boss ? 26 : 16), txt:String(v), col, t:0, d:.6 });
   finish(pl, e);

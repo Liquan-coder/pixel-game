@@ -59,7 +59,7 @@ const pageScript = async () => {
   const { startGame } = await imp('main');
   const menus = await imp('ui/menus');
   const shop = await imp('ui/shop');
-  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies'), status: await imp('game/status'), bt: await imp('game/bossTuning'), ai3: await imp('world/bossAI3'), coll: await imp('game/collision'), pause: await imp('ui/pause'), puz: await imp('world/puzzles') };
+  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies'), status: await imp('game/status'), bt: await imp('game/bossTuning'), ai3: await imp('world/bossAI3'), coll: await imp('game/collision'), pause: await imp('ui/pause'), puz: await imp('world/puzzles'), mech: await imp('world/bossMech') };
 
   const imp0 = { map: await imp('render/map'), dg: await imp('world/dungeons'), input: await imp('ui/interact'), inp: await imp('ui/input'), hud: await imp('ui/hud'), title: await imp('ui/title') };
   const step = (n, opts = {}) => {
@@ -108,8 +108,21 @@ const pageScript = async () => {
     const e = RB.rbs.find(b => b.id === id); if (!e) throw new Error('找不到 ' + id);
     tp(e.def.x, e.def.y + 40); step(200, { god: true });
     if (e.state === 'sleep') throw new Error('Boss 沒有醒來，state=' + e.state);
+    const MC = await0.mech, M = MC.mechOf(e);
+    if (M) {                                                            // 機制：66% 發動 → 打不到 → 打碎四個物件 → 破綻
+      e.hp = e.maxHp * .6; let k = 0; while (!e.mech && k++ < 600) step(1, { god: true }); if (!e.mech) throw new Error('血量 60% 機制沒發動（' + M.kind + '）state=' + e.state);
+      const h0 = e.hp; damageEnemy(G.me, e, 5, G.me.x, G.me.y); if (e.hp !== h0) throw new Error('機制中還打得到 Boss');
+      if (MC.MECH && M.kind !== 'shield' && !e.hidden) throw new Error('鑽地 / 升空時 Boss 還看得到');
+      step(30, { god: true });
+      for (const o of e.mech.objs) for (let i = 0; i < 3; i++) damageEnemy(G.me, o, 1, o.x, o.y + 1);
+      step(2, { god: true }); if (e.mech) throw new Error('四個物件打碎了機制沒結束');
+      if (!(e.mStun > 0)) throw new Error('解開機制沒有破綻');
+      const h1 = e.hp; damageEnemy(G.me, e, 5, e.x, e.y + 20); if (!(e.hp < h1)) throw new Error('破綻時打不到 Boss');
+      log.push('  ' + e.def.name + '：' + ({ burrow: '鑽地', sky: '升空', shield: '護盾' })[M.kind] + ' → ' + M.name + ' ×4 → 破綻');
+      e.mi = 9; step(260, { god: true });
+    }
     e.hp = e.maxHp * .4; step(400, { god: true, atkEvery: 15 });
-    if (!e.dead) { e.hp = 1; damageEnemy(G.me, e, 5, G.me.x, G.me.y); step(120, { god: true }); }
+    if (!e.dead) { e.hp = 1; e.immune = false; e.hidden = false; damageEnemy(G.me, e, 5, e.x, e.y + 20); step(120, { god: true }); }
     if (!e.dead) throw new Error('Boss 沒死');
   });
 
@@ -325,8 +338,8 @@ const pageScript = async () => {
       const boss = RB.rbs.find(e => e.id === 'dg_' + d.id); if (!boss) throw new Error(d.id + '：找不到地城 Boss');
       tp(boss.def.x, boss.def.y + 30); step(120, { god: true }); if (boss.state === 'sleep') throw new Error(d.id + '：Boss 沒有醒來');
       if (document.getElementById('bossBar').hidden) throw new Error(d.id + '：開打了卻沒有血條');
-      boss.hp = boss.maxHp * .45; step(240, { god: true, atkEvery: 15 });
-      const k0 = G.drops.length; if (!boss.dead) { boss.hp = 1; damageEnemy(G.me, boss, 5, G.me.x, G.me.y); step(5, { god: true }); }
+      boss.mi = 9; boss.hp = boss.maxHp * .45; step(240, { god: true, atkEvery: 15 });   // mi = 9：這個測試不測機制（區域 Boss 的測試有測）
+      const k0 = G.drops.length; if (!boss.dead) { boss.hp = 1; boss.immune = boss.hidden = boss.mound = false; /* 鑽地突襲中打不到 → 先讓牠出來 */ damageEnemy(G.me, boss, 5, G.me.x, G.me.y); step(5, { god: true }); }
       if (!boss.dead) throw new Error(d.id + '：Boss 沒死');
       step(1, { god: true }); if (!document.getElementById('bossBar').hidden) throw new Error(d.id + '：Boss 死了血條還在');
       if (!Q.flags.has('dgn:' + d.id)) throw new Error(d.id + '：打倒 Boss 沒有記錄');
@@ -417,8 +430,8 @@ const pageScript = async () => {
 
   run('等級差：低等打高等怪比較痛、比較難打', () => {
     const BT = await0.bt;
-    if (!(BT.gapTaken(20, 10) > 1.3 && BT.gapTaken(10, 20) < 1 && BT.gapTaken(0, 5) === 1)) throw new Error('被打的倍率不對');
-    if (!(BT.gapDealt(10, 20) < .8 && BT.gapDealt(20, 10) > 1)) throw new Error('打怪的倍率不對');
+    if (!(BT.gapTaken(50, 25) > 1.3 && BT.gapTaken(25, 50) < 1 && BT.gapTaken(0, 5) === 1)) throw new Error('被打的倍率不對');   // 等級尺度 ×2.5：差 25 級 = 以前差 10 級
+    if (!(BT.gapDealt(25, 50) < .8 && BT.gapDealt(50, 25) > 1)) throw new Error('打怪的倍率不對');
   });
 
   run('Boss 新招：吸引 / 甜甜圈 / 十字光束 / 追蹤彈（地城 Boss 和主線 Boss 都能用）', () => {

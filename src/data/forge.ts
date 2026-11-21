@@ -11,6 +11,7 @@
    +9         腐沼珠（幽影沼澤）
    +10        魂核（Boss）
    防具 +1 ～ +5 依序用狼牙、菌絲、骨片、熔岩核、冰晶 */
+import { tier } from './levels';
 import { SH, sculpt } from '../art/monsters';
 import { RAR, UP_MAX, WT, refreshWeapon, upMult, wBase } from './items';
 import { A_UP_MAX } from './gear';
@@ -47,7 +48,7 @@ export function doUpgrade(pl: Player, it: Item) {
 export const atkAt = (it: Item, up: number) => Math.round(wBase(it) * upMult(up));
 
 /** 怪物等級 → 掉哪一種素材（等級是照地區定的，所以就是「這個地區的素材」） */
-export function matForLevel(lv: number): MatKey {
+export function matForLevel(lv0: number): MatKey { const lv = tier(lv0);
   return lv <= 5 ? 'mat1' : lv <= 10 ? 'mat2' : lv <= 15 ? 'mat3' : lv <= 20 ? 'mat4' : lv <= 25 ? 'mat5' : 'mat6';
 }
 export const oreForLevel = matForLevel;                                 // 舊名稱

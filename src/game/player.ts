@@ -1,3 +1,4 @@
+import { tier } from '../data/levels';
 import { G } from '../core/state';
 import { $ } from '../core/util';
 import { WT, armorStats, effOf, makeWeapon } from '../data/items';
@@ -41,7 +42,8 @@ export function nearestPlayer(x, y) {
   return best;
 }
 export const level = (pl: Player) => pl.vit + pl.end + pl.str + pl.dex + pl.int + pl.luk - 29;   // 六種都是 5 的時候是 1 級
-export const lvCost = (pl: Player) => { const L = level(pl); return Math.floor(16 * Math.pow(1.16, L - 1) + 6 * L); };
+/* 升一級要多少魂晶：照 tier 算（data/levels.ts），每一級大約是以前的 0.8 倍、但要升 2.5 倍的級數 → 總共大約多刷一倍 */
+export const lvCost = (pl: Player) => { const t = tier(level(pl)); return Math.floor(.8 * (16 * Math.pow(1.16, t - 1) + 6 * t)) + 4; };
 export const curEq = (pl: Player) => ({ weapon:pl.weapon, armor:pl.armor, trinkets:pl.trinkets });
 export const DR_CAP = .4;                                               // 防禦減傷最多 40%（穿再重也不會變成打不痛）
 /* 依照裝備算出所有屬性（換裝預覽也用這個）

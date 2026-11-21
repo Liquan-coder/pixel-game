@@ -46,7 +46,7 @@ function bossGhost() { G.fx.push({ k:'bghost', x:G.B.x, y:G.B.y - (G.B.z || 0), 
 /* 狼王的招式傷害也照等級放大（跟其他 Boss 同一條曲線，game/bossTuning.ts） */
 export function updateBoss(dt) { const n0 = G.projs.length; G.dmgMul = bossMul(WOLF_LV); G.hitCtx = { lv: WOLF_LV, fx: RB_FX.wolf, src: G.B };
   try { updateBoss0(dt); tagProjs(n0); } finally { G.dmgMul = 1; G.hitCtx = null; } }
-const WOLF_LV = 8;
+const WOLF_LV = 20;
 function updateBoss0(dt) {
   if (!G.B || G.bossDead) return;
   G.B.anim += dt; if (G.B.flash > 0) G.B.flash -= dt;

@@ -171,13 +171,13 @@ export function genWorld() {
     for (const d of Object.values(RBDEF)) if (Math.hypot(d.tx - tx, d.ty - ty) < d.tr + 5) return false; return true; };
   /* 每個地區：n = 生成點數量（有 42% 會多 1–2 隻同伴），anchor = 從哪一側走進來（離越遠越強），span = 多遠到最高等級 */
   const TABLE = [
-    { n:240, lv:[1,5], anchor:[118,572], span:230, kinds:lv => lv <= 2 ? 'slime' : lv >= 4 ? (R2() < .75 ? 'wolf' : 'slime') : (R2() < .5 ? 'wolf' : 'slime') },
-    { n:215, lv:[5,10], anchor:[176,368], span:200, kinds:() => { const q = R2(); return q < .35 ? 'shroom' : q < .7 ? 'treant' : 'wolfF'; } },
-    { n:220, lv:[10,15], anchor:[66,300], span:250, kinds:() => R2() < .6 ? 'skel' : 'golem' },
-    { n:200, lv:[15,20], anchor:[296,222], span:190, kinds:() => { const q = R2(); return q < .3 ? 'slimeM' : q < .7 ? 'skelE' : 'golemL'; } },
+    { n:240, lv:[1,12], anchor:[118,572], span:230, kinds:lv => lv <= 5 ? 'slime' : lv >= 10 ? (R2() < .75 ? 'wolf' : 'slime') : (R2() < .5 ? 'wolf' : 'slime') },
+    { n:215, lv:[12,25], anchor:[176,368], span:200, kinds:() => { const q = R2(); return q < .35 ? 'shroom' : q < .7 ? 'treant' : 'wolfF'; } },
+    { n:220, lv:[25,37], anchor:[66,300], span:250, kinds:() => R2() < .6 ? 'skel' : 'golem' },
+    { n:200, lv:[37,50], anchor:[296,222], span:190, kinds:() => { const q = R2(); return q < .3 ? 'slimeM' : q < .7 ? 'skelE' : 'golemL'; } },
     null,
-    { n:205, lv:[20,25], anchor:[440,114], span:190, kinds:() => { const q = R2(); return q < .4 ? 'wolfS' : q < .65 ? 'slimeI' : 'golemI'; } },
-    { n:215, lv:[25,30], anchor:[482,232], span:220, kinds:() => { const q = R2(); return q < .35 ? 'skelS' : q < .65 ? 'shroomP' : 'treantS'; } },
+    { n:205, lv:[50,62], anchor:[440,114], span:190, kinds:() => { const q = R2(); return q < .4 ? 'wolfS' : q < .65 ? 'slimeI' : 'golemI'; } },
+    { n:215, lv:[62,75], anchor:[482,232], span:220, kinds:() => { const q = R2(); return q < .35 ? 'skelS' : q < .65 ? 'shroomP' : 'treantS'; } },
   ];
   TABLE.forEach((T, r) => { if (!T) return;
     let n = 0, tries = 0;
@@ -185,7 +185,7 @@ export function genWorld() {
       const tx = 3 + Math.floor(R2() * (MW - 6)), ty = 3 + Math.floor(R2() * (MH - 6));
       if (reg[I(tx, ty)] !== r || !ok(tx, ty) || near(tx, ty, 4)) continue;
       const d = Math.hypot(tx - T.anchor[0], ty - T.anchor[1]);
-      const lv = clamp(T.lv[0] + Math.round(Math.min(1, d / T.span) * (T.lv[1] - T.lv[0])) + (R2() < .3 ? 1 : 0), T.lv[0], T.lv[1]);
+      const lv = clamp(T.lv[0] + Math.round(Math.min(1, d / T.span) * (T.lv[1] - T.lv[0])) + (R2() < .3 ? 2 : 0), T.lv[0], T.lv[1]);
       const kind = T.kinds(lv);
       put({ tx, ty, x:tx * TS + 8, y:ty * TS + 8, kind, lv, alive:false, timer:0 }); n++;
       if (R2() < .42) for (let k = 0; k < 1 + Math.floor(R2() * 2); k++) { const ax = tx + Math.floor(R2() * 5) - 2, ay = ty + Math.floor(R2() * 5) - 2;
@@ -199,12 +199,12 @@ export function genWorld() {
 }
 /* 精英怪（有名字、比較強、打倒後要休息才會復活）：[種類, 等級, x, y, 名字] */
 const ELITES = [
-  ['slime',3,64,532,'湖畔巨史萊姆'],['wolf',5,206,516,'風車丘狼首'],['wolf',4,70,472,'落石坡狼王'],['wolf',6,92,366,'野狼頭目'],['slime',5,94,329,'窪地的老史萊姆'],
-  ['treant',9,368,386,'古樹守衛'],['shroom',8,240,302,'蘑菇谷的老菇'],['wolfF',9,282,350,'林狼頭目'],['treant',10,206,256,'湖畔樹精'],
-  ['skel',13,38,52,'守墓人'],['golem',14,160,66,'遺跡守衛'],['skel',12,30,210,'流沙劍士'],['golem',15,168,176,'紅岩巨像'],['skel',15,100,140,'王城衛兵長'],
-  ['golemL',19,304,170,'黑曜巨像'],['skelE',18,380,178,'熔爐看守'],['slimeM',17,396,60,'裂谷熔漿怪'],['skelE',20,314,92,'火口哨兵'],
-  ['wolfS',24,470,182,'冰原狼首'],['golemI',25,588,64,'凍土守衛'],['slimeI',22,540,150,'冰湖凝膠'],['wolfS',23,620,130,'雪原狼王'],
-  ['treantS',29,452,338,'沉木古妖'],['skelS',28,534,444,'沼底亡將'],['shroomP',27,610,262,'毒霧菇王'],['skelS',30,574,420,'祭壇守衛'],
+  ['slime',8,64,532,'湖畔巨史萊姆'],['wolf',12,206,516,'風車丘狼首'],['wolf',10,70,472,'落石坡狼王'],['wolf',15,92,366,'野狼頭目'],['slime',12,94,329,'窪地的老史萊姆'],
+  ['treant',22,368,386,'古樹守衛'],['shroom',20,240,302,'蘑菇谷的老菇'],['wolfF',22,282,350,'林狼頭目'],['treant',25,206,256,'湖畔樹精'],
+  ['skel',32,38,52,'守墓人'],['golem',35,160,66,'遺跡守衛'],['skel',30,30,210,'流沙劍士'],['golem',38,168,176,'紅岩巨像'],['skel',38,100,140,'王城衛兵長'],
+  ['golemL',48,304,170,'黑曜巨像'],['skelE',45,380,178,'熔爐看守'],['slimeM',42,396,60,'裂谷熔漿怪'],['skelE',50,314,92,'火口哨兵'],
+  ['wolfS',60,470,182,'冰原狼首'],['golemI',62,588,64,'凍土守衛'],['slimeI',55,540,150,'冰湖凝膠'],['wolfS',58,620,130,'雪原狼王'],
+  ['treantS',72,452,338,'沉木古妖'],['skelS',70,534,444,'沼底亡將'],['shroomP',68,610,262,'毒霧菇王'],['skelS',75,574,420,'祭壇守衛'],
 ] as const;
 export const tileAt = (tx, ty) => (tx < 0 || ty < 0 || tx >= MW || ty >= MH) ? CLIFF : map[ty * MW + tx];
 export const solidT = t => SOLID.has(t) || (t === FOG && G.fogLocked);

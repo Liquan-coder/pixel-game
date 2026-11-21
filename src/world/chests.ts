@@ -1,4 +1,5 @@
 /* ---- 寶箱：散落在野外偏僻的地方，按攻擊鍵打開（打開後會化成光點消失）。木箱 / 銀箱 / 金箱，越好的箱子東西越好；有些是寶箱怪 ---- */
+import { tier } from '../data/levels';
 import { G } from '../core/state';
 import { $, mulberry32, pick, rr } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
@@ -22,7 +23,7 @@ export interface Chest { id: string; tx: number; ty: number; x: number; y: numbe
   uq?: string; need?: string; poof?: boolean }                        // poof = 打開後消失的特效已經放過了                                           // uq = 固定的獨特武器；need = 要先達成的旗標（地城守護者倒下）
 export const CHESTS: Chest[] = [];
 const TIER = [{ n:'木製寶箱', col:'#c8a070' }, { n:'白銀寶箱', col:'#9ad0ff' }, { n:'黃金寶箱', col:'#f2c14e' }];
-const REG_LV = [3, 8, 13, 18, 8, 23, 28, 4];                               // 每個地區寶箱的等級
+const REG_LV = [8, 20, 32, 45, 20, 58, 70, 10];                               // 每個地區寶箱的等級
 
 /* 放寶箱：reach = 從起點走得到的格子。偏僻 = 離道路、營火都有一段距離 */
 export function genChests(reach: Uint8Array) {
@@ -36,12 +37,12 @@ export function genChests(reach: Uint8Array) {
   const near = (x0, y0) => { for (let r = 0; r < 8; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const x = x0 + dx, y = y0 + dy;   // 從指定點往外找最近能放的格子
     if (Math.max(Math.abs(dx), Math.abs(dy)) === r && open(x, y) && !blocked(x, y)) return [x, y]; } return null; };
   // 地標寶箱：固定位置、比較好的箱子
-  for (const [x, y, tier, lv] of [[84, 362, 0, 4], [48, 330, 0, 3], [182, 470, 1, 5], [96, 330, 0, 4],                          // 平原
-    [368, 382, 1, 9], [240, 302, 0, 8], [282, 346, 1, 8], [206, 256, 0, 7],                                                         // 森林
-    [160, 62, 2, 14], [38, 50, 1, 12], [100, 104, 2, 15], [30, 206, 0, 12], [118, 242, 1, 13],                                      // 荒地
-    [380, 163, 2, 19], [304, 168, 1, 18], [396, 62, 1, 19], [252, 96, 1, 17],                                                       // 熔岩
-    [545, 152, 1, 23], [470, 182, 1, 22], [612, 70, 2, 25], [500, 104, 0, 21],                                                      // 雪原
-    [455, 342, 2, 28], [522, 300, 1, 27], [610, 260, 1, 28], [534, 462, 1, 29]]) {                                                 // 沼澤
+  for (const [x, y, tier, lv] of [[84, 362, 0, 10], [48, 330, 0, 8], [182, 470, 1, 12], [96, 330, 0, 10],                          // 平原
+    [368, 382, 1, 22], [240, 302, 0, 20], [282, 346, 1, 20], [206, 256, 0, 18],                                                         // 森林
+    [160, 62, 2, 35], [38, 50, 1, 30], [100, 104, 2, 38], [30, 206, 0, 30], [118, 242, 1, 32],                                      // 荒地
+    [380, 163, 2, 48], [304, 168, 1, 45], [396, 62, 1, 48], [252, 96, 1, 42],                                                       // 熔岩
+    [545, 152, 1, 58], [470, 182, 1, 55], [612, 70, 2, 62], [500, 104, 0, 52],                                                      // 雪原
+    [455, 342, 2, 70], [522, 300, 1, 68], [610, 260, 1, 70], [534, 462, 1, 72]]) {                                                 // 沼澤
     const p = near(x, y); if (p) add(p[0], p[1], tier, lv, false); }
   // 地城：岔路房的銀箱 + 最深處的金箱（獨特武器，要先打倒守護者）。地城裡面走路到不了起點，所以直接放
   for (const d of DUNGEONS) { if (!d.bossChest) continue;
@@ -57,7 +58,7 @@ export function genChests(reach: Uint8Array) {
       let road = false; for (let dy = -4; dy <= 4 && !road; dy++) for (let dx = -4; dx <= 4; dx++) if (map[I(x + dx, y + dy)] === ROAD) { road = true; break; }
       if (road) continue;                                              // 不要擺在路邊：要稍微探索才找得到
       const q = R(), tier = q < .1 ? 2 : q < .4 ? 1 : 0;
-      add(x, y, tier, REG_LV[r] + Math.floor(R() * 3) - 1, r !== 0 && R() < .15); n++;
+      add(x, y, tier, REG_LV[r] + Math.floor(R() * 5) - 2, r !== 0 && R() < .15); n++;
     }
   }
 }
@@ -75,10 +76,10 @@ export function openChest(pl: Player, c: Chest) {
   c.opened = true; c.t = 0; giveLoot(c, pl); save();
 }
 function giveLoot(c: Chest, pl: Player) {
-  const lv = c.lv, T = c.tier;
-  dropGold(c.x, c.y, Math.round([20 + lv * 4, 40 + lv * 8, 80 + lv * 15][T] * rr(.85, 1.15)));
-  dropSouls(c.x, c.y, [lv * 5, lv * 10, lv * 20][T], pl);
-  dropMat(c.x, c.y, oreForLevel(lv), 2 + T, pl); if (T === 2) dropMat(c.x, c.y, oreForLevel(lv + 10), 1, pl);   // 黃金寶箱多一顆下一級的礦石
+  const lv = c.lv, t = tier(lv), T = c.tier;
+  dropGold(c.x, c.y, Math.round([20 + t * 4, 40 + t * 8, 80 + t * 15][T] * rr(.85, 1.15)));
+  dropSouls(c.x, c.y, Math.round([t * 5, t * 10, t * 20][T]), pl);
+  dropMat(c.x, c.y, oreForLevel(lv), 2 + T, pl); if (T === 2) dropMat(c.x, c.y, oreForLevel(lv + 25), 1, pl);   // 黃金寶箱多一顆下一級的礦石
   if (c.uq) { const it = makeUnique(c.uq); dropItem(it, c.x, c.y); showBanner('獲得傳說武器', it.name, 2600); sfx.epic(); return; }   // 地城最深處：固定的獨特武器
   const q = Math.random();
   if (T === 0) { if (q < .65) dropItem(randomLoot(lv, q < .2 ? 2 : 1), c.x, c.y); }

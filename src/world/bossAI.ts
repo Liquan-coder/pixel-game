@@ -67,7 +67,7 @@ AI.queen = (e, dt, d, dx, dy) => {                                    // 史萊�
       if (e.t <= 0) { e.tele = null;
         const room = Math.min(3, 4 - G.enemies.filter(x => x.rbAdd === D.id).length);           // 場上最多 4 隻小史萊姆
         for (let i = 0; i < room; i++) { const a = i / 3 * TAU + rr(-.3, .3), x = e.x + Math.cos(a) * 30, y = e.y + Math.sin(a) * 22;
-          if (collides(x, y, 6)) continue; const w = makeEnemy('slime', Math.max(1, e.lv - 2), x, y, null); w.state = 'chase'; w.rbAdd = D.id; G.enemies.push(w);
+          if (collides(x, y, 6)) continue; const w = makeEnemy('slime', Math.max(1, e.lv - 5), x, y, null); w.state = 'chase'; w.rbAdd = D.id; G.enemies.push(w);
           G.fx.push({ k:'warp', x, y, r0:2, r1:14, th:2, t:0, d:.35, col:'#7fe07a' }); }
         for (let i = 0; i < 14; i++) { const a = rr(0, TAU), sp = rr(40, 110); G.parts.push({ x:e.x, y:e.y - 10, vx:Math.cos(a) * sp, vy:Math.sin(a) * sp - 30, life:.5, max:.5, col:'#7fe07a', s:2, g:200 }); }
         sfx.skill(); e.state = 'idle'; e.t = .8; }
@@ -127,7 +127,7 @@ AI.general = (e, dt, d, dx, dy) => {                                  // 骸骨�
       e.t -= dt;
       if (e.t <= 0) { e.tele = null; const room = Math.min(2, 3 - G.enemies.filter(x => x.rbAdd === D.id).length);
         for (let i = 0; i < room; i++) { const a = rr(0, TAU), x = e.x + Math.cos(a) * 44, y = e.y + Math.sin(a) * 32; if (collides(x, y, 7)) continue;
-          const w = makeEnemy('skel', e.lv - 2, x, y, null); w.state = 'chase'; w.rbAdd = D.id; G.enemies.push(w);
+          const w = makeEnemy('skel', e.lv - 5, x, y, null); w.state = 'chase'; w.rbAdd = D.id; G.enemies.push(w);
           G.fx.push({ k:'warp', x, y, r0:16, r1:3, th:4, t:0, d:.35, col:'#3a2a1a' }); G.fx.push({ k:'warp', x, y, r0:2, r1:14, th:2, delay:.2, t:0, d:.5, col:'#ffb040' }); spikeAt(x, y, 10, 0); }
         sfx.howl(); e.state = 'idle'; e.t = .8; }
       break;

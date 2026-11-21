@@ -11,7 +11,9 @@
    pull   吸引：把你往 Boss 身上吸（走得出來，但很慢），吸完在身邊炸一圈 → 往外走 / 瞬移出去
    donut  甜甜圈：外面一大圈會炸，只有貼在 Boss 身邊是安全的 → 反過來要往內衝
    cross  十字光束：四個方向同時打出光束（二階段會再轉 45 度打第二次）→ 站在斜角
-   homing 追蹤彈：慢慢飛、會轉彎追你的光球 → 繞圈甩掉或瞬移躲過 */
+   homing 追蹤彈：慢慢飛、會轉彎追你的光球 → 繞圈甩掉或瞬移躲過
+   erupt  鑽地突襲：鑽進地底（打不到）→ 地面隆起的土丘衝到你腳下 → 紅圈預警 → 從下面衝出來（暈眩）。給會鑽地的 Boss 用（蠕蟲不會「跳」） */
+import { tier } from '../data/levels';
 import { G } from '../core/state';
 import { TAU, angDiff, clamp, pick, rr } from '../core/util';
 import { DG } from '../data/items';
@@ -25,7 +27,7 @@ import { hitSpark, quakeFx, shake } from '../game/worldUpdate';
 import type { Move } from './dungeonBoss';
 import { burst, trail, type Theme } from './bossThemes';
 
-const base = (e) => 10 + 3 * e.lv;
+const base = (e) => 10 + 3 * tier(e.lv);
 const dmgOf = (e, o) => Math.round(base(e) * (o.k || 1));
 /* 區域 / 主線 Boss 沒有 THEME：用牠的光環顏色 + 一組相近的特效，讓牠們二階段也能用新招（pull / donut / cross / homing） */
 const RT: Record<string, [string, string, Theme['lash']]> = { queen: ['bubble', 'splash', 'beam'], general: ['lantern', 'sparks', 'chain'], dragon: ['flame', 'lava', 'firewhip'],
@@ -143,6 +145,7 @@ AI.dgn = (e, dt, d, dx, dy) => {
         e.cpts = pts; rbWind(e, 'poolWind', .8 * wk, pts.map(q => ({ k: 'circle', x: q.x, y: q.y, r: mo.r }))); }
       else if (m === 'summon') { e.sumT = 14; rbWind(e, 'summonWind', .7, [{ k: 'circle', r: 30 }]); }
       else if (m === 'pull' || m === 'donut' || m === 'cross' || m === 'homing') startExtra(e, m, mo, dx, dy);
+      else if (m === 'erupt') { e.hidden = e.immune = e.mound = true; rbWind(e, 'sinkWind', .45); burst(e.x, e.y, TH(e).impact, 22); quakeFx(e.x, e.y, 30); sfx.boom(); }
       break; }
     case 'chargeWind':
       e.t -= dt; if (e.t > .2) { e.aim = Math.atan2(dy, dx); e.flip = dx < 0; e.tele = laneTele(e, o); }
@@ -193,8 +196,21 @@ AI.dgn = (e, dt, d, dx, dy) => {
     case 'poolWind':
       e.t -= dt; if (e.t <= 0) { e.tele = null; for (const q of e.cpts) pool(e, q.x, q.y, o.r, o.t + (p2 ? 1 : 0), Math.round(base(e) * o.k), o.cols || colsOf(e)); sfx.skill(); e.state = 'idle'; e.t = rr(.6, .9) * wk; }
       break;
+    case 'sinkWind':                                                     // 鑽進地底
+      e.t -= dt; if (e.t <= 0) { e.state = 'under'; e.t = 1.1; } break;
+    case 'under': {                                                      // 在地底追你（看得到地面隆起）
+      e.t -= dt; const L = Math.hypot(dx, dy); if (L > 4) { e.x += dx / L * Math.min(L, 130 * dt); e.y += dy / L * Math.min(L, 130 * dt); keepIn(e, D, e.r); }
+      if (Math.random() < .6) burst(e.x + rr(-8, 8), e.y, TH(e).impact, 1);
+      if (e.t <= 0 || L < 10) rbWind(e, 'eruptWind', .7 * wk, [{ k: 'circle', r: o.r }]);
+      break; }
+    case 'eruptWind':                                                    // 紅圈填滿 → 從腳下衝出來
+      e.t -= dt; if (e.t <= 0) { e.tele = null; e.hidden = e.immune = e.mound = false;
+        for (const pl of G.players) if (Math.hypot(pl.x - e.x, pl.y - e.y) < o.r - DG && hurtPlayer(pl, dmgOf(e, o), e.x, e.y, { stun: .5 })) hitSpark(pl.x, pl.y - 8, true, -Math.PI / 2);
+        for (const dl of [0, .1]) G.fx.push({ k: 'warp', x: e.x, y: e.y, r0: 6, r1: o.r + 8, th: 6, delay: dl, t: 0, d: .4 + dl, col: D.aura[0] });
+        quakeFx(e.x, e.y, o.r); burst(e.x, e.y, TH(e).impact, 34); sfx.boom(); shake(7, .35); G.hitStop = Math.max(G.hitStop, .07); e.state = 'idle'; e.t = rr(.9, 1.2) * wk; }
+      break;
     case 'summonWind':
-      e.t -= dt; if (e.t <= 0) { e.tele = null; summon(e, pick(D.adds), o.n || 2, o.max || 3, 1); sfx.howl(); e.state = 'idle'; e.t = .8; }
+      e.t -= dt; if (e.t <= 0) { e.tele = null; summon(e, pick(D.adds), o.n || 2, o.max || 3, 3); sfx.howl(); e.state = 'idle'; e.t = .8; }
       break;
   }
   void fan; void clamp;

@@ -7,6 +7,7 @@ import { gridCanvas } from '../art/weapon';
 import type { Item } from '../types';
 import { meets, soft } from './attrs';
 import { UG, UQ, UQ_BY_NAME } from './uniques';
+import { tier } from './levels';
 import { ACLS, ACLS_OF, ARMORS, ARMOR_BASIC, ARMOR_BUILD, ARMOR_REGION, SEAL_NAME, TRINKETS, TRINKET_KEYS, aUpMult } from './gear';
 import { FX_KEYS, WFXD } from '../game/weaponFx';
 
@@ -31,11 +32,11 @@ export const AFFIX = {
   cdr:{n:'技能冷卻縮短',r:[8,20],u:'%'}, hp:{n:'生命上限',r:[10,30],u:''}, def:{n:'防禦',r:[2,5],u:''}, st:{n:'體力上限',r:[6,14],u:''}};
 export const DG = 3;                                                       // 判定寬容：腳要踩進紅線內 3px 才算被打到
 export const BEH = {
-  slime:{hp:l=>28+10*l,dmg:l=>5+2*l,spd:30,r:6,aggro:80,reach:16,wind:.4,cd:1.1,souls:l=>4+3*l},
-  lunge:{hp:l=>40+13*l,dmg:l=>8+2.5*l,spd:60,r:7,aggro:100,reach:46,wind:.45,cd:1.5,souls:l=>6+4*l},
-  blade:{hp:l=>40+13*l,dmg:l=>8+2.5*l,spd:50,r:7,aggro:100,reach:22,wind:.5,cd:1.5,souls:l=>6+4*l},   // 骷髏：跛腳走得慢，走到面前原地揮劍（不衝刺）
-  heavy:{hp:l=>80+20*l,dmg:l=>12+3*l,spd:24,r:9,aggro:85,reach:28,wind:.7,cd:1.8,souls:l=>10+6*l,heavy:true},
-  ranged:{hp:l=>45+13*l,dmg:l=>9+2.6*l,spd:30,r:7,aggro:125,reach:150,wind:.45,cd:2,souls:l=>9+6*l},
+  slime:{hp:l=>28+10*tier(l),dmg:l=>5+2*tier(l),spd:30,r:6,aggro:80,reach:16,wind:.4,cd:1.1,souls:l=>4+3*tier(l)},
+  lunge:{hp:l=>40+13*tier(l),dmg:l=>8+2.5*tier(l),spd:60,r:7,aggro:100,reach:46,wind:.45,cd:1.5,souls:l=>6+4*tier(l)},
+  blade:{hp:l=>40+13*tier(l),dmg:l=>8+2.5*tier(l),spd:50,r:7,aggro:100,reach:22,wind:.5,cd:1.5,souls:l=>6+4*tier(l)},   // 骷髏：跛腳走得慢，走到面前原地揮劍（不衝刺）
+  heavy:{hp:l=>80+20*tier(l),dmg:l=>12+3*tier(l),spd:24,r:9,aggro:85,reach:28,wind:.7,cd:1.8,souls:l=>10+6*tier(l),heavy:true},
+  ranged:{hp:l=>45+13*tier(l),dmg:l=>9+2.6*tier(l),spd:30,r:7,aggro:125,reach:150,wind:.45,cd:2,souls:l=>9+6*tier(l)},
 };
 export const KIND = {
   slime:{beh:'slime',name:'史萊姆',col:'#5ad06a'}, slimeM:{beh:'slime',name:'熔岩史萊姆',col:'#e8743b'},
@@ -170,7 +171,7 @@ function pickWeaponType() {                                              // 你�
   const w = DROP_WEAPONS.map(t => meets(pl, { type: t, ilvl: 0, slot: 'weapon' } as Item) ? 3 : 1), sum = w.reduce((a, b) => a + b, 0);
   let r = Math.random() * sum; for (let i = 0; i < w.length; i++) if ((r -= w[i]) < 0) return DROP_WEAPONS[i]; return DROP_WEAPONS[0];
 }
-const regionOfLv = (lv: number) => lv <= 5 ? 'plains' : lv <= 10 ? 'forest' : lv <= 15 ? 'wastes' : lv <= 20 ? 'lava' : lv <= 25 ? 'snow' : 'swamp';
+const regionOfLv = (lv: number) => { const t = tier(lv); return t <= 5 ? 'plains' : t <= 10 ? 'forest' : t <= 15 ? 'wastes' : t <= 20 ? 'lava' : t <= 25 ? 'snow' : 'swamp'; };
 /** 隨機裝備。kind：'weapon' = 武器、'gear' = 防具 / 飾品 / 刻印、不給 = 寶箱那種混著來。
     rarity 是舊參數：越高越容易出飾品和刻印（而不是一般防具） */
 export function randomLoot(lv, rarity = 1, kind?: 'weapon' | 'gear') {

@@ -1,3 +1,4 @@
+import { drawMechs } from '../world/bossMech';
 import { drawBossFx, drawBossProj } from './bossFx';
 import { G } from '../core/state';
 import { TAU, clamp, pick, rr } from '../core/util';
@@ -82,7 +83,8 @@ export function render() {
   const list = [];
   for (const e of G.enemies) if (vis(e.x, e.y)) list.push({ y:e.y, f:() => drawEnemy(e) });
   if (G.B && vis(G.B.x, G.B.y, 60)) list.push({ y:G.B.y, f:() => drawEnemy(G.B) });
-  for (const e of rbs) if (!e.dead && vis(e.x, e.y, 80)) list.push({ y:e.y, f:() => drawEnemy(e) });
+  for (const e of rbs) if (!e.dead && !e.hidden && vis(e.x, e.y, 80)) list.push({ y:e.y, f:() => drawEnemy(e) });   // hidden = 鑽進地底 / 飛上天
+  drawMechs(rbs, vis, list, L, addLight);                               // Boss 機制：裂口、水晶、護盾、土丘、影子（world/bossMech.ts）
   for (const c of CAMPS) if (vis(c.x, c.y)) list.push({ y:c.y, f:() => drawCamp(c) });
   for (const d of G.drops) if (vis(d.x, d.y)) { list.push({ y:d.y - 1, f:() => drawDrop(d) }); addLight(L, d.x, d.y - 8, 16 + d.item.rarity * 7, 3); }
   for (const c of G.coins) if (vis(c.x, c.y)) list.push({ y:c.y, f:() => drawCoin(c) });
