@@ -97,7 +97,7 @@ body.menu .toast{background:#000d;border:1px solid var(--line);padding:3px 12px}
 .ab{position:absolute;pointer-events:auto;border-radius:0;padding:0;touch-action:none;border:0;   /* 外框是像素圓（ui/btnFrame.ts 畫的背景圖），底是半透明 */
   background:transparent center/100% 100% no-repeat;image-rendering:pixelated;box-shadow:none;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;line-height:1;color:#f1e7d0e6;text-shadow:1px 1px 0 #000,-1px 0 0 #0008;transition:transform .06s,filter .06s}
-.ab .ic{width:44%;height:44%;shape-rendering:crispEdges;position:relative;flex:none;opacity:.92}   /* 圖示：像素畫，深色外框 + 左上亮右下暗 */
+.ab .ic{width:44%;height:44%;shape-rendering:crispEdges;position:relative;flex:none;opacity:.6;filter:saturate(.75)}   /* 圖示：像素畫，深色外框 + 左上亮右下暗 */
 .ab span{position:relative;font-size:11px;letter-spacing:.05em;opacity:.92}
 .ab.down{transform:translateY(2px) scale(.94);filter:brightness(1.35)}
 #bAtk{right:0;bottom:0;width:86px;height:86px}
