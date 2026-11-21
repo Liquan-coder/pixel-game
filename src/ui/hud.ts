@@ -20,7 +20,7 @@ export const stBarW = (maxSt: number) => Math.round(84 * Math.sqrt(Math.max(80, 
 function setW(id, px) { const k = id + 'W'; if (hudCache[k] !== px) { const grew = hudCache[k] !== undefined && px > (hudCache[k] as number); hudCache[k] = px;
   const bar = $(id).parentElement; bar.style.setProperty('--w', px + 'px');
   if (grew) { bar.classList.remove('grow'); void bar.offsetWidth; bar.classList.add('grow'); } } }   // 變長時閃一下
-const PROMPTS: [IKind, string][] = [['pick', 'pickBtn'], ['chest', 'chestBtn'], ['read', 'readBtn'], ['door', 'doorBtn'], ['shop', 'shopBtn'], ['rest', 'restBtn']];
+const PROMPTS: [IKind, string][] = [['pick', 'pickBtn'], ['chest', 'chestBtn'], ['read', 'readBtn'], ['door', 'doorBtn'], ['shop', 'shopBtn'], ['rest', 'restBtn'], ['use', 'useBtn']];
 export function updateHUD() {
   setW('hpBar', hpBarW(G.me.maxHp)); setW('stBar', stBarW(G.me.maxSt));
   setText('lvTxt', String(level(G.me))); setScale('hpBar', G.me.hp / G.me.maxHp); setScale('stBar', G.me.st / G.me.maxSt);
@@ -37,8 +37,8 @@ export function updateHUD() {
   const it = interactTarget(), ik = it ? it.kind + ':' + (it.text || '') : '';             // 攻擊鍵現在會做什麼：撿起 / 休息 / 打開…
   if (hudCache.act !== ik) { hudCache.act = ik;
     for (const [k, id] of PROMPTS) $(id).hidden = !it || it.kind !== k;
-    if (it?.text) $(it.kind === 'door' ? 'doorTxt' : 'shopTxt').textContent = it.text;
-    $('bAtk').textContent = it ? it.btn : '攻擊'; $('bAtk').classList.toggle('act', !!it); }
+    if (it?.text) $(it.kind === 'door' ? 'doorTxt' : it.kind === 'use' ? 'useTxt' : 'shopTxt').textContent = it.text;
+    $('bAtkTxt').textContent = it ? it.btn : '攻擊'; $('bAtk').classList.toggle('act', !!it); }
   setText('goldTxt', String(G.me.gold));
   const S = G.me.sx, sk = S && !G.me.dead ? (['frozen', 'stun', 'root', 'poison', 'burn', 'slow', 'silence', 'blind'] as const).filter(k => S[k] > 0).map(k => k + ':' + Math.ceil(S[k])).join(',') : '';
   if (hudCache.sx !== sk) { hudCache.sx = sk; $('statusRow').hidden = !sk;                      // 身上的異常狀態 + 剩幾秒（game/status.ts）
@@ -92,7 +92,7 @@ export function hideBanner() { $('banner').classList.remove('show'); }
 
 export let openMenu = null;
 export function setMenu(name) {
-  openMenu = name; $('campMenu').hidden = name !== 'camp'; $('invMenu').hidden = name !== 'inv'; $('mapMenu').hidden = name !== 'map'; $('shopMenu').hidden = name !== 'shop'; $('loreMenu').hidden = name !== 'lore'; $('veil').hidden = !name; document.body.classList.toggle('menu', !!name);
+  openMenu = name; $('campMenu').hidden = name !== 'camp'; $('invMenu').hidden = name !== 'inv'; $('mapMenu').hidden = name !== 'map'; $('shopMenu').hidden = name !== 'shop'; $('loreMenu').hidden = name !== 'lore'; $('pauseMenu').hidden = name !== 'pause'; $('veil').hidden = !name; document.body.classList.toggle('menu', !!name);
   G.paused = !!name || !G.started;
   for (const k in held) held[k] = false;
 }

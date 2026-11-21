@@ -27,6 +27,8 @@ export const EFF: Record<string, (v: number) => string> = {
   souls: v => '得到的魂晶 +' + v + '%',
   regen: v => '每秒回復 ' + v + '% 生命（戰鬥中也會）',
   lifesteal: v => '吸血 ' + v + '%（每一下最多回 1% 生命，打 Boss 減半）',
+  thorns: v => '反傷：被打中時，把 ' + v + '% 的傷害還給打你的人',
+  evade: v => v + '% 機率完全閃開一次攻擊',
   res_plains: v => '在' + REGION_N.plains + '受到的傷害 -' + v + '%', res_forest: v => '在' + REGION_N.forest + '受到的傷害 -' + v + '%',
   res_wastes: v => '在' + REGION_N.wastes + '受到的傷害 -' + v + '%', res_lava: v => '在' + REGION_N.lava + '受到的傷害 -' + v + '%',
   res_snow: v => '在' + REGION_N.snow + '受到的傷害 -' + v + '%', res_swamp: v => '在' + REGION_N.swamp + '受到的傷害 -' + v + '%',
@@ -55,7 +57,10 @@ export const ARMORS: Record<string, { type: 'robe' | 'leather' | 'mail'; name: s
   ember:   { type: 'mail', name: '燼鱗甲', eff: { res_lava: 25 }, d: '用不會燃燒的鱗片縫成' },
   fur:     { type: 'robe', name: '毛皮斗篷', eff: { res_snow: 25 }, d: '雪狼的毛，暖得讓人想睡' },
   bog:     { type: 'leather', name: '沼行皮甲', eff: { res_swamp: 25 }, d: '泡過沼水還不會爛的皮' },
+  thornmail: { type: 'mail', name: '荊棘甲', eff: { thorns: 40 }, d: '每一片甲都朝外長著倒鉤' },
+  shade:   { type: 'robe', name: '影織斗篷', eff: { evade: 10 }, d: '穿上之後，連影子都不太確定你在哪裡' },
 };
+export const ARMOR_BUILD = ['thornmail', 'shade'];                    // 流派防具：反傷、閃避（掉落 / 商店偶爾出現）
 export const ARMOR_BASIC = ['cloth', 'hunter', 'chain'];
 export const ARMOR_REGION: Record<string, string> = { forest: 'mistcoat', wastes: 'sandrobe', lava: 'ember', snow: 'fur', swamp: 'bog' };
 
@@ -78,6 +83,8 @@ export const TRINKETS: Record<string, { type: 'ring' | 'amulet'; name: string; e
   cinder:  { type: 'amulet', name: '燼石護符', eff: { res_lava: 18 } },
   foxtail: { type: 'amulet', name: '雪狐毛結', eff: { res_snow: 18 } },
   bogsack: { type: 'amulet', name: '沼氣濾囊', eff: { res_swamp: 18 } },
+  thorn:   { type: 'ring', name: '荊棘指環', eff: { thorns: 25 } },
+  shadow:  { type: 'amulet', name: '影步護符', eff: { evade: 8 } },
 };
 export const TRINKET_KEYS = Object.keys(TRINKETS);
 

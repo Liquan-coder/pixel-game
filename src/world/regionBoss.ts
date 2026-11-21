@@ -66,9 +66,9 @@ export const RBDEF: Record<string, any> = {
 for (const d of Object.values(RBDEF)) { d.x = d.tx * TS + 8; d.y = d.ty * TS + 8; d.R = d.tr * TS; }
 export let rbs = [];
 export const rbDead = new Set();
-function makeRB(d) { const hp = Math.round(d.hp * BOSS_HP); return { rb:true, boss:true, def:d, id:d.id, kind:d.kind, beh:'slime', x:d.x, y:d.y, r:14, lv:d.lv, hp, maxHp:hp, state:'sleep', t:0, wt:0, phase:1,
+function makeRB(d) { const hp = Math.round(d.hp * BOSS_HP); const e: any = { rb:true, boss:true, def:d, id:d.id, kind:d.kind, beh:'slime', x:d.x, y:d.y, r:14, lv:d.lv, hp, maxHp:hp, state:'sleep', t:0, wt:0, phase:1,
   flash:0, kx:0, ky:0, stun:0, flip:false, anim:0, aim:0, z:0, tele:null, splitT:0,
-  hc: { lv: d.lv, fx: RB_FX[d.id] || (d.dg ? DB_FX[String(d.kind).slice(3)] : undefined) } }; }   // 打中你時：等級差 + 這隻 Boss 的異常狀態（data/ailments.ts）
+  hc: { lv: d.lv, fx: RB_FX[d.id] || (d.dg ? DB_FX[String(d.kind).slice(3)] : undefined), src: null } }; e.hc.src = e; return e; }   // 打中你時：等級差 + 這隻 Boss 的異常狀態（data/ailments.ts）
 export function resetRegionBosses() {
   G.enemies = G.enemies.filter(e => !e.rbAdd);
   rbs = Object.values(RBDEF).filter(d => !rbDead.has(d.id) && !(d.dg && flags.has('dgn:' + d.dg))).map(makeRB);   // 地城 Boss：打倒過（舊存檔的守護者也算）就不再出現

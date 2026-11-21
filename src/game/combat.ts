@@ -7,7 +7,7 @@ import { rbs, regionBossDie } from '../world/regionBoss';
 import { input, level } from './player';
 import { applyFx, type FX } from './status';
 import { gapDealt, gapTaken } from './bossTuning';
-import { collides, moveEnt } from './collision';
+import { canSee, collides, moveEnt } from './collision';
 import { sfx } from '../core/audio';
 import { killEnemy } from './enemies';
 import { bossDie } from './boss';
@@ -36,6 +36,7 @@ function calcDmg(pl: Player, mult) {
 }
 export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: number, opts: { heavy?: boolean; stun?: number; crit?: boolean; heal?: number; proc?: boolean } = {}) {
   if (e.hp <= 0) return;
+  if (!canSee(sx, sy - 6, e.x, e.y - 6)) return;                         // 隔著牆（懸崖、石牆、房子）打不到
   let { v, crit } = calcDmg(pl, mult);
   v = Math.max(1, Math.round(v * gapDealt(level(pl), e.lv || 0)));   // 等級差（見 bossTuning.ts）
   if (opts.crit && !crit) { crit = true; v = Math.round(v * 1.8); }      // 居合：一定暴擊
@@ -385,6 +386,10 @@ export function tryPot(pl: Player) {
    extra = 這一招額外的狀態（例如 Boss 砸地 = 暈眩） */
 export function hurtPlayer(pl: Player, v, sx, sy, extra?: FX) {
   if (pl.iframe > 0 || pl.dead) return false;
+  if (!canSee(sx, sy - 6, pl.x, pl.y - 6)) return false;                 // 隔著牆打不到你
+  const T0 = pl.tfx || {};
+  if (T0.evade && Math.random() * 100 < Math.min(40, T0.evade)) {         // 閃避流：有機率完全閃開（最多 40%），閃開後 0.25 秒不會再被打
+    pl.iframe = .25; G.nums.push({ x:pl.x, y:pl.y - 28, txt:'MISS', col:'#c8e8ff', t:0, d:.7 }); G.ghosts.push({ x:pl.x + Math.sign(pl.x - sx || 1) * 5, y:pl.y, flip:pl.flip, life:.25, max:.25 }); sfx.dodge(); return false; }
   const C = G.hitCtx, T = pl.tfx || {}, res = (T['res_' + G.region] || 0) / 100, guard = (T.guard || 0) / 100;   // 地區抗性、飾品減傷
   v = Math.max(1, Math.round(v * (G.dmgMul || 1) * gapTaken(C ? C.lv : 0, level(pl)) * (1 - (pl.defRed || 0)) * (1 - res) * (1 - guard)));   // 等級差、防禦
   pl.hp -= v; pl.hurt = .3; pl.iframe = .4;
@@ -393,6 +398,10 @@ export function hurtPlayer(pl: Player, v, sx, sy, extra?: FX) {
   if (pl === G.me) { shake(3, .2); sfx.hurt(); }                       // 震動、音效只給自己（隊友受傷不震你的畫面）
   burst(pl.x, pl.y - 6, 8, '#d8434e', 60);
   if (C && C.fx) applyFx(pl, C.fx); if (extra) applyFx(pl, extra);
+  if (T.thorns && C && C.src && !C.src.dead && C.src.hp > 0) {             // 反傷流：把一部分傷害還給打你的那隻（毒池、子彈也算是牠打的）
+    let r = Math.max(1, Math.round(v * T.thorns / 100)); if (C.src.boss) r = Math.min(r, C.src.hp - 1);   // Boss 不會被反傷打死（最後一下要自己砍：牠正在出招的程式還在跑）
+    if (r > 0) rawHit(pl, C.src, r, '#c88aff');
+    if (r > 0) G.nums.push({ x:C.src.x + rr(-3, 3), y:C.src.y - (C.src.boss ? 26 : 16), txt:String(r), col:'#c88aff', t:0, d:.6 }); }
   if (pl.hp <= 0) downPlayer(pl);
   return true;
 }

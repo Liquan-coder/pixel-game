@@ -12,13 +12,13 @@ function tone(freq, dur, type = 'square', vol = .05, slide = 0, delay = 0) {
   if (!AC || G.muted) return;
   try { const t = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
     o.type = type; o.frequency.setValueAtTime(freq, t); if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
-    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    g.gain.setValueAtTime(Math.max(.0002, vol * G.vol), t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + dur + .02); } catch (e) {}
 }
 function noiseHit(dur, vol, freq = 1200) {
   if (!AC || G.muted || !noiseBuf) return;
   try { const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(), t = AC.currentTime;
-    s.buffer = noiseBuf; f.type = 'lowpass'; f.frequency.value = freq; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.buffer = noiseBuf; f.type = 'lowpass'; f.frequency.value = freq; g.gain.setValueAtTime(Math.max(.0002, vol * G.vol), t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(f); f.connect(g); g.connect(AC.destination); s.start(t); s.stop(t + dur); } catch (e) {}
 }
 export const sfx = {

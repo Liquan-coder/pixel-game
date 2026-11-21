@@ -59,9 +59,9 @@ const pageScript = async () => {
   const { startGame } = await imp('main');
   const menus = await imp('ui/menus');
   const shop = await imp('ui/shop');
-  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies'), status: await imp('game/status'), bt: await imp('game/bossTuning'), ai3: await imp('world/bossAI3'), coll: await imp('game/collision') };
+  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies'), status: await imp('game/status'), bt: await imp('game/bossTuning'), ai3: await imp('world/bossAI3'), coll: await imp('game/collision'), pause: await imp('ui/pause'), puz: await imp('world/puzzles') };
 
-  const imp0 = { map: await imp('render/map'), dg: await imp('world/dungeons'), input: await imp('ui/interact'), inp: await imp('ui/input'), hud: await imp('ui/hud') };
+  const imp0 = { map: await imp('render/map'), dg: await imp('world/dungeons'), input: await imp('ui/interact'), inp: await imp('ui/input'), hud: await imp('ui/hud'), title: await imp('ui/title') };
   const step = (n, opts = {}) => {
     for (let i = 0; i < n; i++) {
       if (opts.god && G.me) { G.me.hp = G.me.maxHp; G.me.st = G.me.maxSt; }
@@ -127,11 +127,11 @@ const pageScript = async () => {
     const c = CAMPS[0]; tp(c.x, c.y + 16); G.enemies = []; G.drops = []; step(2);
     const it = makeItem(WT.sword ? 'sword' : Object.keys(WT)[0], 1); const n0 = G.me.inv.length;
     G.drops.push({ x:G.me.x + 4, y:G.me.y, z:0, vz:0, vx:0, vy:0, item:it, t:0, warned:false }); step(1);
-    if (document.getElementById('bAtk').textContent !== '撿起') throw new Error('靠近裝備時攻擊鍵沒變「撿起」：' + document.getElementById('bAtk').textContent);
+    if (document.getElementById('bAtkTxt').textContent !== '撿起') throw new Error('靠近裝備時攻擊鍵沒變「撿起」：' + document.getElementById('bAtkTxt').textContent);
     pressed.atk = true; readInput(); const sw = pressed.atk; step(1);
     if (sw) throw new Error('撿東西那一下還是揮刀了');
     if (G.me.inv.length !== n0 + 1) throw new Error('按攻擊鍵沒撿起裝備');
-    if (document.getElementById('bAtk').textContent !== '休息') throw new Error('靠近營火時攻擊鍵沒變「休息」：' + document.getElementById('bAtk').textContent);
+    if (document.getElementById('bAtkTxt').textContent !== '休息') throw new Error('靠近營火時攻擊鍵沒變「休息」：' + document.getElementById('bAtkTxt').textContent);
     pressed.atk = true; readInput(); step(1);
     if (HUD.openMenu !== 'camp') throw new Error('按攻擊鍵沒在營火休息，openMenu=' + HUD.openMenu);
     setMenu(null); step(1);
@@ -139,7 +139,7 @@ const pageScript = async () => {
     pressed.atk = true; readInput();
     if (!pressed.atk) throw new Error('被怪追的時候攻擊鍵被拿去互動了');
     for (const k in pressed) pressed[k] = false; G.enemies = []; step(1);
-    if (document.getElementById('bAtk').textContent !== '休息') throw new Error('怪清掉後沒變回「休息」');
+    if (document.getElementById('bAtkTxt').textContent !== '休息') throw new Error('怪清掉後沒變回「休息」');
   });
 
   run('選單：角色/地圖/營火/商店', () => {
@@ -443,6 +443,71 @@ const pageScript = async () => {
       const k = new Set((d.deco || []).map(o => o.k)); if (!k.has('rune') || (!k.has('statue') && !k.has('banner'))) throw new Error(d.name + '：前院裝飾太少 ' + [...k].join(','));
       for (const o of d.deco) if (o.k === 'statue' && !(await0.coll.collides(o.x, o.y, 4))) throw new Error(d.name + '：雕像不會擋路'); }
     if (!M.PROPS.length) throw new Error('沒有任何擋路的裝飾');
+  });
+
+  run('暫停選單：Esc 打開 → 遊戲停住 → 設定 → 回到標題 → 繼續存檔', () => {
+    const PZ = await0.pause; setMenu(null); step(2);
+    PZ.openPause(); if (!G.paused || document.getElementById('pauseMenu').hidden) throw new Error('暫停沒有打開 / 遊戲沒停');
+    const t0 = G.me.x; input.mx = 1; step(10); input.mx = 0; if (G.me.x !== t0) {}             // step 直接呼叫 update，只檢查選單狀態
+    document.querySelector('#pauseMenu [data-ptab=set]').click(); const tg = document.querySelector('#pauseMenu [data-tog=shake]'); tg.click();
+    if (PZ.SET.shake) throw new Error('畫面震動關不掉'); document.querySelector('#pauseMenu [data-tog=shake]').click();
+    document.querySelector('#pauseMenu [data-bs="1.18"]').click(); if (getComputedStyle(document.documentElement).getPropertyValue('--bs').trim() !== '1.18') throw new Error('按鈕大小沒套用');
+    document.querySelector('#pauseMenu [data-bs="1"]').click();
+    document.querySelector('#pauseMenu [data-ptab=main]').click(); document.querySelector('#pauseMenu [data-pa=title]').click();
+    if (G.started || document.getElementById('title').hidden) throw new Error('沒有回到標題畫面');
+    imp0.title.pickSlot(); step(2); if (!G.started || !document.getElementById('title').hidden) throw new Error('從標題畫面繼續失敗');
+  });
+
+  run('隔著牆：打不到怪、怪也打不到你', () => {
+    const M = await0.map, D = imp0.dg, d = D.DUNGEONS[0];
+    tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2);
+    const px = G.me.x, py = G.me.y; let w = null;
+    for (let r = 40; r <= 190 && !w; r += 6) for (let a = 0; a < 6.28 && !w; a += .2) { const x = Math.floor((px + Math.cos(a) * r) / 16) * 16 + 8, y = Math.floor((py + Math.sin(a) * r) / 16) * 16 + 8;
+      if (M.WALKABLE(M.map[Math.floor(y / 16) * M.MW + Math.floor(x / 16)]) && !await0.coll.canSee(x, y - 6, px, py - 6)) w = [x, y]; }
+    if (!w) throw new Error('找不到隔著牆的位置');
+    const e = await0.enemies.makeEnemy('wolf', 1, w[0], w[1], { alive: true, timer: 0 }); G.enemies = [e]; const h = e.hp;
+    damageEnemy(G.me, e, 5, G.me.x, G.me.y); if (e.hp !== h) throw new Error('隔著牆打到怪了');
+    G.me.iframe = 0; const ph = G.me.hp; if (hurtPlayer(G.me, 10, w[0], w[1]) || G.me.hp !== ph) throw new Error('隔著牆被打到了');
+    G.enemies = []; tp(d.exX, d.exY); step(1); imp0.input.enterDoor(); step(2);
+  });
+
+  run('反傷流 / 閃避流', () => {
+    const E = await0.enemies; G.enemies = []; const e = E.makeEnemy('skel', 1, G.me.x + 20, G.me.y, { alive: true, timer: 0 }); G.enemies.push(e);
+    G.me.tfx = { thorns: 50 }; G.me.iframe = 0; const h = e.hp; G.hitCtx = e.hc; hurtPlayer(G.me, 20, e.x, e.y); G.hitCtx = null;
+    if (!(e.hp < h)) throw new Error('反傷沒有打回去');
+    G.me.tfx = { evade: 100 }; let miss = 0; for (let i = 0; i < 60; i++) { G.me.iframe = 0; G.me.hp = G.me.maxHp; if (!hurtPlayer(G.me, 1, e.x, e.y)) miss++; }
+    if (miss < 10 || miss > 40) throw new Error('閃避最多 40%：60 下應該閃掉 10~40 下，結果 ' + miss);
+    G.me.tfx = {}; recalc(G.me); G.enemies = [];
+  });
+
+  run('無名古墓的機關：尖刺、火盆謎題、鐵柵門、隱藏的牆', () => {
+    const PU = await0.puz, Q = await0.quest, p = PU.PUZZLES[0]; if (!p) throw new Error('沒有機關');
+    if (p.braz.length !== 4 || !p.gate.length || p.wall.length !== 3 || p.spikes.length < 30) throw new Error('機關不完整：' + [p.braz.length, p.gate.length, p.wall.length, p.spikes.length]);
+    Q.flags.delete('puz:barrow:fire'); Q.flags.delete('puz:barrow:wall'); recalc(G.me);
+    const d = p.d; tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2); G.enemies = [];
+    // 尖刺：站在尖刺上等一輪 → 一定會被刺到
+    const sp = p.spikes[Math.floor(p.spikes.length / 2)]; tp(sp.x, sp.y + 2); G.me.hp = G.me.maxHp; const h0 = G.me.hp; step(160); G.me.dead = false;
+    if (!(G.me.hp < h0)) throw new Error('站在尖刺上沒被刺到');
+    // 鐵柵門擋路
+    const g = p.gate[Math.floor(p.gate.length / 2)]; if (!await0.coll.collides(g.x, g.y, 5)) throw new Error('鐵柵門沒有擋路');
+    // 點錯 → 火熄掉、叫出怪
+    G.me.hp = G.me.maxHp; const wrong = p.braz.find(b => b.sym !== p.order[0]); tp(wrong.x, wrong.y + 14); step(1); G.enemies = [];
+    let it = imp0.input.interactTarget(); if (!it || it.kind !== 'use') throw new Error('站在火盆旁邊沒有「點燃」'); it.run();
+    if (p.braz.some(b => b.lit) || G.enemies.length < 2) throw new Error('點錯沒有懲罰');
+    G.enemies = []; G.me.dead = false; G.me.hp = G.me.maxHp;
+    for (const s2 of p.order) { const b = p.braz.find(x => x.sym === s2); tp(b.x, b.y + 14); G.me.iframe = 9; step(1); it = imp0.input.interactTarget(); if (!it) throw new Error('點不到 ' + s2); it.run(); }
+    if (!Q.flags.has('puz:barrow:fire')) throw new Error('照順序點完門沒開'); step(90);
+    if (await0.coll.collides(g.x, g.y, 5)) throw new Error('門開了還擋路');
+    // 隱藏的牆：面向它砍一刀 → 碎掉、後面的金箱
+    const W = p.wallHint, n = p.wall[1], dx = Math.sign(W.x - (n.tx * 16 + 8)) || 0;
+    const wx = W.x, wy = W.y; let sx = wx, sy = wy; for (const [ox, oy] of [[0, 22], [0, -22], [22, 0], [-22, 0]]) if (!await0.coll.collides(wx + ox, wy + oy, 5)) { sx = wx + ox; sy = wy + oy; break; }
+    tp(sx, sy); G.me.face = Math.atan2(wy - sy, wx - sx); G.me.iframe = 9; G.me.atkCd = 0; pressed.atk = true; step(20);
+    if (!Q.flags.has('puz:barrow:wall')) throw new Error('砍了牆沒碎（站在 ' + Math.round(sx - wx) + ',' + Math.round(sy - wy) + '）');
+    if (!await0.chests.CHESTS.some(c => c.id === 'pz_barrow')) throw new Error('牆後面沒有寶箱');
+    // 讀檔：沒有旗標 → 門關、牆回來
+    Q.flags.delete('puz:barrow:fire'); Q.flags.delete('puz:barrow:wall'); step(2);
+    if (!await0.coll.collides(g.x, g.y, 5) || await0.map.map[n.ty * await0.map.MW + n.tx] !== await0.map.RWALL) throw new Error('旗標拿掉後門 / 牆沒有恢復');
+    G.enemies = []; tp(d.exX, d.exY); step(1); imp0.input.enterDoor(); step(2); void dx;
   });
 
   run('死亡 → 重生', () => {

@@ -256,5 +256,4 @@ $('bagBtn').addEventListener('click', toggleInv);
 $('mapBtn').addEventListener('click', toggleMap);
 mini.addEventListener('click', toggleMap);
 $('veil').addEventListener('click', () => setMenu(null));
-$('muteBtn').addEventListener('click', () => { G.muted = !G.muted; $('muteBtn').textContent = G.muted ? '音效 關' : '音效 開'; initAudio(); });
 

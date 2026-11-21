@@ -6,10 +6,11 @@ import { openMenu, setMenu } from './hud';
 import { toggleInv, toggleMap } from './menus';
 import { moveSlot, pickSlot } from './title';
 import { interactTarget } from './interact';
+import { openPause } from './pause';
 
 /* ================= INPUT ================= */
 const KEYMAP = { KeyW:'up', ArrowUp:'up', KeyS:'down', ArrowDown:'down', KeyA:'left', ArrowLeft:'left', KeyD:'right', ArrowRight:'right',
-  KeyJ:'atk', Space:'atk', KeyK:'dodge', ShiftLeft:'dodge', ShiftRight:'dodge', KeyL:'skill', KeyH:'pot', KeyI:'inv', KeyC:'inv', Tab:'inv', KeyM:'map', Escape:'esc', Enter:'enter' };
+  KeyJ:'atk', Space:'atk', KeyK:'dodge', ShiftLeft:'dodge', ShiftRight:'dodge', KeyL:'skill', KeyH:'pot', KeyI:'inv', KeyC:'inv', Tab:'inv', KeyM:'map', KeyP:'pause', Escape:'esc', Enter:'enter' };
 window.addEventListener('keydown', e => {
   const k = KEYMAP[e.code]; if (!k) return;
   if (e.target instanceof HTMLElement && e.target.tagName === 'BUTTON' && (k === 'atk' || k === 'enter')) return;
@@ -42,7 +43,7 @@ function bindBtn(id, key) {
   el.addEventListener('contextmenu', e => e.preventDefault());
 }
 // 畫面下方的互動提示（撿起 / 進入 / 打開…）：點下去 = 按攻擊鍵互動
-for (const id of ['pickBtn', 'chestBtn', 'readBtn', 'doorBtn', 'shopBtn', 'restBtn']) $(id).addEventListener('pointerdown', e => {
+for (const id of ['pickBtn', 'chestBtn', 'readBtn', 'doorBtn', 'shopBtn', 'restBtn', 'useBtn']) $(id).addEventListener('pointerdown', e => {
   e.preventDefault(); e.stopPropagation(); initAudio(); if (openMenu) return; const it = interactTarget(); if (it) it.run(); });
 bindBtn('bAtk', 'atk'); bindBtn('bSkill', 'skill'); bindBtn('bDodge', 'dodge'); bindBtn('bPot', 'pot');
 document.addEventListener('gesturestart', e => e.preventDefault());
@@ -55,6 +56,8 @@ export function readInput() {
   if (pressed.inv) toggleInv();
   if (pressed.map) toggleMap();
   if (pressed.esc && openMenu) setMenu(null);
+  else if ((pressed.esc || pressed.pause) && G.started) openPause();   // 沒開選單時 Esc / P = 暫停
+  else if (pressed.pause && openMenu === 'pause') setMenu(null);
   if (pressed.atk && !openMenu) { const it = interactTarget(); if (it) { it.run(); pressed.atk = false; } }   // 靠近東西：攻擊鍵 = 互動，這一下不揮刀（也不會開始蓄力）
   if (!G.started) { if (pressed.up) moveSlot(-1); if (pressed.down) moveSlot(1); if (pressed.enter) pickSlot(); if (pressed.esc) $('btnNewNo').click(); }
 }

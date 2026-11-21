@@ -33,7 +33,8 @@ export interface Dungeon {
   x0?: number; y0?: number; w?: number; inX?: number; inY?: number; exX?: number; exY?: number;
   bossAt?: [number, number, number]; bossChest?: [number, number]; sideChests?: [number, number][]; tablet?: [number, number];
   portal?: [number, number];                                              // Boss 大廳的傳送門（世界座標，打倒 Boss 後才出現）
-  deco?: Deco[];                                                          // 野外入口前院的裝飾（dressEntrances）
+  deco?: Deco[];
+  rooms?: Room[];                                                         // 裡面的房間（world/puzzles.ts 用來放機關）                                                          // 野外入口前院的裝飾（dressEntrances）
 }
 export const DUNGEONS: Dungeon[] = [
   // ---- 翠風平原 ----
@@ -138,7 +139,7 @@ function trail(sx: number, sy: number, inb: (x: number, y: number) => boolean) {
       if (c === RWALL || c === PILLAR || c === STAIRS || c === RFLOOR) continue;
       map[i] = c === WATER || c === LAVA || c === BRIDGE ? BRIDGE : ROAD; } }
 }
-type Room = { x: number; y: number; rx: number; ry: number };
+export type Room = { x: number; y: number; rx: number; ry: number };
 /* ---- 地城裡面：房間鏈 ---- */
 export function carveDungeons(roomSpawn: (d: Dungeon, tx: number, ty: number, kind: string, lv: number) => void) {
   for (let y = DZONE.y0 - 2; y <= DZONE.y1 + 2; y++) for (let x = DZONE.x0 - 2; x <= DZONE.x1; x++) { map[y * MW + x] = CLIFF; reg[y * MW + x] = DREG; }   // 整塊先填滿岩石：從地城裡往外看不會看到海
@@ -154,7 +155,7 @@ export function carveDungeons(roomSpawn: (d: Dungeon, tx: number, ty: number, ki
     const plan = ruin
       ? [[51, 47, 6, 4], [24 + j(4), 40, 7, 4], [78 + j(4), 40, 7, 4], [20 + j(4), 25 + j(2), 7, 5], [82 + j(4), 25 + j(2), 7, 5], [51, 30, 8, 5], [51, 11, 13, 8], [7, 9, 4, 4], [96, 9, 4, 4]]
       : [[25, 46, 6, 5], [13 + j(6), 35 + j(2), 7, 5], [40 + j(4), 33 + j(4), 5, 4], [22 + j(8), 25, 7, 4], [25, 11, 11, 8]];
-    const rooms: Room[] = plan.map(([x, y, rx, ry]) => ({ x: X0 + (d.mirror ? W - 1 - x : x), y: Y0 + y, rx, ry }));
+    const rooms: Room[] = plan.map(([x, y, rx, ry]) => ({ x: X0 + (d.mirror ? W - 1 - x : x), y: Y0 + y, rx, ry })); d.rooms = rooms;
     const corr = new Set<number>();
     const room = (r: Room) => { for (let y = r.y - r.ry - 1; y <= r.y + r.ry + 1; y++) for (let x = r.x - r.rx - 1; x <= r.x + r.rx + 1; x++) {
       if (built) { if (Math.abs(x - r.x) <= r.rx && Math.abs(y - r.y) <= r.ry) set(x, y, floor); }

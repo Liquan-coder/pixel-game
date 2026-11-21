@@ -18,7 +18,7 @@ export function collides(x, y, r) {
   const x0 = Math.floor((x - r) / TS), x1 = Math.floor((x + r) / TS), y0 = Math.floor((y - r) / TS), y1 = Math.floor((y + r) / TS);
   for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) { const t = tileAt(tx, ty); if (solidT(t) && tilePen(x, y, r, tx, ty, t)) return true; }
   for (const c of CAMPS) if (Math.abs(x - c.x) < 20 && (x - c.x) ** 2 + (y - c.y) ** 2 < (r + 5) ** 2) return true;
-  for (const p of PROPS) if (Math.abs(x - p.x) < 24 && (x - p.x) ** 2 + (y - p.y) ** 2 < (r + p.r) ** 2) return true;
+  for (const p of PROPS) if (p.r > 0 && Math.abs(x - p.x) < 24 && (x - p.x) ** 2 + (y - p.y) ** 2 < (r + p.r) ** 2) return true;   // r = 0：打開的門，不擋
   return false;
 }
 function pushOut(e) {                                                   // 把重疊的部分沿著表面法線推出去 → 自然沿著牆滑
@@ -30,7 +30,7 @@ function pushOut(e) {                                                   // 把�
       const p = tilePen(e.x, e.y, r, tx, ty, t); if (p && p[0] > 0 && (!best || p[0] > best[0])) best = p; }
     for (const c of CAMPS) { if (Math.abs(e.x - c.x) > 20) continue; const dx = e.x - c.x, dy = e.y - c.y, d = Math.hypot(dx, dy), pen = r + 5 - d;
       if (pen > 0 && d > 1e-4 && (!best || pen > best[0])) best = [pen, dx / d, dy / d]; }
-    for (const p of PROPS) { if (Math.abs(e.x - p.x) > 24) continue; const dx = e.x - p.x, dy = e.y - p.y, d = Math.hypot(dx, dy), pen = r + p.r - d;   // 前院的雕像、石碑
+    for (const p of PROPS) { if (p.r <= 0 || Math.abs(e.x - p.x) > 24) continue; const dx = e.x - p.x, dy = e.y - p.y, d = Math.hypot(dx, dy), pen = r + p.r - d;   // 前院的雕像、石碑
       if (pen > 0 && d > 1e-4 && (!best || pen > best[0])) best = [pen, dx / d, dy / d]; }
     if (!best) return;
     e.x += best[1] * (best[0] + .01); e.y += best[2] * (best[0] + .01);   // 一次只推最深的那個，再重算（角落兩面牆也推得乾淨）
@@ -56,7 +56,8 @@ export const regAt = (x, y) => reg[clamp(y / TS | 0, 0, MH - 1) * MW + clamp(x /
    每 6px 檢查一格 → 例：距離 120px 只要看 20 格 */
 const WALLT = new Set([CLIFF, RWALL, HOUSE]);
 export function canSee(ax, ay, bx, by) {
-  const dx = bx - ax, dy = by - ay, n = Math.ceil(Math.hypot(dx, dy) / 6);
-  for (let i = 1; i < n; i++) { const t = tileAt(Math.floor((ax + dx * i / n) / TS), Math.floor((ay + dy * i / n) / TS)); if (WALLT.has(t)) return false; }
+  const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy), n = Math.ceil(L / 6);
+  for (let i = 1; i < n; i++) { const k = L * i / n; if (k < 8 || k > L - 8) continue;      // 頭尾 8px 不算：貼著牆站的時候，身體上半截可能碰到牆那一格
+    const t = tileAt(Math.floor((ax + dx * i / n) / TS), Math.floor((ay + dy * i / n) / TS)); if (WALLT.has(t)) return false; }
   return true;
 }

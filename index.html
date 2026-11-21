@@ -29,7 +29,7 @@
     <div class="tr">
       <canvas id="mini" width="128" height="80"></canvas>
       <div class="srow">
-        <button class="sbtn" id="muteBtn" type="button">音效 開</button>
+        <button class="sbtn" id="pauseBtn" type="button" aria-label="暫停"><i class="pz"></i>暫停</button>
         <button class="sbtn" id="mapBtn" type="button">地圖</button>
         <button class="sbtn" id="bagBtn" type="button">角色</button>
       </div>
@@ -43,6 +43,7 @@
     <button id="chestBtn" type="button" hidden>打開寶箱 <small>J</small></button>
     <button id="readBtn" type="button" hidden>閱讀石碑 <small>J</small></button>
     <button id="doorBtn" type="button" hidden><span id="doorTxt">進入</span> <small>J</small></button>
+    <button id="useBtn" type="button" hidden><span id="useTxt">點燃火盆</span> <small>J</small></button>
     <div id="pickBox" hidden><div id="pickCard"></div><button id="pickBtn" type="button">撿起 <small>J</small></button></div>
     <div id="zoneHint" hidden></div>
     <div id="talk" hidden></div>
@@ -51,15 +52,21 @@
   <div id="controls">
     <div id="joyZone"><div id="joyBase"><div id="joyKnob"></div></div></div>
     <div id="btns">
-      <button class="ab" id="bAtk" type="button">攻擊</button>
-      <button class="ab" id="bSkill" type="button"><i class="cd"></i><span id="skillName">迴旋斬</span><i class="sec" id="bSkillSec" hidden></i></button>
-      <button class="ab" id="bDodge" type="button">瞬移</button>
-      <button class="ab" id="bPot" type="button">藥<b id="potTxt">3</b></button>
+      <button class="ab" id="bAtk" type="button"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 1h5v5L7 14 2 9z" fill="#e8ecf8"/><path d="M13 3h1v2L7 12l-1-1z" fill="#a8b4d0"/><path d="M1 8l7 7-1 1-7-7z" fill="#f2c14e"/><path d="M0 13l3 3-1 0-2-2z M2 11l3 3-2 2-3-3z" fill="#8a5a2a"/></svg><span id="bAtkTxt">攻擊</span></button>
+      <button class="ab" id="bSkill" type="button"><i class="cd"></i><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0l2 5.5 6 2.5-6 2.5-2 5.5-2-5.5-6-2.5 6-2.5z" fill="#d8c8ff"/><path d="M8 4l1 3 3 1-3 1-1 3-1-3-3-1 3-1z" fill="#fff"/></svg><span id="skillName">迴旋斬</span><i class="sec" id="bSkillSec" hidden></i></button>
+      <button class="ab" id="bDodge" type="button"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M1 4h6v2H1z M0 7h7v2H0z M1 10h6v2H1z" fill="#8ae0e8"/><path d="M9 2l7 6-7 6v-3.5H7v-5h2z" fill="#e0fbff"/></svg><span>瞬移</span></button>
+      <button class="ab" id="bPot" type="button"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 1h4v2H9v3l4 4.5V15H3v-4.5L7 6V3H6z" fill="#e8dcff" opacity=".85"/><path d="M4 11h8v3H4z M5 9.5h6l1 1.5H4z" fill="#ff4a6a"/><path d="M5 12h1v1H5z" fill="#fff"/></svg><b id="potTxt">3</b></button>
     </div>
   </div>
   <div id="keyHint">WASD 移動 · J 攻擊（長按蓄力；靠近東西時變成撿起/休息/交易）· K 瞬移 · L 技能 · H 喝藥 · C 角色 · M 地圖</div>
 
   <div id="veil" hidden></div>
+
+  <div id="pauseMenu" class="panel pause" hidden>
+    <div class="ph"><h2>暫停</h2><button class="sbtn" type="button" data-close>繼續</button></div>
+    <div class="tabs"><button type="button" data-ptab="main" class="on">選單</button><button type="button" data-ptab="set">設定</button><button type="button" data-ptab="help">操作說明</button></div>
+    <div id="pauseBody" class="pbody"></div>
+  </div>
 
   <div id="campMenu" class="panel" hidden>
     <div class="ph"><h2 id="campName">營火</h2><button class="sbtn" type="button" data-close>繼續冒險</button></div>

@@ -20,6 +20,8 @@ import { updatePlayer } from './playerUpdate';
 import { STARC, asn } from '../render/fx';
 import { gain, toast } from '../ui/hud';
 import { nearestPlayer } from './player';
+import { SET } from '../ui/pause';
+import { updatePuzzles } from '../world/puzzles';
 
 /* ================= WORLD UPDATE ================= */
 /* 剛射出去的子彈記住是誰射的（G.hitCtx），打中人的時候才算得出等級差和異常狀態 */
@@ -147,7 +149,7 @@ function separate() {
   }
 }
 export function burst(x, y, n, col, spd) { for (let i = 0; i < n; i++) { const a = rr(0, TAU), s = rr(spd * .3, spd); G.parts.push({ x, y, vx:Math.cos(a) * s, vy:Math.sin(a) * s - 20, life:rr(.25, .6), max:.6, col, s: Math.random() < .3 ? 2 : 1, g:120 }); } }
-export function shake(m, t) { G.shakeMag = Math.max(G.shakeMag, m); G.shakeT = Math.max(G.shakeT, t); }
+export function shake(m, t) { if (!SET.shake) return; G.shakeMag = Math.max(G.shakeMag, m); G.shakeT = Math.max(G.shakeT, t); }
 const MOTE = { plains:{ col:'#fff4b0', vy:[-3, 3], vx:[4, 10], glow:false, n:16 }, forest:{ col:'#d8ff7a', vy:[-6, 6], vx:[-6, 6], glow:true, n:22 },
   wastes:{ col:'#d8c8a8', vy:[-2, 4], vx:[10, 22], glow:false, n:30 }, lava:{ col:'#ffb04a', vy:[-22, -10], vx:[-5, 5], glow:true, n:28 }, den:{ col:'#c8c0d8', vy:[-3, 3], vx:[-3, 3], glow:false, n:16 },
   snow:{ col:'#ffffff', vy:[14, 26], vx:[-10, 2], glow:false, n:46 }, swamp:{ col:'#9aff6a', vy:[-5, 5], vx:[-5, 5], glow:true, n:26 } };
@@ -166,6 +168,7 @@ export function update(dt) {
     const n0 = G.projs.length; G.hitCtx = e.hc || null; updateEnemy(e, dt); tagProjs(n0); }   // hitCtx = 等級差 + 異常狀態（game/combat.ts 的 hurtPlayer）
   G.hitCtx = null;
   tickWeaponFx(dt, targets(G.me));
+  updatePuzzles(dt);                                                     // 地城的機關（world/puzzles.ts）
   updateNPCs(); updateQuest(); updateBoss(dt); updateRegionBosses(dt); separate(); updateProjectiles(dt); updateDrops(dt); updateSpawns(dt);
   for (let i = G.fx.length - 1; i >= 0; i--) { G.fx[i].t += dt; if (G.fx[i].t >= G.fx[i].d) G.fx.splice(i, 1); }
   for (let i = G.ghosts.length - 1; i >= 0; i--) { G.ghosts[i].life -= dt; if (G.ghosts[i].life <= 0) G.ghosts.splice(i, 1); }

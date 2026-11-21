@@ -7,7 +7,7 @@ import { gridCanvas } from '../art/weapon';
 import type { Item } from '../types';
 import { meets, soft } from './attrs';
 import { UG, UQ, UQ_BY_NAME } from './uniques';
-import { ACLS, ACLS_OF, ARMORS, ARMOR_BASIC, ARMOR_REGION, SEAL_NAME, TRINKETS, TRINKET_KEYS, aUpMult } from './gear';
+import { ACLS, ACLS_OF, ARMORS, ARMOR_BASIC, ARMOR_BUILD, ARMOR_REGION, SEAL_NAME, TRINKETS, TRINKET_KEYS, aUpMult } from './gear';
 import { FX_KEYS, WFXD } from '../game/weaponFx';
 
 /* ================= DATA ================= */
@@ -177,7 +177,7 @@ export function randomLoot(lv, rarity = 1, kind?: 'weapon' | 'gear') {
   const q = Math.random();
   if (kind === 'weapon' || (!kind && q < .3)) return makeWeapon(pickWeaponType(), 0, rarity >= 3 && Math.random() < .35 ? pick(FX_KEYS) : undefined);
   const r = Math.random() * (1 + rarity * .15), rg = regionOfLv(lv);
-  if (r < .45) return makeArmor(ARMOR_REGION[rg] && Math.random() < .6 ? ARMOR_REGION[rg] : pick(ARMOR_BASIC));
+  if (r < .45) return makeArmor(Math.random() < .15 ? pick(ARMOR_BUILD) : ARMOR_REGION[rg] && Math.random() < .6 ? ARMOR_REGION[rg] : pick(ARMOR_BASIC));   // 15%：流派防具（反傷、閃避）
   if (r < .9) return makeTrinket(pick(TRINKET_KEYS));
   return makeSeal(pick(FX_KEYS));
 }

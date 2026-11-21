@@ -2,7 +2,7 @@ import { G } from '../core/state';
 import { $, clamp, pick, ri } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
 import { COIN_SP, DROP_WEAPONS, ICON_URL, MERCH_SP, RAR, SLOTN, armorStats, gearValue, itemName, makeArmor, makeSeal, makeTrinket, makeWeapon, slotOf } from '../data/items';
-import { ARMOR_BASIC, ARMOR_REGION, TRINKET_KEYS } from '../data/gear';
+import { ARMOR_BASIC, ARMOR_BUILD, ARMOR_REGION, TRINKET_KEYS } from '../data/gear';
 import { FX_KEYS } from '../game/weaponFx';
 import { MATS, ORE_URL, atkAt, canUpgrade, doUpgrade, maxUp, upCost } from '../data/forge';
 import type { MatKey } from '../data/forge';
@@ -31,7 +31,7 @@ function rollStock(c) {
   const R0 = reg[c.ty * MW + c.tx], deep = Math.min(4, [0, 1, 2, 3, 1, 4, 4][R0] ?? 0), rg = REG_KEYS[R0] || 'plains', st: Stock[] = [{ kind:'pot', price:25 }];
   if (G.potMax < 8) st.push({ kind:'potUp', price:250 * (G.potMax - 2), left:1 });
   st.push(oreRow('mat1', 80, 5)); if (deep >= 1) st.push(oreRow('mat2', 200, 3));                   // 流浪商人：少量前期素材（後面的要自己去打）
-  st.push(stockItem(makeWeapon(pick(DROP_WEAPONS))), stockItem(makeArmor(ARMOR_REGION[rg] && Math.random() < .6 ? ARMOR_REGION[rg] : pick(ARMOR_BASIC))));
+  st.push(stockItem(makeWeapon(pick(DROP_WEAPONS))), stockItem(makeArmor(Math.random() < .2 ? pick(ARMOR_BUILD) : ARMOR_REGION[rg] && Math.random() < .6 ? ARMOR_REGION[rg] : pick(ARMOR_BASIC))));
   st.push(stockItem(makeTrinket(pick(TRINKET_KEYS))), stockItem(makeTrinket(pick(TRINKET_KEYS))));
   if (Math.random() < .5) st.push(stockItem(makeSeal(pick(FX_KEYS)), 1.5));
   return st;

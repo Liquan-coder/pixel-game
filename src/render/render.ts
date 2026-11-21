@@ -14,6 +14,7 @@ import { regAt } from '../game/collision';
 import { drawCoin } from '../game/worldUpdate';
 import { drawNum, drawPlayer, drawShadow, heroSlices } from './player';
 import { drawBlind, drawStatus } from '../game/status';
+import { SET } from '../ui/pause';
 import { artLine, artPath, asn, drawCrescent, drawLance, drawOrb, drawQuake, drawRibbon, drawRune, drawSmear, drawSpikes, drawStar, drawWarp, drawWaveP, fxCols } from './fx';
 import { addLight, drawCamp, drawDrop, drawEnemy, drawTelegraph } from './enemy';
 import { drawMerchant, merchant } from '../ui/shop';
@@ -21,6 +22,7 @@ import { drawChests } from '../world/chests';
 import { drawNPCs } from '../world/towns';
 import { drawQuestArrow, drawTablets } from '../game/quest';
 import { drawDoors } from '../world/dungeonArt';
+import { drawPuzzles } from '../world/puzzles';
 import { camDt } from '../main';
 
 export const view = { x: 0, y: 0 };                                  // 畫面左上角在世界的哪裡（給 HTML 介面對齊用）
@@ -84,7 +86,7 @@ export function render() {
   for (const c of CAMPS) if (vis(c.x, c.y)) list.push({ y:c.y, f:() => drawCamp(c) });
   for (const d of G.drops) if (vis(d.x, d.y)) { list.push({ y:d.y - 1, f:() => drawDrop(d) }); addLight(L, d.x, d.y - 8, 16 + d.item.rarity * 7, 3); }
   for (const c of G.coins) if (vis(c.x, c.y)) list.push({ y:c.y, f:() => drawCoin(c) });
-  drawChests(L, vis, addLight, list); drawNPCs(vis, list); drawTablets(vis, list, L, addLight); drawDoors(vis, list, L, addLight);
+  drawChests(L, vis, addLight, list); drawNPCs(vis, list); drawTablets(vis, list, L, addLight); drawDoors(vis, list, L, addLight); drawPuzzles(vis, list, L, addLight);
   if (merchant && vis(merchant.x, merchant.y, 60)) { list.push({ y:merchant.y, f:drawMerchant }); addLight(L, merchant.x - 5, merchant.y - 10, 46 + Math.sin(G.time * 6) * 2, 1); }
   // 殘影：衝刺是紫色剪影（最新的疊白光），翻滾是會跟著轉的淡白剪影
   for (const g of G.ghosts) { const k = g.life / g.max, sp = HERO.walk[0], w = sp.w * HK, h = sp.h * HK;
@@ -172,7 +174,7 @@ export function render() {
   ctx.globalCompositeOperation = 'source-over';
   if (G.region === 'wastes') { ctx.fillStyle = 'rgba(255,190,110,.06)'; ctx.fillRect(0, 0, LW, LH); }
   drawBlind(cx, cy, LW, LH);                                              // 目盲：周圍變暗
-  for (const n of G.nums) {                                               // 傷害數字：彈出來 → 往上飄 → 淡掉（畫在光影上面，暗處也看得到）
+  if (SET.nums) for (const n of G.nums) {                                 // 傷害數字（設定可以關掉）：彈出來 → 往上飄 → 淡掉（畫在光影上面，暗處也看得到）
     const k = n.t / n.d, rise = 1 - (1 - Math.min(1, k * 2.2)) ** 2, pop = k < .12 ? 1 + (1 - k / .12) * .6 : 1;
     const sc = (n.big ? 4 / 3 : 1) * (pop > 1.3 ? 4 / 3 : 1);           // 剛出來時大一號，再縮回來（只用 1/3 的倍數，像素才不會糊）
     ctx.globalAlpha = k > .7 ? Math.max(0, 1 - (k - .7) / .3) : 1;
