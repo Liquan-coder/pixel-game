@@ -3,7 +3,7 @@ import { $, onTap } from '../core/util';
 import { AFFIX, ICON_URL, RAR, SLOTN, UP_MAX, WT, armorStats, attachSeal, detachSeal, effOf, gearValue, itemName, slotOf } from '../data/items';
 import { ACLS, ARMORS, A_UP_MAX, MAIN_BOSSES, T_SLOTS_MAX, effLines } from '../data/gear';
 import type { Item } from '../types';
-import { MATS, MAT_KEYS } from '../data/forge';
+import { MATS, MAT_KEYS, ORE_URL } from '../data/forge';
 import { UG, UQ } from '../data/uniques';
 import { WFXD, fxOf } from '../game/weaponFx';
 import { CAMPS, MW, REGIONS, reg } from '../world/map';
@@ -90,7 +90,7 @@ $('campMenu').addEventListener('click', e => {
 });
 /* ---- 物品卡：名字、類型、主要數值、效果、需求、背景故事 ---- */
 const effHtml = (e: Record<string, number>) => effLines(e).map(t => '<div class="aff">' + t + '</div>').join('');
-export function itemCard(it, cmp?) {
+export function itemCard(it, cmp?, cls = '') {
   const R = RAR[it.rarity], sl = slotOf(it), c = cmp && cmp !== it ? cmp : null;
   const dv = (a, b) => { const d = a - b; return d > 0 ? ' <span class="up">▲' + d + '</span>' : d < 0 ? ' <span class="down">▼' + (-d) + '</span>' : ''; };
   let head = SLOTN[sl], main = '', tail = '';
@@ -110,7 +110,7 @@ export function itemCard(it, cmp?) {
   else { const F = WFXD[it.fx]; main = '<b style="color:' + F.c + '">' + F.n + '</b>：' + F.d; tail = '<div class="sk" style="color:var(--muted)">裝到一般武器上才有效果，可以隨時拆下來換到別把。獨特武器不能裝。</div>'; }
   const UGd = it.ug && UG[it.ug]; if (UGd) tail += '<div class="sk lore">' + UGd.lore + '<br><small>來源：' + UGd.from + '</small></div>';
   const A2 = sl === 'armor' && it.ak && ARMORS[it.ak]; if (A2 && A2.d) tail += '<div class="sk lore">' + A2.d + '</div>';
-  return '<div class="card" style="border-color:' + R.c + '"><div class="iname" style="color:' + R.c + '"><img alt="" src="' + ICON_URL[it.type] + '">' + itemName(it) + '</div>' +
+  return '<div class="card' + (cls ? ' ' + cls : '') + '" style="border-color:' + R.c + '"><div class="iname" style="color:' + R.c + '"><img alt="" src="' + ICON_URL[it.type] + '">' + itemName(it) + '</div>' +
     '<div class="rar" style="color:' + R.c + '">' + head + '</div><div class="atk">' + main + '</div>' + reqLine(it) + tail + '</div>';
 }
 function reqLine(it) {                                                  // 需求：夠的白字、不夠的紅字
@@ -121,8 +121,7 @@ function reqLine(it) {                                                  // 需�
 function statRows(now, nxt) {                                           // 屬性表；有預覽時顯示「現在 → 換上後」
   const pct = v => Math.round(v * 100) + '%';
   const rows: [string, any, ((v: number) => string)?][] = [['體力', 'maxSt'],
-    ['減傷', 'defRed', pct], ['暴擊', 'crit', v => v + '%'], ['吸血', 'ls', pct], ['攻速', 'aspd', v => '+' + Math.round((v - 1) * 100) + '%'], ['冷卻縮短', 'cdr', pct],
-    ['金幣/魂晶', G.me.gold + '/' + G.me.souls]];
+    ['減傷', 'defRed', pct], ['暴擊', 'crit', v => v + '%'], ['吸血', 'ls', pct], ['攻速', 'aspd', v => '+' + Math.round((v - 1) * 100) + '%'], ['冷卻縮短', 'cdr', pct]];   // 兩欄：左 體力 / 暴擊 / 攻速，右 減傷 / 吸血 / 冷卻
   return rows.map(([n, k, f]) => { if (typeof k !== 'string' || !(k in now)) return '<span>' + n + '</span><b>' + k + '</b>';
     const fmt = f || (v => String(v)), a = now[k], b = nxt ? nxt[k] : a, d = b - a;
     const pctK = k === 'ls' || k === 'aspd' || k === 'cdr' || k === 'defRed', dd = pctK ? Math.round(Math.abs(d) * 100) + '%' : Math.round(Math.abs(d));
@@ -160,26 +159,53 @@ function eqWith(it: Item) {
   else if (sl === 'trinket') { const n = tSlots(), k = out.trinkets.slice(0, n).findIndex(t => !t); out.trinkets[k >= 0 ? k : 0] = it; }
   return out;
 }
+/* 左上的「選中物品」卡：圖示、名字、一行重點（換上後的變化），右邊是這件能做的事（裝備、分解、拆下刻印、卸下） */
+function statDiff(now, nx) {                                            // 換上後變了什麼：攻擊 +5、暴擊 +3%
+  const out = [], pct = (k: string) => k === 'ls' || k === 'aspd' || k === 'cdr' || k === 'defRed';
+  for (const [n, k] of [['生命', 'maxHp'], ['攻擊', 'atk'], ['防禦', 'def'], ['體力', 'maxSt'], ['暴擊', 'crit'], ['減傷', 'defRed'], ['吸血', 'ls'], ['攻速', 'aspd'], ['冷卻', 'cdr']]) {
+    const d = nx[k] - now[k]; if (Math.abs(d) < 1e-6) continue;
+    const v = pct(k) ? Math.round(Math.abs(d) * 100) + '%' : k === 'crit' ? Math.abs(d) + '%' : String(Math.round(Math.abs(d)));
+    out.push('<span class="' + (d > 0 ? 'up' : 'down') + '">' + n + ' ' + (d > 0 ? '+' : '−') + v + '</span>'); }
+  return out.length ? out.join('，') : '<span>數值沒有變化</span>';
+}
+function selSummary(sel, now, pv) {
+  const it = sel.it, sl = slotOf(it);
+  if (pv) return statDiff(now, pv);
+  if (sl === 'weapon') { const A = atkSplit(G.me, it), fx = fxOf(it); return '攻擊 ' + A.total + (fx ? ' · <b style="color:' + WFXD[fx].c + '">' + WFXD[fx].n + '</b>' : '') + ' · ' + WT[it.type].trait; }
+  if (sl === 'armor') { const A = armorStats(it); return '防禦 ' + A.def + ' · 生命 +' + A.hp; }
+  if (sl === 'trinket') return effLines(effOf(it))[0] || '';
+  return '<b style="color:' + WFXD[it.fx].c + '">' + WFXD[it.fx].n + '</b>：' + (G.me.weapon.uq ? '獨特武器不能裝刻印' : '裝到武器上');
+}
+let salvArm = 0, salvAllArm = false;                                     // 分解要按兩次（強化過 / 刻印 / 獨特的那種）
+function selActs(sel) {
+  const it = sel.it, sl = slotOf(it), b = (act: string, label: string, cls = '', dis = false) => '<button type="button" class="sact ' + cls + '" data-act="' + act + '"' + (dis ? ' disabled' : '') + '>' + label + '</button>';
+  const full = G.me.inv.length >= 24, out = [];
+  if (sel.where === 'bag') {
+    if (sl === 'seal') out.push(b('equip', '裝上', 'pri', !!G.me.weapon.uq));
+    else out.push(b('equip', sl !== 'trinket' && unmet(G.me, it).length ? '能力不夠' : '裝備', 'pri', sl !== 'trinket' && unmet(G.me, it).length > 0));
+    out.push(b('salv', salvArm === it.id ? '確定分解？' : '分解 +' + salvValue(it), 'warn'));
+  } else if (sl === 'weapon') { if (sealOn(it)) out.push(b('unseal', full ? '背包滿了' : '拆下刻印', 'warn', full)); }
+  else out.push(b('uneq', full ? '背包滿了' : '卸下', '', full));
+  out.push(b('cancel', '取消'));
+  return '<div class="sacts">' + out.join('') + '</div>';
+}
 export function renderInv() {
-  $('invCount').textContent = G.me.inv.length + '/24'; $('matLine').innerHTML = matLine();
+  $('invCount').textContent = G.me.inv.length + '/24'; $('invGold').textContent = '金幣 ' + G.me.gold; $('invSouls').textContent = '魂晶 ' + G.me.souls;
   const eq = curEq(G.me), sel = selected(), bagIt = sel && sel.where === 'bag' ? sel.it : null, nSlots = tSlots();
-  // 左欄：沒選東西 → 角色屬性；選了 → 那件裝備的資料 + 按鈕（不用往下捲）
-  const info = $('cInfo');
-  if (!sel) {
-    const now = calcStats(G.me, eq);
-    info.innerHTML = '<div class="keystats">' + keyTile('hp', '生命', 'maxHp', now, null) + keyTile('atk', '攻擊', 'atk', now, null) + keyTile('df', '防禦', 'def', now, null) + '</div>' +
-      '<div class="lbl">詳細屬性</div><div class="stattbl">' + statRows(now, null) + '</div>' +   // 詳細屬性比較常看 → 放上面
-      '<div class="lbl" style="margin-top:6px">能力值<small class="lvhint">在營火用魂晶升級</small></div><div id="attrList">' + ATTRS.map(a => '<div class="attr" title="' + a.d + '"><span>' + a.n + '</span><div class="bar2"><i style="width:' + Math.min(100, G.me[a.k] / 40 * 100) + '%"></i></div><b>' + G.me[a.k] + '</b></div>').join('') + '</div>' +
-      '<p class="hintp">' + (G.me.inv.length ? '點一件裝備，這裡會顯示它的資料和比較。' : '還沒有撿到裝備。武器主要在寶箱、地城和 Boss 身上。') + '</p>';
-  } else {
-    const it = sel.it, sl = slotOf(it), cmp = sl === 'weapon' ? eq.weapon : sl === 'armor' ? eq.armor : null;
-    const pv = bagIt && sl !== 'seal' ? calcStats(G.me, eqWith(bagIt)) : null, now = calcStats(G.me, eq);
-    const tip = bagIt ? (sl === 'seal' ? (G.me.weapon.uq ? '獨特武器不能裝刻印' : '點發亮的武器欄裝上去') : sl === 'weapon' || sl === 'armor' ? (unmet(G.me, bagIt).length ? '能力值不夠，還不能裝備' : '點發亮的欄位裝上去') : '點發亮的飾品欄裝上去（有東西的會換下來）')
-      : canUnequip(sel) ? '點背包的空格卸下' : '';
-    info.innerHTML = '<div class="cscroll">' + itemCard(it, bagIt ? cmp : null) +
-      (pv ? '<div class="keystats sm">' + keyTile('hp', '生命', 'maxHp', now, pv) + keyTile('atk', '攻擊', 'atk', now, pv) + keyTile('df', '防禦', 'def', now, pv) + '</div><div class="stattbl">' + statRows(now, pv) + '</div>' : '') +
-      '</div><p class="seltip">' + (tip ? tip + ' · ' : '') + '再點一次取消</p>';
-  }
+  // 左欄：上面是選中的物品（有選才出現）＋ 按鈕；下面一直是角色數值（選了背包的東西 → 顯示換上後的變化）
+  const info = $('cInfo'), keepY = info.querySelector('.cscroll')?.scrollTop || 0;
+  const now = calcStats(G.me, eq), sl = sel ? slotOf(sel.it) : '', pv = bagIt && sl !== 'seal' ? calcStats(G.me, eqWith(bagIt)) : null;
+  if (sel && salvArm && salvArm !== sel.it.id) salvArm = 0;
+  const R = sel ? RAR[sel.it.rarity] : null, U = sel && sel.it.uq;
+  const head = sel ? '<div class="selcard" style="border-color:' + R.c + '"><img alt="" src="' + ICON_URL[sel.it.type] + '"><div class="selmid"><div class="selname"><b style="color:' + R.c + '">' + itemName(sel.it) + '</b><i>' + (U ? '獨特' : SLOTN[sl]) + '</i></div>' +
+    '<div class="selsum">' + selSummary(sel, now, pv) + '</div></div>' + selActs(sel) + '</div>' : '';
+  info.innerHTML = head + '<div class="cscroll">' +
+    '<div class="keystats">' + keyTile('hp', '生命', 'maxHp', now, pv) + keyTile('atk', '攻擊', 'atk', now, pv) + keyTile('df', '防禦', 'def', now, pv) + '</div>' +
+    '<div class="cbox"><div class="lbl">詳細屬性</div><div class="stattbl">' + statRows(now, pv) + '</div></div>' +
+    (sel ? itemCard(sel.it, null, 'det') : '') +                          // 這件的刻印、技能、需求、背景故事
+    '<div class="cbox"><div class="lbl">能力值<small class="lvhint">在營火用魂晶升級</small></div><div id="attrList">' + ATTRS.map(a => '<div class="attr" title="' + a.d + '"><span>' + a.n + '</span><div class="bar2"><i style="width:' + Math.min(100, G.me[a.k] / 40 * 100) + '%"></i></div><b>' + G.me[a.k] + '</b></div>').join('') + '</div></div>' +
+    (sel ? '' : '<p class="hintp">' + (G.me.inv.length ? '點一件裝備看它的資料；再點發亮的欄位就能換上。' : '還沒有撿到裝備。武器主要在寶箱、地城和 Boss 身上。') + '</p>') + '</div>';
+  const sc = info.querySelector('.cscroll'); if (sc && sel && sel.it.id === lastSelId) sc.scrollTop = keepY; lastSelId = sel ? sel.it.id : null;
   $('dollLv').textContent = 'Lv ' + level(G.me); drawDoll();
   // 中間：武器、防具、4 個飾品欄（還沒開放的鎖著）
   const drop = dropTargets(sel, nSlots);
@@ -189,18 +215,19 @@ export function renderInv() {
       (it ? '<img alt="" src="' + ICON_URL[it.type] + '">' + sealBadge(it) : '<div class="ph0">＋</div>') + '<small>' + label + '</small><span' + (it ? ' style="color:' + RAR[it.rarity].c + '"' : '') + '>' + (it ? itemName(it) : '空') + '</span></button>';
   $('eqSlots').innerHTML = slotBtn(eq.weapon, 'weapon', '武器') + slotBtn(eq.armor, 'armor', '防具') + '<div class="eqgap"></div>' +
     [0, 1, 2, 3].map(i => slotBtn(eq.trinkets[i], 't' + i, '飾品 ' + (i + 1), i >= nSlots)).join('');
-  // 右邊：背包
+  // 右邊：背包（或素材清單）
   for (const b of document.querySelectorAll<HTMLElement>('#bagTabs button')) b.classList.toggle('on', b.dataset.f === bagFilter);
+  const n = salvAllN(), sb = $('salvAll') as HTMLButtonElement; sb.hidden = !n; sb.classList.toggle('arm', salvAllArm);   // 一鍵分解：右上角，有東西可分解才出現
+  sb.textContent = salvAllArm ? '確定分解 ' + n + ' 件？' : '一鍵分解 ' + n;
+  if (bagFilter === 'mat') { $('bagGrid').innerHTML = '<div class="matlist">' + MAT_KEYS.map(k => '<div class="matrow"><img alt="" src="' + ORE_URL[k] + '"><span style="color:' + MATS[k].c + '">' + MATS[k].n + '<small>' + MATS[k].d + '</small></span><b>' + (G.me.mats[k] || 0) + '</b></div>').join('') + '</div>'; return; }
   const list = G.me.inv.map((it, i) => ({ it, i })).filter(o => bagFilter === 'all' || slotOf(o.it) === bagFilter);
   const cells = list.map(({ it, i }) => '<button type="button" class="slot' + (G.selItem === it.id ? ' sel' : '') + (unmet(G.me, it).length ? ' bad' : '') + (sealOn(it) ? ' sl' : '') + '" data-i="' + i + '" style="border-color:' + RAR[it.rarity].c + '" aria-label="' + it.name + '"><img alt="" src="' + ICON_URL[it.type] + '">' + sealBadge(it) + '<i style="color:' + RAR[it.rarity].c + '">' + badge(it) + '</i></button>');
   const blank = drop.has('bag') ? '<button type="button" class="slot blank drop" data-drop="1" aria-label="卸下"></button>' : '<div class="slot blank"></div>';
-  if (bagFilter === 'all') while (cells.length < 24) cells.push(blank);      // 空格子也畫出來，一眼看出背包還剩多少
+  if (bagFilter === 'all') while (cells.length < 24) cells.push(blank);   // 空格子也畫出來，一眼看出背包還剩多少
   else if (drop.has('bag')) cells.push(blank);                                // 篩選中：多放一個空格讓你卸下
-  const sb = $('salvAll'), sm = salvMode(sel); sb.dataset.m = sm; sb.classList.toggle('one', sm !== 'all');   // 背包下面的按鈕：選了背包裡的東西 = 分解這件；選了有刻印的武器 = 拆下刻印
-  sb.textContent = sm === 'salv' ? '分解這件（+' + salvValue(sel.it) + ' 魂晶）' : sm === 'unseal' ? '拆下刻印' : '分解所有沒強化過的一般武器和防具';
-  (sb as HTMLButtonElement).disabled = sm === 'unseal' && G.me.inv.length >= 24;
   $('bagGrid').innerHTML = cells.length ? cells.join('') : '<div class="empty">這一類還沒有東西。</div>';
 }
+let lastSelId = null;
 /* 點一下選、再點目標放進去：選了背包裡的東西 → 能放的欄位發亮；選了身上的防具 / 飾品 → 背包空格發亮（卸下） */
 const canUnequip = (sel) => !!sel && sel.where === 'eq' && sel.slot !== 'weapon' && G.me.inv.length < 24;   // 武器不能空手
 function dropTargets(sel, nSlots: number) {
@@ -212,38 +239,50 @@ function dropTargets(sel, nSlots: number) {
   else if (canUnequip(sel)) out.add('bag');
   return out;
 }
-const salvMode = (sel) => sel && sel.where === 'bag' ? 'salv' : sel && sel.slot === 'weapon' && sel.it.fx && !sel.it.uq ? 'unseal' : 'all';
 /* 武器右上角的小刻印：裝了哪種刻印（外框是那種刻印的顏色）。獨特武器的效果是本身的，不算 */
 const sealOn = (it: Item | null) => !!it && slotOf(it) === 'weapon' && !!it.fx && !it.uq;
 const sealBadge = (it: Item) => sealOn(it) ? '<img class="sealb" alt="" title="' + WFXD[it.fx].n + '刻印" src="' + ICON_URL.seal + '" style="border-color:' + WFXD[it.fx].c + '">' : '';
 const salvValue = it => Math.round(3 * gearValue(it) * (slotOf(it) === 'weapon' ? .5 : 1));
+const junk = (it: Item) => { const sl = slotOf(it); return (sl === 'weapon' || sl === 'armor') && it.rarity === 0 && !it.up; };   // 一鍵分解的對象：沒強化、沒刻印的一般武器 / 防具
+const salvAllN = () => G.me.inv.filter(junk).length;
+const precious = (it: Item) => !!(it.up || it.uq || it.ug || it.rarity >= 3);   // 分解前要再按一次確認
 export const badge = it => (slotOf(it) === 'weapon' || slotOf(it) === 'armor') && it.up ? '+' + it.up : '';    // 背包格子左上角的小字：強化等級
 export const matLine = () => MAT_KEYS.map(k => '<span title="' + MATS[k].d + '" style="color:' + MATS[k].c + '">' + MATS[k].n + ' <b>' + (G.me.mats[k] || 0) + '</b></span>').join('');
 $('invMenu').addEventListener('click', e => {
   const t = (e.target as HTMLElement).closest('button'); if (!t || (t as HTMLButtonElement).disabled) return;
+  if (t.id !== 'salvAll') salvAllArm = false;
   if (t.hasAttribute('data-close')) { setMenu(null); return; }
-  if (t.dataset.i !== undefined) { const it = G.me.inv[+t.dataset.i]; G.selItem = it && G.selItem !== it.id ? it.id : null; renderInv(); return; }
+  if (t.dataset.i !== undefined) { const it = G.me.inv[+t.dataset.i]; G.selItem = it && G.selItem !== it.id ? it.id : null; salvArm = 0; renderInv(); return; }
   if (t.dataset.f) { bagFilter = t.dataset.f; renderInv(); return; }
-  const sel = selected(), done = () => { recalc(G.me); G.selItem = null; sfx.pick(); renderInv(); save(); };
+  const sel = selected(), done = () => { recalc(G.me); G.selItem = null; salvArm = 0; sfx.pick(); renderInv(); save(); };
+  const put = (k: string) => {                                                         // 把選著的背包物品放進欄位 k
+    const it = sel.it, sl = slotOf(it), idx = G.me.inv.indexOf(it);
+    if (sl === 'seal') { const w = G.me.weapon; if (w.uq) return; G.me.inv.splice(idx, 1); const old = attachSeal(w, it); if (old) G.me.inv.push(old); toast('「' + itemName(w) + '」裝上了' + it.name, '#c475ff'); return done(); }
+    if (sl !== 'trinket' && unmet(G.me, it).length) { toast('能力值不夠，還不能裝備', '#ff8a8a'); return; }
+    if (sl === 'trinket') { const ti = +k.slice(1), old = G.me.trinkets[ti]; G.me.inv.splice(idx, 1, ...(old ? [old] : [])); G.me.trinkets[ti] = it; }
+    else { const old = G.me[sl]; G.me.inv.splice(idx, 1, ...(old ? [old] : [])); G.me[sl] = it; }   // 換下來的放回原本那一格
+    return done(); };
+  if (t.dataset.act && sel) { const a = t.dataset.act, it = sel.it;
+    if (a === 'cancel') { G.selItem = null; salvArm = 0; renderInv(); return; }
+    if (a === 'equip' && sel.where === 'bag') { const sl = slotOf(it);                // 「裝備」按鈕：飾品放第一個空的欄位（都滿了就換掉第 1 格）
+      if (sl === 'trinket') { const n = tSlots(), k = G.me.trinkets.slice(0, n).findIndex(x => !x); return put('t' + (k >= 0 ? k : 0)); }
+      return put(sl === 'seal' ? 'weapon' : sl); }
+    if (a === 'salv' && sel.where === 'bag') { if (precious(it) && salvArm !== it.id) { salvArm = it.id; renderInv(); return; }
+      G.me.inv.splice(G.me.inv.indexOf(it), 1); G.me.souls += salvValue(it); toast('分解獲得 ' + salvValue(it) + ' 魂晶', '#b49cff'); return done(); }
+    if (a === 'unseal' && sealOn(it) && G.me.inv.length < 24) { const s2 = detachSeal(it); if (s2) G.me.inv.push(s2); toast('拆下了' + (s2 ? s2.name : '刻印'), '#c475ff'); return done(); }
+    if (a === 'uneq' && canUnequip(sel)) { if (sel.slot === 'armor') G.me.armor = null; else G.me.trinkets[sel.ti] = null; G.me.inv.push(it); return done(); }
+    return; }
   if (t.dataset.eq) { const k = t.dataset.eq;
-    if (sel && sel.where === 'bag' && dropTargets(sel, tSlots()).has(k)) {          // 選著背包裡的東西 → 放進這一格
-      const it = sel.it, sl = slotOf(it), idx = G.me.inv.indexOf(it);
-      if (sl === 'seal') { const w = G.me.weapon; G.me.inv.splice(idx, 1); const old = attachSeal(w, it); if (old) G.me.inv.push(old); toast('「' + itemName(w) + '」裝上了' + it.name, '#c475ff'); return done(); }
-      if (sl !== 'trinket' && unmet(G.me, it).length) { toast('能力值不夠，還不能裝備', '#ff8a8a'); return; }
-      if (sl === 'trinket') { const ti = +k.slice(1), old = G.me.trinkets[ti]; G.me.inv.splice(idx, 1, ...(old ? [old] : [])); G.me.trinkets[ti] = it; }
-      else { const old = G.me[sl]; G.me.inv.splice(idx, 1, ...(old ? [old] : [])); G.me[sl] = it; }   // 換下來的放回原本那一格
-      return done(); }
+    if (sel && sel.where === 'bag' && dropTargets(sel, tSlots()).has(k)) return put(k);   // 選著背包裡的東西 → 放進這一格
     const it = k === 'weapon' ? G.me.weapon : k === 'armor' ? G.me.armor : G.me.trinkets[+k.slice(1)];
-    G.selItem = it && G.selItem !== it.id ? it.id : null; renderInv(); return; }
+    G.selItem = it && G.selItem !== it.id ? it.id : null; salvArm = 0; renderInv(); return; }
   if (t.dataset.drop && canUnequip(sel)) {                                            // 選著身上的防具 / 飾品 → 點背包空格 = 卸下
     if (sel.slot === 'armor') G.me.armor = null; else G.me.trinkets[sel.ti] = null; G.me.inv.push(sel.it); return done(); }
+  if (t.id === 'salvAll') {                                                           // 一鍵分解（按兩次）：沒強化、沒刻印的一般武器 / 防具
+    if (!salvAllArm) { salvAllArm = true; renderInv(); return; }
+    salvAllArm = false; let s = 0; G.me.inv = G.me.inv.filter(it => { if (junk(it)) { s += salvValue(it); return false; } return true; });
+    G.me.souls += s; if (s) { toast('分解獲得 ' + s + ' 魂晶', '#b49cff'); sfx.pick(); } G.selItem = null; renderInv(); save(); }
 });
-$('salvAll').addEventListener('click', () => { let s = 0;                                  // 分解所有「沒強化、沒刻印的一般武器 / 防具」
-  const sel = selected(), m = salvMode(sel);
-  if (m === 'salv') { G.me.inv.splice(G.me.inv.indexOf(sel.it), 1); G.me.souls += salvValue(sel.it); toast('分解獲得 ' + salvValue(sel.it) + ' 魂晶', '#b49cff'); G.selItem = null; sfx.pick(); renderInv(); save(); return; }
-  if (m === 'unseal') { if (G.me.inv.length >= 24) return; const s2 = detachSeal(sel.it); if (s2) G.me.inv.push(s2); recalc(G.me); G.selItem = null; sfx.pick(); renderInv(); save(); return; }
-  G.me.inv = G.me.inv.filter(it => { const sl = slotOf(it); if ((sl === 'weapon' || sl === 'armor') && it.rarity === 0 && !it.up) { s += salvValue(it); return false; } return true; });
-  G.me.souls += s; if (s) { toast('分解獲得 ' + s + ' 魂晶', '#b49cff'); sfx.pick(); } G.selItem = null; renderInv(); save(); });
 export let mapTab = 'map';
 function showMapTab() { for (const b of document.querySelectorAll<HTMLElement>('#mapTabs button')) b.classList.toggle('on', b.dataset.mt === mapTab);
   $('mapPane').hidden = mapTab !== 'map'; $('journal').hidden = mapTab !== 'journal'; renderMapFoot(mapTab === 'map' ? mapPick() : null); if (mapTab === 'journal') renderJournal(); else renderBigMap(); }

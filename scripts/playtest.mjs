@@ -299,7 +299,7 @@ const pageScript = async () => {
     const slot = k => document.querySelector('#invMenu [data-eq="' + k + '"]');   // 中間的裝備欄（選了東西之後點它 = 放進去）
     menus.toggleInv(); G.selItem = G.me.inv[0].id; menus.renderInv(); slot('weapon').click();
     if (G.me.weapon.fx !== 'bleed' || G.me.inv.length) throw new Error('刻印沒有裝上：' + JSON.stringify(G.me.weapon));
-    G.selItem = G.me.weapon.id; menus.renderInv(); document.getElementById('salvAll').click();   // 選著有刻印的武器 → 背包下面的按鈕變成「拆下刻印」
+    G.selItem = G.me.weapon.id; menus.renderInv(); document.querySelector('#cInfo [data-act="unseal"]').click();   // 選著有刻印的武器 → 左上的選中卡有「拆下刻印」
     if (G.me.weapon.fx || G.me.inv[0]?.fx !== 'bleed') throw new Error('刻印沒有拆下來');
     // 飾品：一開始 2 格，第 3 件要換掉一件
     const rb0 = [...RB.rbDead], bd0 = G.bossDead; RB.rbDead.clear(); G.bossDead = false;   // 還沒打倒主線 Boss → 2 格

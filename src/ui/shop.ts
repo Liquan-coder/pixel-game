@@ -77,19 +77,25 @@ function gearStats(w: Item, up: number): [string, number][] {
   const a = armorStats({ ...w, up }); return [['防禦', a.def], ['生命', a.hp]];
 }
 let justUp = 0;                                                          // 剛強化完的那一件：左邊（現在的等級）的卡片閃一下
-function forgeSide(w: Item, up: number, prev?: [string, number][], cls = '') {
-  const st = gearStats(w, up);
-  return '<div class="fside' + cls + '"><div class="fico"><img alt="" src="' + ICON_URL[w.type] + '"><b>+' + up + '</b></div>' +
-    st.map(([n, v], i) => '<div class="fst"><span>' + n + '</span><b>' + v + (prev && v > prev[i][1] ? '<small>+' + (v - prev[i][1]) + '</small>' : '') + '</b></div>').join('') + '</div>';
+/* 詳細頁：左 = 這件裝備（大圖示、+2 ▶ +3、數值 現在 → 之後）；右 = 強化需求（點一列看線索）+ 大按鈕（不能強化時寫原因） */
+function forgeLeft(w: Item, up: number, next: boolean, flash: string) {
+  const a = gearStats(w, up), b = next ? gearStats(w, up + 1) : null;
+  return '<div class="fleft"><div class="fhead"><button type="button" class="sbtn" data-fback>‹ 換一件</button><span style="color:' + RAR[w.rarity].c + '">' + itemName(w) + '</span></div>' +
+    '<div class="fbig' + flash + '"><img alt="" src="' + ICON_URL[w.type] + '"></div>' +
+    '<div class="fpill">+' + up + (next ? '<i>▶</i><b>+' + (up + 1) + '</b>' : '<small>最高</small>') + '</div>' +
+    '<div class="ftbl">' + a.map(([n, v], i) => '<div><span>' + n + '</span><b>' + v + (b ? '<i>→</i><em>' + b[i][1] + '</em><small>(+' + (b[i][1] - v) + ')</small>' : '') + '</b></div>').join('') + '</div></div>';
 }
-function needRow(icon: string, name: string, col: string, have: number, need: number) {
-  const short = need - have;
-  return '<div class="fneed' + (short > 0 ? ' lack' : '') + '"><img alt="" src="' + icon + '"><span style="color:' + col + '">' + name + '<small>' + (short > 0 ? '還缺 ' + short : '足夠') + '</small></span><b>' + have + ' / ' + need + '</b></div>';
+type Need = { k: string; icon: string; name: string; col: string; ok: boolean; val: string; clue: string };
+function needs(w: Item, c): Need[] {
+  const out: Need[] = [], M = MATS[c.mat], have = G.me.mats[c.mat] || 0;
+  if (c.page >= 0) { const ok = hasPage(c.page); out.push({ k: 'page', icon: PAGE_URL, name: '古代鍛造圖・' + PAGES[c.page].n, col: '#e8d8b0', ok, val: ok ? '✓ 已取得' : '✗ 未取得', clue: ok ? '已經找到了，鐵匠看得懂上面寫的' : '還沒找到，據說藏在地城的深處' }); }
+  const ri = REGION_MAT.indexOf(c.mat), sold = ri >= 0 && hasPage(ri);
+  out.push({ k: 'mat', icon: ORE_URL[c.mat], name: M.n, col: M.c, ok: have >= c.n, val: have + ' / ' + c.n,
+    clue: M.d.split(' · ')[0] + '會掉' + (c.mat === 'umat' ? '，買不到' : sold ? '，鐵匠這裡也有賣' : '') });
+  out.push({ k: 'gold', icon: COIN_URL, name: '金幣', col: 'var(--gold)', ok: G.me.gold >= c.gold, val: G.me.gold + ' / ' + c.gold, clue: '打倒怪物、把用不到的東西賣給商人' });
+  return out;
 }
-function pageRow(i: number) {                                          // 鍛造圖：有 / 沒有（不說在哪裡，要自己去地城找）
-  const ok = hasPage(i);
-  return '<div class="fneed' + (ok ? '' : ' lack') + '"><img alt="" src="' + PAGE_URL + '"><span style="color:#e8d8b0">古代鍛造圖・' + PAGES[i].n + '<small>' + (ok ? '已經找到' : '還沒找到 · 據說藏在地城的深處') + '</small></span><b>' + (ok ? '✓' : '✕') + '</b></div>';
-}
+let clueK = '';                                                          // 右上角顯示哪一列的線索（點一列切換）
 function renderForge(body: HTMLElement) {
   const list = forgeList(), sel = list.find(w => w.id === shopSel) || null;
   if (!sel) {                                                            // 第一層：選裝備
@@ -102,14 +108,14 @@ function renderForge(body: HTMLElement) {
     setFoot('', ''); return;
   }
   const up = sel.up || 0, c = upCost(up, sel), flash = justUp === sel.id ? ' flash' : ''; justUp = 0;   // 第二層：這一件的強化頁
-  const head = '<div class="fhead"><button type="button" class="sbtn" data-fback>‹ 換一件</button><span style="color:' + RAR[sel.rarity].c + '">' + itemName(sel) + '</span></div>';
-  if (!c) { body.innerHTML = head + '<div class="fcmp one">' + forgeSide(sel, up, undefined, flash) + '</div><p class="fmax">已經強化到最高（+' + maxUp(sel) + '）</p>';
-    setFoot('<button type="button" class="pri" disabled>已經 +' + maxUp(sel) + '</button>', ''); return; }
-  const M = MATS[c.mat];
-  body.innerHTML = head + '<div class="fcmp">' + forgeSide(sel, up, undefined, ' now' + flash) + '<div class="farr">▶</div>' + forgeSide(sel, up + 1, gearStats(sel, up), ' next') + '</div>' +
-    '<div class="flbl">需要</div><div class="fneeds">' + (c.page >= 0 ? pageRow(c.page) : '') + needRow(ORE_URL[c.mat], M.n, M.c, G.me.mats[c.mat] || 0, c.n) + needRow(COIN_URL, '金幣', 'var(--gold)', G.me.gold, c.gold) + '</div>' +
-    '<p class="hintp">' + M.n + '：' + M.d.split(' · ')[0] + '會掉</p>';
-  setFoot('<button type="button" class="pri" data-forge="' + sel.id + '"' + (canUpgrade(G.me, sel) ? '' : ' disabled') + '>強化到 +' + (up + 1) + '</button>', '');
+  setFoot('', '');
+  if (!c) { body.innerHTML = '<div class="fgrid one">' + forgeLeft(sel, up, false, flash) + '</div><p class="fmax">已經強化到最高（+' + maxUp(sel) + '）</p>'; return; }
+  const N = needs(sel, c), lack = N.find(n => !n.ok), cur = N.find(n => n.k === clueK) || lack || N[0];
+  const why = !lack ? '強化到 +' + (up + 1) : lack.k === 'page' ? '缺少古代鍛造圖' : lack.k === 'mat' ? MATS[c.mat].n + '不夠' : '金幣不夠';
+  body.innerHTML = '<div class="fgrid">' + forgeLeft(sel, up, true, flash) +
+    '<div class="fright"><div class="fneedh">強化需求<small>點一項看線索</small></div><div class="fclue">' + cur.clue + '</div><div class="fneeds">' +
+    N.map(n => '<button type="button" class="fneed' + (n.ok ? '' : ' lack') + (n === cur ? ' on' : '') + '" data-clue="' + n.k + '"><img alt="" src="' + n.icon + '"><span style="color:' + n.col + '">' + n.name + '</span><b>' + n.val + '</b></button>').join('') +
+    '</div><button type="button" class="pri fgo" data-forge="' + sel.id + '"' + (lack ? ' disabled' : '') + '>' + why + '</button></div></div>';
 }
 function renderShop() {
   $('shopGold').textContent = '金幣 ' + G.me.gold;
@@ -143,8 +149,9 @@ $('shopMenu').addEventListener('click', e => {
   if (t.dataset.stab) { shopTab = t.dataset.stab; shopSel = null; renderShop(); return; }
   if (t.dataset.s !== undefined) { shopSel = +t.dataset.s === shopSel ? null : +t.dataset.s; renderShop(); return; }
   if (t.dataset.sid) { shopSel = +t.dataset.sid === shopSel ? null : +t.dataset.sid; renderShop(); return; }
-  if (t.dataset.fw) { shopSel = +t.dataset.fw; renderShop(); $('shopBody').scrollTop = 0; return; }
-  if (t.hasAttribute('data-fback')) { shopSel = null; renderShop(); return; }
+  if (t.dataset.fw) { shopSel = +t.dataset.fw; clueK = ''; renderShop(); $('shopBody').scrollTop = 0; return; }
+  if (t.hasAttribute('data-fback')) { shopSel = null; clueK = ''; renderShop(); return; }
+  if (t.dataset.clue) { clueK = t.dataset.clue; renderShop(); return; }
   if (t.dataset.forge) { const w = forgeList().find(w => w.id === +t.dataset.forge); if (!w || !doUpgrade(G.me, w)) return;
     if (w === G.me.weapon || w === G.me.armor) recalc(G.me); justUp = w.id; sfx.level(); toast('強化成功：' + itemName(w), '#f2c14e'); renderShop(); save(); return; }
   if (t.dataset.buy !== undefined) { const o = vendor.stock[+t.dataset.buy]; if (!o || G.me.gold < o.price) return; const price = o.price;   // 先記下價格：藥水上限買完會漲價，扣的要是買的那一刻的價格

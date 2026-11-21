@@ -245,7 +245,7 @@ body:not(.touch) #controls{display:none}
 .req b{font-weight:400;color:var(--text);margin-right:6px}
 .req b.no{color:#ff6a5a}
 .scal{font-size:12px;color:#cdbfff}
-.stattbl{display:grid;grid-template-columns:auto 1fr;gap:1px 10px;font-size:12px;color:var(--muted);background:#0004;border:1px solid #4d416688;padding:6px 8px}
+.stattbl{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:2px 10px;font-size:12px;color:var(--muted)}   /* 兩欄：左 體力 / 暴擊 / 攻速，右 減傷 / 吸血 / 冷卻 */
 .stattbl b{color:var(--text);font-weight:400;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .stattbl .up,.keystats .up{color:var(--r1)} .stattbl .down,.keystats .down{color:var(--hp)}
 .shoplist{display:grid;gap:5px}
@@ -258,20 +258,8 @@ body:not(.touch) #controls{display:none}
 .shoprow:disabled{opacity:.4}
 /* 鐵匠強化：清單右邊的狀態 + 詳細頁（左右對照、需要的素材） */
 .shoprow .pr.fok{color:var(--r1);font-size:12px} .shoprow .pr.fno{color:var(--muted);font-size:12px}
-.fhead{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:15px;min-width:0}
+.fhead{display:flex;align-items:center;gap:10px;font-size:15px;min-width:0}
 .fhead span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fcmp{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}
-.fcmp.one{grid-template-columns:minmax(0,220px);justify-content:center}
-.fside{background:var(--panel2);border:2px solid var(--line);padding:8px;min-width:0}
-.fside.next{border-color:var(--gold);background:#3a2e1c;box-shadow:0 0 12px #f2c14e44}
-.fico{position:relative;display:flex;justify-content:center;margin-bottom:6px}
-.fico img{width:64px;height:64px;image-rendering:pixelated;background:#0005}
-.fico b{position:absolute;right:2px;bottom:-4px;font-weight:400;font-size:16px;color:var(--text);text-shadow:0 0 3px #000,0 0 3px #000}
-.fside.next .fico b{color:var(--gold)}
-.fst{display:flex;justify-content:space-between;gap:6px;font-size:13px;line-height:1.6;color:var(--muted)}
-.fst b{font-weight:400;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
-.fst small{font-size:11px;color:var(--r1);margin-left:3px}
-.farr{color:var(--gold);font-size:18px}
 .flbl{font-size:12px;color:var(--muted);margin:12px 2px 4px}
 .fneeds{display:grid;gap:5px}
 .fneed{display:grid;grid-template-columns:32px 1fr auto;gap:8px;align-items:center;background:var(--panel2);border:2px solid var(--line);padding:3px 10px 3px 3px}
@@ -281,7 +269,6 @@ body:not(.touch) #controls{display:none}
 .fneed b{font-weight:400;font-size:15px;font-variant-numeric:tabular-nums;color:var(--text)}
 .fneed.lack{border-color:#8a3a44} .fneed.lack small,.fneed.lack b{color:var(--hp)}
 .fmax{text-align:center;color:var(--gold);font-size:14px;margin:10px 0 0}
-.fside.flash{animation:fflash .7s ease-out}
 @keyframes fflash{0%{box-shadow:0 0 0 2px #fff,0 0 24px #f2c14e;border-color:#fff}100%{box-shadow:none}}
 .goldline{color:var(--gold)}
 #zoneHint{position:absolute;left:50%;transform:translateX(-50%);top:calc(96px + env(safe-area-inset-top,0px));background:#000c;border:2px solid #8a3446;padding:5px 14px;font-size:14px;text-align:center;white-space:nowrap;color:var(--gold);text-shadow:1px 1px 0 #000}
@@ -319,8 +306,6 @@ body:not(.touch) #controls{display:none}
 .touch #talk small{display:none}
 .matline{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:8px;font-size:12px;padding:5px 8px;background:#0005;border:1px solid #4d416688}
 .matline b{font-weight:400;color:var(--text);font-variant-numeric:tabular-nums}
-#salvAll.one{color:#ffb0b8;border-color:#8a3446;background:#3a1d24}
-#salvAll{margin-top:10px;width:100%;padding:7px;font-size:13px;background:var(--panel2);border:2px solid var(--line);color:var(--muted)}
 
 .screen{position:absolute;inset:0;display:grid;place-items:center;text-align:center;background:radial-gradient(ellipse at center,#05040a55 20%,#05040ae6 80%);padding:20px}
 .tbox{display:grid;gap:12px;justify-items:center;max-width:520px}
@@ -390,8 +375,69 @@ body:not(.touch) #controls{display:none}
 /* 角色頁：點一下選、再點發亮的格子放進去 */
 .eqslot.drop,.slot.drop{border-color:#ffe38a!important;box-shadow:0 0 0 1px #ffe38a66,inset 0 0 10px #ffe38a33;animation:dropglow 1s ease-in-out infinite}
 @keyframes dropglow{50%{box-shadow:0 0 0 1px #ffe38a22,inset 0 0 4px #ffe38a11}}
-.cinfo .seltip{flex:none;margin:6px 0 0;padding-top:6px;border-top:2px solid var(--line);font-size:12px;color:var(--muted);text-align:center}
 
 /* 武器右上角：裝著的刻印 */
 .slot img.sealb,.eqslot img.sealb{position:absolute;right:1px;top:1px;width:16px;height:16px;background:#0b0812;border:1px solid;padding:0;image-rendering:pixelated}
 .slot.sl.bad::after{top:auto;bottom:0}.eqslot.sl.bad::after{right:auto;left:3px}   /* 有刻印時「!」讓開 */
+
+/* ---- 角色頁（新版）：標題列放金幣 / 魂晶；左欄上面是「選中的物品」卡 + 按鈕，下面一直是角色數值 ---- */
+.phr{display:flex;align-items:center;gap:6px;min-width:0}
+.chip{font-size:13px;padding:4px 9px;background:#0006;border:2px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums}
+.chip.cg{color:var(--gold)} .chip.cs{color:var(--soul)}
+.sbtn.salv{font-size:12px;color:#ffb0b8;border-color:#8a3446;background:#2a1820;white-space:nowrap} .sbtn.salv.arm{background:#6a1d2e;color:#fff}
+.cinfo{container-type:inline-size}
+.selcard{flex:none;display:grid;grid-template-columns:40px minmax(0,1fr);gap:6px 8px;align-items:center;padding:6px 8px;margin-bottom:6px;background:#151c34;border:2px solid;box-shadow:0 0 10px #55a8ff22}
+.selcard .sacts{grid-column:1/-1;flex-direction:row}.selcard .sact{flex:1}       /* 窄的時候：按鈕排在下面一整排 */
+@container (min-width:360px){.selcard{grid-template-columns:40px minmax(0,1fr) auto}.selcard .sacts{grid-column:auto;flex-direction:column}.selcard .sact{flex:none}}   /* 夠寬：按鈕疊在右邊（跟示意圖一樣） */
+.selcard>img{width:40px;height:40px;image-rendering:pixelated;background:#0008;border:1px solid var(--line)}
+.selmid{min-width:0}
+.selname{display:flex;align-items:center;gap:6px;min-width:0}
+.selname b{font-weight:400;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.selname i{flex:none;font-style:normal;font-size:11px;padding:1px 5px;background:#26345e;color:#a8c8ff;white-space:nowrap}
+.selsum{font-size:12px;line-height:1.4;margin-top:2px;color:var(--text)} .selsum .up{color:var(--r1)} .selsum .down{color:var(--hp)} .selsum b{font-weight:400}
+.sacts{display:flex;gap:4px}
+.sact{font-size:12px;padding:4px 10px;background:var(--panel2);border:2px solid var(--line);white-space:nowrap;color:var(--muted)}
+.sact.pri{background:#2a5ad0;border-color:#5a8cff;color:#fff} .sact.warn{color:#ffb0b8;border-color:#8a3446;background:#3a1d24}
+.sact:disabled{opacity:.45}
+.card.det .iname{display:none} .card.det{margin-bottom:6px;padding:6px 8px}
+.cbox{background:#0004;border:2px solid var(--line);padding:6px 9px;margin-bottom:6px}
+.cbox .lbl{display:flex;justify-content:space-between;align-items:baseline;color:var(--text);letter-spacing:.1em}
+#attrList{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px}
+.cbag #bagGrid{grid-template-columns:repeat(5,minmax(0,1fr))}
+.matlist{grid-column:1/-1;display:grid;gap:4px}
+.matrow{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:8px;align-items:center;background:#0005;border:1px solid #4d416688;padding:2px 10px 2px 2px}
+.matrow img{width:28px;height:28px;image-rendering:pixelated}
+.matrow span{font-size:13px;line-height:1.25;min-width:0} .matrow small{display:block;font-size:10px;color:var(--muted)}
+.matrow b{font-weight:400;font-size:15px;font-variant-numeric:tabular-nums}
+/* ---- 商店 / 鐵匠：分頁直接放在標題列；強化詳細頁 = 左邊這件裝備、右邊需求 + 大按鈕 ---- */
+.shoph{flex-wrap:wrap} .shoph h2{flex:none}
+.shoph .tabs{flex:1 1 240px;margin:0;max-width:460px}
+.shoph .chip{margin-left:auto}
+.fgrid{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1fr);gap:12px;align-items:stretch}
+.fgrid.one{grid-template-columns:minmax(0,340px);justify-content:center}
+.fleft{background:#0004;border:2px solid var(--line);padding:8px;display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0}
+.fleft .fhead{align-self:stretch}
+.fbig{width:76px;height:76px;display:grid;place-items:center;background:#0008;border:2px solid var(--line)}
+.fbig img{width:64px;height:64px;image-rendering:pixelated}
+.fbig.flash{animation:fflash .7s ease-out}
+.fpill{display:flex;align-items:center;gap:10px;padding:3px 16px;background:#0006;border:2px solid var(--line);font-size:17px;font-variant-numeric:tabular-nums}
+.fpill i{font-style:normal;color:var(--gold);font-size:14px} .fpill b{font-weight:400;color:var(--gold)} .fpill small{font-size:12px;color:var(--gold)}
+.ftbl{align-self:stretch;background:#0006;border:1px solid #4d416688}
+.ftbl div{display:flex;justify-content:space-between;gap:8px;padding:5px 9px;font-size:13px}
+.ftbl div+div{border-top:1px solid #4d416666}
+.ftbl span{color:var(--muted)} .ftbl b{font-weight:400;white-space:nowrap;font-variant-numeric:tabular-nums}
+.ftbl i{font-style:normal;color:var(--muted);margin:0 5px} .ftbl em{font-style:normal;color:#fff} .ftbl small{font-size:12px;color:var(--r1);margin-left:4px}
+.fright{display:flex;flex-direction:column;gap:6px;min-width:0}
+.fneedh{font-size:13px;color:var(--text)} .fneedh small{font-size:11px;color:var(--muted);margin-left:8px}
+.fclue{font-size:12px;color:var(--gold);margin-top:-2px}
+button.fneed{width:100%;text-align:left;font-family:var(--font)}
+.fneed.on{box-shadow:0 0 0 1px #fff8}
+.fneed.lack{background:#3a1d24}
+.fneed:not(.lack) b{color:var(--r1)}
+.fgo{margin-top:auto;padding:10px;font-size:15px;border:2px solid var(--line);background:var(--panel2);color:var(--muted)}
+.fgo:not(:disabled){background:#3a2e1c;border-color:var(--gold);color:var(--gold);box-shadow:0 0 12px #f2c14e33}
+@media (max-width:600px){.fgrid{grid-template-columns:1fr}.phr .chip{padding:3px 6px;font-size:12px}}
+@media (max-height:500px){.selcard>img{width:34px;height:34px}.selcard{padding:4px 6px}.fbig{width:60px;height:60px}.fbig img{width:48px;height:48px}.fleft{gap:6px;padding:6px}}
+.cbag{container-type:inline-size}
+@container (max-width:240px){.bagtabs{display:grid;grid-template-columns:repeat(3,1fr)}}   /* 背包欄太窄：分頁排成兩排 */
+.bagtabs button{white-space:nowrap}

@@ -71,7 +71,7 @@
   </div>
 
   <div id="invMenu" class="panel char" hidden>
-    <div class="ph"><h2>角色<small id="invCount">0/24</small></h2><button class="sbtn" type="button" data-close>關閉</button></div>
+    <div class="ph"><h2>角色<small id="invCount">0/24</small></h2><div class="phr"><button type="button" class="sbtn salv" id="salvAll" hidden></button><span class="chip cg" id="invGold"></span><span class="chip cs" id="invSouls"></span><button class="sbtn" type="button" data-close>關閉</button></div></div>
     <div class="cwrap">
       <section class="cinfo" id="cInfo"></section>
       <section class="cdoll">
@@ -79,17 +79,14 @@
         <div id="eqSlots"></div>
       </section>
       <section class="cbag">
-        <div class="bagtabs" id="bagTabs"><button type="button" data-f="all" class="on">全部</button><button type="button" data-f="weapon">武器</button><button type="button" data-f="armor">防具</button><button type="button" data-f="trinket">飾品</button><button type="button" data-f="seal">刻印</button></div>
+        <div class="bagtabs" id="bagTabs"><button type="button" data-f="all" class="on">全部</button><button type="button" data-f="weapon">武器</button><button type="button" data-f="armor">防具</button><button type="button" data-f="trinket">飾品</button><button type="button" data-f="seal">刻印</button><button type="button" data-f="mat">素材</button></div>
         <div id="bagGrid"></div>
-        <div class="matline" id="matLine"></div>
-        <button id="salvAll" type="button">分解所有沒強化過的一般武器和防具</button>
       </section>
     </div>
   </div>
 
   <div id="shopMenu" class="panel" hidden>
-    <div class="ph"><h2><span id="shopName">流浪商人</span><small class="goldline" id="shopGold"></small></h2><button class="sbtn" type="button" data-close>離開</button></div>
-    <div class="tabs"><button type="button" data-stab="forge" id="forgeTab" hidden>強化</button><button type="button" data-stab="buy" class="on">購買</button><button type="button" data-stab="sell">出售</button></div>
+    <div class="ph shoph"><h2 id="shopName">流浪商人</h2><div class="tabs"><button type="button" data-stab="forge" id="forgeTab" hidden>強化</button><button type="button" data-stab="buy" class="on">購買</button><button type="button" data-stab="sell">出售</button></div><span class="chip cg" id="shopGold"></span><button class="sbtn" type="button" data-close>離開</button></div>
     <div id="shopBody" class="pbody"></div>
     <div id="shopFoot" class="pfoot" hidden></div>
   </div>
