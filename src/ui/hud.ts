@@ -63,7 +63,7 @@ function restartTimer(el) { clearTimeout(el._t); el._t = setTimeout(() => el.rem
 function placePickBox(d) {
   const box = $('pickBox'), w = box.offsetWidth, h = box.offsetHeight, vw = window.innerWidth, vh = window.innerHeight;
   const sx = (d.x - view.x) * SCALE, sy = (d.y - 8 - view.y) * SCALE, gap = 12 * SCALE;   // 裝備在螢幕上的位置（CSS 像素）
-  const left = G.me.x > d.x ? sx - gap - w : sx + gap;                 // 角色在右 → 卡片放左
+  const left = sx + gap;                                               // 卡片固定放在裝備的右邊（太靠右邊緣時下面的 clamp 會把它推回畫面內）
   const x = Math.round(clamp(left, 8, vw - w - 8)), y = Math.round(clamp(sy - h / 2, 8, vh - h - 8));
   const k = x + ',' + y; if (hudCache.pickPos !== k) { hudCache.pickPos = k; box.style.left = x + 'px'; box.style.top = y + 'px'; }
 }
