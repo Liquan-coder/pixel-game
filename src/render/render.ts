@@ -31,7 +31,8 @@ export const view = { x: 0, y: 0 };                                  // 畫面�
 export function render() {
   G.frameNo++;
   ctx.setTransform(F, 0, 0, F, 0, 0); ctx.imageSmoothingEnabled = false;
-  const sx = G.shakeT > 0 ? rr(-G.shakeMag, G.shakeMag) : 0, sy = G.shakeT > 0 ? rr(-G.shakeMag, G.shakeMag) : 0;
+  const shk = G.shakeT > 0 && !G.paused && SET.shake;                  // 暫停（地圖、選單開著）時不震：震動的倒數只在遊戲進行時才會減少
+  const sx = shk ? rr(-G.shakeMag, G.shakeMag) : 0, sy = shk ? rr(-G.shakeMag, G.shakeMag) : 0;
   const tx = G.me.x - LW / 2, ty = G.me.y - 8 - LH / 2, ck = 1 - Math.pow(.8, Math.min(3, camDt * 60));   // 跟隨速度跟幀率無關（120Hz 手機不會忽快忽慢）
   cam.x += (tx - cam.x) * ck; cam.y += (ty - cam.y) * ck;
   const maxX = Math.max(0, MW * TS - LW), maxY = Math.max(0, MH * TS - LH);

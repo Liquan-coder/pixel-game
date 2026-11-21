@@ -5,6 +5,7 @@ import { BONEC } from '../world/bossAI';
 import { WFX } from '../game/combat';
 import { addLight } from './enemy';
 import { camDt } from '../main';
+import { shake } from '../game/worldUpdate';
 
 export const STARC = ['#ffffff', '#e8dcff', '#c8b0ff', '#9a7cff', '#8fb0ff'];
 export const asn = v => Math.floor(v / HK) * HK;
@@ -201,7 +202,7 @@ export function enemyJuice(e, sp) {
       else { wf = walkFrame(e, dt, moving, rel, 4, .85);                 // 走路圖：一步兩張（抬腳 → 踩下），踩下那一刻揚塵、地面震
         if (wf >= 0) { lift = wf % 2; rot = (wf < 2 ? .02 : -.02) * Math.min(1, rel);
           if (e._wf !== undefined && wf !== e._wf && wf % 2 === 0) { dustPuff(e.x + (wf ? 4 : -4), e.y, 5, 28);
-            if (G.me && Math.hypot(e.x - G.me.x, e.y - G.me.y) < 90) { G.shakeMag = Math.max(G.shakeMag, .8); G.shakeT = Math.max(G.shakeT, .06); } }
+            if (G.me && Math.hypot(e.x - G.me.x, e.y - G.me.y) < 90) shake(.8, .06); }
           e._wf = wf; } }
       e._st = st;
       break; }
