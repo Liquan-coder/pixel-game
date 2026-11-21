@@ -24,12 +24,9 @@ function frame(N: number, fill: string, rim: string, hi: string, sh: string) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${N} ${N}" shape-rendering="crispEdges">${body}</svg>`;
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
-//            底（半透明）     邊         亮邊        暗邊
-const SKIN = {
-  bAtk:   ['#3a2a1a8c', '#a87c44cc', '#e0b468d9', '#5a3c1cd9'],
-  bSkill: ['#2420408c', '#7563b0cc', '#a894e8d9', '#3a2c6ad9'],
-  bDodge: ['#1a28308c', '#4a90a0cc', '#7ac8d8d9', '#1e4a58d9'],
-  bPot:   ['#2a14208c', '#9a3a4ccc', '#d86478d9', '#541a28d9'],
-};
+// 四顆都用同一套顏色（跟右上角「選單 / 地圖 / 角色」的面板一樣的紫灰色），只有大小不同
+//          底（半透明）   邊          亮邊         暗邊
+const SKIN_ALL = ['#1d18288c', '#4d4166cc', '#7a6c9ad9', '#2a2338d9'];
+const SKIN = { bAtk: SKIN_ALL, bSkill: SKIN_ALL, bDodge: SKIN_ALL, bPot: SKIN_ALL };
 const PX = 3.6;                                             // 每格大概幾個螢幕像素：四顆按鈕一樣粗，看起來才是同一套
 for (const [id, c] of Object.entries(SKIN)) { const el = $(id), w = parseFloat(getComputedStyle(el).width) || 60; el.style.backgroundImage = frame(Math.round(w / PX), c[0], c[1], c[2], c[3]); }
