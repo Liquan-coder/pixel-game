@@ -207,7 +207,7 @@ body:not(.touch) #controls{display:none}
 .cinfo .cscroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}
 .cinfo .card{margin-bottom:6px}
 .keystats.sm b{font-size:16px}
-@media (max-width:600px){.cwrap{grid-template-columns:1fr;overflow-y:auto;touch-action:pan-y}.cwrap>section{overflow:visible}.cdoll{order:-1}.cinfo{order:1}}
+@media (max-width:600px){.cwrap{grid-template-columns:1fr;overflow-y:auto;touch-action:pan-y}.cwrap>section,.cwrap>section.cbag,.cbag #bagGrid{overflow:visible}.cdoll{order:-1}.cinfo{order:1}}
 .keystats{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:8px}
 .keystats div{background:#0006;border:2px solid var(--line);padding:4px 6px;text-align:center}
 .keystats small{display:block;font-size:11px;color:var(--muted);letter-spacing:.1em}
@@ -403,6 +403,10 @@ body:not(.touch) #controls{display:none}
 .cbox .lbl{display:flex;justify-content:space-between;align-items:baseline;color:var(--text);letter-spacing:.1em}
 #attrList{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px}
 .cbag #bagGrid{grid-template-columns:repeat(5,minmax(0,1fr))}
+/* 背包太滿：分頁固定在上面，只有格子那一塊往下捲 */
+.cwrap>section.cbag{display:flex;flex-direction:column;overflow:hidden}
+.cbag .bagtabs{flex:none}
+.cbag #bagGrid{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;align-content:start;padding:2px}
 .matlist{grid-column:1/-1;display:grid;gap:4px}
 .matrow{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:8px;align-items:center;background:#0005;border:1px solid #4d416688;padding:2px 10px 2px 2px}
 .matrow img{width:28px;height:28px;image-rendering:pixelated}
