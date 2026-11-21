@@ -16,7 +16,7 @@ import { drawCoin } from '../game/worldUpdate';
 import { drawNum, drawPlayer, drawShadow, heroSlices } from './player';
 import { drawBlind, drawStatus } from '../game/status';
 import { SET } from '../ui/pause';
-import { artLine, artPath, asn, drawCrescent, drawLance, drawOrb, drawQuake, drawRibbon, drawRune, drawSmear, drawSpikes, drawStar, drawWarp, drawWaveP, fxCols } from './fx';
+import { artLine, artPath, asn, drawArrow, drawCrescent, drawLance, drawOrb, drawQuake, drawRibbon, drawRune, drawSmear, drawSpikes, drawStar, drawWarp, drawWaveP, fxCols } from './fx';
 import { addLight, drawCamp, drawDrop, drawEnemy, drawTelegraph } from './enemy';
 import { drawMerchant, merchant } from '../ui/shop';
 import { drawChests } from '../world/chests';
@@ -117,6 +117,9 @@ export function render() {
     else if (p.kind === 'orb') { const pr = p.big + Math.sin(G.time * 20) * .8; drawOrb(p.x, p.y, pr, ['#4a2a9a', '#9a7cff', '#ffffff']);
       for (let i = 0; i < 4; i++) { const a = G.time * 6 + i * TAU / 4; drawStar(p.x + Math.cos(a) * (pr + 4), p.y + Math.sin(a) * (pr + 4) * .7, 1.5, '#e8dcff'); } addLight(L, p.x, p.y, 50, 3); }
     else if (p.kind === 'wave') { drawWaveP(p); addLight(L, p.x, p.y, 40, 3); }
+    else if (p.kind === 'boom') { const a = G.time * 22; drawWaveP({ x:p.x, y:p.y, vx:Math.cos(a), vy:Math.sin(a), R:p.R, th:p.th, cols:p.cols }); addLight(L, p.x, p.y, 36, 3); }   // 月牙：邊飛邊轉
+    else if (p.kind === 'arrow') { drawArrow(p.x, p.y, Math.atan2(p.vy, p.vx), p.big ? 16 : 11, p.cols, p.big); if (p.big) addLight(L, p.x, p.y, 30, 3); }
+    else if (p.kind === 'rain') { const q = p.life / .14; if (q < 1) drawArrow(p.x, p.y - q * 70, Math.PI / 2, 11, p.cols, false); }   // 箭雨：最後 0.14 秒從天上掉下來
     else if (p.kind === 'claw') { drawWaveP(p); addLight(L, p.x, p.y, 34, 1); }
     else if (p.kind === 'ember') { drawOrb(p.x, p.y, 4.5, p.cols || FIREC); addLight(L, p.x, p.y, 30, 1); }
     else if (p.kind === 'snowball') { ctx.globalAlpha = .3; ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(p.x, p.y + p.r + 3, p.r, p.r * .35, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;   // 會反彈的大雪球（雪原巨人）

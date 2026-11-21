@@ -42,7 +42,16 @@ Object.assign(UQ, {
   deepstaff: { type: 'staff', name: '深淵祭司杖', base: 19, fx: 'frost', aff: { cdr: 18, crit: 9, speed: 8 }, req: { int: 24 }, scale: { int: 1.3 },
     lore: '沉沒神殿的祭司用來「關上」星星的手杖。杖頭的寶石裡，有一片小小的夜空。', from: '幽影沼澤・沉沒神殿地底' },
 } as Record<string, UniqueDef>);
-for (const k of ['royalguard', 'forgehammer', 'deepstaff']) { UQ_REQ[k] = UQ[k].req; if (UQ[k].scale) UQ_SCALE[k] = UQ[k].scale; UQ_BY_NAME[UQ[k].name] = k; }
+/* ================= 自己一種武器的獨特武器（月牙刀、雙頭刀、暗月大劍：動作和技能都是自己的，見 game/combat.ts） ================= */
+Object.assign(UQ, {
+  silktwin: { type: 'twinblade', name: '巢母雙頭刀', base: 16, fx: 'bleed', aff: { speed: 10, crit: 6 }, req: { dex: 13, str: 8 },
+    lore: '巢母的兩根毒牙，用蛛絲綁在同一根骨頭的兩端。轉起來的時候，像一張會咬人的網。', from: '迷霧森林・蛛巢洞窟' },
+  sandcrescent: { type: 'crescent', name: '沙王的月牙刀', base: 16, fx: 'shock', aff: { crit: 8, cdr: 10 }, req: { dex: 13, str: 11 },
+    lore: '沙之王每晚對著月亮祈禱，月亮就把自己的一角借給了他。丟出去的刀，總會回到主人手上。', from: '骸骨荒地・沙埋神殿' },
+  darkmoon: { type: 'darkmoon', name: '暗月大劍', base: 23, fx: 'frost', aff: { crit: 6, cdr: 12 }, req: { str: 16, int: 18 }, scale: { str: .5, int: .7 },
+    lore: '霜墓的騎士一直等著光回來。光沒有回來，月亮卻來了——落在他的劍上，再也沒有離開。', from: '霜寒雪原・霜墓' },
+} as Record<string, UniqueDef>);
+for (const k of ['royalguard', 'forgehammer', 'deepstaff', 'silktwin', 'sandcrescent', 'darkmoon']) { UQ_REQ[k] = UQ[k].req; if (UQ[k].scale) UQ_SCALE[k] = UQ[k].scale; UQ_BY_NAME[UQ[k].name] = k; }
 
 /* ================= 獨特防具 / 飾品 =================
    新制（data/gear.ts）：沒有物品等級。防具的防禦 / 生命看類型（法袍 = 輕、皮甲 = 中、鎖甲 = 重），

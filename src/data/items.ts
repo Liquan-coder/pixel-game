@@ -22,6 +22,13 @@ export const WT = {
   hammer:{name:'戰鎚',base:24,cd:.8,range:27,arc:150,stam:22,skill:'quake',sn:'三重震波',scd:9,trait:'每一下都往下砸',sd:'連砸三下，震波一圈比一圈大（每圈 200%）並暈眩敵人'},
   scythe:{name:'鐮刀',base:14,cd:.5,range:33,arc:200,stam:13,skill:'reap',sn:'死神收割',scd:8,trait:'掃一大圈、打中會回血',sd:'把周圍的敵人拉過來一起砍（260%），每打中一隻回 4% 生命'},
   wolfblade:{name:'狼牙雙刃',base:14,cd:.38,range:24,arc:130,stam:9,skill:'wolfrush',sn:'狼影連襲',scd:7,trait:'狼王的獠牙',sd:'化為狼影，連續撲向三個敵人（每下 180%），期間無敵'},
+  bow:{name:'長弓',base:13,cd:.5,range:200,arc:0,stam:10,ranged:true,skill:'arrowrain',sn:'箭雨',scd:7,trait:'箭飛得越遠越痛',sd:'往前方射上天，落下一片箭雨（10 支，每支 90%）'},
+  greatsword:{name:'大劍',base:26,cd:.86,range:34,arc:160,stam:22,skill:'cleave',sn:'破山斬',scd:8,trait:'揮劍時不會被打退、受傷減少',sd:'把劍舉過頭往前劈，地面裂出一條直線（380%）並暈眩敵人'},
+  rapier:{name:'細劍',base:10,cd:.3,range:36,arc:0,stam:8,skill:'flurry',sn:'百花刺',scd:6,trait:'一直刺同一隻，越刺越容易暴擊',sd:'往前連刺八下（每下 70%），最後一下一定暴擊'},
+  // 下面三種只有獨特武器（data/uniques.ts）才有：不會隨機掉、商人不賣
+  crescent:{name:'月牙刀',base:14,cd:.44,range:30,arc:150,stam:12,skill:'moonring',sn:'月輪迴旋',scd:7,trait:'第三下把刀氣丟出去，還會飛回來',sd:'丟出三道月牙，飛出去再飛回手上，來回都會砍到（每道 150%）'},
+  twinblade:{name:'雙頭刀',base:15,cd:.34,range:30,arc:130,stam:10,skill:'bladewheel',sn:'旋刃風車',scd:8,trait:'前後兩頭一起砍，四連擊',sd:'雙頭刀在身邊轉 1.5 秒，可以邊轉邊走（每 0.15 秒砍一下，每下 60%）'},
+  darkmoon:{name:'暗月大劍',base:20,cd:.78,range:34,arc:150,stam:20,skill:'moonbeam',sn:'暗月光波',scd:7,trait:'打中會存月光，第三下全部放出去',sd:'舉劍吸收月光，往前放出一道巨大的月光劍浪（400%），一路穿透'},
 };
 /* 顏色（沒有品階了，只用來分辨是哪一種東西）：0 一般、2 地區防具 / 飾品、3 刻印（或裝了刻印的武器）、4 獨特。m 只給舊存檔換算用 */
 export const RAR = [
@@ -165,7 +172,7 @@ export function fixGear(it: Item): Item | null {
   if (TT[it.type]) { if (!it.tk || !TRINKETS[it.tk]) { const n = makeTrinket(it.type === 'ring' ? 'hawk' : 'life'); n.id = it.id; return n; } it.aff = {}; return it; }
   return null;
 }
-export const DROP_WEAPONS = ['sword', 'dagger', 'axe', 'spear', 'staff', 'katana', 'hammer', 'scythe'];   // 會從怪物身上掉、商人會賣的武器（狼牙雙刃只有狼王會掉）
+export const DROP_WEAPONS = ['sword', 'dagger', 'axe', 'spear', 'staff', 'katana', 'hammer', 'scythe', 'bow', 'greatsword', 'rapier'];   // 會從怪物身上掉、商人會賣的武器（狼牙雙刃、月牙刀、雙頭刀、暗月大劍只有獨特的）
 function pickWeaponType() {                                              // 你能裝備的武器類型比較容易掉（權重 3：1）
   const pl = G.me; if (!pl) return pick(DROP_WEAPONS);
   const w = DROP_WEAPONS.map(t => meets(pl, { type: t, ilvl: 0, slot: 'weapon' } as Item) ? 3 : 1), sum = w.reduce((a, b) => a + b, 0);

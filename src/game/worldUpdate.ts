@@ -33,25 +33,29 @@ function updateProjectiles(dt) {
       if (tg && !tg.dead) { const sp = Math.hypot(p.vx, p.vy), cur = Math.atan2(p.vy, p.vx), want = Math.atan2(tg.y - 6 - p.y, tg.x - p.x);
         let d = want - cur; d = Math.atan2(Math.sin(d), Math.cos(d)); const a = cur + Math.max(-p.home * dt, Math.min(p.home * dt, d)); p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; } }
     if (p.owner === 'e') bossProjMotion(p, dt);                        // Boss 彈幕：轉彎 / 停住再追 / 結界裡反彈
+    if (p.ret) boomMotion(p, dt);                                        // 月牙刀的月牙：飛出去一段，再飛回主人手上
     p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
-    let dead = p.life <= 0 || (!p.arena && BLOCKP.has(tileAt(Math.floor(p.x / TS), Math.floor((p.y + 6) / TS))));
+    let dead = p.life <= 0 || (p.kind !== 'rain' && !p.arena && BLOCKP.has(tileAt(Math.floor(p.x / TS), Math.floor((p.y + 6) / TS))));
+    if (p.back && Math.hypot(p.by.x - p.x, p.by.y - 7 - p.y) < 12) dead = true;   // 月牙飛回手上
     if (!dead && p.arena) dead = bounceIn(p);
     if (p.kind === 'fire' && Math.random() < .8) G.parts.push({ x:p.x, y:p.y, vx:rr(-15, 15), vy:rr(-15, 15), life:.3, max:.3, col: Math.random() < .5 ? '#f2c14e' : '#e8743b', s:2 });
     if (p.kind === 'ember' && Math.random() < .7) G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:-p.vx * .1, vy:-p.vy * .1 - 10, life:.35, max:.35, col:pick(p.cols ? [p.cols[1], p.cols[2]] : ['#ffb040', '#ff6a2a']), s:1 });
     if (p.kind === 'glob' && Math.random() < .5) G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:0, vy:10, life:.4, max:.4, col:p.cols ? p.cols[1] : '#4fbf5a', s:1, g:60 });
     if (p.kind === 'claw' && Math.random() < .7) G.parts.push({ x:p.x + rr(-3, 3), y:p.y + rr(-3, 3), vx:-p.vx * .1, vy:-p.vy * .1, life:.3, max:.3, col:pick(p.cols ? [p.cols[1], '#ffffff'] : ['#ff5a5a', '#ffd0d0']), star:rr(.6, 1.6), drag:3 });
-    if ((p.kind === 'bolt' && Math.random() < .6) || p.kind === 'orb' || (p.kind === 'wave' && Math.random() < .8))
-      G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:-p.vx * .1 + rr(-15, 15), vy:-p.vy * .1 + rr(-15, 15), life:rr(.2, .4), max:.4, col:pick(p.kind === 'wave' && p.cols ? [p.cols[1], '#ffffff'] : STARC), star:rr(.6, p.kind === 'orb' ? 2.4 : 1.6), drag:3 });
+    if ((p.kind === 'bolt' && Math.random() < .6) || p.kind === 'orb' || ((p.kind === 'wave' || p.kind === 'boom') && Math.random() < .8) || (p.kind === 'arrow' && Math.random() < .5))
+      G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:-p.vx * .1 + rr(-15, 15), vy:-p.vy * .1 + rr(-15, 15), life:rr(.2, .4), max:.4, col:pick((p.kind === 'wave' || p.kind === 'boom' || p.kind === 'arrow') && p.cols ? [p.cols[1], '#ffffff'] : STARC), star:rr(.6, p.kind === 'orb' ? 2.4 : 1.6), drag:3 });
     projTrail(p);                                                      // Boss 專屬子彈的拖尾（world/bossThemes.ts）
     if (p.kind === 'spore' && Math.random() < .3) G.parts.push({ x:p.x, y:p.y, vx:0, vy:-5, life:.4, max:.4, col:'#c46ad8', s:1 });
     if (!dead && p.owner === 'e') {
       for (const pl of G.players) if (!dead && Math.hypot(pl.x - p.x, pl.y - 6 - p.y) < p.r + pl.r - 4) { G.hitCtx = p.hc || null; hurtPlayer(pl, p.dmg, p.x, p.y, p.fx); G.hitCtx = null; dead = true; }   // 打到哪個玩家就傷哪個
-    } else if (!dead && p.owner === 'p') {
+    } else if (!dead && p.owner === 'p' && p.kind !== 'rain') {
       for (const e of targets(p.by)) if (Math.hypot(e.x - p.x, e.y - 6 - p.y) < p.r + e.r) {
-        if (p.pierce) { if (p.hit.has(e)) continue; p.hit.add(e); damageEnemy(p.by, e, p.mult, p.x, p.y, { heavy:!p.light }); continue; }   // light = 長劍第三下的小劍氣（不停頓）
-        if (p.kind === 'fire') explode(p); else if (p.kind === 'orb') explodeOrb(p); else damageEnemy(p.by, e, p.mult, p.x, p.y);
+        const m = projMult(p, e);
+        if (p.pierce) { if (p.hit.has(e)) continue; p.hit.add(e); damageEnemy(p.by, e, m, p.x, p.y, { heavy:!p.light }); continue; }   // light = 小劍氣、普通的箭（不停頓）
+        if (p.kind === 'fire') explode(p); else if (p.kind === 'orb') explodeOrb(p); else damageEnemy(p.by, e, m, p.x, p.y);
         dead = true; p.exploded = true; break; }
     }
+    if (dead && p.kind === 'rain') rainLand(p);
     if (dead) { if (p.kind === 'fire' && !p.exploded) explode(p); if (p.kind === 'orb' && !p.exploded) explodeOrb(p); if (p.shatter) shatter(p); G.projs.splice(i, 1); }
   }
 }
@@ -65,6 +69,27 @@ function bossProjMotion(p, dt) {
   if (p.pause) { const [t1, t2, sp] = p.pause; p.age = (p.age || 0) + dt;
     if (!p.held && p.age > t1) { p.held = 1; p.vx = p.vy = 0; }
     else if (p.held === 1 && p.age > t1 + t2) { p.held = 2; const tg = nearestPlayer(p.x, p.y), a = Math.atan2(tg.y - 6 - p.y, tg.x - p.x); p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; } }
+}
+/* 長弓的箭：飛越遠越痛。射出去的地方 → 打中的地方，0 px ×0.8、150 px 以上 ×1.35；遠距離命中會閃一圈白光 */
+const FAR = 150;
+function projMult(p, e) {
+  if (!p.far) return p.mult;
+  const d = Math.hypot(p.x - p.x0, p.y - p.y0), k = Math.min(1, d / FAR);
+  if (k > .8) G.fx.push({ k:'warp', x:e.x, y:e.y - 8, r0:3, r1:14, th:2, t:0, d:.18, col:'#ffffff' });
+  return p.mult * (.8 + .55 * k);
+}
+function boomMotion(p, dt) {
+  p.age = (p.age || 0) + dt;
+  if (p.age < p.ret) { const k = 1 - 1.6 * dt; p.vx *= k; p.vy *= k; return; }            // 去程：慢慢減速
+  if (!p.back) { p.back = true; p.hit = new Set(); p.sp = Math.max(260, Math.hypot(p.vx, p.vy) * 1.4); }   // 回程：同一隻可以再被砍一次
+  const dx = p.by.x - p.x, dy = p.by.y - 7 - p.y, d = Math.hypot(dx, dy) || 1; p.sp += 500 * dt;
+  p.vx = dx / d * p.sp; p.vy = dy / d * p.sp;
+}
+/* 箭雨：每一支箭等 wait 秒落地（期間不會打到東西），落地時炸一小圈 */
+function rainLand(p) {
+  aoeHit(p.by, p.x, p.y, 12, p.mult);
+  G.fx.push({ k:'warp', x:p.x, y:p.y, r0:2, r1:10, th:2, t:0, d:.18, col:p.cols ? p.cols[1] : '#ffffff' });
+  for (let i = 0; i < 5; i++) { const a = rr(0, TAU), v = rr(30, 80); G.parts.push({ x:p.x, y:p.y, vx:Math.cos(a) * v, vy:Math.sin(a) * v * .5 - 20, life:.3, max:.3, col:pick(['#d8ccb0', '#b8a888', '#ffffff']), s:1, g:120, drag:3 }); }
 }
 function bounceIn(p): boolean {
   const A = p.arena, dx = p.x - A.x, dy = p.y - A.y, L = Math.hypot(dx, dy), m = A.R - p.r;

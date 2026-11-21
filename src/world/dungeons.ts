@@ -45,14 +45,14 @@ export const DUNGEONS: Dungeon[] = [
   { id: 'grotto', name: '潮音石窟', style: 'grotto', ent: [226, 484], lv: 12, kinds: ['crabT', 'frogG'], boss: 'tidecrab', sig: 'tideshell', uq: 'tidespear',
     lore: { title: '石窟裡的貝殼', text: '「把耳朵貼上去，能聽見海浪——還有一首很久以前的搖籃曲。」' } },
   // ---- 迷霧森林 ----
-  { id: 'nest', name: '蛛巢洞窟', style: 'cave', ent: [240, 395], lv: 20, kinds: ['spiderF', 'batF'], boss: 'broodmother', sig: 'silkmail',
+  { id: 'nest', name: '蛛巢洞窟', style: 'cave', ent: [240, 395], lv: 20, kinds: ['spiderF', 'batF'], boss: 'broodmother', sig: 'silkmail', uq: 'silktwin',
     lore: { title: '蛛網上的字', text: '「巢母從來不出洞。牠在等一個會唱歌的人，來把網上的星星摘走。」' } },
   { id: 'roots', name: '樹根地穴', style: 'crypt', ent: [345, 322], lv: 22, kinds: ['ghoulR', 'wraithR'], boss: 'rootheart', sig: 'rootheart',
     lore: { title: '根上刻的名字', text: '「古樹把死去的守林人收進根裡。他們的名字，一年一年長進了木頭。」' } },
   // ---- 骸骨荒地 ----
   { id: 'windcave', name: '風蝕岩窟', style: 'cave', ent: [28, 150], lv: 30, kinds: ['beetleS', 'batS'], boss: 'scorpion', sig: 'sandeye',
     lore: { title: '岩壁上的風痕', text: '「風在這裡刻了一千年，刻出來的是一隻眼睛。它還在看著天空。」' } },
-  { id: 'sandtemple', name: '沙埋神殿', style: 'crypt', ent: [168, 112], lv: 32, kinds: ['ghoulS', 'wraithS'], boss: 'sandking', sig: 'sandwrap',
+  { id: 'sandtemple', name: '沙埋神殿', style: 'crypt', ent: [168, 112], lv: 32, kinds: ['ghoulS', 'wraithS'], boss: 'sandking', sig: 'sandwrap', uq: 'sandcrescent',
     lore: { title: '神殿的祭文', text: '「沙之王向星星祈求永生。星星答應了，可是忘了告訴他，永生是很長很長的寂寞。」' } },
   // ---- 熔岩高地 ----
   { id: 'lavatube', name: '熔岩隧道', style: 'cave', ent: [232, 42], lv: 42, kinds: ['spiderL', 'impL'], boss: 'salamander', sig: 'magmacore',
@@ -62,7 +62,7 @@ export const DUNGEONS: Dungeon[] = [
   // ---- 霜寒雪原 ----
   { id: 'icecave', name: '冰晶洞窟', style: 'cave', ent: [620, 122], lv: 55, kinds: ['spiderI', 'batI'], boss: 'icequeen', sig: 'icering',
     lore: { title: '冰裡的歌', text: '「冰晶女王只會唱一首歌，那是她小時候，一個戴尖帽的人教她的。」' } },
-  { id: 'frostcrypt', name: '霜墓', style: 'crypt', ent: [470, 40], lv: 58, kinds: ['ghoulI', 'wraithI'], boss: 'frostknight', sig: 'frostplate',
+  { id: 'frostcrypt', name: '霜墓', style: 'crypt', ent: [470, 40], lv: 58, kinds: ['ghoulI', 'wraithI'], boss: 'frostknight', sig: 'frostplate', uq: 'darkmoon',
     lore: { title: '騎士的誓言', text: '「直到光回來為止，我不會倒下。」墓碑上的字，被冰封得像昨天才刻的。' } },
   // ---- 幽影沼澤 ----
   { id: 'rotcave', name: '腐根洞窟', style: 'cave', ent: [425, 445], lv: 68, kinds: ['frogP', 'beetleP'], boss: 'toadking', sig: 'rotleather',

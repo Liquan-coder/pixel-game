@@ -121,6 +121,64 @@ const GEN = {
     wrap(g, c, 30, 38, 1, ['K', 'L', 'x']);
     for (let x = c - 1; x <= c + 2; x++) { wset(g, x, 56, '7'); wset(g, x, 57, '9'); }
     return { rows: wrows(g), grip: [c, 34] }; },
+  bow() { const c = 15, g = wgrid(31, 13);                              // 長弓：圖的「上方」= 射出去的方向。弓背在前、兩端往後彎，弦在後面
+    for (let x = 0; x < 31; x++) { const u = (x - c) / 15, y = Math.round(2 + 8 * u * u), tip = Math.abs(u) > .86;
+      wset(g, x, y, tip ? '7' : 'n'); wset(g, x, y + 1, tip ? '8' : 'N'); if (!tip) wset(g, x, y + 2, 'M'); }
+    for (let x = 1; x < 30; x++) if (g[11][x] === '.') wset(g, x, 11, 'f');                 // 弓弦
+    wrap(g, c, 2, 4, 2, ['p', 'q', 'r']); gem(g, c, 3, 'B', 'C', 'D', 'E');
+    return { rows: wrows(g), grip: [c, 3] }; },
+  greatsword() { const c = 9, g = wgrid(19, 62);                        // 大劍：又寬又長的劍身 + 很寬的護手 + 雙手握的長柄
+    for (let r = 0; r < 41; r++) { const hw = r < 2 ? 0 : r < 4 ? 1 : r < 6 ? 2 : r < 8 ? 3 : 4;
+      for (let d = -hw; d <= hw; d++) wset(g, c + d, r, bladeCol(d, hw, r, r > 10 && r < 37)); }
+    for (const r of [12, 24]) { wset(g, c - 3, r, '1'); wset(g, c - 3, r + 1, '2'); }
+    for (let x = 0; x < 19; x++) { wset(g, x, 41, x < 9 ? '6' : '7'); wset(g, x, 42, '8'); if (x > 1 && x < 17) wset(g, x, 43, '9'); }
+    wset(g, 0, 40, '7'); wset(g, 18, 40, '8'); wset(g, 1, 40, '6'); wset(g, 17, 40, '7');
+    gem(g, c, 42, 'R', 'S', 'T', 'T');
+    wrap(g, c, 44, 55, 1, ['p', 'q', 'r']);
+    for (let x = c - 2; x <= c + 2; x++) { wset(g, x, 56, '7'); wset(g, x, 60, '9'); }
+    for (let y = 57; y <= 59; y++) { wset(g, c - 2, y, '7'); wset(g, c + 2, y, '8'); }
+    gem(g, c, 58, 'v', 'w', 'x', 'y');
+    return { rows: wrows(g), grip: [c, 50] }; },
+  rapier() { const c = 5, g = wgrid(11, 46);                            // 細劍：很細的長劍身 + 繞到手背的護弓
+    for (let r = 0; r < 32; r++) { wset(g, c, r, r < 2 ? '2' : '1'); if (r > 2) wset(g, c + 1, r, r % 7 === 0 ? '3' : '4'); }
+    for (let x = 0; x < 11; x++) wset(g, x, 32, x === 0 || x === 10 ? '8' : x < 5 ? '6' : '7');
+    for (let x = 2; x < 9; x++) wset(g, x, 33, '8');
+    for (let y = 33; y <= 41; y++) wset(g, c + 4, y, y > 39 ? '8' : '7');                     // 護弓：從護手繞到柄尾
+    gem(g, c, 33, 'R', 'S', 'T', 'T');
+    wrap(g, c, 35, 40, 1, ['p', 'q', 'r']);
+    for (let x = c - 1; x <= c + 3; x++) wset(g, x, 41, '7'); for (let x = c - 1; x <= c + 1; x++) { wset(g, x, 42, '8'); wset(g, x, 43, '9'); } wset(g, c, 42, 'C');
+    return { rows: wrows(g), grip: [c, 38] }; },
+  crescent() { const c = 17, g = wgrid(22, 48);                         // 月牙刀：短柄上一大片新月形的刀（外圈是刃）
+    for (let y = 0; y < 31; y++) for (let x = 0; x <= 18; x++) { const dO = Math.hypot(x - 17, y - 15), dI = Math.hypot(x - 21, y - 13);
+      if (dO > 14.2 || dI <= 11.5) continue; const e = 14.2 - dO, i = dI - 11.5;
+      wset(g, x, y, e < 1 ? '1' : e < 2 ? '2' : i < 1 ? '5' : i < 2.2 ? '4' : '3'); }
+    gem(g, 6, 15, 'B', 'C', 'D', 'E');
+    for (let y = 27; y < 47; y++) { wset(g, c, y, 'n'); wset(g, c + 1, y, 'N'); }
+    for (let x = c - 2; x <= c + 3; x++) { wset(g, x, 28, '7'); wset(g, x, 29, '8'); }
+    wrap(g, c, 33, 42, 1, ['p', 'q', 'r']);
+    for (let x = c - 1; x <= c + 2; x++) { wset(g, x, 45, '7'); wset(g, x, 46, '8'); wset(g, x, 47, '9'); }
+    return { rows: wrows(g), grip: [c, 38] }; },
+  twinblade() { const c = 5, g = wgrid(11, 74);                         // 雙頭刀：長柄兩端各一把刀，從中間握
+    const blade = (r: number, flip: boolean) => { const hw = Math.round(3 * Math.pow(Math.sin(Math.PI * (r + 1) / 21), .7)), y = flip ? 73 - r : r;
+      for (let d = -hw; d <= hw; d++) wset(g, c + d, y, bladeCol(flip ? -d : d, hw, r, r > 5 && r < 16)); };
+    for (let r = 0; r < 20; r++) { blade(r, false); blade(r, true); }
+    for (const [y, a, b] of [[20, '6', '7'], [21, '8', '8'], [52, '8', '8'], [53, '6', '7']] as const) for (let x = c - 3; x <= c + 3; x++) wset(g, x, y, x < c ? a : b);
+    for (let y = 22; y < 52; y++) { wset(g, c, y, 'n'); wset(g, c + 1, y, y % 5 === 0 ? 'M' : 'N'); }
+    wrap(g, c, 32, 42, 1, ['K', 'L', 'x']);
+    gem(g, c, 21, 'B', 'C', 'D', 'E'); gem(g, c, 52, 'B', 'C', 'D', 'E');
+    return { rows: wrows(g), grip: [c, 37] }; },
+  darkmoon() { const c = 9, g = wgrid(19, 62);                          // 暗月大劍：深藍色的大劍身，中間一條發光的月光，刃口泛白
+    for (let r = 0; r < 41; r++) { const hw = r < 2 ? 0 : r < 4 ? 1 : r < 6 ? 2 : r < 8 ? 3 : 4;
+      for (let d = -hw; d <= hw; d++) wset(g, c + d, r, r < 2 ? 'B' : d === -hw ? 'B' : d === hw ? 'C' : d === 0 ? 'D' : Math.abs(d) === 1 ? 'K' : d < 0 ? 'k' : 'L'); }
+    for (const r of [11, 19, 27, 34]) wset(g, c - 2, r, '1');                                // 劍身上的星點
+    for (let x = 0; x < 19; x++) { wset(g, x, 41, x < 9 ? 'f' : 'F'); wset(g, x, 42, 'G'); if (x > 1 && x < 17) wset(g, x, 43, 'G'); }
+    for (const [x, y, ch] of [[0, 40, 'f'], [0, 39, 'f'], [1, 40, 'f'], [18, 40, 'F'], [18, 39, 'F'], [17, 40, 'F']] as const) wset(g, x, y, ch);   // 護手兩端往上翹，像月牙
+    gem(g, c, 42, 'B', 'C', 'D', 'E');
+    wrap(g, c, 44, 55, 1, ['K', 'L', 'x']);
+    for (let x = c - 2; x <= c + 2; x++) { wset(g, x, 56, 'F'); wset(g, x, 60, 'G'); }
+    for (let y = 57; y <= 59; y++) { wset(g, c - 2, y, 'f'); wset(g, c + 2, y, 'G'); }
+    gem(g, c, 58, 'B', 'C', 'D', 'E');
+    return { rows: wrows(g), grip: [c, 50] }; },
 };
 export const WEAP = { staff: { rows: STAFF_ART.rows, grip: STAFF_ART.grip, base: STAFF_ART.base, pal: HERO_PAL } };
 for (const k in GEN) { const g = GEN[k](); WEAP[k] = { rows: g.rows, grip: g.grip, base: -Math.PI / 2, pal: WPAL2 }; }
@@ -162,6 +220,12 @@ export const ANIM = {
   hammer:   { C:['diag', 'flatR', 'slam'], wu:.22, sw:.13, hold:.18, back:.2, up:-2.9, from:-1.6, to:1.2, lift:8, P:{ C0:[-3, -1, 0], C:[-6, -3, 0], S:[4, 1, 1], H:[7, 4, 1], R:[3, 2, 0] } },
   scythe:   { C:['flat', 'flatR', 'slam'], wu:.13, sw:.12, hold:.14, back:.16, up:-2.5, from:-1.6, to:1.1, lift:5, P:{ C:[-4, -1, 0], S:[5, 1, 1], H:[5, 2, 1], R:[2, 0, 0] } },
   staff:    { wu:.12, sw:.07, hold:.12, back:.16, up:-2.0, to:.35, lift:4, P:{ C:[-2, -2, 0], S:[5, 0, 1], H:[3, 1, 0], R:[0, 0, 0] } },
+  bow:      { wu:.12, sw:.05, hold:.1, back:.14, up:0, to:0, lift:2, P:{ C:[-3, 0, 0], S:[2, 0, 1], H:[1, 0, 0], R:[0, 0, 0] } },   // 拉弓：弓一直朝前，身體往後拉
+  greatsword:{ C:['flat', 'flatR', 'slam'], wu:.24, sw:.14, hold:.18, back:.2, up:-2.9, from:-1.7, to:1.3, lift:8, P:{ C0:[-3, -1, 0], C:[-6, -3, 0], S:[4, 1, 1], H:[7, 4, 1], R:[3, 2, 0] } },
+  rapier:   { wu:.05, sw:.08, hold:.06, back:.1, up:-.1, to:0, lift:0, P:{ C:[-3, 0, 0], S:[7, 0, 1], H:[5, 1, 1], R:[2, 0, 0] } },
+  crescent: { C:['diag', 'flatR', 'flat'], wu:.09, sw:.1, hold:.12, back:.14, up:-2.4, from:-1.5, to:1.0, lift:5, P:{ C:[-3, -1, 0], S:[5, 1, 1], H:[5, 2, 1], R:[2, 0, 0] } },
+  twinblade:{ C:['flat', 'flatR', 'diag', 'rise'], wu:.06, sw:.08, hold:.08, back:.12, up:-2.3, from:-1.5, to:1.0, lift:3, P:{ C:[-3, -1, 0], S:[5, 1, 1], H:[6, 2, 1], R:[2, 0, 0] } },
+  darkmoon: { C:['diag', 'flatR', 'slam'], wu:.22, sw:.13, hold:.16, back:.18, up:-2.9, from:-1.7, to:1.3, lift:8, P:{ C0:[-3, -1, 0], C:[-6, -3, 0], S:[4, 1, 1], H:[7, 4, 1], R:[3, 2, 0] } },
 };
 const BACKP = { C:[-2, 2, 0], S:[4, 1, 1], H:[4, -2, 1] };              // 由下往上撩：壓低 → 往上
 /* 揮法：up = 蓄力時刀在哪、from → to = 刀光範圍、lift = 手舉多高、sy = 揮的平面壓多扁（越小越像水平橫掃） */

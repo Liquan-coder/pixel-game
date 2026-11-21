@@ -60,6 +60,9 @@ export interface Player {
   skillLock: number; aimLock: number; spin: number; thrust: number; slam: number;
   blinkIn?: number; comboT?: number; atkBuf?: number;
   axeN?: number; axeSide?: boolean;   // 戰斧：連續砍中幾下（越砍越快）、這一下往哪邊掃
+  moonN?: number;                     // 暗月大劍：存了幾層月光
+  rapT?: Enemy; rapN?: number;        // 細劍：正在連刺哪一隻、刺了幾下
+  wheelT?: number;                    // 雙頭刀風車轉到什麼時候（G.time）
 
   // 速度
   kx: number; ky: number;         // 被擊退

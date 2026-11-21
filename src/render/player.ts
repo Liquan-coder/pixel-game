@@ -6,7 +6,7 @@ import { ANIM, HAND_R, HERO, HERO_H, HERO_W, HSY, PPX, PPY, REACH, STYLE, WLEN, 
 import { drawWeapon } from '../art/weapon';
 import { WT } from '../data/items';
 import { CH1, CH2, CHC, restAng, wcols } from '../game/combat';
-import { asn, drawStar, drawWarp, fillArt } from './fx';
+import { asn, drawArrow, drawStar, drawWarp, fillArt } from './fx';
 import { camDt } from '../main';
 import type { Player } from '../types';
 
@@ -35,6 +35,10 @@ const emit = (rate, fn) => { let n = rate * camDt; while (n > 0) { if (n >= 1 ||
 function attackParticles(pl: Player, m, phase, gx, gy, ang) {                       // 攻擊四段的粒子
   const type = pl.weapon.type, L = WLEN[type] || 8, c = Math.cos(ang), s = Math.sin(ang), tx = gx + c * L, ty = gy + s * L, col = wcols(pl, type);
   const along = u => [gx + c * L * u, gy + s * L * u], fx0 = pl.x, fy0 = pl.y;
+  if (type === 'bow') {                                                 // 長弓：拉弓時箭搭在弦上，箭頭慢慢亮起來
+    if (phase === 'C') { const k = m.t / m.wu; drawArrow(gx + Math.cos(pl.face) * 6, gy + Math.sin(pl.face) * 6, pl.face, 8 + k * 4, col, false); drawStar(gx + Math.cos(pl.face) * 6, gy + Math.sin(pl.face) * 6, 1 + k * 2, '#ffffff'); }
+    return;
+  }
   if (m.ranged) {                                                       // 法杖：杖頭聚光
     if (phase === 'C') { const k = m.t / m.wu; drawWarp({ x:tx, y:ty, r0:2 + k * 4, r1:2 + k * 4, th:1.8, sy:1, col:'#b48cff' }, 0); drawStar(tx, ty, 2 + k * 4, '#e8d0ff');
       emit(40, () => { const a = rr(0, TAU), r = rr(8, 14); G.parts.push({ x:tx + Math.cos(a) * r, y:ty + Math.sin(a) * r, vx:-Math.cos(a) * r * 5, vy:-Math.sin(a) * r * 5, life:.18, max:.18, col:pick(['#ffffff', '#d8b8ff', '#9a7cff']), star:rr(.6, 1.4), drag:2 }); }); }
@@ -70,6 +74,8 @@ function skillParticles(pl: Player, gx, gy, ang) {                              
     G.parts.push({ x:tx + rr(-2, 2), y:ty + rr(-2, 2), vx:Math.cos(d) * v, vy:Math.sin(d) * v * .7, life:rr(.18, .32), max:.32, col:pick([wc[0], wc[1], wc[2]]), star:rr(.8, 2), drag:5 }); });
   if (pl.slam > 0 && pl.slam / .5 > .5) emit(90, () => { const a = rr(0, TAU), r = rr(10, 18);   // 裂地重擊：舉斧時橘光往斧頭聚
     G.parts.push({ x:tx + Math.cos(a) * r, y:ty + Math.sin(a) * r, vx:-Math.cos(a) * r * 6, vy:-Math.sin(a) * r * 6, life:.16, max:.16, col:pick(['#ffb040', '#ffe08a', '#ffffff']), star:rr(.8, 1.8), drag:1 }); });
+  if (pl.weapon.type === 'darkmoon' && pl.moonN > 0) emit(18 * pl.moonN, () => { const u = rr(.3, 1);   // 暗月：存的月光越多，劍身冒出越多藍光
+    G.parts.push({ x:gx + Math.cos(ang) * L * u, y:gy + Math.sin(ang) * L * u, vx:rr(-8, 8), vy:-rr(10, 30), life:.4, max:.4, col:pick(['#8aa0ff', '#eef4ff', '#4a5ae0']), star:rr(.6, 1.4), drag:2 }); });
   if (pl.dash) emit(170, () => { const a = pl.face + Math.PI + rr(-.5, .5), v = rr(30, 90);   // 疾風突刺：身後拖出星光
     G.parts.push({ x:pl.x + rr(-3, 3), y:pl.y - rr(2, 14), vx:Math.cos(a) * v, vy:Math.sin(a) * v, life:rr(.2, .4), max:.4, col:pick(['#9a7cff', '#c8b0ff', '#ffffff']), star:rr(.8, 2), drag:4 }); });
   if (pl.charging && pl.charge > .1) { const lv = pl.chargeLv; emit(25 + lv * 35, () => { const a = rr(0, TAU), r = rr(14, 22);   // 蓄力：光點往身體吸，越滿越多
@@ -92,7 +98,7 @@ function heroAttackPose(pl: Player) {                                           
 /* 單邊有刃的武器（斧頭）：刃要朝「正在揮過去的方向」，不然會變成用斧背砍。
    角度往順時針轉（畫面上 y 朝下，角度變大）→ 用翻過的圖，刃在前面；逆時針 → 不翻。
    rot = +1 順時針 / -1 逆時針：平常跟面向一樣（面右往順時針揮）；反手橫掃（flat）會反過來 */
-const ONE_EDGE = { axe: true, scythe: true };
+const ONE_EDGE = { axe: true, scythe: true, crescent: true };
 function edgeMir(pl: Player, msw, dir) {
   if (!ONE_EDGE[pl.weapon.type]) return undefined;
   let rot = dir;

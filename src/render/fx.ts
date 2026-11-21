@@ -142,6 +142,12 @@ export function drawSpikes(f, k) {                                            //
     fillArt(ox - W, oy - H, ox + W, oy + 1, (x, y) => { const v = (oy - y) / H; if (v < 0 || v > 1) return 0; const hw = W * (1 - v); const dx = x - ox; if (Math.abs(dx) > hw) return 0; return dx < -hw * .3 ? 3 : dx < hw * .3 ? 2 : 1; }, f.cols || BONEC); }
 }
 export function drawOrb(x, y, r, cols) { fillArt(x - r, y - r, x + r, y + r, (px, py) => { const d = Math.hypot(px - x, py - y) / r; return d > 1 ? 0 : d > .68 ? 1 : d > .36 ? 2 : 3; }, cols); }
+export function drawArrow(x, y, a, len, cols, big) {                       // 箭：木頭箭桿 + 發光的箭頭 + 尾羽（x, y = 箭頭）
+  const c = Math.cos(a), s = Math.sin(a), tx = x - c * len, ty = y - s * len;
+  artPath(); ctx.fillStyle = '#7a5434'; artLine(tx, ty, x - c * 3, y - s * 3, big ? 2 : 1); ctx.fill();
+  artPath(); ctx.fillStyle = cols ? cols[1] : '#ffffff'; artLine(tx - s * 2, ty + c * 2, tx + c * 3, ty + s * 3, 1); artLine(tx + s * 2, ty - c * 2, tx + c * 3, ty + s * 3, 1); ctx.fill();
+  artPath(); ctx.fillStyle = cols ? cols[2] : '#ffffff'; artLine(x - c * 3, y - s * 3, x, y, big ? 3 : 2); ctx.fill();
+}
 export function drawWaveP(p) {                                                // 飛行的新月劍氣
   const a = Math.atan2(p.vy, p.vx), R = p.R || 16, T = p.th || 7, cx = p.x - Math.cos(a) * R * .75, cy = p.y - Math.sin(a) * R * .75, half = 1.2;
   fillArt(cx - R - 1, cy - R - 1, cx + R + 1, cy + R + 1, (x, y) => { const dx = x - cx, dy = y - cy, d = Math.sqrt(dx * dx + dy * dy); if (d > R || d < R - T) return 0;
