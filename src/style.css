@@ -15,7 +15,7 @@ button{font-family:var(--font);color:var(--text);cursor:pointer}
 button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 
 .hud{position:absolute;inset:0;pointer-events:none}
-.stats{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));left:calc(10px + env(safe-area-inset-left,0px));display:grid;grid-template-columns:auto auto;justify-items:start;gap:4px 8px;align-items:center}
+.stats{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));left:calc(10px + env(safe-area-inset-left,0px));display:grid;grid-template-columns:auto 1fr;justify-items:start;gap:4px 8px;align-items:center}   /* 1fr：任務提示很長時，多的寬度給右欄，血條才會緊貼在 LV 旁邊 */
 .lv{grid-row:span 2;width:40px;height:38px;display:grid;place-content:center;background:var(--panel);border:2px solid var(--line);box-shadow:inset -2px -2px 0 #0006,0 0 0 2px var(--ink);font-size:10px;line-height:1;text-align:center;color:var(--muted);letter-spacing:.1em}
 .lv b{display:block;font-size:17px;color:var(--gold);letter-spacing:0;margin-top:2px}
 /* 生命 / 體力條的長度跟著上限變長（--w 由 hud.ts 設定），但最長不超過螢幕寬的 40%，手機上才不會撞到小地圖 */
