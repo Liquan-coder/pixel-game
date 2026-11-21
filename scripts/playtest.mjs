@@ -59,7 +59,7 @@ const pageScript = async () => {
   const { startGame } = await imp('main');
   const menus = await imp('ui/menus');
   const shop = await imp('ui/shop');
-  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies'), status: await imp('game/status'), bt: await imp('game/bossTuning'), ai3: await imp('world/bossAI3'), coll: await imp('game/collision'), pause: await imp('ui/pause'), puz: await imp('world/puzzles'), mech: await imp('world/bossMech'), statues: await imp('world/statues') };
+  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies'), status: await imp('game/status'), bt: await imp('game/bossTuning'), ai3: await imp('world/bossAI3'), puz2: await imp('world/puz2'), coll: await imp('game/collision'), pause: await imp('ui/pause'), puz: await imp('world/puzzles'), mech: await imp('world/bossMech'), statues: await imp('world/statues') };
 
   const imp0 = { map: await imp('render/map'), dg: await imp('world/dungeons'), input: await imp('ui/interact'), inp: await imp('ui/input'), hud: await imp('ui/hud'), title: await imp('ui/title') };
   const step = (n, opts = {}) => {
@@ -241,7 +241,7 @@ const pageScript = async () => {
     RB.rbDead.delete('queen'); RB.resetRegionBosses();
   });
 
-  run('更多機關：符文踏板（苔石洞窟）、轉動雕像（潮音石窟）、崩塌石橋（潮音石窟）', () => {
+  run('更多機關：符文踏板（苔石洞窟）、轉動雕像（樹根地穴）、崩塌石橋（熔岩隧道）', () => {
     const PU = await0.puz, Q = await0.quest, P = id => PU.PUZZLES.find(p => p.d.id === id);
     const enter = d => { tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2); G.enemies = []; };
     const leave = d => { G.enemies = []; tp(d.exX, d.exY); step(1); imp0.input.enterDoor(); step(2); };
@@ -254,19 +254,20 @@ const pageScript = async () => {
     for (const k of sp.seq) { tp(sp.stone.x, sp.stone.y + 30); step(2); tp(sp.plates[k].x, sp.plates[k].y + 2); G.me.iframe = 9; step(2); }
     if (!Q.flags.has('puz:moss:fire')) throw new Error('照順序踩完門沒開（踩到第 ' + sp.step + ' 步）'); leave(sp.d);
     // 轉動雕像
-    const so = P('grotto'); if (!so || so.stats.length < 3 || !so.altar) throw new Error('潮音石窟的雕像不完整'); Q.flags.delete('puz:grotto:fire'); step(2); enter(so.d);
+    const so = P('roots'); if (!so || so.stats.length < 3 || !so.altar) throw new Error('樹根地穴的雕像不完整'); Q.flags.delete('puz:roots:fire'); step(2); enter(so.d);
     const n = so.stats.length; let guard = 0;                                // 解法：從第一座開始，一直轉到它對準，再換下一座（最後一座會跟著第一座轉，用暴力找）
     const solve = () => { const tryAll = (depth, off) => { if (off.every(o => o === 0)) return []; if (depth === 0) return null;
       for (let i = 0; i < n; i++) { const o2 = [...off]; o2[i] = (o2[i] + 1) % 4; o2[(i + 1) % n] = (o2[(i + 1) % n] + 1) % 4; const r = tryAll(depth - 1, o2); if (r) return [i, ...r]; } return null; };
       for (let dpt = 1; dpt <= 8; dpt++) { const r = tryAll(dpt, [...so.off]); if (r) return r; } return null; };
     const moves = solve(); if (!moves) throw new Error('雕像謎題解不開：' + so.off);
     for (const i of moves) { const s2 = so.stats[i]; tp(s2.x + (s2.want === 1 || s2.want === 3 ? 18 : 0), s2.y + (s2.want === 0 || s2.want === 2 ? 18 : 0)); step(1); it = imp0.input.interactTarget(); if (!it || it.btn !== '轉動') throw new Error('雕像旁邊沒有「轉動」'); it.run(); if (++guard > 20) break; }
-    if (!Q.flags.has('puz:grotto:fire')) throw new Error('雕像都對準了門沒開');
+    if (!Q.flags.has('puz:roots:fire')) throw new Error('雕像都對準了門沒開'); leave(so.d);
+    const cb = P('lavatube'); enter(cb.d);
     // 崩塌石橋：站在會碎的石頭上 → 裂開 → 掉下去 → 回到起點
-    if (!so.crumb.length) throw new Error('潮音石窟沒有崩塌石橋');
-    const c = so.crumb[Math.floor(so.crumb.length / 2)]; tp(c.x, c.y + 2); G.me.hp = G.me.maxHp; const h0 = G.me.hp; step(80);
-    if (!(G.me.hp < h0) || Math.hypot(G.me.x - so.start.x, G.me.y - so.start.y) > 4) throw new Error('站在石橋上沒有掉下去 / 沒回到起點');
-    G.me.dead = false; leave(so.d);
+    if (!cb.crumb.length) throw new Error('熔岩隧道沒有崩塌石橋');
+    const c = cb.crumb[Math.floor(cb.crumb.length / 2)]; tp(c.x, c.y + 2); G.me.hp = G.me.maxHp; const h0 = G.me.hp; step(80);
+    if (!(G.me.hp < h0) || Math.hypot(G.me.x - cb.start.x, G.me.y - cb.start.y) > 4) throw new Error('站在石橋上沒有掉下去 / 沒回到起點');
+    G.me.dead = false; leave(cb.d);
     log.push('  有機關的地城：' + PU.PUZZLES.map(p => p.d.name).join('、'));
   });
 
@@ -567,6 +568,77 @@ const pageScript = async () => {
     Q.flags.delete('puz:barrow:fire'); Q.flags.delete('puz:barrow:wall'); step(2);
     if (!await0.coll.collides(g.x, g.y, 5) || await0.map.map[n.ty * await0.map.MW + n.tx] !== await0.map.RWALL) throw new Error('旗標拿掉後門 / 牆沒有恢復');
     G.enemies = []; tp(d.exX, d.exY); step(1); imp0.input.enterDoor(); step(2); void dx;
+  });
+
+  run('每座地城的招牌機關（潮汐、蛛網、強風、推石、冷卻熔岩、冰面、寒氣、蘑菇、迷宮、潛行、熔爐、鏡子）', () => {
+    const PU = await0.puz, Q = await0.quest, M = await0.map, P = id => PU.PUZZLES.find(p => p.d.id === id), out = [];
+    const enter = d => { tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2); G.enemies = []; G.me.hp = G.me.maxHp; await0.status.clearStatus(G.me); };
+    const leave = d => { G.enemies = []; G.me.dead = false; tp(d.exX, d.exY); step(1); imp0.input.enterDoor(); step(2); await0.status.clearStatus(G.me); };
+    const use = (x, y, btn) => { for (const [ox, oy] of [[0, 16], [0, -16], [16, 0], [-16, 0], [0, 12]]) { if (await0.coll.collides(x + ox, y + oy, 5)) continue; tp(x + ox, y + oy); step(1); const it = imp0.input.interactTarget(); if (it && it.btn === btn) { it.run(); return true; } } throw new Error('找不到「' + btn + '」'); };
+    // 每座有機關的地城：解開之後，從入口走得到 Boss 大廳（BFS；蘑菇 = 傳送點）
+    const reach = (p) => { const d = p.d, R = PU.roomsOf(d), H = R.hall, I = (x, y) => y * M.MW + x, sx = Math.floor(d.inX / 16), sy = Math.floor(d.inY / 16), seen = new Set([I(sx, sy)]), q = [[sx, sy]];
+      const ok = (x, y) => M.WALKABLE(M.map[I(x, y)]) && !M.PROPS.some(pp => pp.r > 0 && Math.hypot(pp.x - x * 16 - 8, pp.y - y * 16 - 8) < pp.r + 3);
+      const pads = p.m.jump ? p.m.jump.pads.filter(pd => !pd.rot) : [];
+      while (q.length) { const [x, y] = q.shift(); if (Math.abs(x - H.x) <= 2 && Math.abs(y - H.y) <= 2) return true;
+        const nx = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => [x + a, y + b]);
+        for (const pd of pads) if (Math.floor(pd.x / 16) === x && Math.floor(pd.y / 16) === y) nx.push([Math.floor(pd.to.x / 16), Math.floor(pd.to.y / 16)]);
+        for (const [a, b] of nx) { const k = I(a, b); if (seen.has(k) || !ok(a, b)) continue; seen.add(k); q.push([a, b]); } }
+      return false; };
+    for (const p of PU.PUZZLES) { Q.flags.add('puz:' + p.d.id + ':fire'); if (p.m.cool) for (const [tx, ty] of p.m.cool.river) M.map[ty * M.MW + tx] = M.GROUND; }
+    step(90);
+    for (const p of PU.PUZZLES) if (!reach(p)) throw new Error(p.d.name + '：解開機關後，從入口走不到 Boss 大廳');
+    for (const p of PU.PUZZLES) { Q.flags.delete('puz:' + p.d.id + ':fire'); if (p.m.cool) for (const [tx, ty] of p.m.cool.river) M.map[ty * M.MW + tx] = M.LAVA; }
+    step(2); out.push('路線 OK ×' + PU.PUZZLES.length);
+    // 潮汐：漲潮時站在會淹水的地方 → 被沖到石島
+    { const p = P('grotto'), st = p.m.tide; enter(p.d); const k = [...st.wet][Math.floor(st.wet.size / 2)], wx = (k % M.MW) * 16 + 8, wy = Math.floor(k / M.MW) * 16 + 8;
+      while ((G.time % 7.9) < 4.8) step(1); tp(wx, wy + 2); const h = G.me.hp; step(3); G.me.dead = false;
+      if (!(G.me.hp < h) || Math.hypot(G.me.x - wx, G.me.y - wy) < 10) throw new Error('漲潮沒有把人沖走'); leave(p.d); out.push('潮汐'); }
+    // 蛛網：踩到被纏住；取火 → 燒網；拿火碰巨網 → 開門
+    { const p = P('nest'), st = p.m.webs; enter(p.d); const k = [...st.webs.keys()].find(k => st.webs.get(k) === 0), x = (k % M.MW) * 16 + 8, y = Math.floor(k / M.MW) * 16 + 8;
+      tp(x, y + 2); step(2); if (!(G.me.sx && G.me.sx.root > 0)) throw new Error('踩到蛛網沒有被纏住'); await0.status.clearStatus(G.me);
+      const t = st.tor[0]; use(t.x, t.y, '取火'); tp(x, y + 2); step(50); if (st.webs.get(k) !== -1) throw new Error('拿著火網沒有燒掉');
+      const g = p.gate[1]; tp(g.x, g.y + 24); step(3); if (!Q.flags.has('puz:nest:fire')) throw new Error('拿著火碰巨網沒有開門'); leave(p.d); out.push('蛛網'); }
+    // 強風：颳風時會被推走
+    { const p = P('windcave'), st = p.m.wind; enter(p.d); const r = st.r; while ((G.time % 5.9) < 3.6) step(1);
+      tp(r.x * 16 + 8, (r.y + r.ry) * 16 + 4); const x0 = G.me.x; step(10); if (Math.abs(G.me.x - x0) < 3 && !await0.coll.collides(G.me.x + 8, G.me.y, 5)) throw new Error('颳風沒有推人'); leave(p.d); out.push('強風'); }
+    // 推石：把兩塊石頭推到壓力板
+    { const p = P('sandtemple'), st = p.m.boulders, inp = imp0.inp; enter(p.d);
+      const push = (b, dx, dy, n) => { for (let i = 0; i < n; i++) { tp(b.x - dx * 15, b.y - dy * 15 + 2); input.mx = dx; input.my = dy; step(20); input.mx = input.my = 0; step(14); } };
+      const [b1, b2] = st.bs; push(b1, 1, 0, 2); push(b1, 0, -1, 2); push(b2, -1, 0, 2); push(b2, 0, -1, 2); step(3); void inp;
+      if (!Q.flags.has('puz:sandtemple:fire')) throw new Error('石頭推到壓力板上門沒開：' + st.bs.map(b => b.tx - st.r.x + ',' + (b.ty - st.r.y)).join(' ')); leave(p.d); out.push('推石'); }
+    // 冷卻熔岩：敲冰晶 → 熔岩變地板 → 6 秒後變回來
+    { const p = P('obsidian'), st = p.m.cool; enter(p.d); const [tx, ty] = st.river[3]; use(st.cr[0].x, st.cr[0].y, '敲擊');
+      if (M.map[ty * M.MW + tx] !== M.GROUND) throw new Error('敲了冰晶熔岩沒有凝固'); step(400); if (M.map[ty * M.MW + tx] !== M.LAVA) throw new Error('熔岩沒有流回來'); leave(p.d); out.push('冷卻熔岩'); }
+    // 冰面：放開方向鍵還會一直滑
+    { const p = P('icecave'), st = p.m.ice; enter(p.d); const r = st.r; let sx = r.x * 16 + 8, sy = r.y * 16 + 8;
+      for (const k of st.ice) if (!st.holes.has(k) && !st.holes.has(k + 1) && !st.holes.has(k + 2) && !st.holes.has(k + 3)) { sx = (k % M.MW) * 16 + 8; sy = Math.floor(k / M.MW) * 16 + 10; break; }
+      tp(sx, sy); input.mx = 1; step(20); input.mx = 0; const x1 = G.me.x; step(6); if (!(G.me.x > x1 + 1)) throw new Error('冰面上放開方向鍵就停了（沒有滑）'); leave(p.d); out.push('冰面'); }
+    // 寒氣：待在房裡會累積凍傷；點完 4 個火盆 → 開門
+    { const p = P('frostcrypt'), st = p.m.cold3; enter(p.d); const r = st.r; tp(r.x * 16 + 8, (r.y + 2) * 16 + 8);
+      for (const b of st.braz) b.lit = false; step(60); if (!(G.me.sx && (G.me.sx.frost > 0 || G.me.sx.frozen > 0))) throw new Error('寒氣沒有累積凍傷'); await0.status.clearStatus(G.me);
+      for (const b of st.braz) use(b.x, b.y, '點燃'); step(2); if (!Q.flags.has('puz:frostcrypt:fire')) throw new Error('四個火盆都點亮門沒開'); leave(p.d); out.push('寒氣'); }
+    // 蘑菇：好的 → 飛到別的島；爛的 → 掉進毒沼、回到入口
+    { const p = P('rotcave'), st = p.m.jump; enter(p.d); const good = st.pads[0], bad = st.pads.find(q => q.rot);
+      tp(good.x, good.y + 2); step(60); if (Math.hypot(G.me.x - good.to.x, G.me.y - good.to.y) > 6) throw new Error('踩好的蘑菇沒有飛到對的島');
+      tp(bad.x, bad.y + 2); const h = G.me.hp; step(60); if (!(G.me.hp < h) || Math.hypot(G.me.x - st.back.x, G.me.y - st.back.y) > 6) throw new Error('踩爛的蘑菇沒有掉下去'); leave(p.d); out.push('蘑菇'); }
+    // 黑暗迷宮：在裡面畫面會變黑
+    { const p = P('sunkgrotto'), st = p.m.maze; enter(p.d); const pr = st.pearls[0] || { x: st.r.x * 16 + 8, y: st.r.y * 16 + 8 }; tp(pr.x, pr.y + 2); step(2);
+      if (!PU.puzzleDark(G.me)) throw new Error('迷宮裡沒有變黑'); leave(p.d); out.push('迷宮'); }
+    // 潛行：被亡衛看到 → 鐘響、拉桿鎖住；沒被看到 → 拉下開門
+    { const p = P('undercroft'), st = p.m.stealth; enter(p.d); const g = st.gs[0]; tp(g.x + Math.cos(g.a) * 40, g.y + Math.sin(g.a) * 40 + 2); step(2);
+      if (!(st.alarm > 0)) throw new Error('站在亡衛面前沒有被發現'); G.enemies = [];
+      use(st.lever.x, st.lever.y, '拉下'); if (Q.flags.has('puz:undercroft:fire')) throw new Error('鐘響時拉桿還拉得動');
+      st.alarm = 0; for (const q of st.gs) { q.x = -9999; q.pts.forEach(pt => { pt.x = -9999; pt.y = -9999; }); } use(st.lever.x, st.lever.y, '拉下');
+      if (!Q.flags.has('puz:undercroft:fire')) throw new Error('沒被發現時拉桿拉不下來'); leave(p.d); out.push('潛行'); }
+    // 熔爐：輸送帶會推人；拉桿開門
+    { const p = P('forgeruin'), st = p.m.forge; enter(p.d); const [ty, dir] = [...st.belts][0]; const r = st.r; let tx = r.x - 2; while (!(await0.map.WALKABLE(M.map[ty * M.MW + tx]))) tx++;
+      tp(tx * 16 + 8, ty * 16 + 10); G.me.iframe = 99; const x0 = G.me.x; step(20); if (Math.sign(G.me.x - x0) !== dir) throw new Error('輸送帶沒有推人'); G.me.iframe = 0;
+      use(st.lever.x, st.lever.y, '拉下'); if (!Q.flags.has('puz:forgeruin:fire')) throw new Error('熔爐的拉桿沒開門'); leave(p.d); out.push('熔爐'); }
+    // 鏡子：試所有方向組合，打到水晶 → 開門
+    { const p = P('temple'), st = p.m.mirrors; enter(p.d); let solved = false;
+      for (let m = 0; m < 32 && !solved; m++) { st.ms.forEach((q, i) => q.m = (m >> i) & 1); step(1); solved = Q.flags.has('puz:temple:fire'); }
+      if (!solved) throw new Error('鏡子怎麼轉都打不到水晶'); leave(p.d); out.push('鏡子'); }
+    log.push('  ' + out.join('、'));
   });
 
   run('死亡 → 重生', () => {

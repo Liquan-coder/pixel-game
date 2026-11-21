@@ -23,7 +23,7 @@ import { drawChests } from '../world/chests';
 import { drawNPCs } from '../world/towns';
 import { drawQuestArrow, drawTablets } from '../game/quest';
 import { drawDoors } from '../world/dungeonArt';
-import { drawPuzzles } from '../world/puzzles';
+import { drawPuzzles, puzzleDark } from '../world/puzzles';
 import { drawStatues } from '../world/statues';
 import { camDt } from '../main';
 
@@ -177,6 +177,8 @@ export function render() {
   ctx.globalCompositeOperation = 'source-over';
   if (G.region === 'wastes') { ctx.fillStyle = 'rgba(255,190,110,.06)'; ctx.fillRect(0, 0, LW, LH); }
   drawBlind(cx, cy, LW, LH);                                              // 目盲：周圍變暗
+  { const dr = G.started && !G.me.dead ? puzzleDark(G.me) : 0; if (dr) { const x = G.me.x - cx, y = G.me.y - 10 - cy, g = ctx.createRadialGradient(x, y, dr * .5, x, y, dr * 2.2);   // 黑暗迷宮：只看得到身邊
+    g.addColorStop(0, 'rgba(4,4,10,0)'); g.addColorStop(1, 'rgba(4,4,10,.97)'); ctx.fillStyle = g; ctx.fillRect(0, 0, LW, LH); } }
   if (SET.nums) for (const n of G.nums) {                                 // 傷害數字（設定可以關掉）：彈出來 → 往上飄 → 淡掉（畫在光影上面，暗處也看得到）
     const k = n.t / n.d, rise = 1 - (1 - Math.min(1, k * 2.2)) ** 2, pop = k < .12 ? 1 + (1 - k / .12) * .6 : 1;
     const sc = (n.big ? 4 / 3 : 1) * (pop > 1.3 ? 4 / 3 : 1);           // 剛出來時大一號，再縮回來（只用 1/3 的倍數，像素才不會糊）

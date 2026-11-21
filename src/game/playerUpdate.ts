@@ -8,6 +8,7 @@ import { canSee, collides, moveEnt, regAt } from './collision';
 import { sfx } from '../core/audio';
 import { respawnAll } from './enemies';
 import { resetBoss } from './boss';
+import { puzzleMove } from '../world/puzzles';
 import { clearStatus, locked, moveMul, rollOut, rooted, silenced, struggle, tickStatus } from './status';
 import { blinkFx, busy, damageEnemy, downPlayer, releaseCharge, stopCharge, targets, tryAttack, tryDodge, tryPot, trySkill, updFlip, updateCharge } from './combat';
 import { burst, shake } from './worldUpdate';
@@ -59,6 +60,7 @@ export function updatePlayer(pl: Player, dt) {
     G.fx.push({ k:'aline', x:ox, y:oy - 8 + rr(-5, 5), a:Math.atan2(pl.y - oy, pl.x - ox), len:Math.hypot(pl.x - ox, pl.y - oy) + 4, t:0, d:.16, col:'#d8c8ff' });
     if (Math.random() < .7) G.parts.push({ x:pl.x + rr(-4, 4), y:pl.y - rr(2, 16), vx:rr(-15, 15), vy:rr(-20, 0), life:rr(.25, .45), max:.45, col:pick(STARC), star:rr(.6, 1.8), drag:3 });
     if (pl.dodge <= 0) { blinkFx(pl, pl.x, pl.y, false); sfx.blinkIn(); }
+  } else if (puzzleMove(pl, dt)) {                                      // 機關接手移動：冰面滑行、被蘑菇彈飛（world/puzzles.ts）
   } else if (m > .05 && !locked(pl) && !rooted(pl)) {
     const spd = 84 * moveMul(pl) * (pl.drink > 0 ? .45 : 1) * (pl.skillLock > 0 ? .25 : 1) * (pl.swing ? .6 : 1) * (pl.charging ? .45 : 1) * (map[(pl.y / TS | 0) * MW + (pl.x / TS | 0)] === ROAD ? 1.12 : 1);
     moveEnt(pl, input.mx * spd * dt, input.my * spd * dt);
