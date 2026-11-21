@@ -3,11 +3,11 @@
 
    burrow 鑽地：Boss 鑽進地底（打不到），地面隆起的土丘一直追著你，追到就從腳下衝出來（紅圈預警）。
                 結界四周出現 4 個地脈裂口 → 一個一個砍到封住，Boss 就會被逼出地面、暈眩露出破綻（受到的傷害 ×1.5）。
-                30 秒內沒封完 → 牠自己衝出來（沒有破綻）。熔渣蠕蟲、風蝕巨蠍、熔岩巨蜥、沙暴巨人……
+                30 秒內沒封完 → 牠自己衝出來（沒有破綻）。熔渣蠕蟲、風蝕巨蠍、沙暴巨人、深淵水鬼
    sky    升空：飛上天 / 爬上天花板（打不到），地上只看得到影子，每隔一下就俯衝砸你。
                 4 個機關（弩砲的鎖鏈、霧之圖騰……）砍完 → 被拉下來摔在地上、暈眩。巢母、熔岩巨龍、冰霜飛龍、霧林女妖
    shield 護盾：Boss 照樣打你，但被一層護盾包住（打不到），護盾連到 4 個東西上（水晶、燈籠、旗子、樹根……）。
-                全部打碎 → 護盾碎掉、暈眩。有些是「卵 / 孢子囊」：太慢打破就會孵出小怪
+                全部打碎 → 護盾碎掉、暈眩。有些是「卵 / 孢子囊」：太慢打破就會孵出小怪。冰晶女王、星之看守者、巫妖、蘑菇王、根縛樹心、沙王
    打機關不看傷害、看「打中幾下」（武器強不強都一樣要 3 下），所以拿什麼武器都解得開。 */
 import { G } from '../core/state';
 import { TAU, pick, rr } from '../core/util';
@@ -32,36 +32,24 @@ interface MDef { kind: Kind; obj: ObjK; col: string[]; name: string; hatch?: str
 const LAVA = ['#5a1408', '#f07a32', '#ffd04a'], SAND = ['#6a4a2a', '#d8b878', '#fff0c8'], WATER = ['#1a3a6a', '#4aa8e8', '#d8f4ff'], ICE = ['#2a4a78', '#a8dcff', '#ffffff'];
 const MUD = ['#2a2a14', '#6a7a3a', '#c8e08a'], SNOW = ['#5e86ba', '#dce8f4', '#ffffff'], GHOST = ['#1a3a7a', '#4aa8ff', '#e0f4ff'], VOID = ['#3a1a6a', '#9a6ae8', '#e8d8ff'];
 const GOLD = ['#7a4a1a', '#f2c14e', '#fff6d0'], ROOT = ['#2a3a14', '#6aa84a', '#d0f0a0'], RED = ['#5a0e14', '#e04a3a', '#ffd0a0'], SPORE = ['#3a1a4a', '#c46ad8', '#f0c8ff'];
-/* key：地城 Boss = DBOSS 的 key；主線 / 區域 Boss = RBDEF 的 id */
+/* key：地城 Boss = DBOSS 的 key；主線 / 區域 Boss = RBDEF 的 id。
+   只有一半的 Boss 有機制（挑跟牠的樣子最搭的）；前期的 Boss（史萊姆女王、苔蝸王、守墓人、潮音巨蟹……）沒有，中期才開始出現。
+   其他 Boss 照常打；要加回去就在這裡加一筆 */
 export const MECH: Record<string, MDef> = {
   magmaworm:   { kind: 'burrow', obj: 'vent', col: LAVA, name: '熔岩裂口' },
   scorpion:    { kind: 'burrow', obj: 'vent', col: SAND, name: '流沙洞' },
-  salamander:  { kind: 'burrow', obj: 'vent', col: LAVA, name: '熔岩池的出口' },
-  tidecrab:    { kind: 'burrow', obj: 'vent', col: WATER, name: '潮洞' },
-  toadking:    { kind: 'burrow', obj: 'vent', col: MUD, name: '泥沼的氣孔' },
   drowned:     { kind: 'burrow', obj: 'vent', col: WATER, name: '深水的漩渦' },
   sandgiant:   { kind: 'burrow', obj: 'vent', col: SAND, name: '流沙洞' },
-  slagmother:  { kind: 'burrow', obj: 'vent', col: LAVA, name: '熔渣坑' },
-  yeti:        { kind: 'burrow', obj: 'vent', col: SNOW, name: '雪洞' },
   broodmother: { kind: 'sky', obj: 'egg', col: ['#8a8aa0', '#e8e8f4', '#ffffff'], name: '卵囊', hatch: 'spiderF' },
   dragon:      { kind: 'sky', obj: 'ballista', col: LAVA, name: '鎖龍弩砲' },
   frostwyrm:   { kind: 'sky', obj: 'ballista', col: ICE, name: '鎖龍弩砲' },
   mistwitch:   { kind: 'sky', obj: 'totem', col: GHOST, name: '霧之圖騰' },
-  snail:       { kind: 'shield', obj: 'root', col: ROOT, name: '苔核' },
-  warden:      { kind: 'shield', obj: 'lantern', col: GHOST, name: '守墓燈' },
   rootheart:   { kind: 'shield', obj: 'root', col: ROOT, name: '根瘤' },
   sandking:    { kind: 'shield', obj: 'crystal', col: GOLD, name: '王的卡諾卜罐' },
   icequeen:    { kind: 'shield', obj: 'crystal', col: ICE, name: '冰晶' },
-  frostknight: { kind: 'shield', obj: 'banner', col: ICE, name: '霜墓的戰旗' },
-  captain:     { kind: 'shield', obj: 'banner', col: RED, name: '近衛的戰旗' },
-  forgeguard:  { kind: 'shield', obj: 'crystal', col: LAVA, name: '爐心' },
   starwarden:  { kind: 'shield', obj: 'crystal', col: VOID, name: '星之柱' },
-  queen:       { kind: 'shield', obj: 'egg', col: ['#2a6a2a', '#7fe07a', '#d8ffd0'], name: '史萊姆核', hatch: 'slime' },
-  general:     { kind: 'shield', obj: 'banner', col: GOLD, name: '軍旗' },
   mushking:    { kind: 'shield', obj: 'egg', col: SPORE, name: '孢子囊', hatch: 'shroom' },
   lich:        { kind: 'shield', obj: 'crystal', col: ['#1a4a1a', '#6ae04a', '#d0ffb0'], name: '命匣' },
-  mossguard:   { kind: 'shield', obj: 'banner', col: ROOT, name: '苔蘚戰旗' },
-  toxqueen:    { kind: 'shield', obj: 'egg', col: SPORE, name: '毒孢子囊', hatch: 'shroomP' },
 };
 const AT = [.66, .33], HITS = 3, HATCH = 11, LIMIT = 30;
 export const mechOf = (e) => MECH[e.def.dg ? String(e.kind).slice(3) : e.def.id];
