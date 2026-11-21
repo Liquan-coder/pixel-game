@@ -7,6 +7,7 @@
    fan    扇射（往你的方向射一排彈）  nova  環射（往四面八方射一圈）
    rain   落雷 / 落石（你附近好幾個圓，倒數後落下）   pools 毒池（地上留下會持續扣血的一灘）
    summon 召喚這座地城的小怪
+   spiral 螺旋：原地轉圈噴子彈（arms 條手臂、dur 秒），彈幕遊戲那種「繞著圈找縫」的招
    ---- 新招（逼你走位）----
    pull   吸引：把你往 Boss 身上吸（走得出來，但很慢），吸完在身邊炸一圈 → 往外走 / 瞬移出去
    donut  甜甜圈：外面一大圈會炸，只有貼在 Boss 身邊是安全的 → 反過來要往內衝
@@ -143,6 +144,7 @@ AI.dgn = (e, dt, d, dx, dy) => {
         rbWind(e, 'castWind', .5); }
       else if (m === 'pools') { const pts = [{ x: e.tgt.x, y: e.tgt.y }]; for (let i = 1; i < mo.n + (p2 ? 1 : 0); i++) { const q = { x: e.tgt.x + rr(-70, 70), y: e.tgt.y + rr(-50, 50) }; keepIn(q, D, 24); pts.push(q); }
         e.cpts = pts; rbWind(e, 'poolWind', .8 * wk, pts.map(q => ({ k: 'circle', x: q.x, y: q.y, r: mo.r }))); }
+      else if (m === 'spiral') { e.sa = e.aim; rbWind(e, 'spiralWind', .5 * wk, [{ k: 'circle', r: 30 }]); }
       else if (m === 'summon') { e.sumT = 14; rbWind(e, 'summonWind', .7, [{ k: 'circle', r: 30 }]); }
       else if (m === 'pull' || m === 'donut' || m === 'cross' || m === 'homing') startExtra(e, m, mo, dx, dy);
       else if (m === 'erupt') { e.hidden = e.immune = e.mound = true; rbWind(e, 'sinkWind', .45); burst(e.x, e.y, TH(e).impact, 22); quakeFx(e.x, e.y, 30); sfx.boom(); }
@@ -208,6 +210,14 @@ AI.dgn = (e, dt, d, dx, dy) => {
         for (const pl of G.players) if (Math.hypot(pl.x - e.x, pl.y - e.y) < o.r - DG && hurtPlayer(pl, dmgOf(e, o), e.x, e.y, { stun: .5 })) hitSpark(pl.x, pl.y - 8, true, -Math.PI / 2);
         for (const dl of [0, .1]) G.fx.push({ k: 'warp', x: e.x, y: e.y, r0: 6, r1: o.r + 8, th: 6, delay: dl, t: 0, d: .4 + dl, col: D.aura[0] });
         quakeFx(e.x, e.y, o.r); burst(e.x, e.y, TH(e).impact, 34); sfx.boom(); shake(7, .35); G.hitStop = Math.max(G.hitStop, .07); e.state = 'idle'; e.t = rr(.9, 1.2) * wk; }
+      break;
+    case 'spiralWind':
+      e.t -= dt; if (e.t <= 0) { e.tele = null; e.state = 'spiral'; e.t = o.dur || 1.8; e.emT = 0; sfx.skill(); }
+      break;
+    case 'spiral':                                                       // 每 0.08 秒每條手臂噴一顆
+      e.t -= dt; e.emT -= dt;
+      while (e.emT <= 0) { e.emT += .08; const n = o.arms || 2; e.sa += p2 ? .3 : .26; for (let i = 0; i < n; i++) shoot(e, e.sa + i / n * TAU, o.spd || 110, dmgOf(e, o)); }
+      if (e.t <= 0) { e.state = 'idle'; e.t = rr(.5, .8) * wk; }
       break;
     case 'summonWind':
       e.t -= dt; if (e.t <= 0) { e.tele = null; summon(e, pick(D.adds), o.n || 2, o.max || 3, 3); sfx.howl(); e.state = 'idle'; e.t = .8; }

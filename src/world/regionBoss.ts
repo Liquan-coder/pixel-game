@@ -150,7 +150,7 @@ export function drawRBTele(e) {
   drawPools(e);
   for (const m of e.pend || []) { const q = clamp(1 - m.t / m.T, 0, 1); teleCircle(m.x, m.y, m.r || 22, q); if (m.fall) drawFall(m, q); }
   const fc = REGION_FX[e.def.id] ? rmapCols(e.def.id, DEFAULT_COLS.fire) : undefined;
-  if (e.state === 'breath' && e.glow) { const [gx, gy, ga] = e.glow; drawOrb(gx, gy, 6 + Math.sin(G.time * 40), REGION_FX[e.def.id] ? rmapCols(e.def.id, FIREC) : FIREC); for (const k of [30, 60, 90]) G.RB_L.push({ x:gx + Math.cos(ga) * k, y:gy + Math.sin(ga) * k, r:46, warm:1 }); }
+  if ((e.state === 'breath' || (e.state === 'sweep' && e.def.ai === 'dragon')) && e.glow) { const [gx, gy, ga] = e.glow; drawOrb(gx, gy, 6 + Math.sin(G.time * 40), REGION_FX[e.def.id] ? rmapCols(e.def.id, FIREC) : FIREC); for (const k of [30, 60, 90]) G.RB_L.push({ x:gx + Math.cos(ga) * k, y:gy + Math.sin(ga) * k, r:46, warm:1 }); }
   for (const b of e.burns || []) { if (vis2(b.x, b.y)) flame(b.x + Math.sin(b.ph) * 2, b.y + 2, 3 + 2 * Math.min(1, b.t), b.ph, fc); }
   for (const t of e.tele || []) { const qq = t.q !== undefined ? t.q : q;
     if (t.k === 'circle') teleCircle(t.x !== undefined ? t.x : e.x, t.y !== undefined ? t.y : e.y, t.r, qq);

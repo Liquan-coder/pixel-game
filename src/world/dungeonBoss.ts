@@ -38,7 +38,7 @@ export const DBOSS: Record<string, DBossDef> = {
     p2: [['pools', 2, { n: 3, r: 28, t: 4, k: .35, cols: SAND }], ['rain', 2, { n: 6, r: 22, k: 1.1, cols: SAND }]] },
   sandking: { name: '沙王・未完', sub: '裹布底下傳來一聲很長很長的嘆息', lv: 38, hp: 2500, spd: 30, ring: ['#f2c14e', '#ffffff'], aura: ['#c0862c', '#ffe38a', '#ffffff'], cols: GOLD, proj: 'bolt',
     moves: [['fan', 3, { n: 5, spread: .9, spd: 150, k: .9 }], ['rain', 2, { n: 6, r: 22, k: 1.1, cols: SAND }], ['summon', 1, { n: 2, max: 3 }]],
-    p2: [['nova', 2, { n: 12, spd: 140, k: .9 }], ['leap', 2, { r: 48, k: 1.4 }]] },
+    p2: [['nova', 2, { n: 12, spd: 140, k: .9 }], ['spiral', 2, { arms: 3, dur: 2, spd: 110, k: .7 }]] },   // 沙王：裹布轉起來噴金沙（以前是跳壓）
   salamander: { name: '熔岩巨蜥・燎', sub: '隧道深處的熔岩，張開了嘴', lv: 48, hp: 3300, spd: 50, ring: ['#ff8a3a', '#fff0a0'], aura: ['#ff6a2a', '#ffb040', '#fff0a0'], cols: F, proj: 'ember',
     moves: [['fan', 3, { n: 7, spread: .9, spd: 160, k: .8 }], ['charge', 2, { L: 150, W: 28, spd: 280, k: 1.2, trail: F }], ['sweep', 2, { r: 62, half: 1.2, k: 1.3 }]],
     p2: [['rain', 2, { n: 7, r: 24, k: 1.1, cols: F }], ['nova', 1, { n: 12, spd: 140, k: .8 }], ['erupt', 2, { r: 48, k: 1.3 }]] },   // 巨蜥：潛進熔岩

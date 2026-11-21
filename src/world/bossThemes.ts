@@ -122,7 +122,7 @@ const PT: Record<string, { cols: string[]; ch: number; up?: number; star?: boole
   flame: { cols: ['#f07a32', '#ffe38a', '#5a5054'], ch: .8, up: 25 }, cinder: { cols: ['#ff8a3a', '#fff6d0'], ch: .7, star: true }, magma: { cols: ['#5a5054', '#ff6a2a'], ch: .5, up: 15 },
   bubble: { cols: ['#8ad0ff', '#ffffff'], ch: .25 }, poison: { cols: ['#7ad04a', '#c46ad8'], ch: .35, g: 40 }, drop: { cols: ['#4fd0c0', '#d8fff8'], ch: .4, g: 80 },
   venom: { cols: ['#e0a030', '#fff0a0'], ch: .4, g: 80 }, icicle: { cols: ['#a8dcff', '#ffffff'], ch: .5, star: true }, frostwave: { cols: ['#a8dcff', '#ffffff'], ch: .6, star: true },
-  star: { cols: ['#ffe38a', '#ffffff', '#c8b0ff'], ch: .7, star: true }, web: { cols: ['#e8e8f4'], ch: .2 }, thorn: { cols: ['#86643e', '#6aa84a'], ch: .3 }, scarab: { cols: ['#d8b878', '#8a6a3a'], ch: .5, g: 30 },
+  star: { cols: ['#ffe38a', '#ffffff', '#c8b0ff'], ch: .7, star: true }, snowball: { cols: ['#dce8f4', '#ffffff'], ch: .7, g: 120 }, web: { cols: ['#e8e8f4'], ch: .2 }, thorn: { cols: ['#86643e', '#6aa84a'], ch: .3 }, scarab: { cols: ['#d8b878', '#8a6a3a'], ch: .5, g: 30 },
 };
 export function projTrail(p) {
   const T = PT[p.kind]; if (!T || Math.random() > T.ch) return;

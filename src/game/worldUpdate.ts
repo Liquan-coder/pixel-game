@@ -32,8 +32,10 @@ function updateProjectiles(dt) {
     if (p.home && p.owner === 'e') { const tg = nearestPlayer(p.x, p.y);         // 追蹤彈：慢慢轉向最近的玩家（轉得不快，繞圈或瞬移就甩得掉）
       if (tg && !tg.dead) { const sp = Math.hypot(p.vx, p.vy), cur = Math.atan2(p.vy, p.vx), want = Math.atan2(tg.y - 6 - p.y, tg.x - p.x);
         let d = want - cur; d = Math.atan2(Math.sin(d), Math.cos(d)); const a = cur + Math.max(-p.home * dt, Math.min(p.home * dt, d)); p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; } }
+    if (p.owner === 'e') bossProjMotion(p, dt);                        // Boss 彈幕：轉彎 / 停住再追 / 結界裡反彈
     p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
-    let dead = p.life <= 0 || BLOCKP.has(tileAt(Math.floor(p.x / TS), Math.floor((p.y + 6) / TS)));
+    let dead = p.life <= 0 || (!p.arena && BLOCKP.has(tileAt(Math.floor(p.x / TS), Math.floor((p.y + 6) / TS))));
+    if (!dead && p.arena) dead = bounceIn(p);
     if (p.kind === 'fire' && Math.random() < .8) G.parts.push({ x:p.x, y:p.y, vx:rr(-15, 15), vy:rr(-15, 15), life:.3, max:.3, col: Math.random() < .5 ? '#f2c14e' : '#e8743b', s:2 });
     if (p.kind === 'ember' && Math.random() < .7) G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:-p.vx * .1, vy:-p.vy * .1 - 10, life:.35, max:.35, col:pick(p.cols ? [p.cols[1], p.cols[2]] : ['#ffb040', '#ff6a2a']), s:1 });
     if (p.kind === 'glob' && Math.random() < .5) G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:0, vy:10, life:.4, max:.4, col:p.cols ? p.cols[1] : '#4fbf5a', s:1, g:60 });
@@ -50,8 +52,35 @@ function updateProjectiles(dt) {
         if (p.kind === 'fire') explode(p); else if (p.kind === 'orb') explodeOrb(p); else damageEnemy(p.by, e, p.mult, p.x, p.y);
         dead = true; p.exploded = true; break; }
     }
-    if (dead) { if (p.kind === 'fire' && !p.exploded) explode(p); if (p.kind === 'orb' && !p.exploded) explodeOrb(p); G.projs.splice(i, 1); }
+    if (dead) { if (p.kind === 'fire' && !p.exploded) explode(p); if (p.kind === 'orb' && !p.exploded) explodeOrb(p); if (p.shatter) shatter(p); G.projs.splice(i, 1); }
   }
+}
+/* ---- Boss 彈幕的特殊行為（子彈身上有這些欄位才會動）----
+   curve：每秒轉幾弧度（射出去的一圈會變成漩渦）
+   pause：[飛幾秒, 停幾秒, 重新出發的速度] → 停在半空中，時間到全部轉向最近的玩家再射出去
+   arena：{x, y, R} + bounce：在結界裡碰到邊就反彈，彈完次數才消失（不會被牆擋掉）
+   shatter：{n, spd, k}：消失 / 打中人時碎成 n 片往四面八方飛（每片傷害 = 本體 × k） */
+function bossProjMotion(p, dt) {
+  if (p.curve) { const c = Math.cos(p.curve * dt), s = Math.sin(p.curve * dt), vx = p.vx; p.vx = vx * c - p.vy * s; p.vy = vx * s + p.vy * c; }
+  if (p.pause) { const [t1, t2, sp] = p.pause; p.age = (p.age || 0) + dt;
+    if (!p.held && p.age > t1) { p.held = 1; p.vx = p.vy = 0; }
+    else if (p.held === 1 && p.age > t1 + t2) { p.held = 2; const tg = nearestPlayer(p.x, p.y), a = Math.atan2(tg.y - 6 - p.y, tg.x - p.x); p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; } }
+}
+function bounceIn(p): boolean {
+  const A = p.arena, dx = p.x - A.x, dy = p.y - A.y, L = Math.hypot(dx, dy), m = A.R - p.r;
+  if (L <= m) return false; if (!(p.bounce > 0)) return true;
+  const nx = dx / L, ny = dy / L, dot = p.vx * nx + p.vy * ny;
+  if (dot > 0) { p.vx -= 2 * dot * nx; p.vy -= 2 * dot * ny; }
+  p.x = A.x + nx * m; p.y = A.y + ny * m; p.bounce--; shake(2, .08); sfx.boom();
+  for (let i = 0; i < 6; i++) G.parts.push({ x:p.x, y:p.y, vx:rr(-60, 60) - nx * 60, vy:rr(-60, 20) - ny * 40, life:.4, max:.4, col:pick(p.cols || ['#ffffff']), s:2, g:300 });
+  return false;
+}
+function shatter(p) {
+  const S = p.shatter, a0 = rr(0, TAU); p.shatter = null;
+  for (let i = 0; i < S.n; i++) { const a = a0 + i / S.n * TAU;
+    G.projs.push({ x:p.x, y:p.y, vx:Math.cos(a) * S.spd, vy:Math.sin(a) * S.spd, r:4, life:1.2, dmg:Math.max(1, Math.round(p.dmg * S.k)), owner:'e', kind:'claw', R:10, th:4, cols:p.cols,
+      hc:p.hc, scaled:true, themed:true }); }
+  G.fx.push({ k:'warp', x:p.x, y:p.y, r0:4, r1:26, th:4, t:0, d:.3, col:(p.cols || ['#ffffff', '#ffffff'])[1] }); sfx.boom(); shake(3, .12);
 }
 function explodeOrb(p) {                                              // 星爆：大光圈 + 魔法陣 + 星光（滿蓄力分裂成六顆小魔彈）
   p.exploded = true; aoeHit(p.by, p.x, p.y + 6, p.rad, p.mult, { heavy:true });

@@ -1,13 +1,13 @@
 /* ---- 寶箱：散落在野外偏僻的地方，按攻擊鍵打開（打開後會化成光點消失）。木箱 / 銀箱 / 金箱，越好的箱子東西越好；有些是寶箱怪 ---- */
 import { tier } from '../data/levels';
 import { G } from '../core/state';
-import { $, mulberry32, pick, rr } from '../core/util';
+import { $, pick, rr } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
 import { SH, sculpt } from '../art/monsters';
 import { makeUnique, randomLoot } from '../data/items';
 import { DUNGEONS } from './dungeons';
 import { flags } from '../game/quest';
-import { ARENA, CAMPS, GROUND, MH, MW, RFLOOR, ROAD, TOWNS, TS, WALKABLE, map, reg } from './map';
+import { ARENA, GROUND, MW, RFLOOR, TS, WALKABLE, map } from './map';
 import { RBDEF } from './regionBoss';
 import { drawArtSprite } from './chunks';
 import { dropItem, makeEnemy } from '../game/enemies';
@@ -23,12 +23,11 @@ export interface Chest { id: string; tx: number; ty: number; x: number; y: numbe
   uq?: string; need?: string; poof?: boolean }                        // poof = 打開後消失的特效已經放過了                                           // uq = 固定的獨特武器；need = 要先達成的旗標（地城守護者倒下）
 export const CHESTS: Chest[] = [];
 const TIER = [{ n:'木製寶箱', col:'#c8a070' }, { n:'白銀寶箱', col:'#9ad0ff' }, { n:'黃金寶箱', col:'#f2c14e' }];
-const REG_LV = [8, 20, 32, 45, 20, 58, 70, 10];                               // 每個地區寶箱的等級
 
 /* 放寶箱：reach = 從起點走得到的格子。偏僻 = 離道路、營火都有一段距離 */
 export function genChests(reach: Uint8Array) {
   CHESTS.length = 0;
-  const R = mulberry32(4242), I = (x, y) => y * MW + x;
+  const I = (x, y) => y * MW + x;
   const open = (x, y) => { const i = I(x, y); if (!reach[i] || !(map[i] === GROUND || map[i] === RFLOOR)) return false;
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (!WALKABLE(map[I(x + dx, y + dy)])) return false; return true; };
   const blocked = (x, y) => (x >= ARENA.x0 - 3 && x <= ARENA.x1 + 3 && y >= ARENA.y0 - 3 && y <= ARENA.y1 + 3) ||
@@ -48,19 +47,7 @@ export function genChests(reach: Uint8Array) {
   for (const d of DUNGEONS) { if (!d.bossChest) continue;
     CHESTS.push({ id: 'd_' + d.id, tx: d.bossChest[0], ty: d.bossChest[1], x: d.bossChest[0] * TS + 8, y: d.bossChest[1] * TS + 10, tier: 2, lv: d.lv + 2, mimic: false, opened: false, t: 0, uq: d.uq, need: 'dgn:' + d.id });
     d.sideChests.forEach(([x, y], k) => add(x, y, d.style === 'ruin' && k === 0 ? 2 : 1, d.lv + 1, false)); }
-  // 野外隨機寶箱：每個地區 8 個
-  for (const r of [0, 1, 2, 3, 5, 6]) {
-    let n = 0, tries = 0;
-    while (n < (r === 0 ? 20 : 17) && tries++ < 120000) {               // 每個地區差不多跟平原一樣大，寶箱也差不多一樣多
-      const x = 4 + Math.floor(R() * (MW - 8)), y = 4 + Math.floor(R() * (MH - 8));
-      if (reg[I(x, y)] !== r || !open(x, y) || blocked(x, y)) continue;
-      if (CAMPS.some(c => Math.hypot(c.tx - x, c.ty - y) < 12) || TOWNS.some(T => Math.hypot(T.tx - x, T.ty - y) < T.r + 6)) continue;
-      let road = false; for (let dy = -4; dy <= 4 && !road; dy++) for (let dx = -4; dx <= 4; dx++) if (map[I(x + dx, y + dy)] === ROAD) { road = true; break; }
-      if (road) continue;                                              // 不要擺在路邊：要稍微探索才找得到
-      const q = R(), tier = q < .1 ? 2 : q < .4 ? 1 : 0;
-      add(x, y, tier, REG_LV[r] + Math.floor(R() * 5) - 2, r !== 0 && R() < .15); n++;
-    }
-  }
+  // 野外的隨機寶箱拿掉了：路邊隨手開幾個就能變很強（素材、刻印太多）。現在只有地標、地城、機關的寶箱，要探索才拿得到
 }
 export const sealed = (c: Chest) => !!c.need && !flags.has(c.need);   // 地城最深處的金箱：守護者還活著 → 封著，靠近也不會變成「打開」
 export const nearChest = (pl: Player) => { if (pl.dead) return null; for (const c of CHESTS) if (!c.opened && !c.foe && !sealed(c) && Math.abs(c.x - pl.x) < 22 && Math.hypot(c.x - pl.x, c.y - pl.y) < 22) return c; return null; };
