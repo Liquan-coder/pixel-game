@@ -94,8 +94,8 @@ body.menu .toast{background:#000d;border:1px solid var(--line);padding:3px 12px}
 @media (max-height:400px){#joyBase{width:100px;height:100px;bottom:calc(14px + env(safe-area-inset-bottom,0px))}#joyKnob{width:44px;height:44px;margin:-22px 0 0 -22px}}
 /* 手機的動作按鈕：圓形、上面一個像素圖示、下面一行小字。--bs = 設定裡的「按鈕大小」（ui/pause.ts） */
 #btns{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));width:214px;height:166px;pointer-events:none;transform:scale(var(--bs,1));transform-origin:right bottom}
-.ab{position:absolute;pointer-events:auto;border-radius:0;padding:0;touch-action:none;border:0;   /* 外框是像素圓（ui/btnFrame.ts 畫的背景圖），底是半透明 */
-  background:transparent center/100% 100% no-repeat;image-rendering:pixelated;box-shadow:none;
+.ab{position:absolute;pointer-events:auto;border-radius:50%;padding:0;touch-action:none;overflow:hidden;   /* 平滑圓形、半透明；四顆同一個顏色（跟右上角面板一樣的紫灰）*/
+  background:#1d18288c;border:2px solid #4d4166cc;box-shadow:0 0 0 1px #100d1680,inset 2px 2px 0 #ffffff10,inset -2px -3px 0 #0004;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;line-height:1;color:#f1e7d0e6;text-shadow:1px 1px 0 #000,-1px 0 0 #0008;transition:transform .06s,filter .06s}
 .ab .ic{width:44%;height:44%;shape-rendering:crispEdges;position:relative;flex:none;opacity:.6;filter:saturate(.75)}   /* 圖示：像素畫，深色外框 + 左上亮右下暗 */
 .ab span{position:relative;font-size:11px;letter-spacing:.05em;opacity:.92}
@@ -106,7 +106,7 @@ body.menu .toast{background:#000d;border:1px solid var(--line);padding:3px 12px}
 #bDodge{right:6px;bottom:98px;width:58px;height:58px}
 #bPot{right:92px;bottom:86px;width:50px;height:50px}
 #bPot .ic{width:46%;height:56%}
-#bSkill .cd{position:absolute;inset:3px;border-radius:50%;background:conic-gradient(#000b calc(var(--cd,0)*360deg),transparent 0);pointer-events:none}
+#bSkill .cd{position:absolute;inset:0;background:conic-gradient(#000b calc(var(--cd,0)*360deg),transparent 0);pointer-events:none}
 #bSkill span{position:relative;font-size:10px;line-height:1.1;text-align:center;padding:0 6px}
 #bPot b{position:absolute;right:8px;bottom:4px;font-size:11px;color:var(--gold);font-weight:400}
 #keyHint{position:absolute;left:calc(10px + env(safe-area-inset-left,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));font-size:12px;color:var(--muted);text-shadow:1px 1px 0 #000;pointer-events:none}
@@ -344,7 +344,7 @@ body:not(.touch) #controls{display:none}
 #restBtn,#shopBtn,#chestBtn,#readBtn,#doorBtn,#pickBtn,#useBtn{pointer-events:auto;cursor:pointer;touch-action:manipulation}
 #restBtn small,#shopBtn small{font-size:11px;opacity:.7;margin-left:4px}
 .touch #restBtn small,.touch #shopBtn small{display:none}
-#bAtk.act{color:var(--gold);filter:drop-shadow(0 0 5px #f2c14e99)}   /* 靠近可以互動的東西：金色光暈（跟著像素圓的形狀）*/
+#bAtk.act{color:var(--gold);border-color:#f2c14ecc;box-shadow:0 0 0 1px #100d1680,inset -2px -3px 0 #0004,0 0 10px #f2c14e55}   /* 靠近可以互動的東西：金邊 + 光暈 */
 #bAtk.act span{font-size:15px}
 #pickCard .card .atk .bn,.card .atk .bn{color:#c8b8ff}                       /* 攻擊的「+ 能力值加成」 */
 
