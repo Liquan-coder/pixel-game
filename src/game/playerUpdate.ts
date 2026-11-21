@@ -1,8 +1,8 @@
 import { G } from '../core/state';
 import { TAU, dist, pick, rr } from '../core/util';
 import { LH, LW } from '../core/canvas';
-import { CAMPS, MW, REGIONS, ROAD, SUBS, TS, discovered, map } from '../world/map';
-import { fightingRB, resetRegionBosses } from '../world/regionBoss';
+import { ARENA, CAMPS, MW, REGIONS, ROAD, SUBS, TS, discovered, map } from '../world/map';
+import { fightingRB, rbs, resetRegionBosses } from '../world/regionBoss';
 import { cam, held, input, keys, pressed } from './player';
 import { canSee, collides, moveEnt, regAt } from './collision';
 import { sfx } from '../core/audio';
@@ -18,8 +18,16 @@ import { save } from './save';
 import type { Player } from '../types';
 
 /* ================= PLAYER UPDATE ================= */
+/* 死掉的時候：魂晶和金幣各掉 80% 在原地（身上留 20%），走回去就全部撿回來；還沒撿又死一次，舊的那包就沒了 */
+export const LOST_K = .8, KEEP_K = .2;                                // 直接寫 0.2：1 - 0.8 在電腦裡是 0.19999…，1000 魂晶會變成只留 199
+/* Boss 區：狼王的巢穴（ARENA 整塊）、還活著的區域 Boss / 地城守護者的結界（多算 8 px）。
+   死在這裡 → 那包放在「最後一次站在 Boss 區外面」的地方，不用再進去跟牠打才撿得到 */
+export const inBossZone = (x: number, y: number) =>
+  (!G.bossDead && x >= ARENA.x0 * TS && x < (ARENA.x1 + 1) * TS && y >= ARENA.y0 * TS && y < (ARENA.y1 + 1) * TS) ||
+  rbs.some(e => !e.dead && Math.hypot(x - e.def.x, y - e.def.y) < e.def.R + 8);
 export function updatePlayer(pl: Player, dt) {
   if (pl.dead) { pl.deathT += dt; if (pl.deathT > 2.6) respawn(pl); return; }
+  if (!inBossZone(pl.x, pl.y)) { pl.safeX = pl.x; pl.safeY = pl.y; }
   if (tickStatus(pl, dt)) { downPlayer(pl); return; }                  // 中毒 / 燃燒（game/status.ts）
   for (const k of ['atkCd','skillCd','iframe','hurt','aimLock','spin','thrust','slam','comboT','blinkIn']) if (pl[k] > 0) pl[k] -= dt;
   if (pl.lunge) { pl.lunge.t -= dt; moveEnt(pl, pl.lunge.vx * dt, pl.lunge.vy * dt); G.ghosts.push({ x:pl.x, y:pl.y, flip:pl.flip, life:.2, max:.2 }); if (pl.lunge.t <= 0) pl.lunge = null; }
@@ -88,7 +96,8 @@ export function updatePlayer(pl: Player, dt) {
   if (pressed.pot) tryPot(pl);
 
   if (G.lost && Math.hypot(G.lost.x - pl.x, G.lost.y - pl.y) < 14) {
-    pl.souls += G.lost.amount; toast('取回了 ' + G.lost.amount + ' 魂晶', '#b49cff'); burst(G.lost.x, G.lost.y - 4, 20, '#b49cff', 60); sfx.pick(); G.lost = null;
+    const g = G.lost.gold || 0; pl.souls += G.lost.amount; pl.gold += g;
+    toast('取回了 ' + G.lost.amount + ' 魂晶' + (g ? '、' + g + ' 金幣' : ''), '#b49cff'); burst(G.lost.x, G.lost.y - 4, 20, '#b49cff', 60); sfx.pick(); G.lost = null;
   }
   for (const c of CAMPS) if (!c.lit && Math.abs(c.x - pl.x) < 48 && Math.hypot(c.x - pl.x, c.y - pl.y) < 48) {
     c.lit = true; toast('點燃了「' + c.name + '」，可以在這裡休息和傳送', '#f2c14e'); burst(c.x, c.y - 4, 20, '#f2c14e', 60); sfx.level(); save();
@@ -124,8 +133,10 @@ export function placeAtCamp(pl: Player, id) {
   if (pl === G.me) { cam.x = pl.x - LW / 2; cam.y = pl.y - LH / 2; }   // 鏡頭只跟著「我」
 }
 function respawn(pl: Player) {
-  G.lost = pl.souls > 0 ? { x:pl.x, y:pl.y, amount:pl.souls } : null;
-  pl.souls = 0; pl.dead = false; pl.kx = pl.ky = 0;
+  const ds = pl.souls - Math.floor(pl.souls * KEEP_K), dg = pl.gold - Math.floor(pl.gold * KEEP_K);   // 掉的那份（四捨五入算你倒楣：身上留的是無條件捨去的 20%）
+  const out = inBossZone(pl.x, pl.y) && pl.safeX !== undefined;
+  G.lost = ds > 0 || dg > 0 ? { x: out ? pl.safeX : pl.x, y: out ? pl.safeY : pl.y, amount: ds, gold: dg } : null;
+  pl.souls -= ds; pl.gold -= dg; pl.dead = false; pl.kx = pl.ky = 0;
   placeAtCamp(pl, G.lastCamp); restoreWorld(); save();
   if (pl === G.me) { G.region = ''; hideBanner(); }
 }

@@ -63,6 +63,7 @@ export interface Player {
   moonN?: number;                     // 暗月大劍：存了幾層月光
   rapT?: Enemy; rapN?: number;        // 細劍：正在連刺哪一隻、刺了幾下
   wheelT?: number;                    // 雙頭刀風車轉到什麼時候（G.time）
+  safeX?: number; safeY?: number;     // 最後一次站在 Boss 區外面的位置（死在 Boss 區時，掉的那包放這裡）
 
   // 速度
   kx: number; ky: number;         // 被擊退

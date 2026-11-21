@@ -670,9 +670,21 @@ const pageScript = async () => {
     log.push('  ' + out.join('、'));
   });
 
-  run('死亡 → 重生', () => {
-    G.me.iframe = 0; G.me.hp = 1; hurtPlayer(G.me, 9999, G.me.x + 5, G.me.y); step(400);
-    if (G.me.dead) throw new Error('沒有重生');
+  run('死亡 → 重生：魂晶和金幣掉 80%、撿回來；死在 Boss 結界裡，那包放在結界外面', () => {
+    const die = () => { G.me.iframe = 0; G.me.hp = 1; hurtPlayer(G.me, 9999, G.me.x + 5, G.me.y); step(400); if (G.me.dead) throw new Error('沒有重生'); };
+    // 野外：1000 魂晶、500 金幣 → 身上剩 200 / 100，那包是 800 / 400，走回去全部拿回來
+    G.lost = null; G.me.souls = 1000; G.me.gold = 500; const x0 = G.me.x, y0 = G.me.y; die();
+    if (G.me.souls !== 200 || G.me.gold !== 100) throw new Error('死掉後身上應該剩 20%：' + G.me.souls + ' / ' + G.me.gold);
+    if (!G.lost || G.lost.amount !== 800 || G.lost.gold !== 400 || Math.hypot(G.lost.x - x0, G.lost.y - y0) > 4) throw new Error('掉的那包不對：' + JSON.stringify(G.lost));
+    tp(G.lost.x, G.lost.y); step(2); if (G.lost || G.me.souls !== 1000 || G.me.gold !== 500) throw new Error('撿回來後沒有全部拿回：' + G.me.souls + ' / ' + G.me.gold);
+    // Boss 結界：先站在結界外，再走到正中間死掉 → 那包在最後站在外面的地方
+    const rb = RB.rbs.find(e => !e.dead && !e.def.dg), d = rb.def; G.me.souls = 300;
+    tp(d.x + d.R + 30, d.y); step(2); const sx = G.me.safeX, sy = G.me.safeY;
+    if (sx === undefined || Math.hypot(sx - d.x, sy - d.y) < d.R + 8) throw new Error('站在結界外面沒有記下位置');
+    tp(d.x, d.y); step(2); die();
+    if (!G.lost || Math.hypot(G.lost.x - sx, G.lost.y - sy) > 1 || Math.hypot(G.lost.x - d.x, G.lost.y - d.y) < d.R + 8) throw new Error('死在 ' + d.short + ' 的結界裡，那包沒有放在外面：' + JSON.stringify(G.lost));
+    log.push('  死在' + d.short + '的結界裡：那包在結界外 ' + Math.round(Math.hypot(G.lost.x - d.x, G.lost.y - d.y) - d.R) + ' px');
+    G.lost = null;
   });
 
   return { log, fails };

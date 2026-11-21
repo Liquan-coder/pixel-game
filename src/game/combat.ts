@@ -579,6 +579,6 @@ export function hurtPlayer(pl: Player, v, sx, sy, extra?: FX) {
 }
 export function downPlayer(pl: Player) {                                 // 倒下（被打死、被毒 / 火燒死）
   pl.hp = 0; pl.dead = true; pl.deathT = 0; stopCharge(pl); pl.lunge = null;
-  if (pl === G.me) { sfx.death(); showBanner('力竭倒下', pl.souls > 0 ? '魂晶掉在原地，回去撿就能拿回來' : '', 2400); }
+  if (pl === G.me) { sfx.death(); showBanner('力竭倒下', pl.souls > 0 || pl.gold > 0 ? '八成的魂晶和金幣掉了，回去撿就能拿回來' : '', 2400); }
 }
 

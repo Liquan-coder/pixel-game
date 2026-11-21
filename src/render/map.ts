@@ -74,7 +74,7 @@ export function renderBigMap() {
   for (const d of DUNGEONS) if (d.style !== 'ruin' && seen(d.ent[0], d.ent[1])) { const done = flags.has('dgn:' + d.id);   // 地底遺跡畫成遺跡圖示（POIS）
     icon(done ? 'dungeonDone' : 'dungeon', { kind: 'dungeon', id: d.id, name: d.name, desc: done ? '地城 · 已經攻略完了' : '地城 · 最深處有守護者看守著寶物', tx: d.ent[0], ty: d.ent[1] }); }
   if (merchant) icon('merchant', { kind: 'merchant', id: 'merchant', name: '流浪商人', desc: '會在點燃過的營火之間移動，賣藥水、礦石和裝備', tx: merchant.x / TS - .5, ty: merchant.y / TS - .5 });
-  if (G.lost) icon('lost', { kind: 'lost', id: 'lost', name: '掉落的魂晶', desc: '上次倒下時掉的 ' + G.lost.amount + ' 魂晶 · 走過去就能撿回來（再死一次就沒了）', tx: G.lost.x / TS - .5, ty: G.lost.y / TS - .5 });
+  if (G.lost) icon('lost', { kind: 'lost', id: 'lost', name: '掉落的魂晶', desc: '上次倒下時掉的 ' + G.lost.amount + ' 魂晶' + (G.lost.gold ? '、' + G.lost.gold + ' 金幣' : '') + ' · 走過去就能撿回來（再死一次就沒了）', tx: G.lost.x / TS - .5, ty: G.lost.y / TS - .5 });
   for (const c of CAMPS) if (c.lit || seen(c.tx, c.ty)) icon(c.lit ? 'camp' : 'campOff', { kind: 'camp', id: c.id, name: c.name, desc: '', tx: c.tx, ty: c.ty });   // 點燃過的、或那一塊地圖亮了才標（熄滅的樣子讓人想去點燃）
   for (const st of STATUES) if (statueKnown(st)) { const [x, y] = toScr(st.tx + .5, st.ty + .5), lit = statueLit(st), k = 3 + Math.max(0, Math.min(4, mv.z - 2));   // 星之神像：小小的星星 + 石座
     g.fillStyle = '#07060b'; g.fillRect(Math.round(x - k - 1), Math.round(y + k * .4 - 1), Math.round(k * 2 + 2), Math.round(k * .8 + 2));
