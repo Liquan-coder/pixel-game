@@ -83,10 +83,11 @@ body.menu .toast{background:#000d;border:1px solid var(--line);padding:3px 12px}
 
 /* 靠近東西時的小提示（按攻擊鍵互動）：不是按鈕、點不到，淡淡的一行字 */
 #actHint{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(26px + env(safe-area-inset-bottom,0px));pointer-events:none;display:flex;align-items:center;gap:7px;white-space:nowrap;
-  font-size:13px;color:#efe4ffdd;background:#0b0814b0;border:1px solid #4d416688;padding:3px 10px 3px 4px;text-shadow:1px 1px 0 #000;animation:hintIn .18s ease-out}
-#actHint .k{font-weight:400;font-size:11px;color:var(--ink);background:#e8dcff;padding:0 5px;line-height:16px;box-shadow:inset -1px -1px 0 #0005}
-#actHint .kt{display:none} .touch #actHint .kt{display:inline} .touch #actHint .kb{display:none}
-#actHint[data-k="rest"] .k{background:var(--gold)} #actHint[data-k="chest"] .k,#actHint[data-k="pick"] .k{background:#ffe9a8}
+  font-size:13px;color:#efe4ffdd;background:#0b0814b0;border:1px solid #4d416688;padding:3px 10px 3px 8px;text-shadow:1px 1px 0 #000;animation:hintIn .18s ease-out}
+/* 前面的小三角形（不寫按哪個鍵）：用邊框畫，每支手機看起來都一樣；營火金色、寶箱 / 掉落物淡黃、其他淡紫 */
+#actHint .arr{width:0;height:0;border-left:5px solid #e8dcff;border-top:4px solid transparent;border-bottom:4px solid transparent;filter:drop-shadow(1px 1px 0 #000);animation:arrNudge 1s ease-in-out infinite}
+#actHint[data-k="rest"] .arr{border-left-color:var(--gold)} #actHint[data-k="chest"] .arr,#actHint[data-k="pick"] .arr{border-left-color:#ffe9a8}
+@keyframes arrNudge{0%,100%{transform:translateX(0)}50%{transform:translateX(2px)}}   /* 輕輕往右點一下，看得出是在提示「可以做這件事」 */
 @keyframes hintIn{from{opacity:0;transform:translate(-50%,4px)}}
 #controls{position:absolute;inset:0;pointer-events:none}
 /* 固定搖桿：底座固定在左下角；手指按在左下這一塊（比底座大一圈）都算在推搖桿 */
@@ -334,7 +335,7 @@ body:not(.touch) #controls{display:none}
 /* 矮螢幕（手機橫放）：大標題、地名縮小一點，比較不會擋住角色 */
 @media (max-height:500px){#banner{font-size:24px;top:30%;padding:8px 0}#areaToast{top:16%}#areaToast b{font-size:22px}}
 #rotate{position:absolute;inset:0;display:grid;place-items:center;background:var(--ink);font-size:18px;text-align:center;line-height:1.8;padding:24px}
-@media (prefers-reduced-motion:reduce){#actHint{animation:none}.toast,.toast.bump b{animation:none}}
+@media (prefers-reduced-motion:reduce){#actHint,#actHint .arr{animation:none}.toast,.toast.bump b{animation:none}}
 /* 手機橫放（矮螢幕）：角色縮小、裝備欄變小，整個角色面板一個畫面放得下 */
 @media (max-height:500px){.dollbox{width:120px;height:120px}#doll{width:104px;height:120px}.cwrap{grid-template-columns:minmax(0,1fr) 186px minmax(0,1fr);gap:10px}
   .eqslot{min-height:58px}.eqslot img,.eqslot .ph0{width:30px;height:30px}.cdoll{gap:5px}.keystats b{font-size:16px}.keystats{margin-bottom:5px}}
