@@ -185,14 +185,14 @@ export function renderInv() {
   const drop = dropTargets(sel, nSlots);
   const slotBtn = (it: Item | null, key: string, label: string, locked = false) => locked
     ? '<div class="eqslot lock" title="打倒更多主線 Boss 解鎖"><div class="ph0">🔒</div><small>' + label + '</small><span>未開放</span></div>'
-    : '<button type="button" class="eqslot' + (it && G.selItem === it.id ? ' sel' : '') + (drop.has(key) ? ' drop' : '') + (it && unmet(G.me, it).length ? ' bad' : '') + '" data-eq="' + key + '"' + (it ? ' style="border-color:' + RAR[it.rarity].c + '"' : '') + '>' +
-      (it ? '<img alt="" src="' + ICON_URL[it.type] + '">' : '<div class="ph0">＋</div>') + '<small>' + label + '</small><span' + (it ? ' style="color:' + RAR[it.rarity].c + '"' : '') + '>' + (it ? itemName(it) : '空') + '</span></button>';
+    : '<button type="button" class="eqslot' + (it && G.selItem === it.id ? ' sel' : '') + (drop.has(key) ? ' drop' : '') + (sealOn(it) ? ' sl' : '') + (it && unmet(G.me, it).length ? ' bad' : '') + '" data-eq="' + key + '"' + (it ? ' style="border-color:' + RAR[it.rarity].c + '"' : '') + '>' +
+      (it ? '<img alt="" src="' + ICON_URL[it.type] + '">' + sealBadge(it) : '<div class="ph0">＋</div>') + '<small>' + label + '</small><span' + (it ? ' style="color:' + RAR[it.rarity].c + '"' : '') + '>' + (it ? itemName(it) : '空') + '</span></button>';
   $('eqSlots').innerHTML = slotBtn(eq.weapon, 'weapon', '武器') + slotBtn(eq.armor, 'armor', '防具') + '<div class="eqgap"></div>' +
     [0, 1, 2, 3].map(i => slotBtn(eq.trinkets[i], 't' + i, '飾品 ' + (i + 1), i >= nSlots)).join('');
   // 右邊：背包
   for (const b of document.querySelectorAll<HTMLElement>('#bagTabs button')) b.classList.toggle('on', b.dataset.f === bagFilter);
   const list = G.me.inv.map((it, i) => ({ it, i })).filter(o => bagFilter === 'all' || slotOf(o.it) === bagFilter);
-  const cells = list.map(({ it, i }) => '<button type="button" class="slot' + (G.selItem === it.id ? ' sel' : '') + (unmet(G.me, it).length ? ' bad' : '') + '" data-i="' + i + '" style="border-color:' + RAR[it.rarity].c + '" aria-label="' + it.name + '"><img alt="" src="' + ICON_URL[it.type] + '"><i style="color:' + RAR[it.rarity].c + '">' + badge(it) + '</i></button>');
+  const cells = list.map(({ it, i }) => '<button type="button" class="slot' + (G.selItem === it.id ? ' sel' : '') + (unmet(G.me, it).length ? ' bad' : '') + (sealOn(it) ? ' sl' : '') + '" data-i="' + i + '" style="border-color:' + RAR[it.rarity].c + '" aria-label="' + it.name + '"><img alt="" src="' + ICON_URL[it.type] + '">' + sealBadge(it) + '<i style="color:' + RAR[it.rarity].c + '">' + badge(it) + '</i></button>');
   const blank = drop.has('bag') ? '<button type="button" class="slot blank drop" data-drop="1" aria-label="卸下"></button>' : '<div class="slot blank"></div>';
   if (bagFilter === 'all') while (cells.length < 24) cells.push(blank);      // 空格子也畫出來，一眼看出背包還剩多少
   else if (drop.has('bag')) cells.push(blank);                                // 篩選中：多放一個空格讓你卸下
@@ -213,6 +213,9 @@ function dropTargets(sel, nSlots: number) {
   return out;
 }
 const salvMode = (sel) => sel && sel.where === 'bag' ? 'salv' : sel && sel.slot === 'weapon' && sel.it.fx && !sel.it.uq ? 'unseal' : 'all';
+/* 武器右上角的小刻印：裝了哪種刻印（外框是那種刻印的顏色）。獨特武器的效果是本身的，不算 */
+const sealOn = (it: Item | null) => !!it && slotOf(it) === 'weapon' && !!it.fx && !it.uq;
+const sealBadge = (it: Item) => sealOn(it) ? '<img class="sealb" alt="" title="' + WFXD[it.fx].n + '刻印" src="' + ICON_URL.seal + '" style="border-color:' + WFXD[it.fx].c + '">' : '';
 const salvValue = it => Math.round(3 * gearValue(it) * (slotOf(it) === 'weapon' ? .5 : 1));
 export const badge = it => (slotOf(it) === 'weapon' || slotOf(it) === 'armor') && it.up ? '+' + it.up : '';    // 背包格子左上角的小字：強化等級
 export const matLine = () => MAT_KEYS.map(k => '<span title="' + MATS[k].d + '" style="color:' + MATS[k].c + '">' + MATS[k].n + ' <b>' + (G.me.mats[k] || 0) + '</b></span>').join('');

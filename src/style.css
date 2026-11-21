@@ -403,3 +403,7 @@ body:not(.touch) #controls{display:none}
 .eqslot.drop,.slot.drop{border-color:#ffe38a!important;box-shadow:0 0 0 1px #ffe38a66,inset 0 0 10px #ffe38a33;animation:dropglow 1s ease-in-out infinite}
 @keyframes dropglow{50%{box-shadow:0 0 0 1px #ffe38a22,inset 0 0 4px #ffe38a11}}
 .cinfo .seltip{flex:none;margin:6px 0 0;padding-top:6px;border-top:2px solid var(--line);font-size:12px;color:var(--muted);text-align:center}
+
+/* 武器右上角：裝著的刻印 */
+.slot img.sealb,.eqslot img.sealb{position:absolute;right:1px;top:1px;width:16px;height:16px;background:#0b0812;border:1px solid;padding:0;image-rendering:pixelated}
+.slot.sl.bad::after{top:auto;bottom:0}.eqslot.sl.bad::after{right:auto;left:3px}   /* 有刻印時「!」讓開 */
