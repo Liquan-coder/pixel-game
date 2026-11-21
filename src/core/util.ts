@@ -15,3 +15,19 @@ export function makeNoise(seed, cell) {
     const a = g(x0, y0) + (g(x0 + 1, y0) - g(x0, y0)) * fx, b = g(x0, y0 + 1) + (g(x0 + 1, y0 + 1) - g(x0, y0 + 1)) * fx; return a + (b - a) * fy; };
 }
 
+/* 手指一放開就算按到（不等瀏覽器的 click）。
+   iPhone 上「另一隻手指還按著搖桿」或手指稍微滑一下時，click 常常不會來 → 要按第二下才有反應。
+   touchend 擋掉之後，瀏覽器就不會再補一個 click 進來（不然會開了又被關掉）。滑鼠一樣靠 pointerup；鍵盤 Enter/空白鍵 還是走 click。 */
+export function onTap(el: HTMLElement, fn: () => void) {
+  let id = -1;
+  el.addEventListener('pointerdown', e => { id = e.pointerId; });
+  el.addEventListener('pointerup', e => {
+    if (e.pointerId !== id) return; id = -1;
+    const r = el.getBoundingClientRect(), pad = 12;                          // 放開的位置還在按鈕上（多留一點邊）才算
+    if (e.clientX < r.left - pad || e.clientX > r.right + pad || e.clientY < r.top - pad || e.clientY > r.bottom + pad) return;
+    fn();
+  });
+  el.addEventListener('pointercancel', () => { id = -1; });
+  el.addEventListener('touchend', e => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+  el.addEventListener('click', e => { if (e.detail === 0) fn(); });          // detail 0 = 鍵盤按的；滑鼠點的已經在 pointerup 處理過
+}

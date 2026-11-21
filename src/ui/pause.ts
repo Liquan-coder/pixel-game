@@ -3,7 +3,7 @@
      選單：繼續遊戲 / 設定 / 操作說明 / 回到標題畫面（會先自動存檔）
      設定：音效開關、音量、畫面震動、傷害數字、按鈕大小（手機）。設定存在這台裝置上（localStorage），跟存檔無關 */
 import { G } from '../core/state';
-import { $ } from '../core/util';
+import { $, onTap } from '../core/util';
 import { initAudio, sfx } from '../core/audio';
 import { isTouch } from '../core/canvas';
 import { openMenu, setMenu } from './hud';
@@ -46,7 +46,7 @@ export function togglePause() { if (openMenu === 'pause') setMenu(null); else op
 export function backToTitle() {
   save(); G.started = false; setMenu(null); $('title').hidden = false; $('bossBar').hidden = true; initTitle();
 }
-$('pauseBtn').addEventListener('click', () => { initAudio(); openPause(); });
+onTap($('pauseBtn'), () => { initAudio(); openPause(); });
 $('pauseMenu').addEventListener('click', e => {
   const t = (e.target as HTMLElement).closest('button') as HTMLElement | null; if (!t) return;
   if (t.hasAttribute('data-close')) { setMenu(null); return; }

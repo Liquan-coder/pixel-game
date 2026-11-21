@@ -1,5 +1,5 @@
 import { G } from '../core/state';
-import { $ } from '../core/util';
+import { $, onTap } from '../core/util';
 import { AFFIX, ICON_URL, RAR, SLOTN, UP_MAX, WT, armorStats, attachSeal, detachSeal, effOf, gearValue, itemName, slotOf } from '../data/items';
 import { ACLS, ARMORS, A_UP_MAX, MAIN_BOSSES, T_SLOTS_MAX, effLines } from '../data/gear';
 import type { Item } from '../types';
@@ -257,8 +257,8 @@ $('mapMenu').addEventListener('click', e => { const t = (e.target as HTMLElement
 });
 export function toggleInv() { if (openMenu === 'inv') setMenu(null); else if (!openMenu && G.started && !G.me.dead) { G.selItem = null; renderInv(); setMenu('inv'); } }
 export function toggleMap() { if (openMenu === 'map') setMenu(null); else if (!openMenu && G.started && !G.me.dead) { clearMapSel(); mapTab = 'map'; setMenu('map'); showMapTab(); centerMap(); renderBigMap(); } }
-$('bagBtn').addEventListener('click', toggleInv);
-$('mapBtn').addEventListener('click', toggleMap);
-mini.addEventListener('click', toggleMap);
+onTap($('bagBtn'), toggleInv);
+onTap($('mapBtn'), toggleMap);
+onTap(mini, toggleMap);
 $('veil').addEventListener('click', () => setMenu(null));
 
