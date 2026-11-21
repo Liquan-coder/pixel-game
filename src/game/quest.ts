@@ -34,7 +34,7 @@ export function updateQuest() {
   }
   doneBefore = done;
   const c = current(), k = c.id + (G.questOpen ? 1 : 0);
-  if (k !== hudKey) { hudKey = k; $('quest').innerHTML = '<b>◆ ' + c.title + '</b>' + (G.questOpen ? '<small>' + c.hint + '</small>' : '') + '<i title="星核"><svg class="hi" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0l2.2 5.8L16 8l-5.8 2.2L8 16l-2.2-5.8L0 8l5.8-2.2z" fill="#ffd04a"/><path d="M8 4.5l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5L4.5 8 7 7z" fill="#fff6d0"/></svg>' + cores() + '/' + CORE_N + '</i>'; }
+  if (k !== hudKey) { hudKey = k; $('quest').innerHTML = '<b>◆ ' + c.title + '</b>' + (G.questOpen ? '<small>' + c.hint + '</small>' : '') + '<i title="星核"><svg class="hi" viewBox="0 0 15 15" aria-hidden="true"><path d="M7 0h1v1h-1zM6 2h1v1h-1zM8 2h1v1h-1zM5 3h1v1h-1zM9 3h1v1h-1zM4 4h1v1h-1zM10 4h1v1h-1zM3 5h1v1h-1zM11 5h1v1h-1zM2 6h1v1h-1zM12 6h1v1h-1zM0 7h1v1h-1zM14 7h1v1h-1zM2 8h1v1h-1zM12 8h1v1h-1zM3 9h1v1h-1zM11 9h1v1h-1zM4 10h1v1h-1zM10 10h1v1h-1zM5 11h1v1h-1zM9 11h1v1h-1zM6 12h1v1h-1zM8 12h1v1h-1zM7 14h1v1h-1z" fill="#4a2a08"/><path d="M7 1h1v1h-1zM7 2h1v1h-1zM6 3h2v1h-2zM5 4h3v1h-3zM4 5h4v1h-4zM3 6h4v1h-4zM1 7h5v1h-5zM5 8h2v1h-2zM6 9h1v1h-1z" fill="#ffe38a"/><path d="M8 3h1v1h-1zM8 4h2v1h-2zM8 5h3v1h-3zM8 6h4v1h-4zM3 8h2v1h-2zM4 9h2v1h-2zM5 10h2v1h-2zM6 11h1v1h-1z" fill="#f2c14e"/><path d="M7 6h1v1h-1zM6 7h3v1h-3zM7 8h1v1h-1z" fill="#ffffff"/><path d="M9 7h5v1h-5zM8 8h4v1h-4zM7 9h4v1h-4zM7 10h3v1h-3zM7 11h2v1h-2zM7 12h1v1h-1zM7 13h1v1h-1z" fill="#c0862c"/></svg>' + cores() + '/' + CORE_N + '</i>'; }
 }
 $('quest').addEventListener('click', () => { G.questOpen = !G.questOpen; hudKey = ''; updateQuest(); });
 /* 角色旁邊的金色小箭頭：目標在畫面外時指方向 */
