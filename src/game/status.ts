@@ -89,9 +89,24 @@ export function drawStatus(pl: Player) {
     ctx.fillStyle = '#ffe38a'; ctx.fillRect(snapF(px - HK), snapF(py - HK * 3), HK * 2, HK * 6); ctx.fillRect(snapF(px - HK * 3), snapF(py - HK), HK * 6, HK * 2); ctx.fillStyle = '#ffffff'; ctx.fillRect(snapF(px - HK), snapF(py - HK), HK * 2, HK * 2); }
   if (S.silence > 0) { const py = y - 32 + Math.sin(t * 3); ctx.fillStyle = '#c8a8ff';                 // 頭上一個紫色的封印「×」
     for (let k = -2; k <= 2; k++) { ctx.fillRect(snapF(x + k * HK * 2 - HK), snapF(py + k * HK * 2 - HK), HK * 2, HK * 2); ctx.fillRect(snapF(x - k * HK * 2 - HK), snapF(py + k * HK * 2 - HK), HK * 2, HK * 2); } }
-  // 累積條：頭上一條細條，滿了就發作（凍傷藍、出血紅）
-  let by = y - 36; for (const [v, c] of [[S.frost, '#a8dcff'], [S.bleed, '#ff4a5a']] as [number, string][]) { if (v <= 0) continue;
-    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(snapF(x - 10), snapF(by), 20, HK * 3); ctx.fillStyle = c; ctx.fillRect(snapF(x - 10), snapF(by), 20 * Math.min(1, v / 100), HK * 3); by -= HK * 5; }
+  // 累積圖示：頭上一個血滴（出血）/ 雪花（凍傷），從下往上變亮，亮到頂就發作。快滿時外框會閃
+  const icons = ([['bleed', S.bleed], ['frost', S.frost]] as [string, number][]).filter(([, v]) => v > 0);
+  icons.forEach(([k, v], i) => buildIcon(BUILD[k], x + (i - (icons.length - 1) / 2) * 12, y - 32, v / 100, t));
+}
+/* 累積圖示的形狀（x = 有顏色的格子，外框自動加）和顏色：亮 / 反光 / 暗（還沒累積的部分） */
+const BUILD: Record<string, { rows: string[]; lit: string; hi: string; dark: string; hx: number; hy: number }> = {
+  bleed: { lit: '#ff3a4a', hi: '#ffc0c8', dark: '#6a2028', hx: 2, hy: 6, rows: [
+    '...x...', '...x...', '..xxx..', '..xxx..', '.xxxxx.', 'xxxxxxx', 'xxxxxxx', 'xxxxxxx', '.xxxxx.', '..xxx..'] },
+  frost: { lit: '#a8dcff', hi: '#ffffff', dark: '#34506e', hx: 4, hy: 4, rows: [
+    '....x....', '.x..x..x.', '..x.x.x..', '...xxx...', 'xxxxxxxxx', '...xxx...', '..x.x.x..', '.x..x..x.', '....x....'] },
+};
+function buildIcon(B, cx: number, bottom: number, f: number, t: number) {
+  const P = HK * 3, H = B.rows.length, W = B.rows[0].length, X = snapF(cx - W * P / 2), Y = snapF(bottom - H * P);
+  const litFrom = H - Math.round(H * Math.min(1, f)), warn = f >= .75 && Math.sin(t * 18) > 0;   // 第幾列以下是亮的
+  ctx.fillStyle = warn ? '#ffffff' : '#0e0b14';                                                    // 外框：每一格往四周多畫一圈
+  B.rows.forEach((r, ry) => { for (let rx = 0; rx < W; rx++) if (r[rx] === 'x') ctx.fillRect(X + (rx - 1) * P, Y + (ry - 1) * P, P * 3, P * 3); });
+  B.rows.forEach((r, ry) => { for (let rx = 0; rx < W; rx++) if (r[rx] === 'x') {
+    ctx.fillStyle = ry < litFrom ? B.dark : rx === B.hx && ry === B.hy ? B.hi : B.lit; ctx.fillRect(X + rx * P, Y + ry * P, P, P); } });
 }
 /* 目盲：畫面周圍變暗，只剩身邊一圈看得到（畫在最上層，螢幕座標） */
 export function drawBlind(cx: number, cy: number, W: number, H: number) {
