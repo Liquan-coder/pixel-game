@@ -442,7 +442,9 @@ export function trySkill(pl: Player) {
   const col = RAR[pl.weapon.rarity].c, wc = wcols(pl, pl.weapon.type);
   switch (W.skill) {
     case 'spin':
-      pl.skillLock = .3; pl.spin = .3; meleeHit(pl, 46, 360, 2.2);
+      pl.skillLock = .45; pl.spin = .3; meleeHit(pl, 46, 360, 2.6);     // 第一圈 260%；0.2 秒後第二圈更大（也是 260%）
+      pl.timers.push({ t:.2, fn: () => { pl.spin = .3; meleeHit(pl, 58, 360, 2.6, { heavy:true }); G.fx.push({ k:'ring', x:pl.x, y:pl.y - 6, r0:20, r1:60, t:0, d:.28, col:wc[1] });
+        G.fx.push({ k:'arc', x:pl.x, y:pl.y - 6, a:0, arc:TAU, r:52, t:0, d:.2, col }); sfx.swing(); shake(3, .12); } });
       G.fx.push({ k:'ring', x:pl.x, y:pl.y - 6, r0:14, r1:46, t:0, d:.25, col:'#ffffff' });
       G.fx.push({ k:'arc', x:pl.x, y:pl.y - 6, a:0, arc:TAU, r:40, t:0, d:.2, col });
       for (let i = 0; i < 28; i++) { const a = i / 28 * TAU, v = rr(90, 160);   // 一圈星光往外炸開
@@ -457,6 +459,9 @@ export function trySkill(pl: Player) {
       const streak = { k:'streak', x0:pl.x, y0:pl.y - 8, x1:pl.x, y1:pl.y - 8, t:0, d:.4 };
       G.fx.push(streak);
       pl.dash = { t:.16, vx:Math.cos(pl.face) * 560, vy:Math.sin(pl.face) * 560, hit:new Set(), streak }; pl.iframe = .24;
+      for (let i = 0; i < 3; i++) pl.timers.push({ t:.2 + i * .07, fn: () => { const t = nearestTarget(pl, 40); if (!t) return;   // 衝完：轉身對最近的敵人連砍三刀
+        pl.face = Math.atan2(t.y - pl.y, t.x - pl.x); updFlip(pl); const a = pl.face + (i % 2 ? .9 : -.9);
+        smearFx(pl, a, a - (i % 2 ? 1.8 : -1.8), 24, 7, .07, wc, .06); meleeHit(pl, 28, 160, 1.3, i === 2 ? { heavy:true } : undefined); sfx.swing(); } });
       // 起跑：腳下展開魔法陣 + 星光往後噴 + 輕微震動
       G.fx.push({ k:'rune', x:pl.x, y:pl.y, r:17, t:0, d:.55, rot:rr(0, TAU) });
       for (let i = 0; i < 14; i++) { const a = pl.face + Math.PI + rr(-.9, .9), s = rr(50, 160);
@@ -475,7 +480,7 @@ export function trySkill(pl: Player) {
       } }); break;
     case 'triple':
       autoFace(pl, 80); pl.skillLock = .42;
-      for (let i = 0; i < 3; i++) pl.timers.push({ t: i * .13, fn: () => { meleeHit(pl, 56, 34, 1.4); pl.thrust = .1;
+      for (let i = 0; i < 3; i++) pl.timers.push({ t: i * .13, fn: () => { meleeHit(pl, 56, 34, 2); pl.thrust = .1;
         G.fx.push({ k:'line', x:pl.x, y:pl.y - 6, a:pl.face, len:56, t:0, d:.12, col:'#ffffff' }); sfx.swing();
         const c = Math.cos(pl.face), sn = Math.sin(pl.face), tx = pl.x + c * 50, ty = pl.y - 6 + sn * 50;
         for (let k = 0; k < 9; k++) { const a = pl.face + rr(-.45, .45), v = rr(60, 170); G.parts.push({ x:tx, y:ty, vx:Math.cos(a) * v, vy:Math.sin(a) * v, life:rr(.15, .3), max:.3, col:pick([wc[1], wc[2], '#ffffff']), star:rr(.8, 2), drag:6 }); }   // 槍尖噴火花
@@ -484,7 +489,7 @@ export function trySkill(pl: Player) {
       break;
     case 'fireball':
       autoFace(pl, 190);
-      G.projs.push({ x:pl.x + Math.cos(pl.face) * 8, y:pl.y - 7 + Math.sin(pl.face) * 8, vx:Math.cos(pl.face) * 200, vy:Math.sin(pl.face) * 200, r:4, life:1.1, mult:3, owner:'p', by:pl, kind:'fire' });
+      G.projs.push({ x:pl.x + Math.cos(pl.face) * 8, y:pl.y - 7 + Math.sin(pl.face) * 8, vx:Math.cos(pl.face) * 200, vy:Math.sin(pl.face) * 200, r:4, life:1.1, mult:4.5, owner:'p', by:pl, kind:'fire' });
       { const mx = pl.x + Math.cos(pl.face) * 12, my = pl.y - 7 + Math.sin(pl.face) * 12;   // 杖頭噴出火焰 + 橘色光圈
         G.fx.push({ k:'warp', x:mx, y:my, r0:3, r1:13, th:2.5, sy:1, t:0, d:.22, col:'#ff9a3a' });
         for (let i = 0; i < 16; i++) { const a = pl.face + rr(-1.2, 1.2), v = rr(40, 140); G.parts.push({ x:mx, y:my, vx:Math.cos(a) * v, vy:Math.sin(a) * v - 15, life:rr(.2, .4), max:.4, col:pick(['#ffe08a', '#ffb040', '#ff7a2a', '#ffffff']), star:rr(.8, 2), drag:5 }); } }
@@ -497,7 +502,7 @@ export function trySkill(pl: Player) {
         blinkFx(pl, pl.x, pl.y, true); moveEnt(pl, Math.cos(a) * 78, Math.sin(a) * 78); const L = Math.hypot(pl.x - x0, pl.y - y0);
         G.fx.push({ k:'lance', follow:null, x:x0, y:y0 - 7, a, len:L + 10, w:6, t:0, d:.32, cols:wc });
         G.fx.push({ k:'line', x:x0, y:y0 - 7, a, len:L + 14, t:0, d:.22, col:'#ffffff' });
-        lineHit(pl, x0, y0, a, L + 12, 12, 3, { crit:true, heavy:true });
+        lineHit(pl, x0, y0, a, L + 12, 12, 4, { crit:true, heavy:true });
         blinkFx(pl, pl.x, pl.y, false); pl.face = a; updFlip(pl); sfx.crit(); shake(4, .15); G.hitStop = Math.max(G.hitStop, .08);
         for (let k = 0; k < 18; k++) { const u = Math.random(); G.parts.push({ x:x0 + (pl.x - x0) * u, y:y0 - 7 + (pl.y - y0) * u, vx:rr(-20, 20), vy:rr(-30, 10), life:rr(.3, .6), max:.6, col:pick(['#ff8aa0', '#ffffff', '#ffd0dc']), star:rr(.6, 1.6), drag:2 }); }   // 刀光走過的地方飄下花瓣般的光點
       } });
@@ -517,7 +522,7 @@ export function trySkill(pl: Player) {
       G.fx.push({ k:'warp', x:pl.x, y:pl.y, r0:90, r1:16, th:4, t:0, d:.22, col:wc[1] });
       pl.timers.push({ t:.14, fn: () => { pl.spin = .3; const a = rr(0, TAU);
         smearFx(pl, a, a + TAU * .97, 44, 14, .16, wc, .14); smearFx(pl, a + Math.PI, a + Math.PI - TAU * .9, 30, 8, .16, ['#0e2a20', '#2e7a5c', '#a8f0d0'], .12);
-        aoeHit(pl, pl.x, pl.y, 46, 2.6, { heal:.04, heavy:true }); sfx.release(2); shake(4, .15);
+        aoeHit(pl, pl.x, pl.y, 46, 3.6, { heal:.04, heavy:true }); sfx.release(2); shake(4, .15);
         for (let k = 0; k < 24; k++) { const b = k / 24 * TAU; G.parts.push({ x:pl.x + Math.cos(b) * 40, y:pl.y - 6 + Math.sin(b) * 28, vx:-Math.cos(b) * 60, vy:-Math.sin(b) * 40 - 10, life:.45, max:.45, col:pick(wc), star:rr(.8, 2), drag:3 }); } } });
       break; }
     case 'wolfrush':
@@ -543,7 +548,7 @@ export function trySkill(pl: Player) {
       G.fx.push({ k:'warp', x:cx, y:cy, r0:34, r1:30, th:2, t:0, d:.9, col:wc[1] });              // 落點的圈
       for (let i = 0; i < 6; i++) G.parts.push({ x:pl.x + rr(-3, 3), y:pl.y - 12, vx:rr(-20, 20), vy:-rr(220, 300), life:.25, max:.25, col:pick([wc[1], '#ffffff']), star:rr(1, 2), drag:1 });   // 往天上射的箭光
       for (let i = 0; i < 10; i++) { const ra = rr(0, TAU), rd = Math.sqrt(Math.random()) * 32;
-        G.projs.push({ x:cx + Math.cos(ra) * rd, y:cy + Math.sin(ra) * rd * .8, vx:0, vy:0, r:0, life:.35 + i * .05, max:.35 + i * .05, mult:.9, owner:'p', by:pl, kind:'rain', cols:wc }); }
+        G.projs.push({ x:cx + Math.cos(ra) * rd, y:cy + Math.sin(ra) * rd * .8, vx:0, vy:0, r:0, life:.35 + i * .05, max:.35 + i * .05, mult:1.1, owner:'p', by:pl, kind:'rain', cols:wc }); }
       sfx.fire(); break; }
     case 'leafvolley': {                                              // 千葉齊射：往前方扇形連射十二支葉箭（穿透）
       autoFace(pl, 220); pl.skillLock = .5; const a0 = pl.face;
@@ -554,14 +559,14 @@ export function trySkill(pl: Player) {
       for (let i = 0; i < 3; i++) pl.timers.push({ t:i * .16, fn: () => { const t = nearestTarget(pl, 120); if (t) pl.face = Math.atan2(t.y - pl.y, t.x - pl.x); updFlip(pl);
         const a = pl.face, x0 = pl.x, y0 = pl.y; blinkFx(pl, pl.x, pl.y, true); moveEnt(pl, Math.cos(a) * 56, Math.sin(a) * 56); blinkFx(pl, pl.x, pl.y, false);
         const D = Math.hypot(pl.x - x0, pl.y - y0); G.fx.push({ k:'lance', follow:null, x:x0, y:y0 - 7, a, len:D + 14, w:5, t:0, d:.24, cols:wc });
-        lineHit(pl, x0, y0, a, D + 14, 9, 1.6, i === 2 ? { heavy:true } : undefined); sfx.swing(); } });
+        lineHit(pl, x0, y0, a, D + 14, 9, 2.2, i === 2 ? { heavy:true } : undefined); sfx.swing(); } });
       break; }
     case 'windwaltz': {                                               // 風之輪舞：旋轉著往前衝，路上一直砍（6 下），衝完再轉一圈
       autoFace(pl, 140); const a = pl.face, L = 110, T = .36; pl.skillLock = .5; pl.iframe = Math.max(pl.iframe, .45);
       pl.lunge = { t:T, vx:Math.cos(a) * L / T, vy:Math.sin(a) * L / T };
       for (let i = 0; i < 6; i++) pl.timers.push({ t:i * .06, fn: () => { pl.spin = .3; const b = rr(0, TAU); smearFx(pl, b, b + TAU * .9, 28, 8, .1, wc, .05);
-        aoeHit(pl, pl.x, pl.y, 30, .7); leafBurst(pl.x, pl.y - 6, 4); if (i % 2 === 0) sfx.swing(); } });
-      pl.timers.push({ t:.4, fn: () => { pl.spin = .3; smearFx(pl, a, a + TAU * .95, 36, 11, .16, wc, .1); meleeHit(pl, 38, 360, 1.2, { heavy:true }); shake(3, .12); } });
+        aoeHit(pl, pl.x, pl.y, 30, 1); leafBurst(pl.x, pl.y - 6, 4); if (i % 2 === 0) sfx.swing(); } });
+      pl.timers.push({ t:.4, fn: () => { pl.spin = .3; smearFx(pl, a, a + TAU * .95, 36, 11, .16, wc, .1); meleeHit(pl, 38, 360, 1.6, { heavy:true }); shake(3, .12); } });
       break; }
     case 'cleave':                                                    // 破山斬：舉劍過頭 → 往前劈，地面裂出一條直線
       autoFace(pl, 130); pl.skillLock = .6; pl.slam = .5; pl.iframe = Math.max(pl.iframe, .25);

@@ -13,16 +13,16 @@ import { FX_KEYS, WFXD } from '../game/weaponFx';
 
 /* ================= DATA ================= */
 export const WT = {
-  sword:{name:'長劍',base:13,cd:.42,range:26,arc:120,stam:12,skill:'spin',sn:'迴旋斬',scd:6,trait:'第三下放出劍氣',sd:'揮出一圈劍氣，打中身邊所有敵人（220%）'},
-  dagger:{name:'短刀',base:8,cd:.26,range:20,arc:100,stam:7,skill:'dash',sn:'疾風突刺',scd:5,trait:'出手很快',sd:'向前突進，穿過路上所有敵人（250%），突進時無敵'},
+  sword:{name:'長劍',base:13,cd:.42,range:26,arc:120,stam:12,skill:'spin',sn:'迴旋斬',scd:6,trait:'第三下放出劍氣',sd:'連轉兩圈劍氣，打中身邊所有敵人（每圈 260%，第二圈範圍更大）'},
+  dagger:{name:'短刀',base:8,cd:.26,range:20,arc:100,stam:7,skill:'dash',sn:'疾風突刺',scd:5,trait:'出手很快',sd:'向前突進，穿過路上所有敵人（300%），停下來再對最近的敵人連砍三刀（每刀 130%）；突進時無敵'},
   axe:{name:'戰斧',base:21,cd:.72,range:28,arc:140,stam:20,skill:'slam',sn:'裂地重擊',scd:8,trait:'左右橫掃，越砍越快',sd:'蓄力砸地，前方大範圍傷害（350%）並暈眩敵人'},
-  spear:{name:'長槍',base:12,cd:.44,range:42,arc:44,stam:13,skill:'triple',sn:'三連刺',scd:5.5,trait:'刺穿一排，槍尖更痛',sd:'快速刺出三槍（每下 140%）'},
-  staff:{name:'法杖',base:10,cd:.5,range:150,arc:0,stam:10,ranged:true,skill:'fireball',sn:'火球術',scd:6,trait:'遠程魔法彈',sd:'發射火球，爆炸傷害一整片（300%）'},
-  katana:{name:'太刀',base:13,cd:.34,range:27,arc:110,stam:10,skill:'iai',sn:'居合一閃',scd:6,trait:'出手快、容易暴擊',sd:'瞬間穿過前方一整排敵人（300%），一定會暴擊'},
+  spear:{name:'長槍',base:12,cd:.44,range:42,arc:44,stam:13,skill:'triple',sn:'三連刺',scd:5.5,trait:'刺穿一排，槍尖更痛',sd:'快速刺出三槍（每下 200%）'},
+  staff:{name:'法杖',base:10,cd:.5,range:150,arc:0,stam:10,ranged:true,skill:'fireball',sn:'火球術',scd:6,trait:'遠程魔法彈',sd:'發射火球，爆炸傷害一整片（450%）'},
+  katana:{name:'太刀',base:13,cd:.34,range:27,arc:110,stam:10,skill:'iai',sn:'居合一閃',scd:6,trait:'出手快、容易暴擊',sd:'瞬間穿過前方一整排敵人（400%），一定會暴擊'},
   hammer:{name:'戰鎚',base:24,cd:.8,range:27,arc:150,stam:22,skill:'quake',sn:'三重震波',scd:9,trait:'每一下都往下砸',sd:'連砸三下，震波一圈比一圈大（每圈 200%）並暈眩敵人'},
-  scythe:{name:'鐮刀',base:14,cd:.5,range:33,arc:200,stam:13,skill:'reap',sn:'死神收割',scd:8,trait:'掃一大圈、打中會回血',sd:'把周圍的敵人拉過來一起砍（260%），每打中一隻回 4% 生命'},
+  scythe:{name:'鐮刀',base:14,cd:.5,range:33,arc:200,stam:13,skill:'reap',sn:'死神收割',scd:8,trait:'掃一大圈、打中會回血',sd:'把周圍的敵人拉過來一起砍（360%），每打中一隻回 4% 生命'},
   wolfblade:{name:'狼牙雙刃',base:14,cd:.38,range:24,arc:130,stam:9,skill:'wolfrush',sn:'狼影連襲',scd:7,trait:'狼王的獠牙',sd:'化為狼影，連續撲向三個敵人（每下 180%），期間無敵'},
-  bow:{name:'長弓',base:13,cd:.5,range:200,arc:0,stam:10,ranged:true,skill:'arrowrain',sn:'箭雨',scd:7,trait:'箭飛得越遠越痛',sd:'往前方射上天，落下一片箭雨（10 支，每支 90%）'},
+  bow:{name:'長弓',base:13,cd:.5,range:200,arc:0,stam:10,ranged:true,skill:'arrowrain',sn:'箭雨',scd:7,trait:'箭飛得越遠越痛',sd:'往前方射上天，落下一片箭雨（10 支，每支 110%）'},
   greatsword:{name:'大劍',base:26,cd:.86,range:34,arc:160,stam:22,skill:'cleave',sn:'破山斬',scd:8,trait:'揮劍時不會被打退、受傷減少',sd:'把劍舉過頭往前劈，地面裂出一條直線（380%）並暈眩敵人'},
   rapier:{name:'細劍',base:10,cd:.3,range:36,arc:0,stam:8,skill:'flurry',sn:'百花刺',scd:6,trait:'一直刺同一隻，越刺越容易暴擊',sd:'往前連刺八下（每下 70%），最後一下一定暴擊'},
   // 下面三種只有獨特武器（data/uniques.ts）才有：不會隨機掉、商人不賣
@@ -31,8 +31,8 @@ export const WT = {
   darkmoon:{name:'暗月大劍',base:20,cd:.78,range:34,arc:150,stam:20,skill:'moonbeam',sn:'暗月光波',scd:7,trait:'打中會存月光，第三下全部放出去',sd:'舉劍吸收月光，往前放出一道巨大的月光劍浪（400%），一路穿透'},
   // 精靈武器（精靈王國）：也只有獨特版
   elfbow:{name:'精靈弓',base:14,cd:.42,range:220,arc:0,stam:9,ranged:true,skill:'leafvolley',sn:'千葉齊射',scd:7,trait:'箭更快更遠，第三下一次三支',sd:'往前方扇形連射十二支葉箭，每支都會穿透（每支 80%）'},
-  elfrapier:{name:'精靈細劍',base:11,cd:.28,range:38,arc:0,stam:8,skill:'moonstep',sn:'月步',scd:6,trait:'第三下刺出一道葉刃',sd:'化成月光往前閃三次，每次穿過路上的敵人（每次 160%），期間無敵'},
-  elfblades:{name:'精靈雙刀',base:12,cd:.3,range:28,arc:140,stam:8,skill:'windwaltz',sn:'風之輪舞',scd:7,trait:'左右交替的四連斬，第四下轉一圈',sd:'旋轉著往前衝，路上的敵人一直被砍（6 下，每下 70%），衝完再轉一圈'},
+  elfrapier:{name:'精靈細劍',base:11,cd:.28,range:38,arc:0,stam:8,skill:'moonstep',sn:'月步',scd:6,trait:'第三下刺出一道葉刃',sd:'化成月光往前閃三次，每次穿過路上的敵人（每次 220%），期間無敵'},
+  elfblades:{name:'精靈雙刀',base:12,cd:.3,range:28,arc:140,stam:8,skill:'windwaltz',sn:'風之輪舞',scd:7,trait:'左右交替的四連斬，第四下轉一圈',sd:'旋轉著往前衝，路上的敵人一直被砍（6 下，每下 100%），衝完再轉一圈（160%）'},
 };
 /* 顏色（沒有品階了，只用來分辨是哪一種東西）：0 一般、2 地區防具 / 飾品、3 刻印（或裝了刻印的武器）、4 獨特。m 只給舊存檔換算用 */
 export const RAR = [

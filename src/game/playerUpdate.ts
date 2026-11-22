@@ -50,7 +50,7 @@ export function updatePlayer(pl: Player, dt) {
     G.fx.push({ k:'aline', x:pl.x + rr(-6, 6), y:pl.y - 8 + rr(-9, 9), a:back, len:rr(12, 26), t:0, d:.14, col:'#ffffff' }); // 細速度線
     for (let i = 0; i < 2; i++) { const a = back + rr(-.6, .6), s = rr(20, 70);                                       // 一路灑下的星屑
       G.parts.push({ x:pl.x + rr(-5, 5), y:pl.y - rr(2, 16), vx:Math.cos(a) * s, vy:Math.sin(a) * s + 10, life:rr(.3, .55), max:.55, col:pick(STARC), star:rr(.8, 2.4), drag:3 }); }
-    for (const e of targets(pl)) if (!D.hit.has(e) && Math.hypot(e.x - pl.x, e.y - pl.y) < e.r + pl.r + 8) { D.hit.add(e); damageEnemy(pl, e, 2.5, pl.x, pl.y);
+    for (const e of targets(pl)) if (!D.hit.has(e) && Math.hypot(e.x - pl.x, e.y - pl.y) < e.r + pl.r + 8) { D.hit.add(e); damageEnemy(pl, e, 3, pl.x, pl.y);
       // 命中：兩道交叉的新月斬痕 + 炸開的星光 + 一下重震
       G.fx.push({ k:'cres', x:e.x, y:e.y - 7, a:pl.face - Math.PI / 2 + .55, r:15, t:0, d:.24 });
       G.fx.push({ k:'cres', x:e.x, y:e.y - 7, a:pl.face + Math.PI / 2 - .55, r:15, t:0, d:.24, late:.04 });
