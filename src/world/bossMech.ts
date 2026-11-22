@@ -25,23 +25,25 @@ const LAVA = ['#5a1408', '#f07a32', '#ffd04a'], SAND = ['#6a4a2a', '#d8b878', '#
 const MUD = ['#2a2a14', '#6a7a3a', '#c8e08a'], SNOW = ['#5e86ba', '#dce8f4', '#ffffff'], GHOST = ['#1a3a7a', '#4aa8ff', '#e0f4ff'], VOID = ['#3a1a6a', '#9a6ae8', '#e8d8ff'];
 const GOLD = ['#7a4a1a', '#f2c14e', '#fff6d0'], ROOT = ['#2a3a14', '#6aa84a', '#d0f0a0'], RED = ['#5a0e14', '#e04a3a', '#ffd0a0'], SPORE = ['#3a1a4a', '#c46ad8', '#f0c8ff'];
 /* key：地城 Boss = DBOSS 的 key；主線 / 區域 Boss = RBDEF 的 id。
-   只有一半的 Boss 有機制（挑跟牠的樣子最搭的）；前期的 Boss（史萊姆女王、苔蝸王、守墓人、潮音巨蟹……）沒有，中期才開始出現。
-   其他 Boss 照常打；要加回去就在這裡加一筆 */
+   只挑 5 隻有機制（每個等級段一隻、機關不重複）：巢母 25、沙王 38、熔岩巨龍 52、沼澤巫妖 75、星之看守者 80。
+   其他 Boss 照常打。MECH_SPARE 是以前也有機制的 Boss，要加回去就把那一行搬進 MECH */
 export const MECH: Record<string, MDef> = {
+  broodmother: { kind: 'sky', obj: 'egg', col: ['#8a8aa0', '#e8e8f4', '#ffffff'], name: '卵囊', hatch: 'spiderF' },
+  dragon:      { kind: 'sky', obj: 'ballista', col: LAVA, name: '鎖龍弩砲' },
+  sandking:    { kind: 'shield', obj: 'crystal', col: GOLD, name: '王的卡諾卜罐' },
+  starwarden:  { kind: 'shield', obj: 'crystal', col: VOID, name: '星之柱' },
+  lich:        { kind: 'shield', obj: 'crystal', col: ['#1a4a1a', '#6ae04a', '#d0ffb0'], name: '命匣' },
+};
+export const MECH_SPARE: Record<string, MDef> = {
   magmaworm:   { kind: 'burrow', obj: 'vent', col: LAVA, name: '熔岩裂口' },
   scorpion:    { kind: 'burrow', obj: 'vent', col: SAND, name: '流沙洞' },
   drowned:     { kind: 'burrow', obj: 'vent', col: WATER, name: '深水的漩渦' },
   sandgiant:   { kind: 'burrow', obj: 'vent', col: SAND, name: '流沙洞' },
-  broodmother: { kind: 'sky', obj: 'egg', col: ['#8a8aa0', '#e8e8f4', '#ffffff'], name: '卵囊', hatch: 'spiderF' },
-  dragon:      { kind: 'sky', obj: 'ballista', col: LAVA, name: '鎖龍弩砲' },
   frostwyrm:   { kind: 'sky', obj: 'ballista', col: ICE, name: '鎖龍弩砲' },
   mistwitch:   { kind: 'sky', obj: 'totem', col: GHOST, name: '霧之圖騰' },
   rootheart:   { kind: 'shield', obj: 'root', col: ROOT, name: '根瘤' },
-  sandking:    { kind: 'shield', obj: 'crystal', col: GOLD, name: '王的卡諾卜罐' },
   icequeen:    { kind: 'shield', obj: 'crystal', col: ICE, name: '冰晶' },
-  starwarden:  { kind: 'shield', obj: 'crystal', col: VOID, name: '星之柱' },
   mushking:    { kind: 'shield', obj: 'egg', col: SPORE, name: '孢子囊', hatch: 'shroom' },
-  lich:        { kind: 'shield', obj: 'crystal', col: ['#1a4a1a', '#6ae04a', '#d0ffb0'], name: '命匣' },
   elfking:     { kind: 'shield', obj: 'banner', col: ['#1e3a5e', '#9ad8ff', '#e0c060'], name: '精靈王旗' },     // 精靈王國
   mothqueen:   { kind: 'sky', obj: 'egg', col: ['#6a5a80', '#e8dcb0', '#ffffff'], name: '蛾繭', hatch: 'mothE' },
 };
