@@ -93,9 +93,14 @@ export function drawStatus(pl: Player) {
 }
 /* 累積圖示的形狀（x = 有顏色的格子，外框自動加）和顏色：亮 / 反光 / 暗（還沒累積的部分）
    怪物身上的刻印累積也用同一套（render/enemy.ts）：burn = 燃燒還剩幾秒 */
-export const BUILD: Record<string, { rows: string[]; lit: string; hi: string; dark: string; hx: number; hy: number }> = {
-  burn: { lit: '#ff9a3a', hi: '#ffe08a', dark: '#6a2a10', hx: 3, hy: 6, rows: [
-    '...x...', '..xx...', '..xxx..', '.xxxx..', '.xxxxx.', 'xxxxxxx', 'xxxxxxx', 'xxxxxxx', '.xxxxx.', '..xxx..'] },
+export const BUILD: Record<string, { rows: string[]; lit: string; hi: string; dark: string; hx: number; hy: number; pal?: Record<string, string>; dk?: Record<string, string> }> = {
+  // 燃燒：照使用者給的火焰參考圖縮成 8 × 10（主火舌 + 右邊小火舌 + 淡黃色的芯），多色 → 用 pal / dk（每個字母亮 / 暗各一色）
+  burn: { lit: '', hi: '', dark: '', hx: -1, hy: -1, rows: [
+    '...r....', '..rr....', '..rrr.r.', '.rorr.rr', '.rooorrr', 'rroyyoor', 'royywyor', 'roywwwyr', '.oywwyo.', '..oyyo..'],
+    pal: { r: '#e0562a', o: '#f0883a', y: '#f4b648', w: '#fff0a8' }, dk: { r: '#4a2016', o: '#5a2e1c', y: '#644020', w: '#6e5a34' } },
+  // 雷鳴：閃電
+  shock: { lit: '#ffe85a', hi: '#ffffff', dark: '#5a4a14', hx: 3, hy: 3, rows: [
+    '....xxx', '...xxx.', '..xxx..', '.xxxxxx', '....xx.', '...xx..', '..xx...', '.xx....', '.x.....'] },
   bleed: { lit: '#ff3a4a', hi: '#ffc0c8', dark: '#6a2028', hx: 2, hy: 6, rows: [
     '...x...', '...x...', '..xxx..', '..xxx..', '.xxxxx.', 'xxxxxxx', 'xxxxxxx', 'xxxxxxx', '.xxxxx.', '..xxx..'] },
   frost: { lit: '#a8dcff', hi: '#ffffff', dark: '#34506e', hx: 4, hy: 4, rows: [
@@ -106,9 +111,9 @@ export function buildIcon(B, cx: number, bottom: number, f: number, t: number, w
   const P = IP(), H = B.rows.length, W = B.rows[0].length, X = snapF(cx - W * P / 2), Y = snapF(bottom - H * P);
   const litFrom = H - Math.round(H * Math.min(1, f)), warn = f >= warnAt && Math.sin(t * 18) > 0;   // 第幾列以下是亮的
   ctx.fillStyle = warn ? '#ffffff' : '#0e0b14';                                                    // 外框：每一格往四周多 1 美術像素
-  B.rows.forEach((r, ry) => { for (let rx = 0; rx < W; rx++) if (r[rx] === 'x') ctx.fillRect(X + rx * P - HK, Y + ry * P - HK, P + HK * 2, P + HK * 2); });
-  B.rows.forEach((r, ry) => { for (let rx = 0; rx < W; rx++) if (r[rx] === 'x') {
-    ctx.fillStyle = ry < litFrom ? B.dark : rx === B.hx && ry === B.hy ? B.hi : B.lit; ctx.fillRect(X + rx * P, Y + ry * P, P, P); } });
+  B.rows.forEach((r, ry) => { for (let rx = 0; rx < W; rx++) if (r[rx] !== '.') ctx.fillRect(X + rx * P - HK, Y + ry * P - HK, P + HK * 2, P + HK * 2); });
+  B.rows.forEach((r, ry) => { for (let rx = 0; rx < W; rx++) { const ch = r[rx]; if (ch === '.') continue;
+    ctx.fillStyle = B.pal ? (ry < litFrom ? B.dk[ch] : B.pal[ch]) : ry < litFrom ? B.dark : rx === B.hx && ry === B.hy ? B.hi : B.lit; ctx.fillRect(X + rx * P, Y + ry * P, P, P); } });
 }
 /* 一排圖示，置中在 cx：[種類, 進度 0~1, 幾成開始閃]。之後狀態變多也是排成一排（主角和怪物共用） */
 export function buildRow(list: [string, number, number?][], cx: number, bottom: number) {

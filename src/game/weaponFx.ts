@@ -12,8 +12,8 @@ export const WFXD: Record<string, { n: string; c: string; d: string; pre: string
   bleed: { n: '出血', c: '#ff5a64', pre: '血棘', d: '連續命中會累積出血，滿了爆發「最大生命 15%」的傷害（Boss 5%）' },
   burn:  { n: '燃燒', c: '#ff9a3a', pre: '烈焰', d: '命中有 30% 機率點燃敵人：3 秒內每 0.5 秒受到攻擊力 20% 的傷害' },
   frost: { n: '寒霜', c: '#9ae0ff', pre: '霜語', d: '連續命中會累積凍傷，滿了造成攻擊力 150% 的傷害並凍住敵人 1 秒（Boss 不會被凍住）' },
-  shock: { n: '雷鳴', c: '#ffe85a', pre: '雷鳴', d: '命中有 20% 機率放出閃電，打中附近最多 2 個敵人（傷害 60%）' },
-  soul:  { n: '噬魂', c: '#c8a8ff', pre: '噬魂', d: '打倒敵人時回復 4% 生命，拿到的魂晶 +25%' },
+  shock: { n: '雷鳴', c: '#ffe85a', pre: '雷鳴', d: '連續命中會累積雷電，滿了從天上劈下一道雷：打中的敵人受到攻擊力 100% 的傷害並麻痺 0.4 秒，再跳到附近最多 3 個敵人（70%）' },
+  soul:  { n: '噬魂', c: '#c8a8ff', pre: '噬魂', d: '打倒敵人時，牠的魂會飛回你身上，回復 4% 生命；拿到的魂晶 +25%' },
 };
 export const FX_KEYS = Object.keys(WFXD);
 export const fxOf = (it: Item | null) => it ? (it.uq && UQ[it.uq] ? UQ[it.uq].fx : it.fx) || null : null;
@@ -49,12 +49,50 @@ function ignitePop(e: Enemy) {                                         // 燃燒
   G.fx.push({ k: 'ring', x: e.x, y: e.y, r0: 3, r1: 18, t: 0, d: .25, col: '#ffa040' });
   sfx.ignite();
 }
-function soulWisps(pl: Player, e: Enemy) {                             // 噬魂：幾顆紫色的魂從怪身上飛進主角
-  for (let i = 0; i < 7; i++) { const life = rr(.35, .55), sx = e.x + rr(-6, 6), sy = e.y - rr(4, 14);
-    G.parts.push({ x: sx, y: sy, vx: (pl.x - sx) / life, vy: (pl.y - 10 - sy) / life, life, max: life, col: pick(['#c8a8ff', '#f0e8ff', '#9a6cff']), star: rr(1, 2.2) }); }
-  sfx.soulTake();
+/* 噬魂：打倒的怪身上飄出一顆魂，先往上浮一下，再轉彎追著主角飛回來；碰到主角才回血 */
+type Orb = { x: number; y: number; vx: number; vy: number; t: number; pl: Player; heal: number; done?: boolean };
+const orbs: Orb[] = [];
+function soulOrb(pl: Player, e: Enemy, heal: number) {
+  const o = { x: e.x, y: e.y - 10, vx: rr(-50, 50), vy: -rr(80, 110), t: 0, pl, heal }; orbs.push(o);
+  G.fx.push({ k: 'sorb', o, t: 0, d: 9 });                                 // 魂的本體：一顆會發光的紫色球（render.ts 畫，跟著 o 走；o.done 之後消失）
+  for (let i = 0; i < 10; i++) { const a = rr(0, TAU), v = rr(20, 60); G.parts.push({ x: e.x, y: e.y - 10, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rr(.3, .5), max: .5, col: pick(['#c8a8ff', '#f0e8ff', '#9a6cff']), star: rr(.8, 1.6), drag: 3 }); }
+  G.fx.push({ k: 'ring', x: e.x, y: e.y - 8, r0: 2, r1: 16, t: 0, d: .25, col: '#c8a8ff' });
 }
-
+function tickOrbs(dt: number) {
+  for (let i = orbs.length - 1; i >= 0; i--) { const o = orbs[i], pl = o.pl; o.t += dt;
+    const dx = pl.x - o.x, dy = pl.y - 10 - o.y, d = Math.hypot(dx, dy);
+    if (o.t > .22) { const sp = 120 + o.t * 420, k = Math.min(1, dt * 9); o.vx += (dx / d * sp - o.vx) * k; o.vy += (dy / d * sp - o.vy) * k; }   // 浮起來之後越飛越快地追過去
+    else { o.vx *= .9; o.vy *= .9; }
+    o.x += o.vx * dt; o.y += o.vy * dt;
+    G.parts.push({ x: o.x + rr(-1.5, 1.5), y: o.y + rr(-1.5, 1.5), vx: rr(-8, 8), vy: rr(-8, 8), life: rr(.25, .4), max: .4, col: pick(['#c8a8ff', '#9a6cff', '#e8dcff']), star: rr(.6, 1.3), drag: 2 });   // 拖著的尾巴
+    if (d < 7 || o.t > 1.6 || pl.dead) { orbs.splice(i, 1); o.done = true; if (pl.dead) continue;
+      const h = Math.round(pl.maxHp * o.heal / 100); pl.hp = Math.min(pl.maxHp, pl.hp + h);                                             // 碰到主角才回血
+      G.nums.push({ x: pl.x, y: pl.y - 28, txt: '+' + h, col: '#c8a8ff', t: 0, d: .8, big: true });
+      G.fx.push({ k: 'ring', x: pl.x, y: pl.y - 4, r0: 3, r1: 20, t: 0, d: .3, col: '#c8a8ff' });
+      for (let k = 0; k < 12; k++) { const a = rr(0, TAU); G.parts.push({ x: pl.x + Math.cos(a) * 9, y: pl.y - 10 + Math.sin(a) * 9, vx: -Math.cos(a) * 30, vy: -Math.sin(a) * 30 - 20, life: .4, max: .4, col: pick(['#c8a8ff', '#f0e8ff']), star: rr(.8, 1.6), drag: 2 }); }
+      sfx.soulTake(); }
+  }
+}
+/* 雷鳴：從天上劈下一道粗的閃電（render.ts 的 'zap'）+ 白光一閃 + 地上燒焦的圈 */
+function thunder(pl: Player, e: Enemy, pow: number) {
+  const d = Math.max(1, Math.round(pow)), tx = e.x, ty = e.y - 6;
+  const pts = jag(tx + rr(-20, 20), ty - 130, tx, ty, 8, 9), br = [2, 4].map(i => { const [bx, by] = pts[i], sg = Math.random() < .5 ? -1 : 1; return jag(bx, by, bx + sg * rr(14, 24), by + rr(14, 26), 3, 4); });   // 兩條小分岔
+  G.fx.push({ k: 'zap', pts, br, t: 0, d: .36, col: '#ffe85a' });
+  G.fx.push({ k: 'flash', a: .16, col: '#fff8d0', t: 0, d: .12 });
+  G.fx.push({ k: 'ring', x: tx, y: e.y, r0: 4, r1: 26, t: 0, d: .32, col: '#ffe85a' });
+  for (let i = 0; i < 18; i++) { const a = rr(-Math.PI, 0), v = rr(50, 140); G.parts.push({ x: tx, y: e.y - 2, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rr(.2, .4), max: .4, col: pick(['#ffffff', '#ffe85a', '#fff3a0']), star: rr(.8, 1.8), drag: 4 }); }
+  if (!e.boss) e.stun = Math.max(e.stun || 0, .4);                       // 麻痺一下
+  num(e, '雷擊 ' + d, WFXD.shock.c); popJuice(e, .07, 3.5); sfx.thunder(); rawHit(pl, e, d, WFXD.shock.c);
+  const near = targetsOf(pl).filter(o => o !== e && o.hp > 0 && Math.hypot(o.x - e.x, o.y - e.y) < 72).sort((a, b) => Math.hypot(a.x - e.x, a.y - e.y) - Math.hypot(b.x - e.x, b.y - e.y)).slice(0, 3);
+  for (const o of near) { G.fx.push({ k: 'zap', pts: jag(tx, ty, o.x, o.y - 6, 4, 6), t: 0, d: .3, col: '#ffe85a', thin: true }); sparks(o, '#ffe85a', 8);   // 跳到旁邊的怪
+    o.flash = Math.max(o.flash || 0, .1); if (!o.boss) o.stun = Math.max(o.stun || 0, .25); rawHit(pl, o, Math.max(1, Math.round(pow * .7)), WFXD.shock.c); }
+}
+/* 鋸齒線：從 (x0,y0) 到 (x1,y1) 分 n 段，中間每個點往旁邊亂偏 dev */
+function jag(x0: number, y0: number, x1: number, y1: number, n: number, dev: number) {
+  const pts: number[][] = [[x0, y0]], L = Math.hypot(x1 - x0, y1 - y0) || 1, nx = -(y1 - y0) / L, ny = (x1 - x0) / L;
+  for (let i = 1; i < n; i++) { const t = i / n, o = rr(-dev, dev); pts.push([x0 + (x1 - x0) * t + nx * o, y0 + (y1 - y0) * t + ny * o]); }
+  pts.push([x1, y1]); return pts;
+}
 /** 每次命中（proc = 由效果本身造成的傷害，不再觸發，避免連鎖無限）
     B 也照武器速度調：慢的武器每下累積比較多 / 比較容易觸發，所以每種武器大約一樣快爆（太刀 0.34 秒一下 = 1 倍；短刀 0.76 倍、戰鎚 2.35 倍） */
 export const SPD_REF = .34;
@@ -68,28 +106,23 @@ export function onHit(pl: Player, e: Enemy, v: number, crit: boolean) {
     if (e.frostB >= 100) { e.frostB = 0; const d = Math.round(pow * 1.5); if (!e.boss) e.stun = Math.max(e.stun || 0, ICE_SECS(e));
       num(e, '凍傷 ' + d, WFXD.frost.c); freezePop(e); rawHit(pl, e, d, WFXD.frost.c); } }
   else if (fx === 'burn') { if (Math.random() < .3 * B) { if (!(e.burnT > 0)) ignitePop(e); e.burnT = 3; e.burnD = Math.max(1, Math.round(pow * .2)); e.burnBy = pl; } }
-  else if (fx === 'shock') { if (Math.random() < .2 * B) {
-    const near = targetsOf(pl).filter(o => o !== e && o.hp > 0 && Math.hypot(o.x - e.x, o.y - e.y) < 64).sort((a, b) => Math.hypot(a.x - e.x, a.y - e.y) - Math.hypot(b.x - e.x, b.y - e.y)).slice(0, 2);
-    for (const o of near) { bolt(e.x, e.y - 8, o.x, o.y - 8); sparks(o, '#ffe85a', 8); o.flash = Math.max(o.flash || 0, .1); rawHit(pl, o, Math.max(1, Math.round(v * .6)), WFXD.shock.c); }
-    if (near.length) { sparks(e, '#ffffff', 6); G.fx.push({ k: 'ring', x: e.x, y: e.y - 8, r0: 2, r1: 14, t: 0, d: .18, col: '#ffe85a' }); shake(1.5, .08); sfx.zap(); } } }
+  else if (fx === 'shock') { e.shockB = (e.shockB || 0) + 25 * B; e.fxT = G.time;
+    if (e.shockB >= 100) { e.shockB = 0; thunder(pl, e, pow); } }
 }
 /** 擊殺（回傳魂晶倍率） */
 export function onKill(pl: Player, e: Enemy) {
   if (!pl) return 1;
   const T = pl.tfx || {}, soul = fxOf(pl.weapon) === 'soul', heal = (soul ? 4 : 0) + (T.killHeal || 0);   // 噬魂刻印 + 飾品「打倒敵人回血」
-  if (heal) { const h = Math.round(pl.maxHp * heal / 100); pl.hp = Math.min(pl.maxHp, pl.hp + h);
-    G.nums.push({ x: pl.x, y: pl.y - 28, txt: '+' + h, col: '#c8a8ff', t: 0, d: .7, big: soul }); if (soul) { sparks(e, '#c8a8ff', 10); soulWisps(pl, e); } }
+  if (soul) soulOrb(pl, e, heal);                                        // 噬魂：魂飛回來才回血（tickOrbs）
+  else if (heal) { const h = Math.round(pl.maxHp * heal / 100); pl.hp = Math.min(pl.maxHp, pl.hp + h);
+    G.nums.push({ x: pl.x, y: pl.y - 28, txt: '+' + h, col: '#c8a8ff', t: 0, d: .7 }); }
   return (soul ? 1.25 : 1) * (1 + (T.souls || 0) / 100);                 // 魂晶倍率
 }
-/** 燃燒：每 0.5 秒扣一次 */
+/** 每幀：燃燒每 0.5 秒扣一次；噬魂的魂往主角飛 */
 export function tickWeaponFx(dt: number, list: Enemy[]) {
+  if (orbs.length) tickOrbs(dt);
   for (const e of list) { if (!(e.burnT > 0) || e.hp <= 0) continue;
     e.burnT -= dt; e.burnAcc = (e.burnAcc || 0) + dt;
     if (Math.random() < dt * 30) G.parts.push({ x: e.x + rr(-5, 5), y: e.y - rr(0, 12), vx: rr(-6, 6), vy: -rr(25, 50), life: rr(.3, .5), max: .5, col: pick(['#ff9a3a', '#ffd27a', '#e8402a', '#ffffff']), star: rr(.8, 1.6), drag: 1 });   // 身上一直冒火
     if (e.burnAcc >= .5) { e.burnAcc -= .5; G.nums.push({ x: e.x + rr(-4, 4), y: e.y - 18, txt: String(e.burnD), col: WFXD.burn.c, t: 0, d: .5 }); rawHit(e.burnBy || G.me, e, e.burnD, WFXD.burn.c); } }
-}
-function bolt(x0: number, y0: number, x1: number, y1: number) {                // 鋸齒狀閃電：三段斜線
-  let px = x0, py = y0;
-  for (let i = 1; i <= 3; i++) { const t = i / 3, nx = x0 + (x1 - x0) * t + (i < 3 ? rr(-6, 6) : 0), ny = y0 + (y1 - y0) * t + (i < 3 ? rr(-6, 6) : 0);
-    G.fx.push({ k: 'aline', x: px, y: py, a: Math.atan2(ny - py, nx - px), len: Math.hypot(nx - px, ny - py), t: 0, d: .18, col: i === 2 ? '#ffffff' : '#ffe85a' }); px = nx; py = ny; }
 }

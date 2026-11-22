@@ -154,6 +154,15 @@ export function render() {
     else if (f.k === 'streak') drawRibbon(f, k, L);
     else if (f.k === 'rune') drawRune(f, k, L);
     else if (f.k === 'cres') drawCrescent(f, k);
+    else if (f.k === 'sorb') { if (f.o.done) { f.t = f.d; continue; } const o = f.o, p = 1 + .15 * Math.sin(G.time * 20);   // 噬魂的魂（game/weaponFx.ts）：紫色光球 + 紫光
+      ctx.globalAlpha = 1; drawOrb(o.x, o.y, 3.2 * p, ['#3a1a6a', '#9a6cff', '#d8c8ff', '#ffffff']); addLight(L, o.x, o.y, 34, 3); }
+    else if (f.k === 'zap') { const fl = Math.floor(G.time * 30) % 2 ? 1 : .8, th = f.thin ? .55 : 1;   // 閃電（game/weaponFx.ts 的雷鳴）：淡黃光暈 + 黃 + 白芯，一閃一閃；f.br = 分岔
+      const line = (P, s) => { artPath(); for (let i = 1; i < P.length; i++) artLine(P[i - 1][0], P[i - 1][1], P[i][0], P[i][1], Math.max(1, Math.round(s))); ctx.fill(); };
+      for (const [P, w] of [[f.pts, 1], ...(f.br || []).map(b => [b, .5])]) {
+        ctx.globalAlpha = (1 - k) * .3 * fl; ctx.fillStyle = f.col; line(P, 11 * th * w);
+        ctx.globalAlpha = (1 - k * .8) * .95 * fl; line(P, 5 * th * w);
+        ctx.globalAlpha = (1 - k * .5) * fl; ctx.fillStyle = '#ffffff'; line(P, 2 * th * w); }
+      if (!f.thin) addLight(L, f.pts[f.pts.length - 1][0], f.pts[f.pts.length - 1][1], 80 * (1 - k), 4); }
     else if (f.k === 'aline') { const len = f.len * (.6 + .4 * k); artPath(); artLine(f.x, f.y, f.x + Math.cos(f.a) * len, f.y + Math.sin(f.a) * len, 1); ctx.fill(); }
     else if (f.k === 'slash') { const w = 3 * (1 - k) + 1, len = f.len * (.7 + .3 * k);
       ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.a); ctx.fillRect(-len / 2, -w / 2, len, w); ctx.restore(); }

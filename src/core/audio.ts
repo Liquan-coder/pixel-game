@@ -53,6 +53,7 @@ export const sfx = {
   ignite: () => { noiseHit(.22, .12, 1400); tone(240, .18, 'sawtooth', .03, 260); },                                              // 「呼」地點燃
   zap: () => { tone(1900, .06, 'square', .03, -1400); noiseHit(.08, .1, 5000); tone(1400, .05, 'square', .02, -900, .05); },      // 劈啪電聲
   iceBreak: () => { noiseHit(.16, .12, 5200); [2637, 1976, 3136].forEach((f, i) => tone(f, .07, 'triangle', .022, -400, i * .03)); },      // 冰晶碎掉的「喀啦」
+  thunder: () => { noiseHit(.3, .22, 3000); tone(1800, .08, 'square', .03, -1500); tone(90, .35, 'sawtooth', .06, -50, .04); noiseHit(.25, .14, 400); },   // 落雷：「啪」一聲 + 低低的轟
   soulTake: () => { tone(660, .12, 'sine', .035, 500); tone(990, .16, 'sine', .025, 400, .06); },                                 // 靈魂被吸進武器
 };
 

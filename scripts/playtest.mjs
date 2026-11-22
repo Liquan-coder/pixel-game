@@ -383,7 +383,7 @@ const pageScript = async () => {
       let hit = false; const tw0 = twin ? twin.hp : 0;
       for (let i = 0; i < 40 && !hit; i++) { if (fx === 'shock' && twin) { twin.x = e.x + 20; twin.y = e.y; } damageEnemy(G.me, e, 1, G.me.x, G.me.y); step(8, { god: true });   // 第二隻怪會走開 → 每次拉回來
         hit = fx === 'bleed' ? e.hp < 1e6 - 40 * G.me.atkPow * 1.2 : fx === 'burn' ? e.burnT > 0 : fx === 'frost' ? (e.frostB || 0) === 0 && i > 2 : fx === 'shock' ? !twin || twin.hp < tw0 : true; }
-      if (fx === 'soul') { G.me.hp = 10; e.hp = 1; damageEnemy(G.me, e, 1, G.me.x, G.me.y); step(2); hit = G.me.hp > 10; }
+      if (fx === 'soul') { G.me.hp = 10; e.hp = 1; damageEnemy(G.me, e, 1, G.me.x, G.me.y); step(2); if (G.me.hp > 10) throw new Error('噬魂：魂還沒飛回來就回血了'); G.me.iframe = 5; step(60); hit = G.me.hp > 10; }   // 魂飛回主角身上才回血
       if (!hit) throw new Error(fx + ' 沒有觸發');
       out.push(fx);
     }
