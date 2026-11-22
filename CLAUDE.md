@@ -9,13 +9,14 @@
 | `npm run dev` | 開發伺服器 http://localhost:5173/（`--host`，手機可以用區網 IP 連） |
 | `npm run typecheck` | 只檢查型別 |
 | `npm run build` | 型別檢查 + 打包（CI 跑的就是這個） |
-| `npm run playtest` | headless Chrome 自動試玩，幾乎所有程式路徑都會跑過。只跑一部分：`ONLY='地城\|機關' npm run playtest` |
+| `npm run playtest` | headless Chrome 自動試玩，幾乎所有程式路徑都會跑過（完整約 2 分鐘，最後印出最慢的測試）。只跑一部分：`ONLY='地城\|機關' npm run playtest` |
 | `npm run balance` | 每個地區的生存 / 擊殺數字，超出目標範圍會標 ✗ |
 | `npm run shots -- <資料夾>` | 用幾種手機尺寸截 UI 畫面 |
 | `node scripts/look.mjs a.png "<JS>"` | 開遊戲 → 執行一段 JS → 截圖（JS 裡可以用 `await imp('core/state')`） |
 | `node scripts/tour.mjs <資料夾> <場景.json>` | 同上，一次截很多張 |
 | `node scripts/dungeonmap.mjs out.png` | 把地城格局畫成一張圖 |
 | `node scripts/worldhash.mjs` | 野外的指紋。改地城前後各跑一次，確認野外沒有被動到 |
+| `scripts/cdp.mjs` | 所有腳本共用的 headless Chrome：自動挑 port（多個 session 同時跑不會互撞）、超過 15 分鐘自動結束（`CDP_TIMEOUT=秒數`）、腳本怎麼結束都會關掉 Chrome。新腳本要開 Chrome 就用它 |
 
 ## 程式怎麼跑
 `src/main.ts`：`boot()` → `genWorld()` 生成世界 → 寶箱、石碑、地城入口、機關、神像 → 標題畫面。

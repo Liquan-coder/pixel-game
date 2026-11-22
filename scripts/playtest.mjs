@@ -7,41 +7,27 @@
 //   測試 import 的模組就跟遊戲用的不是同一份，會出現「找不到 queen」這種假失敗。
 //   也可以指定網址：npm run playtest -- http://localhost:5173/
 //   只跑幾個：ONLY='地城|機關' npm run playtest
-import { spawn } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { writeFileSync } from 'node:fs';
 
 import { createServer } from 'vite';
+import { openChrome } from './cdp.mjs';
 
 let server = null, url = process.argv[2];
 if (!url || url === '-') {                                          // 沒指定網址 → 自己開一個乾淨的伺服器
   server = await createServer({ logLevel: 'error', server: { port: 0, strictPort: false } });
   await server.listen(); url = server.resolvedUrls.local[0];
 }
-const port = 9334;
-const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
-  '--headless=new', `--remote-debugging-port=${port}`, '--no-first-run', '--mute-audio',
-  `--user-data-dir=${mkdtempSync(join(tmpdir(), 'cdp-'))}`, 'about:blank'], { stdio: 'ignore' });
 const wait = ms => new Promise(r => setTimeout(r, ms));
-let target;
-for (let i = 0; i < 50 && !target; i++) { try { target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find(t => t.type === 'page'); } catch { await wait(200); } }
-const ws = new WebSocket(target.webSocketDebuggerUrl);
-await new Promise(r => ws.onopen = r);
-let id = 0; const pending = new Map(); const pageErrors = [];
-ws.onmessage = e => {
-  const m = JSON.parse(e.data);
-  if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); }
-  if (m.method === 'Runtime.exceptionThrown') pageErrors.push(m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text);
-};
-const send = (method, params = {}) => new Promise(r => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
+const pageErrors = [];
+const { send, onEvent } = await openChrome();                       // scripts/cdp.mjs：自動挑 port、時限、結束時一定關掉 Chrome
+onEvent(m => { if (m.method === 'Runtime.exceptionThrown') pageErrors.push(m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text); });
 await send('Runtime.enable'); await send('Page.enable');
 await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
 await send('Page.navigate', { url });
 await wait(3000);
 
 const pageScript = async () => {
-  const log = [], fails = [];
+  const log = [], fails = [], times = [];
   const imp = p => import(`/src/${p}.ts`);
   const { G } = await imp('core/state');
   const { WT, makeItem } = await imp('data/items');
@@ -67,7 +53,7 @@ const pageScript = async () => {
     for (let i = 0; i < n; i++) {
       if (opts.god && G.me) { G.me.hp = G.me.maxHp; G.me.st = G.me.maxSt; }
       if (opts.atkEvery && i % opts.atkEvery === 0) pressed.atk = true;
-      update(1 / 60); render(); updateHUD();
+      update(1 / 60); if (i % 10 === 9 || i === n - 1) { render(); updateHUD(); }   // 畫面每 10 格畫一次（測試看不到畫面，畫太勤只是拖慢）；最後一格一定畫
       if (opts.god && G.me && G.me.dead) { G.me.dead = false; G.me.hp = G.me.maxHp; }   // 無敵：等級差讓高等怪一下就打死 1 級的測試角色 → 倒下就馬上扶起來（不然會重生回營火）
       for (const k in pressed) pressed[k] = false;
     }
@@ -75,7 +61,8 @@ const pageScript = async () => {
   };
   const only = window.__ONLY;                                         // ONLY=關鍵字|關鍵字 npm run playtest：只跑名字有這些字的測試（開始新遊戲一定跑）
   const run = (name, fn) => { if (only && !name.startsWith('開始新遊戲') && !only.split('|').some(k => name.includes(k))) return; if (G.me && G.me.dead) { log.push('  （' + name + ' 開始前角色是倒下的 → 先扶起來）'); G.me.dead = false; } if (G.me) { G.me.hp = G.me.maxHp; G.me.iframe = 0; }
-    try { fn(); log.push('✓ ' + name); } catch (e) { fails.push(`✗ ${name}: ${e.stack.split('\n').slice(0, 4).join(' | ')}`); } };
+    const t0 = performance.now(); try { fn(); log.push('✓ ' + name); } catch (e) { fails.push(`✗ ${name}: ${e.stack.split('\n').slice(0, 4).join(' | ')}`); }
+    times.push([name, performance.now() - t0]); };                     // 每個測試花多久：最後印出最慢的幾個
   const tp = (x, y) => { G.me.x = x; G.me.y = y; };
 
   run('開始新遊戲', () => { startGame(false); step(30); });
@@ -927,6 +914,8 @@ const pageScript = async () => {
     G.lost = null;
   });
 
+  const T = times.reduce((a, t) => a + t[1], 0);
+  log.push('\n總共 ' + (T / 1000).toFixed(0) + ' 秒，最慢的：' + times.sort((a, b) => b[1] - a[1]).slice(0, 8).map(([n, t]) => '\n  ' + (t / 1000).toFixed(1) + 's  ' + n.slice(0, 40)).join(''));
   return { log, fails };
 };
 
@@ -941,4 +930,4 @@ if (process.argv[3]) {                                              // 第二個
   const shot = await send('Page.captureScreenshot', { format: 'png' });
   writeFileSync(process.argv[3], Buffer.from(shot.result.data, 'base64'));
 }
-ws.close(); chrome.kill(); if (server) await server.close(); process.exit(fails.length || pageErrors.length ? 1 : 0);
+if (server) await server.close(); process.exit(fails.length || pageErrors.length ? 1 : 0);

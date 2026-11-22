@@ -1,19 +1,12 @@
 // 把地城區畫成一張圖（看格局用）：房間角色、鐵柵門、營火、寶箱。用法：node scripts/dungeonmap.mjs 輸出.png [縮放]
-import { spawn } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { writeFileSync } from 'node:fs';
 import { createServer } from 'vite';
+import { openChrome } from './cdp.mjs';
 const out = process.argv[2] || 'dungeons.png', Z = +(process.argv[3] || 3);
 const server = await createServer({ logLevel: 'error', server: { port: 0, strictPort: false } });
 await server.listen(); const url = server.resolvedUrls.local[0];
-const port = 9338;
-const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', ['--headless=new', `--remote-debugging-port=${port}`, '--no-first-run', '--mute-audio', `--user-data-dir=${mkdtempSync(join(tmpdir(), 'cdp-'))}`, 'about:blank'], { stdio: 'ignore' });
 const wait = ms => new Promise(r => setTimeout(r, ms));
-let target; for (let i = 0; i < 50 && !target; i++) { try { target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find(t => t.type === 'page'); } catch { await wait(200); } }
-const ws = new WebSocket(target.webSocketDebuggerUrl); await new Promise(r => ws.onopen = r);
-let id = 0; const pending = new Map(); ws.onmessage = e => { const m = JSON.parse(e.data); if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); } };
-const send = (method, params = {}) => new Promise(r => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
+const { send, onEvent } = await openChrome();                       // scripts/cdp.mjs：自動挑 port、時限、結束時一定關掉 Chrome
 await send('Runtime.enable'); await send('Page.navigate', { url }); await wait(3500);
 const pageScript = async (Z) => {
   const M = await import('/src/world/map.ts'), D = await import('/src/world/dungeons.ts'), MM = await import('/src/world/minimap.ts'), C = await import('/src/world/chests.ts'), PU = await import('/src/world/puzzles.ts');
@@ -32,4 +25,4 @@ const pageScript = async (Z) => {
 };
 const r = await send('Runtime.evaluate', { expression: `(${pageScript})(${Z})`, awaitPromise: true, returnByValue: true });
 const v = r.result.result.value; if (!v) { console.log(JSON.stringify(r.result).slice(0, 2000)); } else { writeFileSync(out, Buffer.from(v.png.split(',')[1], 'base64')); console.log(v.stats.join('\n')); }
-ws.close(); chrome.kill(); await server.close(); process.exit(0);
+await server.close(); process.exit(0);
