@@ -197,13 +197,14 @@ export function renderInv() {
   const info = $('cInfo'), keepY = info.querySelector('.cscroll')?.scrollTop || 0;
   const now = calcStats(G.me, eq), sl = sel ? slotOf(sel.it) : '', pv = bagIt && sl !== 'seal' ? calcStats(G.me, eqWith(bagIt)) : null;
   if (sel && salvArm && salvArm !== sel.it.id) salvArm = 0;
+  if (!sel || sel.it.id !== lastSelId) infoMode = false;                  // 換選別件 → 回到數值
   const R = sel ? RAR[sel.it.rarity] : null, U = sel && sel.it.uq;
-  const head = sel ? '<div class="selcard" style="border-color:' + R.c + '"><div class="sico"><img alt="" src="' + ICON_URL[sel.it.type] + '"></div><div class="selmid"><div class="selname"><b style="color:' + R.c + '">' + itemName(sel.it) + '</b><i>' + (U ? '獨特' : SLOTN[sl]) + '</i></div>' +
-    '<div class="selsum">' + selSummary(sel, now, pv) + '</div></div>' + selActs(sel) + '</div>' : '';
-  // 有選東西 → 直接秀這件的字卡（需求、加成、刻印、技能、背景故事）；沒選 → 角色數值
-  info.innerHTML = head + '<div class="cscroll">' + (sel ? itemCard(sel.it, null, 'det') :
+  const head = sel ? '<div class="selcard" style="border-color:' + R.c + '"><button type="button" class="sico' + (infoMode ? ' on' : '') + '" data-act="info" aria-label="說明"><img alt="" src="' + ICON_URL[sel.it.type] + '"><i>' + (infoMode ? '↩' : '?') + '</i></button><div class="selmid"><div class="selname"><b style="color:' + R.c + '">' + itemName(sel.it) + '</b><i>' + (U ? '獨特' : SLOTN[sl]) + '</i></div>' +
+    '<div class="selsum">' + selSummary(sel, now, pv) + '</div>' + (infoMode ? '' : reqLine(sel.it)) + '</div>' + selActs(sel) + '</div>' : '';
+  info.innerHTML = head + '<div class="cscroll">' + (sel && infoMode ? itemCard(sel.it, null, 'det') :   // 「說明」：這件的刻印、技能、需求、背景故事（取代下面的數值，不用往下捲）
     '<div class="keystats">' + keyTile('hp', '生命', 'maxHp', now, pv) + keyTile('atk', '攻擊', 'atk', now, pv) + keyTile('df', '防禦', 'def', now, pv) + '</div>' +
-    '<div class="cbox"><div class="lbl">詳細屬性</div><div class="stattbl">' + statRows(now, pv) + '</div></div>') + '</div>';
+    '<div class="cbox"><div class="lbl">詳細屬性</div><div class="stattbl">' + statRows(now, pv) + '</div></div>' +
+    '<div class="cbox"><div class="lbl">能力值<small class="lvhint">在營火用魂晶升級</small></div><div id="attrList">' + ATTRS.map(a => '<div class="attr" title="' + a.d + '"><span>' + a.n + '</span><div class="bar2"><i style="width:' + Math.min(100, G.me[a.k] / 40 * 100) + '%"></i></div><b>' + G.me[a.k] + '</b></div>').join('') + '</div></div>') + '</div>';
   const sc = info.querySelector('.cscroll'); if (sc && sel && sel.it.id === lastSelId) sc.scrollTop = keepY; lastSelId = sel ? sel.it.id : null;
   $('dollLv').textContent = 'Lv ' + level(G.me); drawDoll();
   // 中間：武器、防具、4 個飾品欄（還沒開放的鎖著）
@@ -215,9 +216,6 @@ export function renderInv() {
   $('eqSlots').innerHTML = slotBtn(eq.weapon, 'weapon', '武器') + slotBtn(eq.armor, 'armor', '防具') + '<div class="eqgap"></div>' +
     [0, 1, 2, 3].map(i => slotBtn(eq.trinkets[i], 't' + i, '飾品 ' + (i + 1), i >= nSlots)).join('');
   // 右邊：背包（或素材清單）
-  // 裝備欄下面：能力值（選中的東西需要、但你不夠的那項變紅）
-  const req = sel ? reqOf(sel.it) : {}, short = sel ? unmet(G.me, sel.it) : [];
-  $('cAttrs').innerHTML = '<div class="lbl">能力值<small>營火升級</small></div><div class="alist">' + ATTRS.map(a => '<div class="' + (short.includes(a.k) ? 'no' : a.k in req ? 'rq' : '') + '" title="' + a.d + '"><span>' + a.n + '</span><b>' + G.me[a.k] + '</b></div>').join('') + '</div>';
   for (const b of document.querySelectorAll<HTMLElement>('#bagTabs button')) b.classList.toggle('on', b.dataset.f === bagFilter);
   const n = salvAllN(), sb = $('salvAll') as HTMLButtonElement; sb.hidden = !n; sb.classList.toggle('arm', salvAllArm);   // 一鍵分解：右上角，有東西可分解才出現
   sb.textContent = salvAllArm ? '確定分解 ' + n + ' 件？' : '一鍵分解 ' + n;
@@ -229,7 +227,7 @@ export function renderInv() {
   else if (drop.has('bag')) cells.push(blank);                                // 篩選中：多放一個空格讓你卸下
   $('bagGrid').innerHTML = cells.length ? cells.join('') : '<div class="empty">這一類還沒有東西。</div>';
 }
-let lastSelId = null;
+let lastSelId = null, infoMode = false;                                 // infoMode = 左欄顯示物品說明（不是數值）
 /* 點一下選、再點目標放進去：選了背包裡的東西 → 能放的欄位發亮；選了身上的防具 / 飾品 → 背包空格發亮（卸下） */
 const canUnequip = (sel) => !!sel && sel.where === 'eq' && sel.slot !== 'weapon' && G.me.inv.length < 24;   // 武器不能空手
 function dropTargets(sel, nSlots: number) {
@@ -266,6 +264,7 @@ $('invMenu').addEventListener('click', e => {
     return done(); };
   if (t.dataset.act && sel) { const a = t.dataset.act, it = sel.it;
     if (a === 'cancel') { G.selItem = null; salvArm = 0; renderInv(); return; }
+    if (a === 'info') { infoMode = !infoMode; renderInv(); return; }
     if (a === 'equip' && sel.where === 'bag') { const sl = slotOf(it);                // 「裝備」按鈕：飾品放第一個空的欄位（都滿了就換掉第 1 格）
       if (sl === 'trinket') { const n = tSlots(), k = G.me.trinkets.slice(0, n).findIndex(x => !x); return put('t' + (k >= 0 ? k : 0)); }
       return put(sl === 'seal' ? 'weapon' : sl); }
