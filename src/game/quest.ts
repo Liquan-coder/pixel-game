@@ -5,8 +5,8 @@ import { G } from '../core/state';
 import { $ } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
 import { SH, sculpt } from '../art/monsters';
-import { CORES, MEM_N, PREMISE, RUMORS, TABLETS, type QuestCtx } from '../data/story';
-import { CAMPS, GROUND, MW, ROAD, TS, WALKABLE, discovered, map } from '../world/map';
+import { CORES, ENDINGS, LIFT, MEM_N, PREMISE, REGION_BOSS, RUMORS, TABLETS, type QuestCtx } from '../data/story';
+import { CAMPS, GROUND, MW, REGIONS, ROAD, TS, WALKABLE, discovered, map } from '../world/map';
 import { rbDead } from '../world/regionBoss';
 import { DUNGEONS, dungeonAt, dungeonHooks } from '../world/dungeons';
 import { CHESTS } from '../world/chests';
@@ -22,7 +22,10 @@ export const flags = new Set<string>(), loreRead = new Set<string>();
 dungeonHooks.cleared = d => flags.has('dgn:' + d.id);
 forgeFlags.has = f => flags.has(f);                                 // 鍛造圖看地城有沒有打過（data/forge.ts）                   // 地城 Boss 倒下 → 大廳的傳送門打開
 const qc: QuestCtx = { boss: id => rbDead.has(id), get wolf() { return G.bossDead; }, lit: id => !!CAMPS.find(c => c.id === id)?.lit, found: s => discovered.has(s), flag: f => flags.has(f), read: t => loreRead.has(t) };
+export const qctx = qc;                                               // 給其他模組判斷劇情條件（鎮民的新台詞…）
 export const cores = () => CORES.filter(c => c.done(qc)).length, CORE_N = CORES.length;
+/** 這個地區現在的天色：主線 Boss 倒下了 → 黑暗變淡（data/story.ts 的 REGION_BOSS / LIFT） */
+export function regionLook(r: number) { const RG = REGIONS[r], f = REGION_BOSS[r]; return f && f(qc) ? { amb: RG.amb * LIFT, tint: RG.tint } : RG; }
 export const rumorsKnown = () => RUMORS.filter(r => flags.has('rumor:' + r.id));
 export const rumorsOpen = () => rumorsKnown().filter(r => !r.done(qc));
 export function resetQuest() { flags.clear(); loreRead.clear(); coresBefore = null; }
@@ -35,6 +38,7 @@ export function updateQuest() {
     loreRead.add('mem:' + c.id); toast('取回' + c.name + '（' + cores() + '/' + CORE_N + '）', '#ffe38a', true);
     setTimeout(() => showBanner('記憶碎片 ' + MEM_N[c.mem - 1], '在地圖的「旅程」裡閱讀', 2800), 3400); save(); }
   coresBefore = got;
+  if (got.size === CORE_N && !flags.has('cores:all')) { flags.add('cores:all'); save(); }   // 七顆都到手：觀星台醒過來（world/ending.ts）
   for (const r of RUMORS) if (!flags.has('rumor:' + r.id) && r.learn(qc)) {                  // 聽到新的傳聞
     flags.add('rumor:' + r.id); if (r.id !== 'town') toast('傳聞：「' + r.text + '」', '#e8d8b0'); hudKey = ''; }
   const top = rumorsOpen().slice(-1)[0], held = fragsHeld().length;
@@ -119,6 +123,7 @@ export function renderJournal() {
   const lit = ZONE_NAME.filter((_, z) => flags.has('chart:' + z)).join('、');
   $('journal').innerHTML = '<p class="premise">' + PREMISE + '</p>' +
     '<div class="lbl">記憶碎片・' + cores() + '/' + CORE_N + '</div>' + mem +
+    (ENDINGS.some(e => flags.has('end:' + e.id)) ? '<div class="lbl" style="margin-top:10px">結局・' + ENDINGS.filter(e => flags.has('end:' + e.id)).length + '/' + ENDINGS.length + '</div><p class="hintp">' + ENDINGS.filter(e => flags.has('end:' + e.id)).map(e => e.title).join('、') + '</p>' : '') +
     '<div class="lbl" style="margin-top:10px">傳聞</div><ol class="qsteps">' + (rum || '<li>還沒有聽到什麼。</li>') + '</ol>' +
     '<div class="lbl" style="margin-top:10px">地圖・' + fragCount() + '/' + STATUE_N + ' 座神像</div><p class="hintp">已經點亮：' + (lit || '—') + (fragsHeld().length ? '。身上有 ' + fragsHeld().length + ' 張還沒交出去的地圖殘頁' : '') + '</p>' +
     '<div class="lbl" style="margin-top:10px">碑文・' + TAB.filter(t => loreRead.has(t.id)).length + ' 則</div>' + (tabs || '<p class="hintp">荒野各處的石碑上刻著當年的事。</p>');

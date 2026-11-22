@@ -8,7 +8,8 @@ import { TOWNS, TS } from './map';
 import { drawArtSprite } from './chunks';
 import { drawShadow } from '../render/player';
 import { moveEnt } from '../game/collision';
-import { flags } from '../game/quest';
+import { flags, qctx } from '../game/quest';
+import { REACTS } from '../data/story';
 import { fragsHeld } from './statues';
 import { respec } from '../game/player';
 import { save } from '../game/save';
@@ -104,7 +105,13 @@ const DEF = [
   { town: 'elf', look: 'elfSmith', name: '精靈鐵匠', dx: 6, dy: 8, smith: true, lines: ['精靈打的刀，比月光還薄。看看吧。'] },
 ];
 export const NPCS = DEF.map(d => { const T = TOWNS.find(t => t.id === d.town);
-  return { ...d, lv: T.lv, x: (T.tx + d.dx) * TS + 8, y: (T.ty + d.dy) * TS + 10, line: -1, near: false, flip: d.dx > 0, stock: null as any }; });
+  return { ...d, lv: T.lv, x: (T.tx + d.dx) * TS + 8, y: (T.ty + d.dy) * TS + 10, line: -1, say: '', near: false, flip: d.dx > 0, stock: null as any }; });
+/* 走近時要說哪一句：打倒 Boss 之後的新台詞（data/story.ts 的 REACTS）第一次一定先說，之後混進平常的話裡輪流 */
+function nextLine(m: typeof NPCS[number]) {
+  const rs = REACTS.filter(r => r.npc === m.town + ':' + m.name && r.when(qctx)), fresh = rs.find(r => !flags.has('heard:' + r.id));
+  if (fresh) { flags.add('heard:' + fresh.id); return fresh.line; }
+  const pool = [...m.lines, ...rs.map(r => r.line)]; m.line = (m.line + 1) % pool.length; return pool[m.line];
+}
 export function restockSmiths() { for (const n of NPCS) if (n.smith) n.stock = null; }   // 下次打開店時才產生新貨（ui/shop.ts 的 openShop）
 export const nearNPC = (R = 26) => { if (!G.me || G.me.dead) return null; let best = null, bd = R;
   for (const n of NPCS) { if (Math.abs(n.x - G.me.x) > R) continue; const d = Math.hypot(n.x - G.me.x, n.y - G.me.y); if (d < bd) { bd = d; best = n; } } return best; };
@@ -115,12 +122,12 @@ export function updateNPCs() {
   // 走到 34 以內開始說話，離開 44 才結束（站在邊界上不會一直出現、消失、換下一句）
   const keep = talking && G.me && !G.me.dead && Math.hypot(talking.x - G.me.x, talking.y - G.me.y) < 44 ? talking : null;
   const n = G.started && !G.paused ? keep || nearNPC(34) : null;
-  for (const m of NPCS) { const was = m.near; m.near = m === n; if (m.near && !was) { m.line = (m.line + 1) % m.lines.length; flags.add('talk:' + m.town + ':' + m.name); } }
+  for (const m of NPCS) { const was = m.near; m.near = m === n; if (m.near && !was) { m.say = nextLine(m); flags.add('talk:' + m.town + ':' + m.name); } }
   if (n) n.flip = G.me.x < n.x;
   for (const pl of G.players) for (const m of NPCS) { const dx = pl.x - m.x, dy = pl.y - m.y, d = Math.hypot(dx, dy), R = 9;   // 居民有體積：走過去會被輕輕推開
     if (d < R && d > .01) { const o = { x: pl.x, y: pl.y, r: pl.r }; moveEnt(o, dx / d * (R - d), dy / d * (R - d)); pl.x = o.x; pl.y = o.y; } }
   if (n !== talking) { talking = n; const el = $('talk'); el.hidden = !n;
-    if (n) el.innerHTML = '<b>' + n.name + '</b>' + n.lines[n.line] + (n.smith ? '<small>按 E 或下方按鈕交易</small>' : ''); }
+    if (n) el.innerHTML = '<b>' + n.name + '</b>' + n.say + (n.smith ? '<small>按 E 或下方按鈕交易</small>' : ''); }
 }
 export function drawNPCs(vis, list) {
   for (const n of NPCS) { if (!vis(n.x, n.y)) continue;

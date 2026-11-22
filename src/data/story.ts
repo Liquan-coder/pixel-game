@@ -65,3 +65,67 @@ export const TABLETS = [
   { id: 't18', tx: 588, ty: 410, title: '孤島營火旁的石碑', text: '「大殿沉進沼澤的那天，看守者沒有逃。他說：我要等她回來。」' },
   { id: 't22', tx: 527, ty: 307, title: '小屋門口的石碑', text: '「巫婆的菇園吃了一小片星光。她說：再等一年就能收成。她沒有等到，菇園自己長大了。」' },
 ];
+
+/* ================= 打倒 Boss 之後，世界會變 =================
+   1. 那個地區的天色亮一點（render/render.ts 用 regionLook()）：REGION_BOSS = 地區編號 → 哪一隻 Boss 倒下就算「解放了」
+   2. 鎮民會換新的話（world/towns.ts）：條件成立後，走近的第一次一定先說這句，之後混進他平常的話裡輪流說 */
+export const REGION_BOSS: Record<number, (q: QuestCtx) => boolean> = {
+  0: q => q.boss('queen'), 1: q => q.boss('mushking'), 2: q => q.boss('general'), 3: q => q.boss('dragon'),
+  4: q => q.wolf, 5: q => q.boss('yeti'), 6: q => q.boss('lich'), 8: q => q.boss('elfking'),
+};
+export const LIFT = .6;                                                // 解放後的黑暗 = 原本的 60%
+
+/* npc = '鎮:名字'（world/towns.ts 的 DEF） */
+export interface React { id: string; npc: string; when: (q: QuestCtx) => boolean; line: string }
+export const REACTS: React[] = [
+  { id: 'r1', npc: 'dawn:村長', when: q => q.boss('queen'), line: '昨晚我又看了一眼鏡湖……湖面上只剩月亮了。謝謝你。' },
+  { id: 'r2', npc: 'dawn:衛兵', when: q => q.wolf, line: '狼嚎停了。我站了這麼多年的崗，第一次聽見森林這麼安靜。' },
+  { id: 'r3', npc: 'dawn:少女', when: q => q.boss('mushking'), line: '森林裡的蘑菇不發光了耶。有點可惜……可是大家說，這樣比較好。' },
+  { id: 'r4', npc: 'dawn:小孩', when: q => q.boss('general'), line: '爺爺說北邊的王城，城門自己打開了。他哭了好久。' },
+  { id: 'r5', npc: 'dawn:製圖師', when: q => q.flag('chart:2') && q.flag('chart:3'), line: '你點亮的地方，我一筆一筆描下來了。這張地圖比我師父那張還大。' },
+  { id: 'r6', npc: 'dawn:修女', when: q => q.boss('dragon'), line: '東北方的天空不紅了。我還以為，那片火會燒到世界的盡頭。' },
+  { id: 'r7', npc: 'frost:獵人', when: q => q.boss('yeti'), line: '山頂的白影不見了。雪……好像下得溫柔一點了。' },
+  { id: 'r8', npc: 'frost:修女', when: q => q.boss('lich'), line: '南邊的毒沼開始退了。大殿裡等待的那個人……他等到了嗎？' },
+  { id: 'r9', npc: 'frost:小孩', when: q => q.boss('yeti'), line: '媽媽說，現在可以去冰封湖玩了！可是她還是叫我不要去。' },
+  { id: 'r10', npc: 'elf:精靈長老', when: q => q.boss('elfking'), line: '王終於閉上了眼睛。月光……落下來了。你看，白樹的葉子在發芽。' },
+  { id: 'r11', npc: 'elf:精靈衛兵', when: q => q.boss('elfking'), line: '城門開著，卻沒有人下命令了。我還是每天站在這裡。也許，這就是我選的。' },
+  { id: 'r12', npc: 'elf:精靈少女', when: q => q.boss('elfking'), line: '月亮出來了！原來海的那一邊，也看得到同一個月亮。' },
+  { id: 'r13', npc: 'dawn:村長', when: q => q.flag('cores:all'), line: '你的帽子……星星亮得我睜不開眼睛。你要去哪裡？……不，別告訴我。' },
+  { id: 'r14', npc: 'elf:精靈長老', when: q => q.flag('cores:all'), line: '七顆都回來了。它們想回到最初的地方——北方沙裡，那座觀星的高台。' },
+  { id: 'r15', npc: 'dawn:村長', when: q => q.flag('end:home'), line: '昨晚天上多了一顆很亮的星。我總覺得，它在對我們眨眼睛。' },
+  { id: 'r16', npc: 'dawn:村長', when: q => q.flag('end:watch'), line: '你回來了啊。……嗯？你的眼神，好像一下子老了好多歲。' },
+  { id: 'r17', npc: 'dawn:村長', when: q => q.flag('end:wake'), line: '天上的星星……少了一顆。可是你的帽子，亮得像整片夜空。' },
+];
+
+/* ================= 結局：七顆星核 → 觀星台（沉沒遺跡）=================
+   條件：七顆星核都拿到 + FINAL_GATE（最後的看守者倒下）。之後到北方沙裡的觀星台，把星核放上觀星儀，選一個結局。
+   · FINAL_GATE 現在是「沉沒神殿地底的星之看守者（Lv80）」。之後主線 Boss 換人，只要改這一行。
+   · 結局選過以後還是可以回觀星台再選一次（看別的結局），世界照常繼續。
+   · need = 這個選項什麼時候才會出現（探索得夠深才看得到的結局） */
+export const FINAL_GATE = (q: QuestCtx) => q.flag('dgn:temple');
+export interface Ending { id: string; pick: string; hint: string; title: string; need?: (q: QuestCtx) => boolean; lines: string[] }
+export const ENDINGS: Ending[] = [
+  { id: 'home', pick: '送星星回家', hint: '完成她當年沒有完成的事', title: '結局・歸星', lines: [
+    '你把七顆星核捧在手心。它們不燙了，像七隻剛睡醒的小鳥。',
+    '觀星儀轉了起來。星核一顆一顆合在一起，歌聲越來越清楚。',
+    '這一次，沒有鎖鏈了。星星慢慢升起，越過沙丘、越過王城的塔尖，回到很高很高的地方。',
+    '帽子上的光一點一點暗下去。你終於想起來：你是她留給營火的那一點光。',
+    '光用完了，也沒關係。荒野的夜空，從來沒有這麼亮過。'] },
+  { id: 'watch', pick: '留下來守著它', hint: '成為第八位看守者', title: '結局・守星', lines: [
+    '你把星核一顆一顆放回觀星儀。它們拼成一顆完整的星，輕輕浮在你面前。',
+    '它在唱歌。很小聲，只唱給你一個人聽。',
+    '七位看守者都不在了。觀星台上，只剩下你。',
+    '你在台階上坐下。這一次，你會聽它說話；它痛的時候，你會第一個知道。',
+    '營火在很遠的地方燒著。它等到了你，你也會一直等下去。'] },
+  { id: 'wake', pick: '把星星收進帽子裡', hint: '你想起了湖底的那頂尖帽', title: '結局・醒星', need: q => q.read('t7'), lines: [
+    '湖底的那頂尖帽，帽子上還在發光的星星——你想起來了。你不是她留下的光。你就是她。',
+    '你沒有把星星送走，也沒有把它關起來。你把七顆星核，按進帽子上的那顆星。',
+    '很燙。很痛。然後，很安靜。',
+    '天上少了一顆星。同一個瞬間，荒野裡的每一座營火都亮了一下。',
+    '從今以後，星星不用再回家了。它就在這裡，在你身上，跟你一起走。'] },
+];
+/* 結局前的兩則傳聞（加進上面的 RUMORS） */
+RUMORS.push(
+  { id: 'warden', text: '七顆星核在帽子上發燙，卻沒有一顆安靜下來。沼澤神殿的最底下，還有一個人沒有閉上眼睛。', src: '星核的歌聲', learn: q => q.flag('cores:all'), done: FINAL_GATE, tx: 540, ty: 452, r: 26 },
+  { id: 'star', text: '北方沙裡的觀星台上，傳來了歌聲。星星想回到最初的地方。', src: '星核的歌聲', learn: q => q.flag('cores:all') && FINAL_GATE(q), done: q => ENDINGS.some(e => q.flag('end:' + e.id)), tx: 156, ty: 66, r: 22 },
+);

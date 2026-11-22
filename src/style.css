@@ -513,3 +513,21 @@ button.fneed{width:100%;text-align:left;font-family:var(--font)}
 @media (max-width:520px){.lvk .kt{padding:0 9px}.lvk .kt b{font-size:18px}}
 @media (max-height:380px){.lvk .kt b{font-size:18px}.lvk .kt small{font-size:10px}.lvk .kt s{font-size:11px}}
 @media (max-width:700px){.lvk .gain{display:none}}   /* 窄的時候：每一格已經寫了「下一點」的變化，這行省掉 */
+
+/* ---- 結局畫面（world/ending.ts）：全螢幕、文字一句一句淡入 ---- */
+#endScreen{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
+  background:radial-gradient(ellipse at 50% 30%,#2a2050 0%,#0d0a18 60%,#05040a 100%);overflow-y:auto;color:var(--text)}
+#endScreen[hidden]{display:none}
+.endbox{max-width:560px;width:100%;margin:auto;text-align:center}
+.endbox h2{color:#f2c14e;font-size:22px;letter-spacing:.2em;margin:4px 0 14px;text-shadow:0 0 12px #f2c14e66}
+.endl{font-size:16px;line-height:1.9;margin:0 0 14px;opacity:0;animation:endIn 1.6s ease forwards}
+.endl.now{opacity:1;animation:none}
+@keyframes endIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.endopts{display:flex;flex-direction:column;gap:10px;margin:18px auto 14px;max-width:380px}
+.endopt{display:flex;flex-direction:column;gap:4px;padding:12px 14px;background:var(--panel);border:2px solid #8a7a5a;box-shadow:inset -2px -2px 0 #0006,0 0 0 2px var(--ink);color:var(--text);text-align:center}
+.endopt b{font-size:18px;color:#ffe38a}
+.endopt small{font-size:13px;color:var(--muted)}
+.endopt:hover,.endopt:focus-visible{border-color:#f2c14e;box-shadow:inset -2px -2px 0 #0006,0 0 0 2px var(--ink),0 0 14px #f2c14e55}
+.endseen{font-size:13px;color:var(--muted);margin:6px 0 12px}
+.endtitle{font-size:24px;margin-top:26px}
+.endback{margin-top:6px}

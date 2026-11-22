@@ -1,7 +1,7 @@
 /* ================= 星之神像：把地圖一大片一大片點亮 =================
    地圖分成 6 塊：一開始只有翠風平原（起點 + 第一隻 Boss）是亮的，其他 5 塊各有一座「星之神像」。
    流程：打倒 Boss → 掉「地圖殘頁」→ 拿給城鎮的製圖師 → 他在地圖上標出神像的位置 → 走過去祈禱 → 那一整塊地區亮起來
-   （地形、營火、地城、地標全部顯示）。沒點亮的地方只看得到自己走過的路，也看不到營火和地城在哪。
+   （只有地形：河、山、路、森林）。營火、地城、地標、城鎮要自己在畫面上看到過才會標（world/sight.ts）——看地形自己找。
    神像放在地區的交界處（從前一個地區走過去就會碰到）。不拿殘頁、自己找到神像也可以直接祈禱。
 
    殘頁：frag:1～5（史萊姆女王、蘑菇王、骸骨將軍、熔岩巨龍、雪原巨人）；交給製圖師：given:k；祈禱過：statue:k；一開始的平原：chart:0 */
@@ -18,6 +18,7 @@ import { showBanner, toast } from '../ui/hud';
 import { save } from '../game/save';
 import { drawShadow } from '../render/player';
 import type { Player } from '../types';
+import { placeAltar } from './ending';
 
 /* 地區 → 第幾塊地圖（0 = 一開始就亮的平原；4 = 狼王巢穴跟森林一起；7 = 地城，不算） */
 const ZONE_OF_REG = [0, 1, 2, 3, 1, 4, 5, -1, 6];                 // 8 = 精靈王國 → 第 6 塊
@@ -50,6 +51,7 @@ export function placeStatues() {
       if (d < bd) { bd = d; best = [x, y]; } }
     if (!best) continue; const [tx, ty] = best, x = tx * TS + 8, y = ty * TS + 12, prop = { x, y, r: 7 };
     PROPS.push(prop); STATUES.push({ k: D.k, x, y, tx, ty, frag: D.frag, prop }); }
+  placeAltar();                                                          // 觀星台的觀星儀（結局，world/ending.ts）
 }
 
 /* ---- 點亮一塊地圖：那一塊的每一格都算「看過了」→ 小地圖 / 大地圖都會畫出來 ---- */

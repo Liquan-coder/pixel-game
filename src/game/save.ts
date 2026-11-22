@@ -15,6 +15,7 @@ import { merchant, placeMerchant } from '../ui/shop';
 import { CHESTS } from '../world/chests';
 import { DUNGEONS, dungeonAt, legacyDungeonAt } from '../world/dungeons';
 import { flags, loreRead, resetQuest } from './quest';
+import { sawFromExplored } from '../world/sight';
 
 /* ================= SAVE ================= */
 /* 三個存檔欄位。存檔 1 沿用以前唯一那個存檔的 key → 舊玩家的進度自動變成「存檔 1」 */
@@ -25,7 +26,7 @@ export let slot = 0;                                                     // 現�
 export function setSlot(n: number) { slot = n; try { localStorage.setItem(LAST_KEY, String(n)); } catch (e) {} }
 export function lastSlot() { try { const n = Number(localStorage.getItem(LAST_KEY)); return n >= 0 && n < SLOTS ? n : 0; } catch (e) { return 0; } }
 export function serialize() {
-  return { v:13, at:Date.now(), mats:G.me.mats, vit:G.me.vit, str:G.me.str, end:G.me.end, dex:G.me.dex, int:G.me.int, luk:G.me.luk, souls:G.me.souls, gold:G.me.gold, tears:G.me.tears, freePts:G.me.freePts, inv:G.me.inv, weapon:G.me.weapon, armor:G.me.armor, trinkets:G.me.trinkets,
+  return { v:14, at:Date.now(), mats:G.me.mats, vit:G.me.vit, str:G.me.str, end:G.me.end, dex:G.me.dex, int:G.me.int, luk:G.me.luk, souls:G.me.souls, gold:G.me.gold, tears:G.me.tears, freePts:G.me.freePts, inv:G.me.inv, weapon:G.me.weapon, armor:G.me.armor, trinkets:G.me.trinkets,
     merchant: merchant ? { camp:merchant.camp, stock:merchant.stock } : null, rbDead: [...rbDead], potMax: G.potMax, bossDead: G.bossDead,
     camps: CAMPS.filter(c => c.lit).map(c => c.id), lastCamp: G.lastCamp, pos: lastPos(), lost: G.lost, uid: G.uid, map: packExplored(), mw: MW, chests: CHESTS.filter(c => c.opened).map(c => c.id), flags: [...flags], lore: [...loreRead], disc: [...discovered] };
 }
@@ -84,6 +85,7 @@ export function applySave(d) {
         if (x > 0 && y > 0 && x < MW && y < MH && reachable[y * MW + x]) { best = [x, y]; break; } }
       if (best) { G.lost.x = best[0] * TS + 8; G.lost.y = best[1] * TS + 8; } } }
   resetQuest(); for (const f of d.flags || []) flags.add(f); for (const l of d.lore || []) loreRead.add(l);
+  if ((d.v || 0) < 14) sawFromExplored();                                // v14：地圖圖示改成「親眼看到才標」→ 舊存檔裡地形已經亮的點都算看過
   const opened = new Set(d.chests || []); for (const c of CHESTS) { c.opened = opened.has(c.id); c.foe = null; c.t = 2; }
   if ((d.v || 0) < 11) for (const dg of DUNGEONS) if (['silktwin', 'sandcrescent', 'darkmoon'].includes(dg.uq) && opened.has('d_' + dg.id) && !G.me.inv.some(it => it.uq === dg.uq) && G.me.weapon?.uq !== dg.uq)   // v11：蛛巢 / 沙埋神殿 / 霜墓的金箱多了獨特武器 → 已經開過的直接補進背包
     G.me.inv.push(makeUnique(dg.uq));

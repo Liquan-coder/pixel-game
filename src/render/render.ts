@@ -21,10 +21,11 @@ import { addLight, drawCamp, drawDrop, drawEnemy, drawTelegraph } from './enemy'
 import { drawMerchant, merchant } from '../ui/shop';
 import { drawChests } from '../world/chests';
 import { drawNPCs } from '../world/towns';
-import { drawQuestArrow, drawTablets } from '../game/quest';
+import { drawQuestArrow, drawTablets, regionLook } from '../game/quest';
 import { drawDoors } from '../world/dungeonArt';
 import { drawPuzzles, puzzleDark } from '../world/puzzles';
 import { drawStatues } from '../world/statues';
+import { drawAltar } from '../world/ending';
 import { camDt } from '../main';
 import { drawPfx } from './pfx';
 import { drawLost, drawLostBeam } from './lostMark';
@@ -91,7 +92,7 @@ export function render() {
   for (const c of CAMPS) if (vis(c.x, c.y)) list.push({ y:c.y, f:() => drawCamp(c) });
   for (const d of G.drops) if (vis(d.x, d.y)) { list.push({ y:d.y - 1, f:() => drawDrop(d) }); addLight(L, d.x, d.y - 8, 16 + d.item.rarity * 7, 3); }
   for (const c of G.coins) if (vis(c.x, c.y)) list.push({ y:c.y, f:() => drawCoin(c) });
-  drawChests(L, vis, addLight, list); drawNPCs(vis, list); drawTablets(vis, list, L, addLight); drawDoors(vis, list, L, addLight); drawPuzzles(vis, list, L, addLight); drawStatues(vis, list, L, addLight);
+  drawChests(L, vis, addLight, list); drawNPCs(vis, list); drawTablets(vis, list, L, addLight); drawDoors(vis, list, L, addLight); drawPuzzles(vis, list, L, addLight); drawStatues(vis, list, L, addLight); drawAltar(vis, list, L, addLight);
   if (merchant && vis(merchant.x, merchant.y, 60)) { list.push({ y:merchant.y, f:drawMerchant }); addLight(L, merchant.x - 5, merchant.y - 10, 46 + Math.sin(G.time * 6) * 2, 1); }
   // 殘影：衝刺是紫色剪影（最新的疊白光），翻滾是會跟著轉的淡白剪影
   for (const g of G.ghosts) { const k = g.life / g.max, sp = HERO.walk[0], w = sp.w * HK, h = sp.h * HK;
@@ -119,7 +120,7 @@ export function render() {
       for (let i = 0; i < 4; i++) { const a = G.time * 6 + i * TAU / 4; drawStar(p.x + Math.cos(a) * (pr + 4), p.y + Math.sin(a) * (pr + 4) * .7, 1.5, '#e8dcff'); } addLight(L, p.x, p.y, 50, 3); }
     else if (p.kind === 'wave') { drawWaveP(p); addLight(L, p.x, p.y, 40, 3); }
     else if (p.kind === 'boom') { const a = G.time * 22; drawWaveP({ x:p.x, y:p.y, vx:Math.cos(a), vy:Math.sin(a), R:p.R, th:p.th, cols:p.cols }); addLight(L, p.x, p.y, 36, 3); }   // 月牙：邊飛邊轉
-    else if (p.kind === 'arrow') { drawArrow(p.x, p.y, Math.atan2(p.vy, p.vx), p.big ? 16 : 11, p.cols, p.big); if (p.big) addLight(L, p.x, p.y, 30, 3); }
+    else if (p.kind === 'arrow') { drawArrow(p.x, p.y, Math.atan2(p.vy, p.vx), p.big ? 16 : 11, p.cols, p.big); addLight(L, p.x, p.y, p.big ? 34 : 24, 6); }   // 綠光（箭都是綠色魔法劍）
     else if (p.kind === 'rain') { const q = p.life / .14; if (q < 1) drawArrow(p.x, p.y - q * 70, Math.PI / 2, 11, p.cols, false); }   // 箭雨：最後 0.14 秒從天上掉下來
     else if (p.kind === 'claw') { drawWaveP(p); addLight(L, p.x, p.y, 34, 1); }
     else if (p.kind === 'ember') { drawOrb(p.x, p.y, 4.5, p.cols || FIREC); addLight(L, p.x, p.y, 30, 1); }
@@ -162,7 +163,7 @@ export function render() {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  const RG = REGIONS[regAt(G.me.x, G.me.y)];
+  const RG = regionLook(regAt(G.me.x, G.me.y));                       // 主線 Boss 倒下的地區，天色亮一點（game/quest.ts）
   light.amb += (RG.amb - light.amb) * .03; for (let k = 0; k < 3; k++) light.t[k] += (RG.tint[k] - light.t[k]) * .03;
   if (G.region === 'forest' || light.amb > .25) {
     for (let i = 0; i < 5 && G.region === 'forest'; i++) { const span = LW + 160; const mx = ((i * 137 + G.time * (6 + i * 2) * (i % 2 ? 1 : -1) - cx * .3) % span + span) % span - 80, my = ((i * 61 - cy * .3) % LH + LH) % LH;

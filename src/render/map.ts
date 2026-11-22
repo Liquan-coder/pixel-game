@@ -10,6 +10,7 @@ import { DUNGEONS, OLDZ, dungeonAt } from '../world/dungeons';
 import { POIS } from '../data/poi';
 import { MAP_ICONS, MAP_ICON_SCALE } from '../art/mapIcons';
 import { CHESTS } from '../world/chests';
+import { campKey, dgKey, poiKey, saw, townKey } from '../world/sight';
 
 /* 一座地城佔的範圍（格）：左上角 x0 / y0、寬 w、高 h（world/dungeons.ts 排區塊時算好） */
 const BOX = new Map();
@@ -25,7 +26,7 @@ export function renderMini() {
   if (dg) { const b = dungeonBox(dg), bx = b.x0 - ox, by = b.y0 - oy, bw = b.x1 - b.x0, bh = b.y1 - b.y0;   // 在地城裡：只顯示這一座，其他地城塗黑
     mctx.fillStyle = '#07060b'; mctx.fillRect(0, 0, 128, Math.max(0, by)); mctx.fillRect(0, by + bh, 128, 80); mctx.fillRect(0, by, Math.max(0, bx), bh); mctx.fillRect(bx + bw, by, 128, bh);
     for (const c of CAMPS) if (c.dg === dg.id && (c.lit || seen(c.tx, c.ty))) { mctx.fillStyle = c.lit ? '#f2c14e' : '#8a869a'; mctx.fillRect(c.tx - ox - 1, c.ty - oy - 1, 3, 3); } }   // 這座地城裡的營火
-  else { for (const c of CAMPS) if (!c.dg && (c.lit || seen(c.tx, c.ty))) { mctx.fillStyle = c.lit ? '#f2c14e' : '#8a869a'; mctx.fillRect(c.tx - ox - 1, c.ty - oy - 1, 3, 3); }   // 營火：點燃過的、或那一塊地圖亮了才標
+  else { for (const c of CAMPS) if (!c.dg && (c.lit || saw(campKey(c.id)))) { mctx.fillStyle = c.lit ? '#f2c14e' : '#8a869a'; mctx.fillRect(c.tx - ox - 1, c.ty - oy - 1, 3, 3); }   // 營火：點燃過的、或親眼看到過才標（world/sight.ts）
     for (const s of STATUES) if (statueKnown(s)) { mctx.fillStyle = statueLit(s) ? '#ffe38a' : '#c8a8ff'; mctx.fillRect(s.tx - ox - 1, s.ty - oy - 2, 3, 4); } }
   // Boss、寶箱不標：讓玩家自己去找
   if (merchant) { const mx = Math.floor(merchant.x / TS) - ox, my = Math.floor(merchant.y / TS) - oy; mctx.fillStyle = OL; mctx.fillRect(mx - 2, my - 2, 5, 5); mctx.fillStyle = '#5ae0b0'; mctx.fillRect(mx - 1, my - 1, 3, 3); }
@@ -82,19 +83,19 @@ export function renderBigMap() {
     drawPick(g, label); return;
   }
   const [x0, y0] = toScr(0, 0), W = MW * mv.z, H = WH * mv.z;
-  g.drawImage(miniBase, 0, 0, MW, WH, x0, y0, W, H);   // 只畫看過的地方：自己走過的路 + 星之神像點亮的整塊地區（world/statues.ts）；其他地方一片黑
+  g.drawImage(miniBase, 0, 0, MW, WH, x0, y0, W, H);   // 地形：自己走過的路 + 星之神像點亮的整塊地區（world/statues.ts）；其他地方一片黑。圖示要親眼看到才畫（world/sight.ts）
   { const [zx, zy] = toScr(OLDZ.x0 - 1, OLDZ.y0 - 1), [zx1, zy1] = toScr(OLDZ.x1 + 1, OLDZ.y1 + 1); g.fillStyle = '#07060b'; g.fillRect(zx, zy, zx1 - zx, zy1 - zy); }   // 以前蓋地城的那塊海上岩石，地圖上不顯示
   const big = mv.z >= 2.2;                                               // 拉近才顯示小地名
   if (mv.z < 5) for (const k of OPEN_REGIONS) if (flags.has('chart:' + zoneOfReg(k))) { const [x, y] = toScr(REGIONS[k].c[0], REGIONS[k].c[1]); label(REGIONS[k].name, x, y, '#f1e7d0', 16); }   // 地名：那一塊點亮了才寫
   if (big) for (const s of SUBS) if (discovered.has(s.name)) { const [x, y] = toScr(s.x, s.y); label(s.name, x, y + 18, '#c9bfa8', 11); }
   // 圖示：放大 2 倍的像素圖，中心對準那一格；同時記下位置給「點一下」用
-  for (const T of TOWNS) if (seen(T.tx, T.ty)) icon('town', { kind: 'town', id: T.id, name: T.name, desc: '城鎮 · 有鎮民和鐵匠，可以買賣、強化武器', tx: T.tx, ty: T.ty });
-  for (const p of POIS) if (seen(p.tx, p.ty)) icon(p.kind, { kind: p.kind, id: p.id, name: p.name, desc: p.desc || (p.kind === 'ruin' ? '遺跡 · 通往地底的入口' : p.kind === 'town' ? '城鎮' : '地標'), tx: p.tx, ty: p.ty });
-  for (const d of DUNGEONS) if (d.style !== 'ruin' && seen(d.ent[0], d.ent[1])) { const done = flags.has('dgn:' + d.id);   // 地底遺跡畫成遺跡圖示（POIS）
+  for (const T of TOWNS) if (saw(townKey(T.id))) icon('town', { kind: 'town', id: T.id, name: T.name, desc: '城鎮 · 有鎮民和鐵匠，可以買賣、強化武器', tx: T.tx, ty: T.ty });
+  for (const p of POIS) if (saw(poiKey(p.id))) icon(p.kind, { kind: p.kind, id: p.id, name: p.name, desc: p.desc || (p.kind === 'ruin' ? '遺跡 · 通往地底的入口' : p.kind === 'town' ? '城鎮' : '地標'), tx: p.tx, ty: p.ty });
+  for (const d of DUNGEONS) if (d.style !== 'ruin' && saw(dgKey(d.id))) { const done = flags.has('dgn:' + d.id);   // 地底遺跡畫成遺跡圖示（POIS）
     icon(done ? 'dungeonDone' : 'dungeon', { kind: 'dungeon', id: d.id, name: d.name, desc: done ? '地城 · 已經攻略完了' : '地城 · 最深處有守護者看守著寶物', tx: d.ent[0], ty: d.ent[1] }); }
   if (merchant) icon('merchant', { kind: 'merchant', id: 'merchant', name: '流浪商人', desc: '會在點燃過的營火之間移動，賣藥水、礦石和裝備', tx: merchant.x / TS - .5, ty: merchant.y / TS - .5 });
   if (G.lost) icon('lost', { kind: 'lost', id: 'lost', name: '掉落的魂晶', desc: '上次倒下時掉的 ' + G.lost.amount + ' 魂晶' + (G.lost.gold ? '、' + G.lost.gold + ' 金幣' : '') + ' · 走過去就能撿回來（再死一次就沒了）', tx: G.lost.x / TS - .5, ty: G.lost.y / TS - .5 });
-  for (const c of CAMPS) if (!c.dg && (c.lit || seen(c.tx, c.ty))) icon(c.lit ? 'camp' : 'campOff', { kind: 'camp', id: c.id, name: c.name, desc: '', tx: c.tx, ty: c.ty });   // 點燃過的、或那一塊地圖亮了才標（熄滅的樣子讓人想去點燃）
+  for (const c of CAMPS) if (!c.dg && (c.lit || saw(campKey(c.id)))) icon(c.lit ? 'camp' : 'campOff', { kind: 'camp', id: c.id, name: c.name, desc: '', tx: c.tx, ty: c.ty });   // 點燃過的、或親眼看到過才標（熄滅的樣子讓人想去點燃）
   for (const st of STATUES) if (statueKnown(st)) { const [x, y] = toScr(st.tx + .5, st.ty + .5), lit = statueLit(st), k = 3 + Math.max(0, Math.min(4, mv.z - 2));   // 星之神像：小小的星星 + 石座
     g.fillStyle = '#07060b'; g.fillRect(Math.round(x - k - 1), Math.round(y + k * .4 - 1), Math.round(k * 2 + 2), Math.round(k * .8 + 2));
     g.fillStyle = '#8a84a0'; g.fillRect(Math.round(x - k), Math.round(y + k * .4), Math.round(k * 2), Math.round(k * .8));

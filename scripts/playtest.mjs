@@ -60,7 +60,7 @@ const pageScript = async () => {
   const { startGame } = await imp('main');
   const menus = await imp('ui/menus');
   const shop = await imp('ui/shop');
-  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies'), status: await imp('game/status'), bt: await imp('game/bossTuning'), ai3: await imp('world/bossAI3'), puz2: await imp('world/puz2'), coll: await imp('game/collision'), pause: await imp('ui/pause'), puz: await imp('world/puzzles'), mech: await imp('world/bossMech'), statues: await imp('world/statues') };
+  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies'), status: await imp('game/status'), bt: await imp('game/bossTuning'), ai3: await imp('world/bossAI3'), puz2: await imp('world/puz2'), coll: await imp('game/collision'), pause: await imp('ui/pause'), puz: await imp('world/puzzles'), mech: await imp('world/bossMech'), statues: await imp('world/statues'), sight: await imp('world/sight'), ending: await imp('world/ending') };
 
   const imp0 = { pu: await imp('game/playerUpdate'), save: await imp('game/save'), map: await imp('render/map'), dg: await imp('world/dungeons'), input: await imp('ui/interact'), inp: await imp('ui/input'), hud: await imp('ui/hud'), title: await imp('ui/title') };
   const step = (n, opts = {}) => {
@@ -243,8 +243,41 @@ const pageScript = async () => {
     if (!ST.statueKnown(s1)) throw new Error('交了殘頁地圖上還是沒有神像');
     tp(s1.x, s1.y + 18); step(2); it = imp0.input.interactTarget(); if (!it || it.btn !== '祈禱') throw new Error('站在神像旁邊沒有「祈禱」'); it.run(); step(2);
     if (!M.explored[fi]) throw new Error('祈禱後森林沒有亮');
+    { const SI = await0.sight, fc = M.CAMPS.find(c => !c.dg && M.reg[c.ty * M.MW + c.tx] === fz);   // 選項 A：神像只點亮地形，營火要自己看到才標
+      Q.flags.delete('saw:' + SI.campKey(fc.id)); SI.sightReveal(); if (SI.saw(SI.campKey(fc.id))) throw new Error('沒看到營火，地圖上就標了 ' + fc.name);
+      tp(fc.x, fc.y + 20); step(1); SI.sightReveal(); if (!SI.saw(SI.campKey(fc.id))) throw new Error('站在 ' + fc.name + ' 旁邊，地圖上還是沒有標'); }
     log.push('  神像：' + ST.STATUES.map(s => s.k + '@' + s.tx + ',' + s.ty).join(' '));
     RB.rbDead.delete('queen'); RB.resetRegionBosses();
+  });
+
+  run('結局：觀星儀 → 七顆星核 + 最後的看守者 → 選結局 → 回到荒野；Boss 倒下後鎮民換台詞、天色變亮', () => {
+    const E = await0.ending, Q = await0.quest, S = await0.story, M = await0.map, towns = await0.towns; setMenu(null);
+    const keep = { boss: G.bossDead, rb: [...RB.rbDead], fl: [...Q.flags] };
+    for (const f of ['dgn:temple', 'cores:all', 'end:home', 'end:watch', 'end:wake', 'rumor:warden', 'rumor:star']) Q.flags.delete(f); RB.rbDead.clear(); G.bossDead = false; step(1);   // 前面的地城測試可能已經打倒看守者
+    if (!E.ALTAR.placed) throw new Error('觀星儀沒有放');
+    if (await0.coll.collides(E.ALTAR.x, E.ALTAR.y + 18, 5)) throw new Error('觀星儀前面走不到');
+    for (const e of G.enemies) e.state = 'idle';
+    tp(E.ALTAR.x, E.ALTAR.y + 18); step(2); let it = imp0.input.interactTarget(); if (!it || it.btn !== '調查') throw new Error('觀星儀旁邊沒有「調查」：' + (it && it.btn));
+    if (Q.regionLook(0).amb !== M.REGIONS[0].amb) throw new Error('史萊姆女王還活著，平原就變亮了');
+    for (const id of ['general', 'mushking', 'yeti', 'queen', 'dragon', 'lich']) RB.rbDead.add(id); G.bossDead = true; step(2);
+    if (!Q.flags.has('cores:all')) throw new Error('七顆星核都拿到了，沒有記下 cores:all');
+    if (E.endingReady()) throw new Error('最後的看守者還沒倒下就可以選結局');
+    if (!Q.rumorsKnown().some(r => r.id === 'warden')) throw new Error('拿齊星核後沒有「最後的看守者」的傳聞');
+    Q.flags.add('dgn:temple'); step(2);
+    if (!E.endingReady() || !Q.rumorsKnown().some(r => r.id === 'star')) throw new Error('看守者倒下後觀星儀沒有醒來 / 沒有觀星台的傳聞');
+    it = imp0.input.interactTarget(); if (!it || it.btn !== '仰望') throw new Error('觀星儀旁邊沒有「仰望」：' + (it && it.btn)); it.run(); step(1);
+    const sc = document.getElementById('endScreen'), n = sc.querySelectorAll('[data-end]').length, want = await0.quest.loreRead.has('t7') ? 3 : 2;
+    if (sc.hidden || n !== want) throw new Error('結局選項不對：' + n + '（應該 ' + want + '）');
+    sc.querySelector('[data-end="home"]').click(); step(1);
+    if (!Q.flags.has('end:home') || !sc.textContent.includes('結局・歸星')) throw new Error('選了結局沒有記下 / 沒有顯示結局文字');
+    sc.querySelector('.endback').click(); step(1);
+    if (!sc.hidden || imp0.hud.openMenu) throw new Error('「回到荒野」沒有關掉結局畫面');
+    if (!(Q.regionLook(0).amb < M.REGIONS[0].amb)) throw new Error('打倒史萊姆女王後平原沒有變亮');
+    const npc = towns.NPCS.find(m => m.town === 'dawn' && m.name === '村長'); Q.flags.delete('heard:r1'); tp(npc.x, npc.y + 60); step(2); tp(npc.x, npc.y + 14); step(2);
+    const r1 = S.REACTS.find(r => r.id === 'r1'); if (!document.getElementById('talk').textContent.includes(r1.line)) throw new Error('打倒史萊姆女王後村長沒有說新的話：' + document.getElementById('talk').textContent);
+    log.push('  觀星儀：' + Math.round(E.ALTAR.x / 16) + ',' + Math.round(E.ALTAR.y / 16));
+    tp(npc.x, npc.y + 80); step(2);
+    RB.rbDead.clear(); for (const id of keep.rb) RB.rbDead.add(id); G.bossDead = keep.boss; Q.flags.clear(); for (const f of keep.fl) Q.flags.add(f); RB.resetRegionBosses();
   });
 
   run('更多機關：符文踏板（苔石洞窟）、轉動雕像（樹根地穴）、崩塌石橋（苔石洞窟）', () => {
