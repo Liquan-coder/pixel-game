@@ -30,7 +30,7 @@ export function makeEnemy(kind: string, lv: number, x: number, y: number, sp?): 
 export function respawnAll() {
   G.enemies = []; resetMimics();
   for (const sp of spawns) { sp.ent = null; if (sp.once && flags.has(sp.once)) { sp.alive = false; sp.timer = Infinity; continue; }   // 地城守護者：打倒過就不再出現
-    sp.alive = true; sp.timer = 0; }
+    sp.alive = true; sp.timer = 0; sp.hp = 0; }                     // sp.hp = 0：血量清掉，下次出現是滿血（只有坐營火 / 死掉才會這樣）
   streamSpawns();
 }
 /* 只在玩家附近生成怪物：世界上有兩千多個生成點，全部都放出來太浪費。
@@ -42,9 +42,9 @@ export function streamSpawns() {
   for (const sp of spawns) {
     if (!sp.alive) continue;
     let nearX = Infinity, nearY = Infinity; for (const pl of G.players) { const dx = Math.abs(sp.x - pl.x), dy = Math.abs(sp.y - pl.y); if (dx + dy < nearX + nearY) { nearX = dx; nearY = dy; } }
-    if (!sp.ent) { if (nearX < ACT_X && nearY < ACT_Y) { sp.ent = makeEnemy(sp.kind, sp.lv, sp.x, sp.y, sp); G.enemies.push(sp.ent); } }
+    if (!sp.ent) { if (nearX < ACT_X && nearY < ACT_Y) { sp.ent = makeEnemy(sp.kind, sp.lv, sp.x, sp.y, sp); if (sp.hp) sp.ent.hp = Math.min(sp.hp, sp.ent.maxHp); G.enemies.push(sp.ent); } }   // 被打過的怪重新出現時，血還是剩那樣
     else if (sp.ent.dead) sp.ent = null;
-    else if (nearX > OFF_X || nearY > OFF_Y) { sp.ent.gone = true; sp.ent = null; drop = true; }
+    else if (nearX > OFF_X || nearY > OFF_Y) { sp.hp = sp.ent.hp < sp.ent.maxHp ? sp.ent.hp : 0; sp.ent.gone = true; sp.ent = null; drop = true; }   // 收起來前記住剩多少血
   }
   if (drop) G.enemies = G.enemies.filter(e => !e.gone);
 }
@@ -118,14 +118,14 @@ export function updateEnemy(e, dt) {
     case 'recover':
       e.t -= dt; if (e.t <= 0) e.state = 'chase'; break;
     case 'return':
-      e.t += dt; stepToward(e, e.hx, e.hy, e.spd * 1.3, dt); e.hp = Math.min(e.maxHp, e.hp + e.maxHp * dt);
-      if (homeD < 6 || e.t > 6) { if (e.t > 6) { e.x = e.hx; e.y = e.hy; } e.state = 'idle'; e.hp = e.maxHp; e.t = 1; }
+      e.t += dt; stepToward(e, e.hx, e.hy, e.spd * 1.3, dt);           // 走回家不回血：要等玩家坐營火（respawnAll）才會補滿
+      if (homeD < 6 || e.t > 6) { if (e.t > 6) { e.x = e.hx; e.y = e.hy; } e.state = 'idle'; e.t = 1; }
       break;
   }
 }
 export function killEnemy(e, by) {                                     // by = 打死它的玩家
   const i = G.enemies.indexOf(e); if (i >= 0) G.enemies.splice(i, 1);
-  if (e.sp) { e.sp.alive = false; e.sp.ent = null; e.sp.timer = e.elite ? Infinity : 45; }
+  if (e.sp) { e.sp.alive = false; e.sp.ent = null; e.sp.hp = 0; e.sp.timer = e.elite ? Infinity : 45; }
   if (e.chest) mimicDown(e);
   const D = BEH[e.beh], s = Math.round(D.souls(e.lv) * (e.sp ? 1 : .3) * (e.elite ? 5 : 1) * (e.soulMul || 1));   // soulMul = 噬魂刻印
   dropSouls(e.x, e.y, s, by);
