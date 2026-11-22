@@ -36,16 +36,20 @@ export function renderMini() {
    mv = 地圖鏡頭：(x, y) = 畫面中心是哪一格，z = 每格幾個 CSS 像素 */
 const bigmap = $<HTMLCanvasElement>('bigmap'), bctx = bigmap.getContext('2d');
 export const mv = { x: 0, y: 0, z: 3, w: 0, h: 0 };
-const zMin = () => Math.min(mv.w / MW, mv.h / MH) * .9, zMax = 10;
+/* 地圖能看的範圍（格）：平常是整張世界；在地城裡 = 只有這一座地城（多留 2 格邊） */
+let area = { x0: 0, y0: 0, x1: MW, y1: MH };
+function setArea() { const dg = dungeonAt(G.me.x, G.me.y), b = dg && dungeonBox(dg);
+  area = b ? { x0: b.x0 - 2, y0: b.y0 - 2, x1: b.x1 + 2, y1: b.y1 + 2 } : { x0: 0, y0: 0, x1: MW, y1: MH }; }
+const zMin = () => Math.min(mv.w / (area.x1 - area.x0), mv.h / (area.y1 - area.y0)) * .9, zMax = 14;
 export function centerMap() {
-  const r = bigmap.getBoundingClientRect(); if (!r.width) return; mv.w = r.width; mv.h = r.height;
-  const dg = dungeonAt(G.me.x, G.me.y); mv.x = dg ? dg.ent[0] : G.me.x / TS; mv.y = dg ? dg.ent[1] : G.me.y / TS; mv.z = clamp(Math.max(zMin(), mv.w / 140), zMin(), zMax);
+  const r = bigmap.getBoundingClientRect(); if (!r.width) return; mv.w = r.width; mv.h = r.height; setArea();
+  mv.x = G.me.x / TS; mv.y = G.me.y / TS; mv.z = clamp(Math.max(zMin(), mv.w / 140), zMin(), zMax);
 }
 const toScr = (tx: number, ty: number) => [(tx - mv.x) * mv.z + mv.w / 2, (ty - mv.y) * mv.z + mv.h / 2];
 const toTile = (sx: number, sy: number) => [(sx - mv.w / 2) / mv.z + mv.x, (sy - mv.h / 2) / mv.z + mv.y];
 function clampView() {                                               // 地圖比畫面小 → 置中；比畫面大 → 不能拖出邊界
-  mv.z = clamp(mv.z, zMin(), zMax); const hw = mv.w / 2 / mv.z, hh = mv.h / 2 / mv.z;
-  mv.x = MW <= hw * 2 ? MW / 2 : clamp(mv.x, hw, MW - hw); mv.y = MH <= hh * 2 ? MH / 2 : clamp(mv.y, hh, MH - hh); }
+  mv.z = clamp(mv.z, zMin(), zMax); const hw = mv.w / 2 / mv.z, hh = mv.h / 2 / mv.z, A = area;
+  mv.x = A.x1 - A.x0 <= hw * 2 ? (A.x0 + A.x1) / 2 : clamp(mv.x, A.x0 + hw, A.x1 - hw); mv.y = A.y1 - A.y0 <= hh * 2 ? (A.y0 + A.y1) / 2 : clamp(mv.y, A.y0 + hh, A.y1 - hh); }
 export let mapSel: string | null = null;                                // 點了哪個營火（等確認傳送）
 /* 地圖上可以點的東西：點了下方會顯示名字和說明（營火還有傳送按鈕） */
 export type MapPick = { kind: string; id: string; name: string; desc: string; tx: number; ty: number };
@@ -55,20 +59,32 @@ export function renderBigMap() {
   const r = bigmap.getBoundingClientRect(), dpr = Math.min(3, window.devicePixelRatio || 1);
   if (!r.width) return;
   if (bigmap.width !== Math.round(r.width * dpr) || bigmap.height !== Math.round(r.height * dpr)) { bigmap.width = Math.round(r.width * dpr); bigmap.height = Math.round(r.height * dpr); }
+  const a0 = area; setArea(); if (area.x0 !== a0.x0 || area.y0 !== a0.y0) { centerMap(); clearMapSel(); onPick(null); }   // 開著地圖走進 / 走出地城 → 換成那張地圖
   mv.w = r.width; mv.h = r.height; clampView();
   const g = bctx; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.imageSmoothingEnabled = false;
   g.fillStyle = '#07060b'; g.fillRect(0, 0, mv.w, mv.h);
+  const label = (txt, x, y, col, size) => { g.font = size + 'px "DotGothic16", "PingFang TC", sans-serif'; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = '#07060b'; g.strokeText(txt, x, y); g.fillStyle = col; g.fillText(txt, x, y); };
+  const S = MAP_ICON_SCALE, icon = (k: string, p: MapPick) => { const c = MAP_ICONS[k], [x, y] = toScr(p.tx + .5, p.ty + .5);
+    g.drawImage(c, Math.round(x - c.width * S / 2), Math.round(y - c.height * S / 2), c.width * S, c.height * S); hits.push({ ...p, x, y }); };
+  hits = [];
+  const dg = dungeonAt(G.me.x, G.me.y);
+  if (dg) {                                                              // 在地城裡：只畫這一座地城（走過的地方），別的地城、地面都不畫
+    const b = dungeonBox(dg), [sx, sy] = toScr(b.x0, b.y0), bw = b.x1 - b.x0, bh = b.y1 - b.y0;
+    g.drawImage(miniBase, b.x0, b.y0, bw, bh, sx, sy, bw * mv.z, bh * mv.z);
+    label(dg.name, mv.w / 2, 22, '#f1e7d0', 16);
+    if (G.lost && dungeonAt(G.lost.x, G.lost.y) === dg) icon('lost', { kind: 'lost', id: 'lost', name: '掉落的魂晶', desc: '上次倒下時掉的 ' + G.lost.amount + ' 魂晶' + (G.lost.gold ? '、' + G.lost.gold + ' 金幣' : '') + ' · 走過去就能撿回來（再死一次就沒了）', tx: G.lost.x / TS - .5, ty: G.lost.y / TS - .5 });
+    const [x, y] = toScr(G.me.x / TS, G.me.y / TS), k = .5 + .5 * Math.sin(performance.now() / 160);
+    g.strokeStyle = `rgba(127,220,255,${.35 + .45 * k})`; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 13 + 2 * k, 0, Math.PI * 2); g.stroke();
+    icon('me', { kind: 'me', id: 'me', name: '你在這裡', desc: '在「' + dg.name + '」裡面', tx: G.me.x / TS - .5, ty: G.me.y / TS - .5 });
+    drawPick(g, label); return;
+  }
   const [x0, y0] = toScr(0, 0), W = MW * mv.z, H = MH * mv.z;
   g.drawImage(miniBase, x0, y0, W, H);   // 只畫看過的地方：自己走過的路 + 星之神像點亮的整塊地區（world/statues.ts）；其他地方一片黑
   { const [zx, zy] = toScr(DZONE.x0 - 1, DZONE.y0 - 1), [zx1, zy1] = toScr(DZONE.x1 + 1, DZONE.y1 + 1); g.fillStyle = '#07060b'; g.fillRect(zx, zy, zx1 - zx, zy1 - zy); }   // 地城裡面是蓋在海上的，地圖上不顯示
-  const label = (txt, x, y, col, size) => { g.font = size + 'px "DotGothic16", "PingFang TC", sans-serif'; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = '#07060b'; g.strokeText(txt, x, y); g.fillStyle = col; g.fillText(txt, x, y); };
   const big = mv.z >= 2.2;                                               // 拉近才顯示小地名
   if (mv.z < 5) for (const k of OPEN_REGIONS) if (flags.has('chart:' + zoneOfReg(k))) { const [x, y] = toScr(REGIONS[k].c[0], REGIONS[k].c[1]); label(REGIONS[k].name, x, y, '#f1e7d0', 16); }   // 地名：那一塊點亮了才寫
   if (big) for (const s of SUBS) if (discovered.has(s.name)) { const [x, y] = toScr(s.x, s.y); label(s.name, x, y + 18, '#c9bfa8', 11); }
   // 圖示：放大 2 倍的像素圖，中心對準那一格；同時記下位置給「點一下」用
-  hits = [];
-  const S = MAP_ICON_SCALE, icon = (k: string, p: MapPick) => { const c = MAP_ICONS[k], [x, y] = toScr(p.tx + .5, p.ty + .5);
-    g.drawImage(c, Math.round(x - c.width * S / 2), Math.round(y - c.height * S / 2), c.width * S, c.height * S); hits.push({ ...p, x, y }); };
   for (const T of TOWNS) if (seen(T.tx, T.ty)) icon('town', { kind: 'town', id: T.id, name: T.name, desc: '城鎮 · 有鎮民和鐵匠，可以買賣、強化武器', tx: T.tx, ty: T.ty });
   for (const p of POIS) if (seen(p.tx, p.ty)) icon(p.kind, { kind: p.kind, id: p.id, name: p.name, desc: p.desc || (p.kind === 'ruin' ? '遺跡 · 通往地底的入口' : p.kind === 'town' ? '城鎮' : '地標'), tx: p.tx, ty: p.ty });
   for (const d of DUNGEONS) if (d.style !== 'ruin' && seen(d.ent[0], d.ent[1])) { const done = flags.has('dgn:' + d.id);   // 地底遺跡畫成遺跡圖示（POIS）
@@ -83,12 +99,13 @@ export function renderBigMap() {
     hits.push({ kind: 'statue', id: 's' + st.k, name: '星之神像', desc: lit ? ZONE_NAME[st.k] + ' · 已經點亮了' : '去那裡祈禱，' + ZONE_NAME[st.k] + '的地圖就會亮起來', tx: st.tx, ty: st.ty, x, y }); }
   drawRumors(g, mv.z, mv.x - mv.w / 2 / mv.z, mv.y - mv.h / 2 / mv.z);   // 傳聞：模糊的虛線圈
   for (const r of rumorsOpen()) { const [x, y] = toScr(r.tx, r.ty); hits.push({ kind: 'rumor', id: r.id, name: '傳聞', desc: '「' + r.text + '」——' + r.src, tx: r.tx, ty: r.ty, x, y }); }
-  // 你：魔女帽 + 一圈閃爍的光（在地城裡 → 標在入口）
-  const dg = dungeonAt(G.me.x, G.me.y), mt = dg ? [dg.ent[0], dg.ent[1] + .5] : [G.me.x / TS - .5, G.me.y / TS - .5];
-  { const [x, y] = toScr(mt[0] + .5, mt[1] + .5), k = .5 + .5 * Math.sin(performance.now() / 160);
+  // 你：魔女帽 + 一圈閃爍的光
+  { const [x, y] = toScr(G.me.x / TS, G.me.y / TS), k = .5 + .5 * Math.sin(performance.now() / 160);
     g.strokeStyle = `rgba(127,220,255,${.35 + .45 * k})`; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 13 + 2 * k, 0, Math.PI * 2); g.stroke();
-    icon('me', { kind: 'me', id: 'me', name: '你在這裡', desc: dg ? '在「' + dg.name + '」裡面' : '', tx: mt[0], ty: mt[1] }); }
-  // 選到的東西：白框 + 名字
+    icon('me', { kind: 'me', id: 'me', name: '你在這裡', desc: '', tx: G.me.x / TS - .5, ty: G.me.y / TS - .5 }); }
+  drawPick(g, label);
+}
+function drawPick(g: CanvasRenderingContext2D, label) {                 // 選到的東西：白框 + 名字
   if (pick) { const h = hits.find(h => h.kind === pick.kind && h.id === pick.id);
     if (h) { g.strokeStyle = '#ffffff'; g.lineWidth = 2; g.strokeRect(Math.round(h.x - 14), Math.round(h.y - 14), 28, 28); label(h.name, h.x, h.y + 26, '#ffe38a', 12); } }
 }

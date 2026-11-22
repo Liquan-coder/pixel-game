@@ -323,7 +323,6 @@ $('mapMenu').addEventListener('click', e => { const t = (e.target as HTMLElement
 export function toggleInv() { if (openMenu === 'inv') setMenu(null); else if (!openMenu && G.started && !G.me.dead) { G.selItem = null; renderInv(); setMenu('inv'); } }
 export function toggleMap() { if (openMenu === 'map') setMenu(null); else if (!openMenu && G.started && !G.me.dead) { clearMapSel(); mapTab = 'map'; setMenu('map'); showMapTab(); centerMap(); renderBigMap(); } }
 onTap($('bagBtn'), toggleInv);
-onTap($('mapBtn'), toggleMap);
 onTap(mini, toggleMap);
 $('veil').addEventListener('click', () => setMenu(null));
 

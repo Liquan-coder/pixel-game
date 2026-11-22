@@ -43,7 +43,7 @@ import { readInput } from './ui/input';
 import './ui/pause';
 import { CHESTS, genChests } from './world/chests';
 import { placeTablets, resetQuest } from './game/quest';
-import { applySave, clearSave, loadSave, save, serialize, setSlot, slot } from './game/save';
+import { applySave, clearSave, loadSave, placeFromSave, save, serialize, setSlot, slot } from './game/save';
 import { initTitle } from './ui/title';
 
 /* ================= FLOW ================= */
@@ -51,7 +51,7 @@ export function startGame(cont) {
   initAudio();
   const d = cont ? loadSave() : null;
   if (d) applySave(d); else { clearSave(); resetPlayers(); G.coins = []; rbDead.clear(); placeMerchant('start'); G.bossDead = false; G.lost = null; G.lastCamp = 'start'; explored.fill(0); discovered.clear(); redrawMini(); for (const c of CAMPS) c.lit = c.id === 'start'; for (const c of CHESTS) { c.opened = false; c.foe = null; } resetQuest(); }
-  placeAtCamp(G.me, G.lastCamp); restoreWorld();
+  if (d) placeFromSave(d); else placeAtCamp(G.me, G.lastCamp); restoreWorld();   // 繼續 → 回到上次站的地方
   G.started = true; $('title').hidden = true; setMenu(null); G.region = ''; save();
   $('keyHint').hidden = false; setTimeout(() => { $('keyHint').hidden = true; }, 15000);
   if (!cont) setTimeout(() => toast(isTouch ? '左下角搖桿移動，右手按攻擊。點小地圖看世界地圖' : 'WASD 移動，J 攻擊，K 翻滾，M 看地圖', '#f1e7d0'), 2800);
@@ -75,7 +75,7 @@ function boot(data) {
   resetPlayers(); placeAtCamp(G.me, 'start'); respawnAll(); resetBoss();
   resize(); window.addEventListener('resize', resize);
   initTitle();                                                          // 標題畫面：三格存檔（ui/title.ts）
-  if (data && data.save && data.started) { if (data.slot >= 0) setSlot(data.slot); applySave(data.save); placeAtCamp(G.me, G.lastCamp); restoreWorld(); G.started = true; $('title').hidden = true; setMenu(null); }
+  if (data && data.save && data.started) { if (data.slot >= 0) setSlot(data.slot); applySave(data.save); placeFromSave(data.save); restoreWorld(); G.started = true; $('title').hidden = true; setMenu(null); }
   requestAnimationFrame(frame);
 }
 try { window.claude && window.claude.hot && window.claude.hot.snapshot && window.claude.hot.snapshot(() => ({ save: G.started ? serialize() : null, started: G.started, slot })); } catch (e) {}

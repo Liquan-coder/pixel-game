@@ -6,7 +6,10 @@ import { CAMPS, MH, MW, PY, TS, discovered, explored } from '../world/map';
 import { rbDead } from '../world/regionBoss';
 import { reachable } from '../world/gen';
 import { packExplored, redrawMini, unpackExplored } from '../world/minimap';
-import { resetPlayers, recalc } from './player';
+import { cam, resetPlayers, recalc } from './player';
+import { inBossZone, placeAtCamp } from './playerUpdate';
+import { collides } from './collision';
+import { LH, LW } from '../core/canvas';
 import { openDoor } from './boss';
 import { merchant, placeMerchant } from '../ui/shop';
 import { CHESTS } from '../world/chests';
@@ -22,9 +25,20 @@ export let slot = 0;                                                     // 現�
 export function setSlot(n: number) { slot = n; try { localStorage.setItem(LAST_KEY, String(n)); } catch (e) {} }
 export function lastSlot() { try { const n = Number(localStorage.getItem(LAST_KEY)); return n >= 0 && n < SLOTS ? n : 0; } catch (e) { return 0; } }
 export function serialize() {
-  return { v:11, at:Date.now(), mats:G.me.mats, vit:G.me.vit, str:G.me.str, end:G.me.end, dex:G.me.dex, int:G.me.int, luk:G.me.luk, souls:G.me.souls, gold:G.me.gold, tears:G.me.tears, freePts:G.me.freePts, inv:G.me.inv, weapon:G.me.weapon, armor:G.me.armor, trinkets:G.me.trinkets,
+  return { v:12, at:Date.now(), mats:G.me.mats, vit:G.me.vit, str:G.me.str, end:G.me.end, dex:G.me.dex, int:G.me.int, luk:G.me.luk, souls:G.me.souls, gold:G.me.gold, tears:G.me.tears, freePts:G.me.freePts, inv:G.me.inv, weapon:G.me.weapon, armor:G.me.armor, trinkets:G.me.trinkets,
     merchant: merchant ? { camp:merchant.camp, stock:merchant.stock } : null, rbDead: [...rbDead], potMax: G.potMax, bossDead: G.bossDead,
-    camps: CAMPS.filter(c => c.lit).map(c => c.id), lastCamp: G.lastCamp, lost: G.lost, uid: G.uid, map: packExplored(), mw: MW, chests: CHESTS.filter(c => c.opened).map(c => c.id), flags: [...flags], lore: [...loreRead], disc: [...discovered] };
+    camps: CAMPS.filter(c => c.lit).map(c => c.id), lastCamp: G.lastCamp, pos: lastPos(), lost: G.lost, uid: G.uid, map: packExplored(), mw: MW, chests: CHESTS.filter(c => c.opened).map(c => c.id), flags: [...flags], lore: [...loreRead], disc: [...discovered] };
+}
+/* 最後站的位置：重開遊戲時回到這裡，不是回營火。死掉中 → 不記（會回營火）；在 Boss 區裡 → 記「最後一次站在 Boss 區外面」的地方 */
+function lastPos() { const p = G.me; if (p.dead) return null;
+  const out = inBossZone(p.x, p.y); if (out && p.safeX === undefined) return null;
+  return { x: Math.round(out ? p.safeX : p.x), y: Math.round(out ? p.safeY : p.y) }; }
+/** 讀檔後把人放回去：存的位置還走得到就放那裡，不然回最後休息的營火 */
+export function placeFromSave(d) {
+  const p = d && d.pos, tx = p ? Math.floor(p.x / TS) : -1, ty = p ? Math.floor(p.y / TS) : -1;
+  if (p && d.v >= 12 && tx > 0 && ty > 0 && tx < MW && ty < MH && !collides(p.x, p.y, G.me.r) && !inBossZone(p.x, p.y)) {
+    G.me.x = p.x; G.me.y = p.y; cam.x = p.x - LW / 2; cam.y = p.y - LH / 2; return; }
+  placeAtCamp(G.me, G.lastCamp);
 }
 export function save() { if (!G.started) return; try { localStorage.setItem(SLOT_KEYS[slot], JSON.stringify(serialize())); } catch (e) {} }
 export function loadSave(n = slot) { try { const s = localStorage.getItem(SLOT_KEYS[n]); return s ? JSON.parse(s) : null; } catch (e) { return null; } }

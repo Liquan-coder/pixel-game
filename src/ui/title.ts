@@ -2,16 +2,18 @@
    三格存檔。點有存檔的那格 = 繼續；點空的那格 = 開新遊戲；✕ = 刪掉那一格（會先問一次）。
    鍵盤：W/S（↑↓）選格子，Enter 開始。 */
 import { $ } from '../core/util';
-import { CAMPS } from '../world/map';
+import { CAMPS, MW, MH, REGIONS, TS, reg } from '../world/map';
+import { dungeonAt } from '../world/dungeons';
 import { itemName } from '../data/items';
 import { SLOTS, clearSave, lastSlot, loadSave, setSlot } from '../game/save';
 import { startGame } from '../main';
 
 let sel = 0, delSlot = -1;
 
-/* 一格存檔的摘要：最後休息的營火、拿著的武器、打倒幾個強敵、上次存檔時間（不顯示等級） */
+/* 一格存檔的摘要：上次在哪裡（地城名 / 地區名；舊存檔 = 最後休息的營火）、拿著的武器、打倒幾個強敵、上次存檔時間（不顯示等級） */
 function summary(d): string {
-  const camp = CAMPS.find(c => c.id === d.lastCamp)?.name || '起始營火';
+  const p = d.v >= 12 && d.pos, tx = p ? Math.floor(p.x / TS) : -1, ty = p ? Math.floor(p.y / TS) : -1;
+  const camp = (p && tx >= 0 && ty >= 0 && tx < MW && ty < MH && (dungeonAt(p.x, p.y)?.name || REGIONS[reg[ty * MW + tx]]?.name)) || CAMPS.find(c => c.id === d.lastCamp)?.name || '起始營火';
   const foes = (d.rbDead || []).length + (d.flags || []).filter((f: string) => f.startsWith('dgn:')).length + (d.bossDead ? 1 : 0);
   const wpn = d.weapon ? itemName(d.weapon) : '赤手空拳';
   let when = '';

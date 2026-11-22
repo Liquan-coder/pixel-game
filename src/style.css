@@ -43,7 +43,7 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 #mini{cursor:pointer;width:128px;height:80px;image-rendering:pixelated;border:2px solid var(--line);box-shadow:0 0 0 2px var(--ink);background:#000;display:block}
 .srow{display:flex;gap:6px}
 .sbtn{background:var(--panel);border:2px solid var(--line);padding:5px 10px;font-size:13px;box-shadow:inset -2px -2px 0 #0006,0 0 0 2px var(--ink)}
-/* 右上角：小地圖、暫停 / 地圖 / 角色 —— 手機上做大一點，比較好點 */
+/* 右上角：小地圖（點了開大地圖）、選單 / 角色 —— 手機上做大一點，比較好點 */
 .tr .sbtn{min-height:38px;min-width:52px;padding:6px 12px;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:6px;touch-action:manipulation}
 .touch .tr .sbtn{min-height:44px;min-width:60px;font-size:15px}
 .touch #mini{width:160px;height:100px}
