@@ -11,6 +11,7 @@ import { resetBoss } from './boss';
 import { puzzleMove } from '../world/puzzles';
 import { dungeonAt } from '../world/dungeons';
 import { clearStatus, locked, moveMul, rollOut, rooted, silenced, struggle, tickStatus } from './status';
+import { LOAD_TIERS } from '../data/gear';
 import { BOW_MIN, blinkFx, bowShot, busy, damageEnemy, dodgeCut, downPlayer, releaseCharge, stopCharge, targets, tryAttack, tryDodge, tryPot, trySkill, updFlip, updateCharge } from './combat';
 import { burst, shake } from './worldUpdate';
 import { STARC } from '../render/fx';
@@ -35,7 +36,7 @@ export function updatePlayer(pl: Player, dt) {
   if (pl.lunge) { pl.lunge.t -= dt; moveEnt(pl, pl.lunge.vx * dt, pl.lunge.vy * dt); G.ghosts.push({ x:pl.x, y:pl.y, flip:pl.flip, life:.2, max:.2 }); if (pl.lunge.t <= 0) pl.lunge = null; }
   if (pl.skillLock > 0) pl.skillLock -= dt;
   for (let i = pl.timers.length - 1; i >= 0; i--) { const tm = pl.timers[i]; tm.t -= dt; if (tm.t <= 0) { pl.timers.splice(i, 1); tm.fn(); } }
-  if (pl.stDelay > 0) pl.stDelay -= dt; else if (!pl.charging) pl.st = Math.min(pl.maxSt, pl.st + (pl.drink > 0 ? 15 : 48) * dt);   // 蓄力時體力不會回（不然蓄力等於免費）
+  if (pl.stDelay > 0) pl.stDelay -= dt; else if (!pl.charging) pl.st = Math.min(pl.maxSt, pl.st + (pl.drink > 0 ? 15 : 48) * LOAD_TIERS[pl.loadTier ?? 1].st * dt);   // 蓄力時體力不會回（不然蓄力等於免費）；太重回得慢（data/gear.ts 的負重）
   if (pl.swing) { const s = pl.swing; s.t += dt; if (s.t >= s.d) { if (s.anim) { const g = s.f + s.r1 * s.sd; pl.wFrom = s.ranged ? g : Math.atan2(Math.sin(g) * s.sy, Math.cos(g)); pl.wRec = pl.wRecD = s.back; pl.wTy = s.ty; pl.wRot = Math.sign(s.r1 - (s.rs ?? s.r0)) * s.sd; } pl.swing = null; } }
   if (pl.wRec > 0) pl.wRec -= dt;
   if (Math.abs(pl.kx) + Math.abs(pl.ky) > 2) { moveEnt(pl, pl.kx * dt, pl.ky * dt); const k = Math.pow(0.001, dt); pl.kx *= k; pl.ky *= k; } else pl.kx = pl.ky = 0;
@@ -75,7 +76,7 @@ export function updatePlayer(pl: Player, dt) {
     if (pl.dodge <= 0) { pl.dodge = 0; blinkFx(pl, pl.x, pl.y, false); sfx.blinkIn(); }   // 歸零：停在負數的話 !pl.dodge 會一直是 false → pl.moving 永遠 false（凝視石像抓不到人、受傷不閃爍）
   } else if (puzzleMove(pl, dt)) {                                      // 機關接手移動：冰面滑行、被蘑菇彈飛（world/puzzles.ts）
   } else if (m > .05 && !locked(pl) && !rooted(pl)) {
-    const spd = 84 * moveMul(pl) * (pl.drink > 0 ? .45 : 1) * (pl.skillLock > 0 ? .25 : 1) * (pl.swing ? .6 : 1) * (pl.charging ? .45 : 1) * (pl.ride ? RIDE_SPD : 1) * (pl.rideT > 0 ? .3 : 1) * (map[(pl.y / TS | 0) * MW + (pl.x / TS | 0)] === ROAD ? 1.12 : 1);
+    const spd = 84 * moveMul(pl) * (pl.drink > 0 ? .45 : 1) * (pl.skillLock > 0 ? .25 : 1) * (pl.swing ? .6 : 1) * (pl.charging ? .45 : 1) * (pl.ride ? RIDE_SPD : LOAD_TIERS[pl.loadTier ?? 1].mv) * (pl.rideT > 0 ? .3 : 1) * (map[(pl.y / TS | 0) * MW + (pl.x / TS | 0)] === ROAD ? 1.12 : 1);
     moveEnt(pl, input.mx * spd * dt, input.my * spd * dt);
     if (pl.aimLock <= 0) { pl.face = Math.atan2(input.my, input.mx); updFlip(pl); }
   }

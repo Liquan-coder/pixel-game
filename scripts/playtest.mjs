@@ -744,6 +744,25 @@ const pageScript = async () => {
     G.me.weapon.fx = null; G.me.tfx = {}; recalc(G.me); G.me.hp = G.me.maxHp; G.me.rage = 0; G.enemies = [];
   });
 
+  run('負重：武器 + 防具的重量、四段（輕盈 / 普通 / 沉重 / 超重）、太重走得慢、體力回得慢', () => {
+    const I = await0.items, keep = { w: G.me.weapon, a: G.me.armor, end: G.me.end, str: G.me.str }; setMenu(null); G.enemies = [];
+    const camp = CAMPS.find(c => c.id === 'start'), open = (x, y) => [0, 20, 40, 60, 80].every(dx => !await0.coll.collides(x + dx, y, G.me.r + 2));
+    let p = null; for (let r = 60; r < 500 && !p; r += 20) for (let a = 0; a < 6.28 && !p; a += .4) { const x = camp.x + Math.cos(a) * r, y = camp.y + Math.sin(a) * r; if (open(x, y)) p = [x, y]; }
+    if (!p) throw new Error('找不到一段直直的空地');
+    const walk = () => { tp(p[0], p[1]); G.me.kx = G.me.ky = 0; G.me.ride = false; input.mx = 1; input.my = 0; step(30); input.mx = 0; return G.me.x - p[0]; };
+    G.me.end = 5; G.me.str = 40;
+    G.me.weapon = I.makeWeapon('dagger', 0); G.me.armor = null; recalc(G.me); if (G.me.loadTier !== 0) throw new Error('短刀 + 沒穿防具應該是輕盈：' + G.me.load + '/' + G.me.loadCap);
+    const dLight = walk();
+    G.me.weapon = I.makeWeapon('hammer', 0); G.me.armor = I.makeArmor('chain'); recalc(G.me); if (G.me.loadTier !== 3) throw new Error('耐力 5 拿戰鎚 + 鎖甲應該是超重：' + G.me.load + '/' + G.me.loadCap);
+    const dHeavy = walk(); if (!(dHeavy < dLight * .8)) throw new Error('超重沒有走得比較慢：' + dHeavy.toFixed(1) + ' vs ' + dLight.toFixed(1));
+    G.me.st = 0; G.me.stDelay = 0; step(30); const stHeavy = G.me.st;
+    G.me.weapon = I.makeWeapon('dagger', 0); G.me.armor = null; recalc(G.me); G.me.st = 0; G.me.stDelay = 0; step(30);
+    if (!(stHeavy < G.me.st * .8)) throw new Error('超重體力沒有回得比較慢：' + stHeavy.toFixed(1) + ' vs ' + G.me.st.toFixed(1));
+    G.me.end = 30; recalc(G.me); G.me.weapon = I.makeWeapon('hammer', 0); G.me.armor = I.makeArmor('chain'); recalc(G.me);
+    if (G.me.loadTier > 1) throw new Error('耐力 30 拿戰鎚 + 鎖甲還是太重：' + G.me.load + '/' + G.me.loadCap);
+    Object.assign(G.me, { weapon: keep.w, armor: keep.a, end: keep.end, str: keep.str }); recalc(G.me); G.me.st = G.me.maxSt;
+  });
+
   run('星狼（坐騎）：打倒狼王才叫得出來、跑得比較快、按攻擊跳下來、被打摔下來、城鎮 / 地城騎不進去', () => {
     const MT = imp0.mount, Q = await0.quest, M = await0.map, keep = G.bossDead; setMenu(null); G.enemies = [];
     const camp = CAMPS.find(c => c.id === 'start'); tp(camp.x, camp.y + 16); G.me.ride = false; G.me.rideT = 0; step(2);

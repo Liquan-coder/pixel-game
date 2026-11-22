@@ -1,7 +1,7 @@
 import { G } from '../core/state';
 import { $, onTap } from '../core/util';
 import { AFFIX, ICON_URL, RAR, SLOTN, UP_MAX, WT, armorStats, attachSeal, detachSeal, effOf, gearValue, itemName, slotOf } from '../data/items';
-import { ACLS, ARMORS, A_UP_MAX, MAIN_BOSSES, T_SLOTS_MAX, effLines } from '../data/gear';
+import { ACLS, ARMORS, A_UP_MAX, A_WEIGHT, LOAD_TIERS, MAIN_BOSSES, T_SLOTS_MAX, W_WEIGHT, effLines, fmtW } from '../data/gear';
 import type { Item } from '../types';
 import { MATS, MAT_KEYS, ORE_URL } from '../data/forge';
 import { UG, UQ } from '../data/uniques';
@@ -89,7 +89,7 @@ export function itemCard(it, cmp?, cls = '') {
   const dv = (a, b) => { const d = a - b; return d > 0 ? ' <span class="up">▲' + d + '</span>' : d < 0 ? ' <span class="down">▼' + (-d) + '</span>' : ''; };
   let head = SLOTN[sl], main = '', tail = '';
   if (sl === 'weapon') { const W = WT[it.type], S = scaleOf(it), fx = fxOf(it), U = it.uq && UQ[it.uq];
-    head += ' · 強化 +' + (it.up || 0) + '/' + UP_MAX + (U ? ' · 獨特' : '');
+    head += ' · 強化 +' + (it.up || 0) + '/' + UP_MAX + (U ? ' · 獨特' : '') + ' · 重量 ' + fmtW(W_WEIGHT[it.type] || 4);
     const A = atkSplit(G.me, it), B = c && slotOf(c) === 'weapon' ? atkSplit(G.me, c) : null;            // 攻擊 = 武器本身 + 你的能力值給的；▲▼ 比總攻擊
     main = '攻擊 ' + A.base + ' <span class="bn">+ ' + A.bonus + '</span>' + (B ? dv(A.total, B.total) : '') + ' <small style="color:var(--muted)">· ' + W.trait + '</small>';
     const affs = Object.keys(it.aff || {}).map(k => '＋' + it.aff[k] + AFFIX[k].u + ' ' + AFFIX[k].n);
@@ -98,7 +98,7 @@ export function itemCard(it, cmp?, cls = '') {
       (fx ? '<div class="sk">刻印 <b style="color:' + WFXD[fx].c + '">' + WFXD[fx].n + '</b>：' + WFXD[fx].d + '</div>' : (U ? '' : '<div class="sk" style="color:var(--muted)">沒有刻印（可以從背包裝上）</div>')) +
       '<div class="sk">技能 <b>' + W.sn + '</b>：' + W.sd + '</div>' + (U ? '<div class="sk lore">' + U.lore + '<br><small>來源：' + U.from + '</small></div>' : ''); }
   else if (sl === 'armor') { const A = armorStats(it), C = ACLS[A.cls], B = c ? armorStats(c) : null;
-    head += ' · ' + C.n + ' · 強化 +' + (it.up || 0) + '/' + A_UP_MAX;
+    head += ' · ' + C.n + ' · 強化 +' + (it.up || 0) + '/' + A_UP_MAX + ' · 重量 ' + A_WEIGHT[A.cls];
     main = '防禦 ' + A.def + (B ? dv(A.def, B.def) : '') + ' · 生命 +' + A.hp + (B ? dv(A.hp, B.hp) : '');
     tail = '<div class="sk" style="color:var(--muted)">' + C.d + '</div>' + effHtml(effOf(it)); }
   else if (sl === 'trinket') { main = effLines(effOf(it))[0] || ''; tail = effHtml(Object.fromEntries(Object.entries(effOf(it)).slice(1))); }
@@ -161,7 +161,17 @@ function statDiff(now, nx) {                                            // 換�
     const d = nx[k] - now[k]; if (Math.abs(d) < 1e-6) continue;
     const v = pct(k) ? Math.round(Math.abs(d) * 100) + '%' : k === 'crit' ? Math.abs(d) + '%' : String(Math.round(Math.abs(d)));
     out.push('<span class="' + (d > 0 ? 'up' : 'down') + '">' + n + ' ' + (d > 0 ? '+' : '−') + v + '</span>'); }
+  if (Math.abs(nx.load - now.load) > 1e-6) { const up = nx.load > now.load, tc = nx.loadTier !== now.loadTier;      // 負重：變重是紅字；換段直接寫出效果
+    out.push('<span class="' + (up ? 'down' : 'up') + '">負重 ' + (up ? '+' : '−') + fmtW(Math.abs(nx.load - now.load)) + (tc ? '（' + LOAD_TIERS[now.loadTier].n + ' → ' + LOAD_TIERS[nx.loadTier].n + '：' + LOAD_TIERS[nx.loadTier].d + '）' : '') + '</span>'); }
   return out.length ? out.join('，') : '<span>基本數值不變</span>';
+}
+/* 負重條：三個大數字下面一整排。寫「負重 19 / 30 · 普通」+ 這一段的效果；有預覽時顯示換上後的樣子（變重 = 紅字） */
+function loadBar(now, nx) {
+  const v = nx || now, T = LOAD_TIERS[v.loadTier], up = nx && nx.load > now.load + 1e-6, dn = nx && nx.load < now.load - 1e-6, tc = nx && nx.loadTier !== now.loadTier;
+  return '<div class="loadbar"><div class="lh"><small>負重</small><b style="color:' + T.c + '">' + fmtW(v.load) + ' / ' + v.loadCap + ' · ' + T.n + '</b>' +
+    (up || dn ? '<span class="' + (up ? 'down' : 'up') + '">' + (up ? '▲' : '▼') + fmtW(Math.abs(nx.load - now.load)) + '</span>' : '') + '</div>' +
+    '<div class="lt"><i style="width:' + Math.min(100, v.load / v.loadCap * 100) + '%;background:' + T.c + '"></i><u style="left:30%"></u><u style="left:70%"></u></div>' +
+    '<div class="ld">' + (tc ? '<span class="' + (up ? 'down' : 'up') + '">' + LOAD_TIERS[now.loadTier].n + ' → ' + T.n + '：</span>' : '') + T.d + (v.loadTier >= 2 ? '　<small>（耐力越高，能背越重）</small>' : '') + '</div></div>';
 }
 function selSummary(sel, now, pv) {
   const it = sel.it, sl = slotOf(it), r = reqOf(it), bad = sl === 'weapon' || sl === 'armor' ? unmet(G.me, it) : [];
@@ -208,7 +218,7 @@ export function renderInv() {
   const head = sel ? '<div class="selcard" style="border-color:' + R.c + '"><button type="button" class="sico' + (infoMode ? ' on' : '') + '" data-act="info" aria-label="說明"><img alt="" src="' + ICON_URL[sel.it.type] + '"><i>' + (infoMode ? '↩' : '?') + '</i></button><div class="selmid"><div class="selname"><b style="color:' + R.c + '">' + itemName(sel.it) + '</b><i>' + (U ? '獨特' : SLOTN[sl]) + '</i></div>' +
     '<div class="selsum">' + selSummary(sel, now, pv) + '</div>' + (infoMode ? '' : selEffect(sel.it) + reqLine(sel.it)) + '</div>' + selActs(sel) + '</div>' : '';
   info.innerHTML = head + '<div class="cscroll">' + (sel && infoMode ? itemCard(sel.it, null, 'det') :   // 「說明」：這件的刻印、技能、需求、背景故事（取代下面的數值，不用往下捲）
-    '<div class="keystats">' + keyTile('hp', '生命', 'maxHp', now, pv) + keyTile('atk', '攻擊', 'atk', now, pv) + keyTile('df', '防禦', 'def', now, pv) + '</div>' +
+    '<div class="keystats">' + keyTile('hp', '生命', 'maxHp', now, pv) + keyTile('atk', '攻擊', 'atk', now, pv) + keyTile('df', '防禦', 'def', now, pv) + '</div>' + loadBar(now, pv) +
     '<div class="cbox"><div class="lbl">詳細屬性</div><div class="stattbl">' + statRows(now, pv) + '</div></div>' +
     '<div class="cbox"><div class="lbl">能力值<small class="lvhint">在營火用魂晶升級</small></div><div id="attrList">' + ATTRS.map(a => '<div class="attr" title="' + a.d + '"><span>' + a.n + '</span><div class="bar2"><i style="width:' + Math.min(100, G.me[a.k] / 40 * 100) + '%"></i></div><b>' + G.me[a.k] + '</b></div>').join('') + '</div></div>') + '</div>';
   const sc = info.querySelector('.cscroll'); if (sc && sel && sel.it.id === lastSelId) sc.scrollTop = keepY; lastSelId = sel ? sel.it.id : null;

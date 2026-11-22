@@ -11,7 +11,7 @@ export type AttrKey = 'vit' | 'end' | 'str' | 'dex' | 'int' | 'luk';
 export const ATTR_BASE = 5;
 export const ATTRS: { k: AttrKey; n: string; d: string }[] = [
   { k: 'vit', n: '體魄', d: '生命上限' },
-  { k: 'end', n: '耐力', d: '體力上限、少量防禦' },
+  { k: 'end', n: '耐力', d: '體力上限、負重上限、少量防禦' },
   { k: 'str', n: '力量', d: '重武器的傷害（斧、鎚、劍）' },
   { k: 'dex', n: '敏捷', d: '快武器的傷害（短刀、太刀、長槍）、攻擊速度' },
   { k: 'int', n: '智識', d: '魔法武器的傷害（法杖、鐮刀）、技能冷卻' },

@@ -2,7 +2,7 @@ import { tier } from '../data/levels';
 import { G } from '../core/state';
 import { $ } from '../core/util';
 import { WT, armorStats, effOf, makeWeapon } from '../data/items';
-import { ACLS } from '../data/gear';
+import { ACLS, A_WEIGHT, W_WEIGHT, loadCap, loadTier } from '../data/gear';
 import { ATTRS, ATTR_BASE, soft, weaponAtk } from '../data/attrs';
 import type { Player } from '../types';
 
@@ -59,11 +59,17 @@ export function calcStats(pl: Player, eq) {
     crit: Math.round(5 + (a.crit || 0) + (T.crit || 0) + Math.min(12, .4 * soft(pl.luk))), ls: (a.lifesteal || 0) / 100,
     aspd: 1 + ((a.speed || 0) + (T.aspd || 0)) / 100 + Math.min(.15, .006 * soft(pl.dex)),
     cdr: Math.min(.5, ((a.cdr || 0) + (T.cdr || 0) + (C ? C.cdr : 0)) / 100 + Math.min(.15, .006 * soft(pl.int))),
-    def, defRed: Math.min(DR_CAP, def / (def + 60)), atk: Math.round(weaponAtk(pl, eq.weapon) * (1 + (T.atkPct || 0) / 100)), tfx: T, acls: A ? A.cls : '' };
+    def, defRed: Math.min(DR_CAP, def / (def + 60)), atk: Math.round(weaponAtk(pl, eq.weapon) * (1 + (T.atkPct || 0) / 100)), tfx: T, acls: A ? A.cls : '',
+    ...loadOf(pl, eq) };
+}
+/* 負重（data/gear.ts）：武器 + 防具的重量、上限、第幾段（0 輕盈 / 1 普通 / 2 沉重 / 3 超重） */
+export function loadOf(pl: Player, eq) {
+  const A = armorStats(eq.armor), load = (eq.weapon ? W_WEIGHT[eq.weapon.type] || 4 : 0) + (A ? A_WEIGHT[A.cls] || 0 : 0), cap = loadCap(pl.end);
+  return { load, loadCap: cap, loadTier: loadTier(load, cap) };
 }
 export function recalc(pl: Player) {
   const st = calcStats(pl, curEq(pl));
-  pl.maxHp = st.maxHp; pl.maxSt = st.maxSt; pl.crit = st.crit; pl.ls = st.ls; pl.aspd = st.aspd; pl.cdr = st.cdr; pl.def = st.def; pl.defRed = st.defRed; pl.atkPow = st.atk; pl.tfx = st.tfx; pl.acls = st.acls;
+  pl.maxHp = st.maxHp; pl.maxSt = st.maxSt; pl.crit = st.crit; pl.ls = st.ls; pl.aspd = st.aspd; pl.cdr = st.cdr; pl.def = st.def; pl.defRed = st.defRed; pl.atkPow = st.atk; pl.tfx = st.tfx; pl.acls = st.acls; pl.load = st.load; pl.loadCap = st.loadCap; pl.loadTier = st.loadTier;
   pl.hp = Math.min(pl.hp, pl.maxHp); pl.st = Math.min(pl.st, pl.maxSt);
   if (pl === G.me) { $('skillName').textContent = WT[pl.weapon.type].sn; $('skillHudName').textContent = WT[pl.weapon.type].sn; }   // 技能按鈕只顯示「我」的
 }
