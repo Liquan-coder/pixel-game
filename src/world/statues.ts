@@ -19,6 +19,7 @@ import { save } from '../game/save';
 import { drawShadow } from '../render/player';
 import type { Player } from '../types';
 import { placeAltar } from './ending';
+import { CARTO_HINTS } from '../data/story';
 import { setupSecrets } from './secrets';
 
 /* 地區 → 第幾塊地圖（0 = 一開始就亮的平原；4 = 狼王巢穴跟森林一起；7 = 地城，不算） */
@@ -70,12 +71,22 @@ export const statueLit = (s: Statue) => flags.has('statue:' + s.k);
 export const fragsHeld = () => DEF.filter(D => flags.has('frag:' + D.k) && !flags.has('given:' + D.k)).map(D => D.k);
 export const fragCount = () => DEF.filter(D => flags.has('statue:' + D.k)).length;
 
+/* ---- 製圖師提示下一張殘頁（文字在 data/story.ts 的 CARTO_HINTS）----
+   照 Boss 大概的難度排（女王 → 霧林女妖 → 蘑菇王 → 將軍 → 巨龍 → 巨人），挑第一張「還沒撿到、神像也還沒祈禱」的。
+   自己先找到神像祈禱過的那一塊就跳過（地圖已經亮了，殘頁沒用）。全部撿到了 → 提醒去神像；全部亮了 → 收尾的話 */
+const HINT_ORDER = [1, 6, 2, 3, 4, 5];
+export function cartoHint(): { key: string; line: string } | null {
+  const k = HINT_ORDER.find(k => !flags.has('frag:' + k) && !flags.has('statue:' + k));
+  const key = k ? String(k) : DEF.some(D => flags.has('given:' + D.k) && !flags.has('statue:' + D.k)) ? 'mark' : fragCount() >= STATUE_N ? 'done' : '';
+  return key ? { key, line: CARTO_HINTS[key] } : null;              // ''：殘頁還在身上沒交 → 交出的按鈕會出現，不用多說
+}
+
 /* ---- 每幀（game/quest.ts 的 updateQuest 呼叫）：打倒 Boss → 拿到殘頁；開新遊戲 / 舊存檔 → 平原一定是亮的 ---- */
 export function updateStatues(bossDead: (id: string) => boolean) {
   if (!charted(0)) chartZone(0);
   for (const D of DEF) if (!flags.has('frag:' + D.k) && bossDead(D.frag)) { flags.add('frag:' + D.k);
     setTimeout(() => { showBanner('得到 地圖殘頁', '上面畫著一座神像……城鎮的製圖師也許看得懂', 3200);
-      toast('地圖殘頁：拿給晨風鎮或霜寒鎮的製圖師', '#e8d8b0', true); }, 6400); save(); }
+      toast('地圖殘頁：拿給城鎮裡的製圖師', '#e8d8b0', true); }, 6400); save(); }
 }
 
 /* ---- 互動（ui/interact.ts）：神像 = 祈禱；製圖師 = 交出殘頁 ---- */

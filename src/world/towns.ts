@@ -10,7 +10,7 @@ import { drawShadow } from '../render/player';
 import { moveEnt } from '../game/collision';
 import { flags, qctx } from '../game/quest';
 import { REACTS } from '../data/story';
-import { fragsHeld } from './statues';
+import { cartoHint, fragsHeld } from './statues';
 import { respec } from '../game/player';
 import { save } from '../game/save';
 import { sfx } from '../core/audio';
@@ -111,7 +111,9 @@ export const NPCS = DEF.map(d => { const T = TOWNS.find(t => t.id === d.town);
 function nextLine(m: typeof NPCS[number]) {
   const rs = REACTS.filter(r => r.npc === m.town + ':' + m.name && r.when(qctx)), fresh = rs.find(r => !flags.has('heard:' + r.id));
   if (fresh) { flags.add('heard:' + fresh.id); return fresh.line; }
-  const pool = [...m.lines, ...rs.map(r => r.line)]; m.line = (m.line + 1) % pool.length; return pool[m.line];
+  const hint = m.look === 'carto' ? cartoHint() : null;               // 製圖師：照進度暗示下一張殘頁在哪（新的提示第一次一定先說）
+  if (hint && !flags.has('heard:carto:' + hint.key)) { flags.add('heard:carto:' + hint.key); return hint.line; }
+  const pool = [...m.lines, ...rs.map(r => r.line), ...(hint ? [hint.line] : [])]; m.line = (m.line + 1) % pool.length; return pool[m.line];
 }
 export function restockSmiths() { for (const n of NPCS) if (n.smith) n.stock = null; }   // 下次打開店時才產生新貨（ui/shop.ts 的 openShop）
 export const nearNPC = (R = 26) => { if (!G.me || G.me.dead) return null; let best = null, bd = R;

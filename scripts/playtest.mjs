@@ -239,6 +239,22 @@ const pageScript = async () => {
     RB.rbDead.delete('queen'); RB.resetRegionBosses();
   });
 
+  run('製圖師：照進度暗示下一張殘頁在哪', () => {
+    const ST = await0.statues, Q = await0.quest, S = await0.story, towns = await0.towns, keep = [...Q.flags];
+    const c = towns.NPCS.find(n => n.town === 'dawn' && n.name === '製圖師');
+    const talk = () => { tp(c.x, c.y + 80); step(2); tp(c.x, c.y + 14); step(2); return document.getElementById('talk').textContent; };
+    const wipe = () => { for (const f of [...Q.flags]) if (/^(frag|given|statue|heard:carto):/.test(f)) Q.flags.delete(f); };
+    wipe(); if (!talk().includes(S.CARTO_HINTS[1])) throw new Error('一開始製圖師沒有提鏡湖');
+    for (const [k, want] of [[1, 6], [6, 2], [2, 3], [3, 4], [4, 5]]) { Q.flags.add('frag:' + k); Q.flags.add('given:' + k); Q.flags.add('statue:' + k);
+      if (!talk().includes(S.CARTO_HINTS[want])) throw new Error('拿到殘頁 ' + k + ' 之後，製圖師沒有提下一張（' + want + '）'); }
+    wipe(); Q.flags.add('statue:2'); Q.flags.add('frag:1'); Q.flags.add('frag:6'); Q.flags.add('heard:carto:1');
+    if (!talk().includes(S.CARTO_HINTS[3])) throw new Error('自己祈禱過的神像（2）沒有跳過');
+    wipe(); for (let k = 1; k <= 6; k++) { Q.flags.add('frag:' + k); Q.flags.add('given:' + k); } if (!talk().includes(S.CARTO_HINTS.mark)) throw new Error('殘頁都交了，製圖師沒有提醒去神像');
+    for (let k = 1; k <= 6; k++) Q.flags.add('statue:' + k); if (!talk().includes(S.CARTO_HINTS.done)) throw new Error('全部點亮後製圖師沒有說收尾的話');
+    if (/Lv|等級|危險|打不過/.test(Object.values(S.CARTO_HINTS).join())) throw new Error('製圖師的提示出現等級 / 危險字眼');
+    tp(c.x, c.y + 80); step(2); Q.flags.clear(); for (const f of keep) Q.flags.add(f);
+  });
+
   run('結局：觀星儀 → 七顆星核 + 最後的看守者 → 選結局 → 回到荒野；Boss 倒下後鎮民換台詞、天色變亮', () => {
     const E = await0.ending, Q = await0.quest, S = await0.story, M = await0.map, towns = await0.towns; setMenu(null);
     const keep = { boss: G.bossDead, rb: [...RB.rbDead], fl: [...Q.flags] };
