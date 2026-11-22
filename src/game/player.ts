@@ -3,7 +3,7 @@ import { G } from '../core/state';
 import { $ } from '../core/util';
 import { WT, armorStats, effOf, makeWeapon } from '../data/items';
 import { ACLS } from '../data/gear';
-import { soft, weaponAtk } from '../data/attrs';
+import { ATTRS, ATTR_BASE, soft, weaponAtk } from '../data/attrs';
 import type { Player } from '../types';
 
 /* ================= STATE ================= */
@@ -68,3 +68,10 @@ export function recalc(pl: Player) {
   if (pl === G.me) { $('skillName').textContent = WT[pl.weapon.type].sn; $('skillHudName').textContent = WT[pl.weapon.type].sn; }   // 技能按鈕只顯示「我」的
 }
 
+
+/** 重生水滴（城鎮的修女 / 祭司那裡用，world/towns.ts）：六種能力值洗回 5，洗掉的點數變成免費點數，到營火的升級畫面重新分配。等級不變 */
+export function respec(pl: Player) {
+  if (!(pl.tears > 0)) return 0;
+  pl.tears--; pl.freePts = level(pl) - 1; for (const a of ATTRS) pl[a.k] = ATTR_BASE;
+  recalc(pl); pl.hp = pl.maxHp; pl.st = pl.maxSt; return pl.freePts;
+}

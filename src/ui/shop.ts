@@ -126,7 +126,7 @@ function renderShop() {
   if (shopTab === 'buy') {
     const rows = vendor.stock.map((o, i) => !shown(o) ? '' : o.kind === 'pot' ? shopRow('potion', '藥水', '補 1 瓶（目前 ' + G.me.pot + '/' + G.potMax + '）', o.price, null, i, G.me.pot >= G.potMax)
       : o.kind === 'potUp' ? shopRow('potUp', '藥水上限 +1', '剩 ' + o.left + ' 個 · 永久增加', o.price, '#f2c14e', i, !o.left || G.potMax >= 8)
-      : o.kind === 'tear' ? shopRow('tear', '重生水滴', '剩 ' + o.left + ' 個 · 在營火重新分配能力值', o.price, '#9ae8ff', i, !o.left)
+      : o.kind === 'tear' ? shopRow('tear', '重生水滴', '剩 ' + o.left + ' 個 · 拿給城鎮的修女，重新分配能力值', o.price, '#9ae8ff', i, !o.left)
       : o.kind === 'ore' ? oreShopRow(o, i)
       : shopRow(o.item.type, itemName(o.item), SLOTN[slotOf(o.item)] + (o.item.fx && isW(o.item) ? ' · 帶刻印' : ''), o.sold ? '售出' : o.price, RAR[o.item.rarity].c, i, o.sold));
     const o = vendor.stock[shopSel] && shown(vendor.stock[shopSel]) ? vendor.stock[shopSel] : null;
@@ -157,7 +157,7 @@ $('shopMenu').addEventListener('click', e => {
   if (t.dataset.buy !== undefined) { const o = vendor.stock[+t.dataset.buy]; if (!o || G.me.gold < o.price) return; const price = o.price;   // 先記下價格：藥水上限買完會漲價，扣的要是買的那一刻的價格
     if (o.kind === 'pot') { if (G.me.pot >= G.potMax) return; G.me.pot++; }
     else if (o.kind === 'potUp') { if (!o.left || G.potMax >= 8) return; o.left--; G.potMax++; G.me.pot++; o.price = 250 * (G.potMax - 2); toast('藥水上限 +1（現在 ' + G.potMax + ' 瓶）', '#f2c14e'); }
-    else if (o.kind === 'tear') { if (!o.left) return; o.left--; G.me.tears = (G.me.tears || 0) + 1; toast('重生水滴 +1（在營火的升級畫面使用）', '#9ae8ff'); }
+    else if (o.kind === 'tear') { if (!o.left) return; o.left--; G.me.tears = (G.me.tears || 0) + 1; toast('重生水滴 +1（拿給晨風鎮或霜歌鎮的修女）', '#9ae8ff'); }
     else if (o.kind === 'ore') { if (!o.left) return; o.left--; G.me.mats[o.mat] = (G.me.mats[o.mat] || 0) + 1; toast(MATS[o.mat].n + ' +1', MATS[o.mat].c); }
     else { if (o.sold || G.me.inv.length >= 24) return; o.sold = true; G.me.inv.push(o.item); toast('買到 ' + o.item.name, RAR[o.item.rarity].c); shopSel = null; }
     G.me.gold -= price; sfx.buy(); renderShop(); save(); return; }

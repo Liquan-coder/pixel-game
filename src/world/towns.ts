@@ -10,6 +10,11 @@ import { drawShadow } from '../render/player';
 import { moveEnt } from '../game/collision';
 import { flags } from '../game/quest';
 import { fragsHeld } from './statues';
+import { respec } from '../game/player';
+import { save } from '../game/save';
+import { sfx } from '../core/audio';
+import { showBanner } from '../ui/hud';
+import type { Player } from '../types';
 
 type Look = { robe: string[]; hair: string[]; skin?: string[]; beard?: boolean; helm?: boolean; apron?: boolean; hood?: boolean; spear?: boolean; small?: boolean; ears?: boolean };   // ears = 精靈的尖耳朵
 const SKIN = ['#8a5a44', '#c8907a', '#ecc0a4', '#fadcc8'];
@@ -45,6 +50,7 @@ const LOOK: Record<string, Look> = {
   elfGuard: { robe: ['#141632', '#22264e', '#32386e', '#464e90'], hair: [], helm: true, spear: true, ears: true },
   elfSmith: { robe: ['#1a2a24', '#2a3e36', '#3e5a4e', '#567a6a'], hair: ['#7a5a20', '#b08a34', '#dcbc58'], apron: true, ears: true },
   elfGirl: { robe: ['#2a2a5a', '#3e3e86', '#5a5ab0', '#8a8ad8'], hair: ['#b08a34', '#dcbc58', '#fff0a8'], ears: true },
+  elfPriest: { robe: ['#5a6a8a', '#8a9ab8', '#c4d0e4', '#eef4fa'], hair: ['#8a92a8', '#c8d0e0', '#f4f8fc'], hood: true, ears: true },   // 月之祭司（洗點）
 };
 const ART: Record<string, HTMLCanvasElement> = {}; for (const k in LOOK) ART[k] = hdVillager(LOOK[k]);
 
@@ -69,11 +75,15 @@ const DEF = [
     '平原我畫完了。剩下的……就靠你的腳了。'] },
   { town: 'dawn', look: 'smith', name: '鐵匠', dx: 6, dy: 8, smith: true, lines: ['要武器嗎？我這裡的貨比流浪商人好。'] },
   { town: 'dawn', look: 'kid', name: '小孩', dx: 2, dy: 6, lines: ['我長大要當冒險者！', '你的帽子好大喔。'] },
+  { town: 'dawn', look: 'nun', name: '修女', dx: 0, dy: -6, respec: true, lines: [
+    '帶著重生水滴來找我。我可以讓你的身體忘掉它學過的東西。',
+    '洗掉的力氣不會消失。回到營火，再重新分配一次就好。'] },
   { town: 'frost', look: 'hunter', name: '獵人', dx: -3, dy: -3, lines: [
     '雪原的狼總是成群出沒。聽見狼嚎的時候，牠們已經看見你了。',
     '東北邊的山頂有一座祭壇……我在那裡看過一個巨大的白色身影。',
     '能走到這裡，代表你已經不是普通的旅人了。'] },
-  { town: 'frost', look: 'nun', name: '修女', dx: 4, dy: -2, lines: [
+  { town: 'frost', look: 'nun', name: '修女', dx: 4, dy: -2, respec: true, lines: [
+    '帶著重生水滴來吧。洗掉的點數，回到營火再分配。',
     '南邊的沼澤被詛咒了。據說最深處祭壇上的巫妖，會把整片地變成毒沼。',
     '站在綠色的毒沼上會一直扣血，記得快點離開。',
     '願營火的光守護你。'] },
@@ -90,6 +100,7 @@ const DEF = [
     '島上的弓手看得見你，在你看見他們以前。'] },
   { town: 'elf', look: 'elfGirl', name: '精靈少女', dx: -6, dy: 2, lines: ['妳是從海的那一邊來的嗎？那邊的天空，晚上也有星星嗎？', '白樹之丘的那棵樹，以前是綠色的喔。'] },
   { town: 'elf', look: 'carto', name: '製圖師', dx: 2, dy: -5, lines: ['我師父在晨風鎮。殘頁拿給我也一樣。', '這座島的神像在北邊的渡口。從森林過橋來的人，第一眼就會看到它。'] },
+  { town: 'elf', look: 'elfPriest', name: '月之祭司', dx: 0, dy: -6, respec: true, lines: ['重生水滴是月泉的眼淚。拿來給我，我替你洗去身上的痕跡——之後到營火，重新選一次。'] },
   { town: 'elf', look: 'elfSmith', name: '精靈鐵匠', dx: 6, dy: 8, smith: true, lines: ['精靈打的刀，比月光還薄。看看吧。'] },
 ];
 export const NPCS = DEF.map(d => { const T = TOWNS.find(t => t.id === d.town);
@@ -130,3 +141,13 @@ const FLIP = new Map();
 function drawFlip(c, x, y, flip) { if (!flip) return drawArtSprite(c, x, y);
   let f = FLIP.get(c); if (!f) { f = document.createElement('canvas'); f.width = c.width; f.height = c.height; const g = f.getContext('2d'); g.translate(c.width, 0); g.scale(-1, 1); g.drawImage(c, 0, 0); FLIP.set(c, f); }
   drawArtSprite(f, x, y); }
+
+/* ---- 洗點：站在修女 / 月之祭司旁邊按攻擊鍵 → 先確認一次 → 用掉一顆重生水滴，能力值洗回 5，點數到營火分配（ui/interact.ts） ---- */
+let respecArm = null;
+export function respecTarget(pl: Player, npc): { btn: string; text: string; run: () => void } | null {
+  if (!npc || !npc.respec) { respecArm = null; return null; }
+  if (!(pl.tears > 0)) return null;
+  if (respecArm !== npc) return { btn: '洗點', text: '交出重生水滴（還有 ' + pl.tears + ' 顆）', run: () => { respecArm = npc; } };
+  return { btn: '確定', text: '能力值全部洗回 5，點數到營火重新分配（等級不變）', run: () => { respecArm = null;
+    const n = respec(pl); sfx.level(); showBanner('能力值洗回去了', n + ' 點可以在營火重新分配', 2600); save(); } };
+}

@@ -670,6 +670,18 @@ const pageScript = async () => {
     log.push('  ' + out.join('、'));
   });
 
+  run('重生水滴：找修女洗點 → 能力值回到 5 → 點數到營火重新分配', () => {
+    const towns = await0.towns, n = towns.NPCS.find(n => n.town === 'dawn' && n.respec); if (!n) throw new Error('晨風鎮沒有修女');
+    if (towns.NPCS.filter(n => n.respec).length !== 3) throw new Error('洗點的 NPC 不是三個（晨風鎮、霜歌鎮、銀葉城）');
+    const me = G.me, s0 = { str: me.str, dex: me.dex }; me.str = 25; me.dex = 20; recalc(me); const lv = (me.vit + me.end + me.str + me.dex + me.int + me.luk - 29) + (me.freePts || 0);
+    me.tears = 0; tp(n.x, n.y + 16); step(2); let it = imp0.input.interactTarget(); if (it && it.btn === '洗點') throw new Error('沒有重生水滴也能洗點');
+    me.tears = 1; step(1); it = imp0.input.interactTarget(); if (!it || it.btn !== '洗點') throw new Error('站在修女旁邊沒有「洗點」：' + (it && it.btn)); it.run(); step(1);
+    it = imp0.input.interactTarget(); if (!it || it.btn !== '確定') throw new Error('洗點沒有先確認'); it.run(); step(1);
+    if (me.str !== 5 || me.dex !== 5 || me.tears !== 0) throw new Error('洗完能力值沒有回到 5 / 水滴沒扣：' + me.str + ' ' + me.tears);
+    if (me.freePts !== lv - 1) throw new Error('免費點數不對：' + me.freePts + '（應該 ' + (lv - 1) + '）');
+    me.freePts = 0; me.str = s0.str; me.dex = s0.dex; recalc(me);
+  });
+
   run('精靈王國：島、三座橋走得到、銀葉城、月泉的金箱、月光花機關', () => {
     const M = await0.map, PU = await0.puz, Q = await0.quest, C = await0.chests, I = (x, y) => y * M.MW + x;
     let n = 0; for (let i = 0; i < M.MW * M.MH; i++) if (M.reg[i] === 8) n++; if (n < 4000) throw new Error('精靈王國太小：' + n + ' 格');

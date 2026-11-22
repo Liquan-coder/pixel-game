@@ -126,7 +126,7 @@ export function regionBossDie(e, by) {                                  // by = 
   dropSouls(e.x, e.y, d.souls, by);
   const it = d.reward(); dropItem(it, e.x, e.y); dropGold(e.x, e.y, d.gold);
   dropMat(e.x, e.y, oreForLevel(d.lv), 3, by); if (d.star !== false) dropMat(e.x, e.y, 'ore4', 1, by); dropMat(e.x, e.y, 'umat', 1, by);       // 每隻 Boss 一顆黯星石（獨特武器強化，data/forge.ts）； Boss 一定掉素材；區域 Boss 和 20 級以上的地城 Boss 還有一顆強化 +10 用的隕星之心
-  if (['queen', 'general', 'yeti'].includes(d.id)) { G.me.tears = (G.me.tears || 0) + 1; setTimeout(() => toast('得到「重生水滴」：在營火的升級畫面可以重新分配能力值', '#9ae8ff', true), 5000); }   // 這三隻各給一顆
+  if (['queen', 'general', 'yeti'].includes(d.id)) { G.me.tears = (G.me.tears || 0) + 1; setTimeout(() => toast('得到「重生水滴」：拿給城鎮的修女，就能重新分配能力值', '#9ae8ff', true), 5000); }   // 這三隻各給一顆
   const pg = d.dg ? pageOfDungeon(d.dg) : -1, newPage = pg >= 0 && !hasPage(pg);                  // 這個地區第一次打倒地城守護者 → 得到古代鍛造圖
   if (d.dg) flags.add('dgn:' + d.dg);                                                    // 地城 Boss：最深處的金箱解開封印、以後不再出現
   if (newPage) setTimeout(() => { showBanner('得到古代鍛造圖・' + PAGES[pg].n, '鐵匠能把裝備鍛得更強了', 3000); sfx.epic(); }, 3600);

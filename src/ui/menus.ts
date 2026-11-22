@@ -40,7 +40,6 @@ function pendCost(extra = 0) {                                          // 分�
   return c;
 }
 const withPend = () => { const p = { ...G.me }; for (const a of ATTRS) p[a.k] += pend[a.k]; p.freePts = Math.max(0, p.freePts - pendN()); return p; };
-let tearArm = false;                                                     // 重生水滴要按兩次（第一次只是確認）
 function renderCamp() {
   $('campName').textContent = G.curCamp ? G.curCamp.name : '營火';
   for (const b of document.querySelectorAll<HTMLElement>('#campMenu .tabs button')) b.classList.toggle('on', b.dataset.tab === G.campTab);
@@ -55,8 +54,7 @@ function renderCamp() {
       return p.length ? p.join('、') : '目前的武器用不到'; };
     const keepY = body.scrollTop;                                       // 重畫時記住捲到哪裡（按 ＋ 不會跳回最上面）
     const free = Math.max(0, G.me.freePts - pendN());
-    body.innerHTML = (G.me.tears > 0 ? '<div class="tearrow"><img alt="" src="' + ICON_URL.tear + '"><span>重生水滴 ×' + G.me.tears + '<small>把所有能力值洗回 5，點數全部還給你重新分配</small></span><button type="button" class="sec" data-tear>' + (tearArm ? '確定要洗？' : '使用') + '</button></div>' : '') +
-      (free ? '<p class="freep">還有 <b>' + free + '</b> 點可以免費分配</p>' : '') +
+    body.innerHTML = (free ? '<p class="freep">還有 <b>' + free + '</b> 點可以免費分配</p>' : '') +
       '<div class="lvgrid">' + ATTRS.map(a => '<div class="statrow' + (pend[a.k] ? ' pend' : '') + '"><div class="nm">' + a.n + '<small>' + a.d + '</small><small class="nx">下一點：' + gain(a.k) + '</small></div>' +
       '<button type="button" class="minus" data-dec="' + a.k + '"' + (pend[a.k] ? '' : ' disabled') + ' aria-label="減少' + a.n + '">−</button>' +
       '<div class="val">' + (G.me[a.k] + pend[a.k]) + (pend[a.k] ? '<small>+' + pend[a.k] + '</small>' : '') + '</div>' +
@@ -75,11 +73,7 @@ function renderCamp() {
 }
 $('campMenu').addEventListener('click', e => {
   const t = (e.target as HTMLElement).closest('button'); if (!t) return;
-  if (t.dataset.tab) { G.campTab = t.dataset.tab; clearPend(); tearArm = false; renderCamp(); }
-  else if (t.hasAttribute('data-tear')) { if (G.me.tears <= 0) return;
-    if (!tearArm) { tearArm = true; renderCamp(); return; }
-    tearArm = false; G.me.tears--; clearPend(); G.me.freePts = level(G.me) - 1; for (const a of ATTRS) G.me[a.k] = ATTR_BASE;   // 等級不變：洗掉的點數全部變成免費點數
-    recalc(G.me); G.me.hp = G.me.maxHp; G.me.st = G.me.maxSt; sfx.level(); toast('能力值洗回去了，' + G.me.freePts + ' 點可以重新分配', '#9ae8ff'); renderCamp(); save(); }
+  if (t.dataset.tab) { G.campTab = t.dataset.tab; clearPend(); renderCamp(); }
   else if (t.dataset.stat) { if (G.me.souls < pendCost(1)) return; pend[t.dataset.stat]++; sfx.pick(); renderCamp(); }
   else if (t.dataset.dec) { if (pend[t.dataset.dec] > 0) pend[t.dataset.dec]--; renderCamp(); }
   else if (t.hasAttribute('data-reset')) { clearPend(); renderCamp(); }
