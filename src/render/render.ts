@@ -26,6 +26,7 @@ import { drawDoors } from '../world/dungeonArt';
 import { drawPuzzles, puzzleDark } from '../world/puzzles';
 import { drawStatues } from '../world/statues';
 import { camDt } from '../main';
+import { drawPfx } from './pfx';
 
 export const view = { x: 0, y: 0 };                                  // 畫面左上角在世界的哪裡（給 HTML 介面對齊用）
 export function render() {
@@ -194,4 +195,5 @@ export function render() {
   ctx.globalAlpha = 1;
   if (G.me.hurt > 0) { ctx.fillStyle = 'rgba(200,30,40,' + (G.me.hurt * .5) + ')'; ctx.fillRect(0, 0, LW, LH); }
   if (G.me.dead) { ctx.fillStyle = 'rgba(0,0,0,' + Math.min(.75, G.me.deathT * .4) + ')'; ctx.fillRect(0, 0, LW, LH); }
+  drawPfx(cx, cy, G.paused ? 0 : camDt);                                // pixelfx 特效（倒下時碎成光點）畫在黑幕上面
 }

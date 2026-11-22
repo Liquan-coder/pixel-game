@@ -9,6 +9,7 @@ import { CH1, CH2, CHC, restAng, wcols } from '../game/combat';
 import { asn, drawArrow, drawStar, drawWarp, fillArt } from './fx';
 import { camDt } from '../main';
 import type { Player } from '../types';
+import { bodyGone, deathFx } from './pfx';
 
 /* ================= RENDER ================= */
 const DIG = { '0':['111','101','101','101','111'], '1':['010','110','010','010','111'], '2':['111','001','111','100','111'], '3':['111','001','111','001','111'],
@@ -109,7 +110,7 @@ function edgeMir(pl: Player, msw, dir) {
 export function drawPlayer(pl: Player) {
   if (pl.dodge > 0 && !pl.dead) return;                                  // 瞬移中完全隱身
   const blink = pl.iframe > 0 && !pl.dodge && !pl.dash && pl.skillLock <= 0 && !(pl.blinkIn > 0) && Math.floor(G.time * 20) % 2 === 0;
-  const fade = pl.dead ? Math.max(0, 1 - pl.deathT) : 1;
+  const fade = pl.dead ? (bodyGone(pl) ? 0 : 1) : 1;                  // 倒下：身體交給碎裂特效去畫（pixelfx disintegrate）
   ctx.globalAlpha = fade;
   drawShadow(pl.x, pl.y + 1, 12);
   const dir = pl.flip ? -1 : 1, spinA = pl.spin > 0 ? pl.face + (1 - pl.spin / .3) * TAU * dir : 0;
@@ -125,6 +126,7 @@ export function drawPlayer(pl: Player) {
   const ly = Math.sin(pl.face) * lean * .5 - hop;                       // 身體跟著姿勢前後移一點
   pl.leanX = lx; pl.leanY = ly;
   const X = snapF(pl.x + lx - (flip ? HERO_W - 26 + PX0 : 26 + PX0) * k), Y = snapF(pl.y + ly + 2 - bob - (HERO_H + PY0) * k);
+  deathFx(pl, flip ? frame.f : frame.n, X, Y, pl.x + lx, pl.y + ly + 2 - bob, flip);   // 倒下的第一幀：用這一格的女巫開始碎成光點
   const layer = sp => ctx.drawImage(white ? (flip ? sp.wf : sp.wn) : (flip ? sp.f : sp.n), X, Y, sp.w * k, sp.h * k);
   const hand = (cx, cy) => [X + (PX0 + (flip ? HERO_W - cx : cx)) * k, Y + (PY0 + cy) * k];
   if (pl.charging) {                                                    // 蓄力：腳下的環依進度填滿（紫 → 亮紫 → 金）
