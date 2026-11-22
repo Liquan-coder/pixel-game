@@ -59,7 +59,7 @@ export function startGame(cont) {
 if (isTouch) $('tkeys').hidden = true;
 
 export let lastT = 0, camDt = 1 / 60;
-let lastTs = 0, ecoAcc = 0;
+let lastTs = 0, ecoAcc = 0, menuDrawT = 0;
 function frame(ts) {
   requestAnimationFrame(frame);
   // 省電：120Hz / 90Hz 的手機也只畫每秒 60 格（多畫的那些格眼睛幾乎看不出來，但會讓手機發燙）
@@ -68,7 +68,9 @@ function frame(ts) {
   readInput();
   if (!G.paused) { if (G.hitStop > 0) { G.hitStop -= dt; G.time += dt * .2; } else update(dt); } else G.time += dt;   // 重擊時停頓一下（hit-stop）
   updateMotes(dt);
-  render(); updateHUD();
+  // 選單開著時（營火、背包、商店、地圖、暫停）遊戲停住，後面的畫面幾乎不會變 → 每秒只重畫 5 次（換裝備還是看得到），手機可以休息
+  if (G.started && openMenu) { menuDrawT -= dt; if (menuDrawT <= 0) { render(); menuDrawT = .2; } } else { render(); menuDrawT = 0; }
+  updateHUD();
   G.miniT -= dt; if (G.miniT <= 0) { if (G.started) { reveal(); sightReveal(); } renderMini(); if (openMenu === 'map' && mapTab === 'map') renderBigMap(); G.miniT = .2; }   // 地圖開著時也一直更新（主線菱形會閃）
   for (const k in pressed) pressed[k] = false;
 }
