@@ -211,6 +211,7 @@ export function tryAttack(pl: Player) {
   const tip = HAND_R + REACH + WLEN[type], Rv = Math.min(R, tip + (fin ? 9 : 6)), wv = Math.max(th, Rv - (HAND_R + REACH + WLEN[type] * .45));
   const as = s.f + s.rs * s.sd, a1 = s.f + s.r1 * s.sd, d0 = s.wu + s.sw * .25, sw2 = s.sw * .75;   // 刀先從頭頂甩到前方（25%），刀光從那裡開始畫
   const flat = s.sy < .6, Rs = flat ? Rv + 3 : Rv;                    // 橫掃：刀光畫成扁扁的一大圈，繞過身體前方
+  pl.aimLock = Math.max(pl.aimLock, d0 + sw2 * .3 + .05);           // 砍到之前不准轉身（autoFace 只鎖 0.3 秒，戰鎚、大劍砸下來比較晚，不鎖的話推搖桿會砸到背後）
   smearFx(pl, as, a1, Rs, wv * (fin ? 1.1 : 1) * (flat ? 1.3 : 1), sw2, cols, A.hold + .04, d0, s.sy);
   if (type === 'wolfblade') smearFx(pl, a1, as, Rs - 4, wv * .7, sw2, SHADOWBLADE, .12, d0 + .04, s.sy);
   if (type === 'twinblade') smearFx(pl, as + Math.PI, a1 + Math.PI, Rs - 3, wv * .8, sw2, cols, A.hold, d0, s.sy);   // 雙頭刀：後半截同時往背後砍
@@ -358,7 +359,7 @@ export function releaseCharge(pl: Player, lv) {
         meleeHit(pl, 38, 200, 1.5 * s, { heavy:true, crit:lv >= 2 }); sfx.swing(); shake(3, .12); } });
       sfx.swing(); break; }
     case 'hammer': {                                                  // 隕星重鎚：跳起來砸，落點炸開大震波（範圍比斧頭大）
-      autoFace(pl, 80); pl.skillLock = .62; pl.slam = .5; pl.iframe = Math.max(pl.iframe, .35);
+      autoFace(pl, 80); pl.aimLock = .4; pl.skillLock = .62; pl.slam = .5;   // 0.32 秒才落地，面向要鎖到那時候 pl.iframe = Math.max(pl.iframe, .35);
       pl.timers.push({ t:.32, fn: () => { const cx = pl.x + Math.cos(pl.face) * 18, cy = pl.y + Math.sin(pl.face) * 18, R = lv >= 2 ? 84 : 62;
         smearFx(pl, pl.face - 1.8, pl.face + .3, 30, 16, .08, cols, .16);
         aoeHit(pl, cx, cy, R * .8, 3 * s, { stun:1.6, heavy:true }); quakeFx(cx, cy, R, lv >= 2);
@@ -525,7 +526,7 @@ export function trySkill(pl: Player) {
       } });
       break; }
     case 'quake': {                                                   // 三重震波：連砸三下，一圈比一圈大
-      autoFace(pl, 80); pl.skillLock = .95; pl.iframe = Math.max(pl.iframe, .3);
+      autoFace(pl, 80); pl.skillLock = pl.aimLock = .95; pl.iframe = Math.max(pl.iframe, .3);
       for (let i = 0; i < 3; i++) pl.timers.push({ t:.12 + i * .3, fn: () => { pl.slam = .3;
         const cx = pl.x + Math.cos(pl.face) * 16, cy = pl.y + Math.sin(pl.face) * 16, R = 34 + i * 18;
         aoeHit(pl, cx, cy, R, 2, { stun:.8, heavy:true }); quakeFx(cx, cy, R, i === 2);
