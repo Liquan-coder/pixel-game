@@ -159,44 +159,39 @@ body:not(.touch) #controls{display:none}
 .tabs button.on{color:var(--text);border-color:var(--gold);background:#3a2e1c}
 .soulline{display:flex;justify-content:space-between;font-size:14px;padding:8px 10px;background:#0005;border:1px solid var(--line);margin-bottom:8px}
 .soulline b{color:var(--soul);font-weight:400}
-/* 營火升級：一整頁放得下，不用捲。分頁放在標題列；六個能力值排成 3 欄 × 2 列的小卡（窄的直式畫面才變 1 欄） */
+/* 營火升級：一整頁放得下，不用捲。分頁放在標題列；六個能力值排成 2 欄 × 3 列，每一格一行：名字、說明、－ 數字 ＋ */
 #campMenu{width:min(820px,calc(100% - 2 * var(--mx)))}
 #campMenu .ph .tabs{flex:0 1 220px;margin:0 auto 0 0}
 #campMenu .ph .tabs button{padding:4px 6px}
-.lvgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-@media (max-width:560px){   /* 直式手機：2 欄 × 3 列，不用捲；名字自己一行（不然會被擠成一個字一行），底下的大數字和按鈕分兩行 */
-  .lvgrid{grid-template-columns:repeat(2,minmax(0,1fr))} .statrow{min-width:0}
-  .statrow{grid-template-columns:30px 1fr 30px;gap:2px 4px;padding:5px 7px}
-  .statrow .nm{grid-column:1/-1;white-space:nowrap}
-  .statrow .plus,.statrow .minus{width:30px;height:28px}
-  #campFoot{flex-wrap:wrap} #campFoot .lvfoot{flex:1 1 100%} #campFoot button{flex:1}
-}
-.statrow{display:grid;grid-template-columns:1fr 34px minmax(30px,auto) 34px;gap:0 5px;align-items:center;align-content:start;padding:6px 8px;background:var(--panel2);border:1px solid #4d416688}
-.statrow .ds,.statrow .nx{grid-column:1/-1;font-size:12px;line-height:1.35}
-.statrow .ds{color:var(--muted);margin-top:3px}
-.statrow .nm small.nx,.statrow .nx{color:#c9e3ff}
-.statrow .val{text-align:center}
+.lvgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.statrow{display:grid;grid-template-columns:auto minmax(0,1fr) 34px minmax(34px,auto) 34px;gap:0 8px;align-items:center;min-width:0;padding:8px 10px;background:var(--panel2);border:1px solid #4d416688}
+.statrow .nm{font-size:16px;white-space:nowrap}
+.statrow .ds{font-size:12px;line-height:1.3;color:var(--muted)}
+.statrow .val{text-align:center;font-size:19px;color:var(--gold);font-variant-numeric:tabular-nums;white-space:nowrap}
 .statrow .val small{font-size:13px;color:var(--r1)}
 .statrow.pend{background:#2e4a2a55;border-color:#5f9a5288}
 .minus{width:34px;height:30px;background:#3a1d24;border:2px solid #8a3446;font-size:20px}
 .minus:disabled{opacity:.25;filter:grayscale(1)}
+.plus{width:34px;height:30px;background:#2e4a2a;border:2px solid #5f9a52;font-size:20px}
+.plus:disabled{opacity:.35;filter:grayscale(1)}
 .lvfoot{flex:1;font-size:13px;line-height:1.5;color:var(--muted);min-width:0}
 .lvfoot b{font-weight:400;color:var(--text);font-variant-numeric:tabular-nums}
-.lvfoot b.soulv{color:var(--soul)} .lvfoot b.lvv{color:var(--gold)} .lvfoot i{font-style:normal;margin:0 6px;opacity:.5}
 .lvfoot .gain{display:block;font-size:12px;color:var(--r1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pfoot .pri,.pfoot .sec{padding:8px 16px;font-size:15px;border:2px solid var(--line);background:var(--panel2);white-space:nowrap}
 .pfoot .pri{background:#2e4a2a;border-color:#5f9a52;color:#d8ffd0}
 .pfoot button:disabled{opacity:.4;filter:grayscale(1)}
-.statrow .nm{font-size:15px}
-.statrow .nm small{display:block;font-size:12px;color:var(--muted)}
-.statrow .val{font-size:18px;color:var(--gold);font-variant-numeric:tabular-nums}
-.plus{width:34px;height:30px;background:#2e4a2a;border:2px solid #5f9a52;font-size:20px}
-.plus:disabled{opacity:.35;filter:grayscale(1)}
-/* 矮的橫式畫面（手機 Safari 有網址列 / 瀏海 → 只剩 300 多 px 高）：說明那一行收起來，只留「下一點」，按鈕和間距縮小 → 一整頁還是放得下 */
+/* 直式手機（格子窄）：名字自己一行、－ 數字 ＋ 第二行、說明第三行；底下的大數字和按鈕分兩行 */
+@media (max-width:560px){
+  .statrow{grid-template-columns:30px 1fr 30px;gap:3px 4px;padding:6px 7px}
+  .statrow .nm{grid-column:1/-1;grid-row:1} .statrow .minus{grid-row:2;grid-column:1} .statrow .val{grid-row:2;grid-column:2} .statrow .plus{grid-row:2;grid-column:3}
+  .statrow .ds{grid-row:3;grid-column:1/-1}
+  .statrow .plus,.statrow .minus{width:30px;height:28px}
+  #campFoot{flex-wrap:wrap} #campFoot .lvfoot{flex:1 1 100%} #campFoot button{flex:1}
+}
+/* 矮的橫式畫面（手機 Safari 有網址列 / 瀏海 → 只剩 300 多 px 高）：按鈕和間距縮小 → 一整頁還是放得下 */
 @media (max-height:380px){
   #campMenu .ph{margin-bottom:6px} #campMenu .ph h2{font-size:18px} #campMenu .ph .sbtn{padding:4px 10px}
-  .statrow{padding:4px 7px} .statrow .ds{display:none} .statrow.nog .ds{display:block} .statrow .nx{margin-top:1px}
-  .statrow .nm{font-size:14px} .statrow .val{font-size:16px}
+  .statrow{padding:4px 8px} .statrow .nm{font-size:14px} .statrow .val{font-size:16px} .statrow .ds{font-size:11px}
   .lvgrid{gap:5px} .plus,.minus{width:30px;height:26px;font-size:18px}
   #campMenu .pfoot{margin-top:6px;padding-top:6px} #campMenu .pfoot button{padding-top:5px;padding-bottom:5px}
 }

@@ -18,7 +18,7 @@ import { coinChip, hudIcon, openMenu, setMenu, soulChip, toast } from './hud';
 import { moveMerchant } from './shop';
 import { restockSmiths } from '../world/towns';
 import { save } from '../game/save';
-import { ATTRS, ATTR_BASE, ATTR_NAME, atkSplit, grade, reqOf, scaleOf, soft, unmet } from '../data/attrs';
+import { ATTRS, ATTR_BASE, ATTR_NAME, atkSplit, grade, reqOf, scaleOf, unmet } from '../data/attrs';
 import { HERO, HERO_W } from '../art/hero';
 import { drawWeapon } from '../art/weapon';
 import { navT, renderJournal, setNav } from '../game/quest';
@@ -48,21 +48,13 @@ function renderCamp() {
   foot.hidden = G.campTab !== 'lv';
   if (G.campTab === 'lv') {
     const nxtCost = pendCost(1), canAdd = G.me.souls >= nxtCost, after = withPend();
-    const now = calcStats(after, curEq(G.me)), gain = k => { after[k]++; const nx = calcStats(after, curEq(G.me)); after[k]--;   // 再加這一點會變多少
-      const p = []; if (nx.maxHp !== now.maxHp) p.push('生命 +' + (nx.maxHp - now.maxHp)); if (nx.maxSt !== now.maxSt) p.push('體力 +' + (nx.maxSt - now.maxSt));
-      if (nx.atk !== now.atk) p.push('攻擊 +' + (nx.atk - now.atk)); if (nx.def !== now.def) p.push('防禦 +' + (nx.def - now.def)); if (nx.crit !== now.crit) p.push('暴擊 +' + (nx.crit - now.crit) + '%');
-      if (Math.abs(nx.aspd - now.aspd) > 1e-6) p.push('攻速 +' + ((nx.aspd - now.aspd) * 100).toFixed(1) + '%'); if (Math.abs(nx.cdr - now.cdr) > 1e-6) p.push('冷卻 -' + ((nx.cdr - now.cdr) * 100).toFixed(1) + '%');
-      if (k === 'luk') {                                              // 幸運：暴擊顯示到小數（整數會四捨五入成 0）＋ 掉素材的機率（enemies.ts：.8% × soft）
-        const ds = soft(after.luk + 1) - soft(after.luk), dc = Math.min(12, .4 * soft(after.luk + 1)) - Math.min(12, .4 * soft(after.luk));
-        return (dc > 1e-6 ? '暴擊 +' + dc.toFixed(1) + '%、' : '') + '掉素材 +' + (.8 * ds).toFixed(1) + '%'; }
-      return p.join('、'); };                                    // 這把武器用不到 → 空字串，那一行就不畫（上面的說明已經寫了它管什麼）
+    const now = calcStats(after, curEq(G.me));
     const keepY = body.scrollTop;                                       // 重畫時記住捲到哪裡（按 ＋ 不會跳回最上面）
     const free = Math.max(0, G.me.freePts - pendN());
-    body.innerHTML = '<div class="lvgrid">' + ATTRS.map(a => '<div class="statrow' + (pend[a.k] ? ' pend' : '') + (gain(a.k) ? '' : ' nog') + '"><div class="nm">' + a.n + '</div>' +   // 一格：名字＋－數字＋ / 說明 / 下一點
+    body.innerHTML = '<div class="lvgrid">' + ATTRS.map(a => '<div class="statrow' + (pend[a.k] ? ' pend' : '') + '"><div class="nm">' + a.n + '</div><small class="ds">' + a.d + '</small>' +   // 一格一行：名字、說明、－ 數字 ＋
       '<button type="button" class="minus" data-dec="' + a.k + '"' + (pend[a.k] ? '' : ' disabled') + ' aria-label="減少' + a.n + '">−</button>' +
       '<div class="val">' + (G.me[a.k] + pend[a.k]) + (pend[a.k] ? '<small>+' + pend[a.k] + '</small>' : '') + '</div>' +
-      '<button type="button" class="plus" data-stat="' + a.k + '"' + (canAdd ? '' : ' disabled') + ' aria-label="提升' + a.n + '">+</button>' +
-      '<small class="ds">' + a.d + '</small>' + ((g => g ? '<small class="nx">下一點：' + g + '</small>' : '')(gain(a.k))) + '</div>').join('') + '</div>';
+      '<button type="button" class="plus" data-stat="' + a.k + '"' + (canAdd ? '' : ' disabled') + ' aria-label="提升' + a.n + '">+</button></div>').join('') + '</div>';
     body.scrollTop = keepY;
     const n = pendN(), cost = pendCost(), base = calcStats(G.me, curEq(G.me)), d = [];
     if (n) { if (now.maxHp !== base.maxHp) d.push('生命 +' + (now.maxHp - base.maxHp)); if (now.maxSt !== base.maxSt) d.push('體力 +' + (now.maxSt - base.maxSt)); if (now.atk !== base.atk) d.push('攻擊 +' + (now.atk - base.atk)); if (now.def !== base.def) d.push('防禦 +' + (now.def - base.def)); }
