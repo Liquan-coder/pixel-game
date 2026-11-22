@@ -27,6 +27,7 @@ import { drawPuzzles, puzzleDark } from '../world/puzzles';
 import { drawStatues } from '../world/statues';
 import { camDt } from '../main';
 import { drawPfx } from './pfx';
+import { drawLost, drawLostBeam } from './lostMark';
 
 export const view = { x: 0, y: 0 };                                  // 畫面左上角在世界的哪裡（給 HTML 介面對齊用）
 export function render() {
@@ -78,8 +79,7 @@ export function render() {
     addLight(L, x0 + 8, y0 + 8, 30, 3);
   }
   for (const c of CAMPS) if (c.lit && vis(c.x, c.y, 100)) addLight(L, c.x, c.y - 6, 104 + Math.sin(G.time * 7) * 4, 1);
-  if (G.lost && vis(G.lost.x, G.lost.y)) { const p = Math.sin(G.time * 5); drawStar(G.lost.x, G.lost.y - 6, 5 + p * 1.5, '#9a7cff'); drawStar(G.lost.x, G.lost.y - 6, 2.5 + p, '#e8e2ff');
-    if (Math.random() < .2) G.parts.push({ x:G.lost.x + rr(-3, 3), y:G.lost.y - 4, vx:0, vy:-18, life:.6, max:.6, col:'#b49cff', s:1 }); addLight(L, G.lost.x, G.lost.y - 4, 30, 3); }
+  drawLost(L, vis);                                                     // 倒下掉的魂晶：大顆魂晶 + 光環（光柱在後面畫，render/lostMark.ts）
   for (const e of G.enemies) if (vis(e.x, e.y)) drawTelegraph(e);
   if (G.B) drawTelegraph(G.B);
   G.RB_L = L; for (const e of rbs) { if (e.dead) continue; if (e.state !== 'sleep') { drawBarrier(e); drawRBTele(e); } else if (Math.hypot(G.me.x - e.def.x, G.me.y - e.def.y) < e.def.R + 120) drawBarrier(e, true); }
@@ -144,7 +144,8 @@ export function render() {
     else if (f.k === 'bghost') { const sp = SPR.boss, w = sp.w, h = sp.h; ctx.globalAlpha = .5 * (1 - k); ctx.drawImage(f.flip ? sp.rf : sp.rn, snapF(f.x - w / 2), snapF(f.y + 2 - h), w, h); }
     else if (f.k === 'flash') { ctx.globalAlpha = f.a * (1 - k); ctx.fillStyle = f.col; ctx.fillRect(cx, cy, LW, LH); }
     else if (f.k === 'arc') drawSmear({ x:f.x, y:f.y, a0:f.a - f.arc / 2, a1:f.a + f.arc / 2, r:f.r, w:Math.min(12, f.r * .3), sw:f.d * .35, hold:f.d * .65, t:f.t, cols:fxCols(f.col), sy:.8 });
-    else if (f.k === 'ring') { drawWarp({ x:f.x, y:f.y, r0:f.r0, r1:f.r1, th:3, sy:.6, col:f.col }, k); if (f.col === '#f2c14e') addLight(L, f.x, f.y, 60 * (1 - k), 1); }
+    else if (f.k === 'ring') { if (f.delay) ctx.globalAlpha = 1; drawWarp({ x:f.x, y:f.y, r0:f.r0, r1:f.r1, th:3, sy:.6, col:f.col, t:f.t, d:f.d, delay:f.delay }, k);
+      if (f.col === '#f2c14e') addLight(L, f.x, f.y, 60 * (1 - k), 1); else if (f.col === '#7dff8a') addLight(L, f.x, f.y - 6, 64 * (1 - k), 6); }   // 金 = 升級，綠 = 喝藥水
     else if (f.k === 'line') drawLance({ x:f.x, y:f.y, a:f.a, len:f.len, w:5, t:f.t, d:f.d, cols:fxCols(f.col) });
     else if (f.k === 'streak') drawRibbon(f, k, L);
     else if (f.k === 'rune') drawRune(f, k, L);
@@ -178,7 +179,7 @@ export function render() {
   }
   ctx.globalCompositeOperation = 'lighter';
   if (lavaT.length) { ctx.fillStyle = 'rgba(255,110,40,' + (.16 + .05 * Math.sin(G.time * 3)) + ')'; for (let k = 0; k < lavaT.length; k += 2) ctx.fillRect(lavaT[k] * TS - cx, lavaT[k + 1] * TS - cy, TS, TS); }
-  const tint = ['', 'rgba(255,140,50,', 'rgba(90,240,220,', 'rgba(170,150,255,', 'rgba(255,215,90,', 'rgba(235,240,255,'];   // 4 = 金色（金箱）、5 = 白色（霧門）
+  const tint = ['', 'rgba(255,140,50,', 'rgba(90,240,220,', 'rgba(170,150,255,', 'rgba(255,215,90,', 'rgba(235,240,255,', 'rgba(110,255,140,'];   // 4 = 金色（金箱）、5 = 白色（霧門）、6 = 綠色（喝藥水）
   for (const l of L) { if (!l.warm) continue; const x = l.x - cx, y = l.y - cy, r = l.r * .7; if (x < -r || y < -r || x > LW + r || y > LH + r) continue;
     const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, tint[l.warm] + '.16)'); g.addColorStop(1, tint[l.warm] + '0)'); ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); }
   ctx.globalCompositeOperation = 'source-over';
@@ -186,6 +187,7 @@ export function render() {
   drawBlind(cx, cy, LW, LH);                                              // 目盲：周圍變暗
   { const dr = G.started && !G.me.dead ? puzzleDark(G.me) : 0; if (dr) { const x = G.me.x - cx, y = G.me.y - 10 - cy, g = ctx.createRadialGradient(x, y, dr * .5, x, y, dr * 2.2);   // 黑暗迷宮：只看得到身邊
     g.addColorStop(0, 'rgba(4,4,10,0)'); g.addColorStop(1, 'rgba(4,4,10,.97)'); ctx.fillStyle = g; ctx.fillRect(0, 0, LW, LH); } }
+  drawLostBeam(cx, cy);                                                 // 掉落魂晶的光柱：畫在光影上面，暗處、遠處都看得到
   if (SET.nums) for (const n of G.nums) {                                 // 傷害數字（設定可以關掉）：彈出來 → 往上飄 → 淡掉（畫在光影上面，暗處也看得到）
     const k = n.t / n.d, rise = 1 - (1 - Math.min(1, k * 2.2)) ** 2, pop = k < .12 ? 1 + (1 - k / .12) * .6 : 1;
     const sc = (n.big ? 4 / 3 : 1) * (pop > 1.3 ? 4 / 3 : 1);           // 剛出來時大一號，再縮回來（只用 1/3 的倍數，像素才不會糊）
@@ -193,6 +195,8 @@ export function render() {
     drawNum(n.txt, n.x - cx, n.y - cy - rise * 10, n.col, sc);
   }
   ctx.globalAlpha = 1;
+  if (G.me.healGlow > 0) { const a = Math.min(1, G.me.healGlow / .7) * .32, g = ctx.createRadialGradient(LW / 2, LH / 2, Math.min(LW, LH) * .35, LW / 2, LH / 2, Math.max(LW, LH) * .7);   // 回血：畫面四周亮一圈綠
+    g.addColorStop(0, 'rgba(90,255,130,0)'); g.addColorStop(1, 'rgba(90,255,130,' + a + ')'); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(0, 0, LW, LH); ctx.globalCompositeOperation = 'source-over'; }
   if (G.me.hurt > 0) { ctx.fillStyle = 'rgba(200,30,40,' + (G.me.hurt * .5) + ')'; ctx.fillRect(0, 0, LW, LH); }
   if (G.me.dead) { ctx.fillStyle = 'rgba(0,0,0,' + Math.min(.75, G.me.deathT * .4) + ')'; ctx.fillRect(0, 0, LW, LH); }
   drawPfx(cx, cy, G.paused ? 0 : camDt);                                // pixelfx 特效（倒下時碎成光點）畫在黑幕上面

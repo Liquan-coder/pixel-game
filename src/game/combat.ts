@@ -14,7 +14,7 @@ import { killEnemy } from './enemies';
 import { bossDie } from './boss';
 import { burst, hitSpark, quakeFx, shake } from './worldUpdate';
 import { STARC } from '../render/fx';
-import { showBanner, toast } from '../ui/hud';
+import { bumpPot, showBanner, toast } from '../ui/hud';
 import type { Enemy } from '../types';
 import { bindFx, onHit, onKill } from './weaponFx';
 import './bossTuning';                                                   // Boss 的傷害倍率和獎勵（平衡用）
@@ -613,7 +613,7 @@ export function tryDodge(pl: Player) {                                          
 }
 export function tryPot(pl: Player) {
   if (pl.pot <= 0 || busy(pl)) { if (pl.pot <= 0) toast('藥水用完了，回營火休息可以補滿', '#ff8a8a'); return; }
-  pl.pot--; pl.drink = .55; sfx.drink();
+  pl.pot--; pl.drink = .55; sfx.drink(); if (pl === G.me) bumpPot();
 }
 /* 這一下是誰打的：怪 / Boss 更新時設定 G.hitCtx = { lv: 等級, fx: 這隻怪的異常狀態 }（子彈射出去時也記著），
    extra = 這一招額外的狀態（例如 Boss 砸地 = 暈眩） */

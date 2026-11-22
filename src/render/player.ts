@@ -4,7 +4,7 @@ import { HK, ctx, snapF } from '../core/canvas';
 import { OL } from '../art/sprite';
 import { ANIM, HAND_R, HERO, HERO_H, HERO_W, HSY, PPX, PPY, REACH, STYLE, WLEN, WREC, heroPose, lerpA } from '../art/hero';
 import { drawWeapon } from '../art/weapon';
-import { WT } from '../data/items';
+import { ICON, WT } from '../data/items';
 import { CH1, CH2, CHC, restAng, wcols } from '../game/combat';
 import { asn, drawArrow, drawStar, drawWarp, fillArt } from './fx';
 import { camDt } from '../main';
@@ -138,6 +138,9 @@ export function drawPlayer(pl: Player) {
     ctx.globalAlpha = fade * (lv === 0 ? .45 : .7 + .3 * Math.sin(G.time * 22)); const o = HK * (lv >= 2 ? 2 : 1);
     for (const [dx, dy] of [[-o, 0], [o, 0], [0, -o], [0, o]]) ctx.drawImage(img, X + dx, Y + dy, sp.w * k, sp.h * k);
     ctx.globalAlpha = fade; }
+  if (pl.healGlow > 0 && !pl.dead) { const q = pl.healGlow / .7, img = greenOf(flip ? frame.wf : frame.wn), o = HK * (q > .5 ? 2 : 1);   // 剛喝完藥水：綠光外框，一開始粗、慢慢變細淡掉
+    ctx.globalAlpha = fade * Math.min(1, q * 1.4); for (const [dx, dy] of [[-o, 0], [o, 0], [0, -o], [0, o]]) ctx.drawImage(img, X + dx, Y + dy, frame.w * k, frame.h * k);
+    ctx.globalAlpha = fade; }
   const W = WT[pl.weapon.type], cf = Math.cos(pl.face), sf = Math.sin(pl.face);
   const rest = restAng(pl);
   let ang, hA = pl.face, reach = 0, lift = 0, phase = '';                                   // ang = 武器角度，hA = 手在身體哪一側
@@ -170,6 +173,7 @@ export function drawPlayer(pl: Player) {
   };
   if (behind) drawW();
   if (!blink) layer(frame);
+  if (!blink && pl.healGlow > .45 && !pl.dead) { ctx.globalAlpha = fade * (pl.healGlow - .45) / .25 * .55; ctx.drawImage(flip ? frame.wf : frame.wn, X, Y, frame.w * k, frame.h * k); ctx.globalAlpha = fade; }   // 回血的第一下：全身亮白一閃
   if (pl.blinkIn > 0) { const q = pl.blinkIn / .2; ctx.globalAlpha = fade * q; heroSlices(frame, X, Y, flip, k, 5 * q, true); }   // 閃現：白色錯位剪影淡出
   ctx.globalAlpha = fade;
   if (!behind) drawW();
@@ -177,6 +181,16 @@ export function drawPlayer(pl: Player) {
   if (!pl.dead) skillParticles(pl, gx, gy, ang);
   if (msw && phase === 'S') { (pl.wHist = pl.wHist || []).push([gx, gy, ang]); if (pl.wHist.length > 3) pl.wHist.shift(); } else pl.wHist = null;
   ctx.globalAlpha = 1;
-  if (pl.drink > 0) { ctx.fillStyle = '#d8434e'; ctx.fillRect(Math.round(pl.x - 1), Math.round(pl.y - 29), 3, 4); ctx.fillStyle = '#fff'; ctx.fillRect(Math.round(pl.x), Math.round(pl.y - 30), 1, 1); }
+  if (pl.drink > 0) { const q = 1 - pl.drink / .55, sp = ICON.potion, w = sp.width * HK * .8, h = sp.height * HK * .8;   // 喝藥水：頭上一瓶紅藥水，越喝越往嘴邊傾
+    ctx.save(); ctx.translate(snapF(pl.x + (pl.flip ? -3 : 3)), snapF(pl.y - 30 + Math.sin(q * Math.PI) * -2)); ctx.rotate((pl.flip ? -1 : 1) * (-.2 - q * .9));
+    ctx.drawImage(sp, -w / 2, -h / 2, w, h); ctx.restore(); }
+}
+/* 女巫剪影染成綠色（回血外框用）：第一次用到才做，之後用同一張 */
+const GREEN = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+function greenOf(img: HTMLCanvasElement) {
+  let c = GREEN.get(img); if (c) return c;
+  c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d');
+  g.drawImage(img, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = '#5cff7a'; g.fillRect(0, 0, c.width, c.height);
+  GREEN.set(img, c); return c;
 }
 /* ---- 細像素特效：所有形狀都對齊主角的像素格（HK），看起來跟角色同一個畫風 ---- */

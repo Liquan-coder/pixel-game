@@ -32,6 +32,7 @@ export const sfx = {
   discover: () => { [392, 523, 659].forEach((f, i) => tone(f, .25, 'triangle', .04, 0, i * .12)); },
   dodge: () => noiseHit(.12, .06, 500),
   drink: () => { tone(400, .12, 'sine', .05, 300); tone(600, .15, 'sine', .04, 300, .1); },
+  heal: () => { [523, 784, 1046, 1568].forEach((f, i) => tone(f, .22, 'sine', .045, 0, i * .055)); tone(2093, .3, 'triangle', .02, 0, .2); },   // 回血：往上爬的叮叮聲
   kill: () => { tone(300, .12, 'square', .035, -200); },
   skill: () => { tone(300, .2, 'sawtooth', .04, 500); noiseHit(.15, .08, 2000); },
   howl: () => { tone(180, 1.0, 'sawtooth', .06, 200); tone(240, .9, 'square', .025, 160, .05); },

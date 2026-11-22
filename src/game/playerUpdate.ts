@@ -13,7 +13,7 @@ import { clearStatus, locked, moveMul, rollOut, rooted, silenced, struggle, tick
 import { blinkFx, busy, damageEnemy, downPlayer, releaseCharge, stopCharge, targets, tryAttack, tryDodge, tryPot, trySkill, updFlip, updateCharge } from './combat';
 import { burst, shake } from './worldUpdate';
 import { STARC } from '../render/fx';
-import { hideBanner, showArea, toast } from '../ui/hud';
+import { flashHp, hideBanner, showArea, toast } from '../ui/hud';
 import { save } from './save';
 import type { Player } from '../types';
 
@@ -38,9 +38,11 @@ export function updatePlayer(pl: Player, dt) {
   if (pl.wRec > 0) pl.wRec -= dt;
   if (Math.abs(pl.kx) + Math.abs(pl.ky) > 2) { moveEnt(pl, pl.kx * dt, pl.ky * dt); const k = Math.pow(0.001, dt); pl.kx *= k; pl.ky *= k; } else pl.kx = pl.ky = 0;
   if (pl.tfx && pl.tfx.regen && pl.hp > 0 && pl.hp < pl.maxHp) pl.hp = Math.min(pl.maxHp, pl.hp + pl.maxHp * pl.tfx.regen / 100 * dt);   // 飾品：慢慢回血
-  if (pl.drink > 0) { pl.drink -= dt; if (pl.drink <= 0) { const h = Math.round(pl.maxHp * (.5 + ((pl.tfx && pl.tfx.potion) || 0) / 100));   // 飾品：藥水多回一點
-    pl.hp = Math.min(pl.maxHp, pl.hp + h);
-    G.nums.push({ x:pl.x, y:pl.y - 28, txt:'+' + h, col:'#7dff8a', t:0, d:.8 }); burst(pl.x, pl.y - 6, 12, '#7dff8a', 40); } }
+  if (pl.healGlow > 0) pl.healGlow -= dt;
+  if (pl.drink > 0) { pl.drink -= dt;
+    if (Math.random() < dt * 26) G.parts.push({ x:pl.x + rr(-8, 8), y:pl.y + rr(-2, 2), vx:0, vy:-rr(14, 26), life:rr(.4, .6), max:.6, col:pick(HEALC), s:1 });   // 喝的時候腳邊慢慢冒綠光
+    if (pl.drink <= 0) { const h = Math.round(pl.maxHp * (.5 + ((pl.tfx && pl.tfx.potion) || 0) / 100));   // 飾品：藥水多回一點
+      const got = Math.min(pl.maxHp, pl.hp + h) - pl.hp; pl.hp += got; healFx(pl, h, got); } }
   const m = Math.hypot(input.mx, input.my);
   if (pl.dash) {
     pl.dash.t -= dt; moveEnt(pl, pl.dash.vx * dt, pl.dash.vy * dt);
@@ -97,7 +99,7 @@ export function updatePlayer(pl: Player, dt) {
 
   if (G.lost && Math.hypot(G.lost.x - pl.x, G.lost.y - pl.y) < 14) {
     const g = G.lost.gold || 0; pl.souls += G.lost.amount; pl.gold += g;
-    toast('取回了 ' + G.lost.amount + ' 魂晶' + (g ? '、' + g + ' 金幣' : ''), '#b49cff'); burst(G.lost.x, G.lost.y - 4, 20, '#b49cff', 60); sfx.pick(); G.lost = null;
+    toast('取回了 ' + G.lost.amount + ' 魂晶' + (g ? '、' + g + ' 金幣' : ''), '#b49cff'); burst(G.lost.x, G.lost.y - 4, 28, '#b49cff', 80); G.fx.push({ k:'ring', x:G.lost.x, y:G.lost.y, r0:4, r1:36, t:0, d:.5, col:'#b49cff' }); sfx.epic(); G.lost = null;
   }
   for (const c of CAMPS) if (!c.lit && Math.abs(c.x - pl.x) < 48 && Math.hypot(c.x - pl.x, c.y - pl.y) < 48) {
     c.lit = true; toast('點燃了「' + c.name + '」，可以在這裡休息和傳送', '#f2c14e'); burst(c.x, c.y - 4, 20, '#f2c14e', 60); sfx.level(); save();
@@ -131,6 +133,19 @@ export function placeAtCamp(pl: Player, id) {
   pl.x = c.x; pl.y = c.y + 16;
   if (collides(pl.x, pl.y, pl.r)) pl.y = c.y - 16;
   if (pl === G.me) { cam.x = pl.x - LW / 2; cam.y = pl.y - LH / 2; }   // 鏡頭只跟著「我」
+}
+/* 喝完藥水回血的那一下：綠色光圈從腳下擴開、一圈「+」光點往上飄、身上綠光外框、大號綠色數字、血條發光、叮一聲
+   h = 這瓶本來能回多少（數字顯示這個，滿血喝也看得到效果），got = 實際回了多少（血條要不要閃） */
+export const HEALC = ['#7dff8a', '#b8ffc0', '#3fd86a', '#ffffff'];
+function healFx(pl: Player, h: number, got: number) {
+  pl.healGlow = .7;
+  G.fx.push({ k:'ring', x:pl.x, y:pl.y, r0:3, r1:28, t:0, d:.45, col:'#7dff8a' });
+  G.fx.push({ k:'ring', x:pl.x, y:pl.y, r0:2, r1:18, t:0, d:.5, delay:.12, col:'#b8ffc0' });
+  for (let i = 0; i < 18; i++) { const a = i / 18 * TAU, r = rr(4, 12);                 // 「+」光點從身體周圍往上飄（四芒星畫小一點就是十字）
+    G.parts.push({ x:pl.x + Math.cos(a) * r, y:pl.y - 4 + Math.sin(a) * r * .5, vx:Math.cos(a) * rr(6, 16), vy:-rr(30, 70), life:rr(.55, .9), max:.9, col:pick(HEALC), star:rr(1, 2.2), drag:2 }); }
+  burst(pl.x, pl.y - 8, 10, '#b8ffc0', 50);
+  G.nums.push({ x:pl.x, y:pl.y - 30, txt:'+' + h, col:'#7dff8a', t:0, d:1.1, big:true });
+  if (pl === G.me) { sfx.heal(); if (got > 0) flashHp(); }
 }
 function respawn(pl: Player) {
   const ds = pl.souls - Math.floor(pl.souls * KEEP_K), dg = pl.gold - Math.floor(pl.gold * KEEP_K);   // 掉的那份（四捨五入算你倒楣：身上留的是無條件捨去的 20%）
