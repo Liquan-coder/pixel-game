@@ -18,7 +18,7 @@ import { coinChip, hudIcon, openMenu, setMenu, soulChip, toast } from './hud';
 import { moveMerchant } from './shop';
 import { restockSmiths } from '../world/towns';
 import { save } from '../game/save';
-import { ATTRS, ATTR_BASE, ATTR_NAME, atkSplit, grade, reqOf, scaleOf, unmet } from '../data/attrs';
+import { ATTRS, ATTR_BASE, ATTR_NAME, atkSplit, grade, reqOf, scaleOf, soft, unmet } from '../data/attrs';
 import { HERO, HERO_W } from '../art/hero';
 import { drawWeapon } from '../art/weapon';
 import { navT, renderJournal, setNav } from '../game/quest';
@@ -52,6 +52,9 @@ function renderCamp() {
       const p = []; if (nx.maxHp !== now.maxHp) p.push('生命 +' + (nx.maxHp - now.maxHp)); if (nx.maxSt !== now.maxSt) p.push('體力 +' + (nx.maxSt - now.maxSt));
       if (nx.atk !== now.atk) p.push('攻擊 +' + (nx.atk - now.atk)); if (nx.def !== now.def) p.push('防禦 +' + (nx.def - now.def)); if (nx.crit !== now.crit) p.push('暴擊 +' + (nx.crit - now.crit) + '%');
       if (Math.abs(nx.aspd - now.aspd) > 1e-6) p.push('攻速 +' + ((nx.aspd - now.aspd) * 100).toFixed(1) + '%'); if (Math.abs(nx.cdr - now.cdr) > 1e-6) p.push('冷卻 -' + ((nx.cdr - now.cdr) * 100).toFixed(1) + '%');
+      if (k === 'luk') {                                              // 幸運：暴擊顯示到小數（整數會四捨五入成 0）＋ 掉素材的機率（enemies.ts：.8% × soft）
+        const ds = soft(after.luk + 1) - soft(after.luk), dc = Math.min(12, .4 * soft(after.luk + 1)) - Math.min(12, .4 * soft(after.luk));
+        return (dc > 1e-6 ? '暴擊 +' + dc.toFixed(1) + '%、' : '') + '掉素材 +' + (.8 * ds).toFixed(1) + '%'; }
       return p.length ? p.join('、') : '目前的武器用不到'; };
     const keepY = body.scrollTop;                                       // 重畫時記住捲到哪裡（按 ＋ 不會跳回最上面）
     const free = Math.max(0, G.me.freePts - pendN());
@@ -63,16 +66,13 @@ function renderCamp() {
     body.scrollTop = keepY;
     const n = pendN(), cost = pendCost(), base = calcStats(G.me, curEq(G.me)), d = [];
     if (n) { if (now.maxHp !== base.maxHp) d.push('生命 +' + (now.maxHp - base.maxHp)); if (now.maxSt !== base.maxSt) d.push('體力 +' + (now.maxSt - base.maxSt)); if (now.atk !== base.atk) d.push('攻擊 +' + (now.atk - base.atk)); if (now.def !== base.def) d.push('防禦 +' + (now.def - base.def)); }
-    // 底下的帳：魂晶 1234 − 234 = 1000、等級 12 → 14；第二行寫「再加 1 點要多少、加完剩多少」→ 不用自己扣
-    const S = hudIcon('魂晶'), sv = (v: number, cls = 'soulv') => '<span class="sv">' + S + '<b class="' + cls + '">' + v + '</b></span>';
-    const left = G.me.souls - cost, paid = Math.max(0, n - G.me.freePts), lv0 = level(G.me);   // 用重生水滴洗出來的免費點數不會升級
-    const l1 = (n && cost ? sv(G.me.souls, '') + '<em>−</em>' + sv(cost, 'cost') + '<em>=</em>' + sv(left) : sv(left)) +
-      '<i>|</i>等級 ' + (paid ? '<b>' + lv0 + '</b><em>→</em><b class="lvv">' + (lv0 + paid) + '</b>' : '<b class="lvv">' + lv0 + '</b>');
-    const nx1 = nxtCost - cost;                                         // 再加一點要的魂晶
-    const l2 = free ? '<span class="nxt">免費點數 <b>' + free + '</b>（不花魂晶，等級不變）</span>'
-      : canAdd ? '<span class="nxt">再加 1 點：' + sv(nx1, 'cost') + '，加完剩 ' + sv(left - nx1) + '</span>'
-      : '<span class="nxt no">魂晶不夠：再加 1 點要 ' + sv(nx1, 'cost') + '，還差 ' + sv(nx1 - left, 'cost') + '</span>';
-    foot.innerHTML = '<div class="lvfoot"><div class="l1">' + l1 + '</div><div class="l2">' + l2 + (d.length ? '<span class="gain">' + d.join('、') + '</span>' : '') + '</div></div>' +
+    // 底下三格大字：等級、魂晶（扣完剩多少）、升級需要 → 最重要的資訊放最顯眼，不用自己算
+    const S = hudIcon('魂晶'), left = G.me.souls - cost, paid = Math.max(0, n - G.me.freePts), lv0 = level(G.me);   // 用重生水滴洗出來的免費點數不會升級
+    const nx1 = nxtCost - cost, tile = (cls: string, lbl: string, val: string, sub = '') => '<div class="kt ' + cls + '"><small>' + lbl + '</small><b>' + val + (sub ? '<s>' + sub + '</s>' : '') + '</b></div>';
+    const tiles = tile('lv', '等級', paid ? lv0 + '<em>→</em><span>' + (lv0 + paid) + '</span>' : String(lv0)) +
+      tile('sl', '魂晶', S + left, cost ? '−' + cost : '') +
+      (free ? tile('need', '免費點數', String(free), '不花魂晶') : tile('need' + (canAdd ? '' : ' no'), '升級需要', S + nx1, canAdd ? '' : '還差 ' + (nx1 - left)));
+    foot.innerHTML = '<div class="lvfoot"><div class="lvk">' + tiles + (d.length ? '<span class="gain">' + d.join('<br>') + '</span>' : '') + '</div></div>' +
       '<button type="button" class="sec" data-reset' + (n ? '' : ' disabled') + '>重設</button><button type="button" class="pri" data-confirm' + (n ? '' : ' disabled') + '>確定</button>';
   } else {
     body.innerHTML = '<div class="camplist">' + CAMPS.filter(c => !c.dg || c.lit).map(c => '<button type="button" data-tp="' + c.id + '"' + (c.lit && c !== G.curCamp ? '' : ' disabled') + '><span>' + c.name + '<small> · ' + REGIONS[reg[c.ty * MW + c.tx]].name + '</small></span><small>' +
