@@ -170,7 +170,8 @@ function statDiff(now, nx) {                                            // 換�
   return out.length ? out.join('，') : '<span>數值沒有變化</span>';
 }
 function selSummary(sel, now, pv) {
-  const it = sel.it, sl = slotOf(it);
+  const it = sel.it, sl = slotOf(it), r = reqOf(it), bad = sl === 'weapon' || sl === 'armor' ? unmet(G.me, it) : [];
+  if (bad.length) return bad.map(k => '<span class="down">' + ATTR_NAME[k] + '還差 ' + (r[k] - (G.me[k] ?? ATTR_BASE)) + ' 點</span>').join('，') + '才能裝備';   // 裝不上 → 不做換裝預覽，直接說差多少
   if (pv) return statDiff(now, pv);
   if (sl === 'weapon') { const A = atkSplit(G.me, it), fx = fxOf(it); return '攻擊 ' + A.total + (fx ? ' · <b style="color:' + WFXD[fx].c + '">' + WFXD[fx].n + '</b>' : '') + ' · ' + WT[it.type].trait; }
   if (sl === 'armor') { const A = armorStats(it); return '防禦 ' + A.def + ' · 生命 +' + A.hp; }
@@ -195,7 +196,7 @@ export function renderInv() {
   const eq = curEq(G.me), sel = selected(), bagIt = sel && sel.where === 'bag' ? sel.it : null, nSlots = tSlots();
   // 左欄：上面是選中的物品（有選才出現）＋ 按鈕；下面一直是角色數值（選了背包的東西 → 顯示換上後的變化）
   const info = $('cInfo'), keepY = info.querySelector('.cscroll')?.scrollTop || 0;
-  const now = calcStats(G.me, eq), sl = sel ? slotOf(sel.it) : '', pv = bagIt && sl !== 'seal' ? calcStats(G.me, eqWith(bagIt)) : null;
+  const now = calcStats(G.me, eq), sl = sel ? slotOf(sel.it) : '', pv = bagIt && sl !== 'seal' && !(sl !== 'trinket' && unmet(G.me, bagIt).length) ? calcStats(G.me, eqWith(bagIt)) : null;
   if (sel && salvArm && salvArm !== sel.it.id) salvArm = 0;
   if (!sel || sel.it.id !== lastSelId) infoMode = false;                  // 換選別件 → 回到數值
   const R = sel ? RAR[sel.it.rarity] : null, U = sel && sel.it.uq;
