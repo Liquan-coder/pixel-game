@@ -104,3 +104,49 @@ export function starStatue() {
     for (let x = 22; x < 43; x++) if (a.pid(x, 45) >= 0) a.set(x, 45, S[1]);       // 帽簷下的影子
   });
 }
+
+/* ================= 符文石（24×48 美術像素） =================
+   一塊直立的板岩：缺角的頂、亮的正面、暗的右側面，腳邊長青苔。正面直直刻三個符文。
+   回傳兩張圖：stone = 石頭（符文是刻進去的深色凹槽）；glow = 只有符文本身 + 一圈淡淡的光暈，遊戲裡疊上去、一亮一暗地呼吸 */
+// 符文：每個是幾條線段，在 7×7 的格子裡
+const GLYPHS: [number, number, number, number][][] = [
+  [[3, 0, 3, 6], [3, 1, 6, 3], [3, 3, 6, 5]],             // ᚠ 的樣子
+  [[0, 0, 0, 6], [6, 0, 6, 6], [0, 0, 6, 6]],             // 兩直一斜
+  [[3, 0, 3, 6], [0, 2, 3, 0], [6, 2, 3, 0], [0, 6, 3, 4], [6, 6, 3, 4]],   // 箭頭 + 底
+  [[0, 3, 3, 0], [3, 0, 6, 3], [6, 3, 3, 6], [3, 6, 0, 3]],   // 菱形
+  [[3, 0, 3, 6], [0, 3, 6, 3], [1, 1, 5, 5]],             // 十字 + 斜
+  [[0, 0, 3, 3], [6, 0, 3, 3], [3, 3, 3, 6]],             // Y 字
+  [[0, 6, 3, 0], [3, 0, 6, 6], [1, 4, 5, 4]],             // 人字 + 橫
+  [[0, 0, 6, 0], [3, 0, 3, 6], [0, 6, 6, 6]],             // 工字
+];
+export const RUNE_W = 24, RUNE_H = 48;
+export const RUNE_SLATE = ['#101219', '#1b202b', '#29303e', '#3c4556', '#566176'];   // 比一般石頭更深的板岩，符文的光才跳得出來
+export function runeStone(seed: number, ramp: string[], glowCol: [string, string]) {
+  const R = mulberry32(seed), S = ramp;
+  const L0 = 3 + (R() * 2 | 0), L1 = 17 + (R() * 2 | 0), bot = 44, flip = R() < .5;
+  const hi = 2 + (R() * 3 | 0), lo = 8 + (R() * 4 | 0), TL = flip ? lo : hi, TR = flip ? hi : lo, mid = 9 + (R() * 4 | 0);   // 斜斜切掉的頂：一邊高一邊低，中間缺一角
+  const FRONT = norm(-.3, .15, .94), SIDE = norm(.92, .05, .38), TOP = norm(-.1, -.85, .5);
+  const parts: any[] = [
+    { sh: poly([[L0 - 1, bot], [L0, TL + 4], [L0 + 1, TL + 1], [mid, (TL + TR) / 2 + 2], [L1 - 1, TR + 1], [L1, bot]], FRONT), ramp: S, grp: 1, bias: .15 },   // 正面（下面寬、上面窄一點）
+    { sh: poly([[L1, bot], [L1 - 1, TR + 1], [L1 + 3, TR + 3], [L1 + 4, bot - 2]], SIDE), ramp: S, grp: 1, bias: .05 },                                     // 右側面
+    { sh: poly([[L0 + 1, TL + 1], [L0 + 2, TL - 1], [mid, (TL + TR) / 2], [L1, TR - 1], [L1 + 3, TR + 3], [L1 - 1, TR + 2], [mid, (TL + TR) / 2 + 3], [L0 + 1, TL + 3]], TOP), ramp: S, grp: 1, bias: .2 },   // 頂上的切面
+  ];
+  const carved: [number, number][] = [];                              // 刻痕的每一格（石頭上是凹槽，發光層上是光）
+  const stone = sculpt(RUNE_W, RUNE_H, parts, a => {
+    const cx = Math.round((L0 + L1) / 2) - 3;
+    for (let k = 0; k < 3; k++) { const g = GLYPHS[(R() * GLYPHS.length) | 0], oy = 12 + k * 10;
+      for (const [x0, y0, x1, y1] of g) { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) || 1;
+        for (let i = 0; i <= n; i++) { const x = Math.round(cx + x0 + (x1 - x0) * i / n), y = Math.round(oy + y0 + (y1 - y0) * i / n);
+          if (a.pid(x, y) >= 0 && !carved.some(([p, q]) => p === x && q === y)) carved.push([x, y]); } } }
+    for (const [x, y] of carved) { a.set(x, y, S[0]); if (a.pid(x + 1, y + 1) >= 0 && !carved.some(([p, q]) => p === x + 1 && q === y + 1)) a.set(x + 1, y + 1, S[3]); }   // 凹槽右下配一格亮色
+    for (let k = 0; k < 2; k++) { let x = L0 + 1 + (R() * 10 | 0), y = 8 + (R() * 30 | 0); for (let i = 0; i < 4; i++) { if (a.pid(x, y) < 0) break; a.set(x, y, S[1]); x += R() < .5 ? 1 : 0; y++; } }   // 細裂縫
+    for (let x = 0; x < RUNE_W; x++) { if (a.pid(x, bot - 1) < 0) continue; const h = 2 + (R() * 5 | 0); for (let j = 0; j < h; j++) a.set(x, bot - 1 - j, j === h - 1 ? '#5a9a52' : j % 2 ? '#2e5a34' : '#3e7a40'); }   // 腳邊的青苔
+    for (const x of [L0 - 2, L0 + 3, L1 + 2, L1 + 5]) { a.set(x, bot, '#3e7a40'); a.set(x, bot - 1, '#5a9a52'); }   // 幾根草
+  });
+  const glow = document.createElement('canvas'); glow.width = RUNE_W; glow.height = RUNE_H; const g = glow.getContext('2d');
+  g.fillStyle = glowCol[0]; g.globalAlpha = .22;
+  for (const [x, y] of carved) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) g.fillRect(x + dx, y + dy, 1, 1);   // 光暈
+  g.globalAlpha = 1; for (const [x, y] of carved) g.fillRect(x, y, 1, 1);
+  g.fillStyle = glowCol[1]; for (let i = 0; i < carved.length; i += 3) g.fillRect(carved[i][0], carved[i][1], 1, 1);   // 最亮的芯
+  return { stone, glow };
+}
