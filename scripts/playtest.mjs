@@ -77,6 +77,17 @@ const pageScript = async () => {
     input.mx = 1; pressed.dodge = true; step(25, { god: true }); input.mx = 0;
     G.me.hp = 10; G.me.pot = Math.max(1, G.me.pot); pressed.pot = true; for (let k = 0; k < 60; k++) { G.me.iframe = 1; step(1); }   // 喝藥時不能被怪打死（不然測不到回血）
     if (G.me.hp <= 10) throw new Error('喝藥水沒有回血（hp ' + G.me.hp + '）');
+    if (type === 'elfbow') {                                          // 連發弓：按住一直射、不蓄力
+      step(30); G.me.atkCd = 0; const n0 = G.projs.filter(p => p.owner === 'p').length + G.nums.length; let shots = 0;
+      const seen = new Set(G.projs); pressed.atk = true; held.atk = true;
+      for (let k = 0; k < 90; k++) { step(1, { god: true }); for (const p of G.projs) if (p.owner === 'p' && !seen.has(p)) { seen.add(p); shots++; } if (G.me.charging) throw new Error('連發弓按住開始蓄力了'); }
+      held.atk = false; step(20, { god: true }); if (shots < 4) throw new Error('連發弓按住 1.5 秒只射了 ' + shots + ' 支'); return;
+    }
+    if (type === 'bow') {                                             // 蓄力弓：點一下也要拉弓（自動拉到 0.3 秒才射），不能連點
+      step(30); G.me.atkCd = 0; const seen = new Set(G.projs); let shots = 0;
+      for (let k = 0; k < 60; k++) { if (k % 4 === 0) { pressed.atk = true; held.atk = true; } else held.atk = false; step(1, { god: true }); for (const p of G.projs) if (p.owner === 'p' && !seen.has(p)) { seen.add(p); shots++; } }
+      held.atk = false; step(20, { god: true }); if (shots < 1) throw new Error('蓄力弓點一下沒有射箭'); if (shots > 3) throw new Error('蓄力弓連點 1 秒射了 ' + shots + ' 支（應該要拉弓）');
+    }
     step(30); G.me.st = 60; G.me.atkCd = 0; pressed.atk = true; held.atk = true; step(10);       // 按住攻擊：不揮刀，直接開始蓄力
     if (G.me.swing || G.me.atkCd > 0) throw new Error('按住攻擊還是先揮了一刀');
     step(15);

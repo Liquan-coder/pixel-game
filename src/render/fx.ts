@@ -162,7 +162,7 @@ export function drawArrow(x, y, a, len, _cols, big) {
   ctx.globalAlpha = a0; artPath(); ctx.fillStyle = '#ffffff'; artDot(x, y, big ? 3 : 2); ctx.fill();   // 劍尖亮點
 }
 export function drawWaveP(p) {                                                // 飛行的新月劍氣
-  const a = Math.atan2(p.vy, p.vx), R = p.R || 16, T = p.th || 7, cx = p.x - Math.cos(a) * R * .75, cy = p.y - Math.sin(a) * R * .75, half = 1.2;
+  const a = Math.atan2(p.vy, p.vx), R = p.R || 16, T = p.th || 7, cx = p.x - Math.cos(a) * R * .75, cy = p.y - Math.sin(a) * R * .75, half = p.half || 1.2;   // half：月牙兩個角張多開（月牙刀比較飽滿）
   fillArt(cx - R - 1, cy - R - 1, cx + R + 1, cy + R + 1, (x, y) => { const dx = x - cx, dy = y - cy, d = Math.sqrt(dx * dx + dy * dy); if (d > R || d < R - T) return 0;
     let v = Math.atan2(dy, dx) - a; v = ((v + Math.PI) % TAU + TAU) % TAU - Math.PI; if (Math.abs(v) > half) return 0;
     const th = T * Math.cos(v / half * Math.PI / 2), rel = (R - d) / (th || 1); if (rel > 1) return 0; return rel < .25 ? 3 : rel < .55 ? 2 : 1; }, p.cols || WFX.sword, [.85, 1, 1]);

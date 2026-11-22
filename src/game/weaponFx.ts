@@ -49,14 +49,14 @@ function ignitePop(e: Enemy) {                                         // 燃燒
   G.fx.push({ k: 'ring', x: e.x, y: e.y, r0: 3, r1: 18, t: 0, d: .25, col: '#ffa040' });
   sfx.ignite();
 }
-/* 噬魂：打倒的怪身上飄出一顆魂，先往上浮一下，再轉彎追著主角飛回來；碰到主角才回血 */
+/* 噬魂：打倒的怪身上飄出一顆紅色的魂（紫色會跟魂晶搞混），先往上浮一下，再轉彎追著主角飛回來；碰到主角才回血 */
 type Orb = { x: number; y: number; vx: number; vy: number; t: number; pl: Player; heal: number; done?: boolean };
 const orbs: Orb[] = [];
 function soulOrb(pl: Player, e: Enemy, heal: number) {
   const o = { x: e.x, y: e.y - 10, vx: rr(-50, 50), vy: -rr(80, 110), t: 0, pl, heal }; orbs.push(o);
   G.fx.push({ k: 'sorb', o, t: 0, d: 9 });                                 // 魂的本體：一顆會發光的紫色球（render.ts 畫，跟著 o 走；o.done 之後消失）
-  for (let i = 0; i < 10; i++) { const a = rr(0, TAU), v = rr(20, 60); G.parts.push({ x: e.x, y: e.y - 10, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rr(.3, .5), max: .5, col: pick(['#c8a8ff', '#f0e8ff', '#9a6cff']), star: rr(.8, 1.6), drag: 3 }); }
-  G.fx.push({ k: 'ring', x: e.x, y: e.y - 8, r0: 2, r1: 16, t: 0, d: .25, col: '#c8a8ff' });
+  for (let i = 0; i < 10; i++) { const a = rr(0, TAU), v = rr(20, 60); G.parts.push({ x: e.x, y: e.y - 10, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rr(.3, .5), max: .5, col: pick(['#ff5a64', '#ffc0c8', '#c01020']), star: rr(.8, 1.6), drag: 3 }); }
+  G.fx.push({ k: 'ring', x: e.x, y: e.y - 8, r0: 2, r1: 16, t: 0, d: .25, col: '#ff5a64' });
 }
 function tickOrbs(dt: number) {
   for (let i = orbs.length - 1; i >= 0; i--) { const o = orbs[i], pl = o.pl; o.t += dt;
@@ -64,12 +64,12 @@ function tickOrbs(dt: number) {
     if (o.t > .22) { const sp = 120 + o.t * 420, k = Math.min(1, dt * 9); o.vx += (dx / d * sp - o.vx) * k; o.vy += (dy / d * sp - o.vy) * k; }   // 浮起來之後越飛越快地追過去
     else { o.vx *= .9; o.vy *= .9; }
     o.x += o.vx * dt; o.y += o.vy * dt;
-    G.parts.push({ x: o.x + rr(-1.5, 1.5), y: o.y + rr(-1.5, 1.5), vx: rr(-8, 8), vy: rr(-8, 8), life: rr(.25, .4), max: .4, col: pick(['#c8a8ff', '#9a6cff', '#e8dcff']), star: rr(.6, 1.3), drag: 2 });   // 拖著的尾巴
+    G.parts.push({ x: o.x + rr(-1.5, 1.5), y: o.y + rr(-1.5, 1.5), vx: rr(-8, 8), vy: rr(-8, 8), life: rr(.25, .4), max: .4, col: pick(['#ff3a4a', '#c01020', '#ff9aa4', '#ffffff']), star: rr(.7, 1.6), drag: 2 });   // 拖著的尾巴
     if (d < 7 || o.t > 1.6 || pl.dead) { orbs.splice(i, 1); o.done = true; if (pl.dead) continue;
       const h = Math.round(pl.maxHp * o.heal / 100); pl.hp = Math.min(pl.maxHp, pl.hp + h);                                             // 碰到主角才回血
-      G.nums.push({ x: pl.x, y: pl.y - 28, txt: '+' + h, col: '#c8a8ff', t: 0, d: .8, big: true });
-      G.fx.push({ k: 'ring', x: pl.x, y: pl.y - 4, r0: 3, r1: 20, t: 0, d: .3, col: '#c8a8ff' });
-      for (let k = 0; k < 12; k++) { const a = rr(0, TAU); G.parts.push({ x: pl.x + Math.cos(a) * 9, y: pl.y - 10 + Math.sin(a) * 9, vx: -Math.cos(a) * 30, vy: -Math.sin(a) * 30 - 20, life: .4, max: .4, col: pick(['#c8a8ff', '#f0e8ff']), star: rr(.8, 1.6), drag: 2 }); }
+      G.nums.push({ x: pl.x, y: pl.y - 28, txt: '+' + h, col: '#ff6a74', t: 0, d: .8, big: true });
+      G.fx.push({ k: 'ring', x: pl.x, y: pl.y - 4, r0: 3, r1: 20, t: 0, d: .3, col: '#ff5a64' });
+      for (let k = 0; k < 12; k++) { const a = rr(0, TAU); G.parts.push({ x: pl.x + Math.cos(a) * 9, y: pl.y - 10 + Math.sin(a) * 9, vx: -Math.cos(a) * 30, vy: -Math.sin(a) * 30 - 20, life: .4, max: .4, col: pick(['#ff5a64', '#ffc0c8']), star: rr(.8, 1.6), drag: 2 }); }
       sfx.soulTake(); }
   }
 }

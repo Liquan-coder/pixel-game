@@ -82,7 +82,17 @@ function projMult(p, e) {
 }
 function boomMotion(p, dt) {
   p.age = (p.age || 0) + dt;
-  if (p.age < p.ret) { const k = 1 - 1.6 * dt; p.vx *= k; p.vy *= k; return; }            // 去程：慢慢減速
+  if (p.age < p.ret) {                                                  // 去程：附近有還沒砍到的敵人 → 轉過去追（月牙刀）；沒有 → 慢慢減速
+    let tg = null, bd = 130; const cur0 = Math.atan2(p.vy, p.vx);
+    if (p.seek) for (const e of targets(p.by)) { if (e.hp <= 0 || p.hit.has(e) || e.obj) continue;      // 只追前方 70 度以內、還沒被別的月牙盯上的（三道月牙才會分頭砍）
+      if (e.moonBy && e.moonBy !== p && G.projs.includes(e.moonBy) && !e.moonBy.back && !e.moonBy.hit.has(e)) continue;
+      const d = Math.hypot(e.x - p.x, e.y - 7 - p.y), da = Math.atan2(e.y - 7 - p.y, e.x - p.x) - cur0; if (d > 20 && Math.abs(Math.atan2(Math.sin(da), Math.cos(da))) > 1.22) continue;
+      if (d < bd) { bd = d; tg = e; } }
+    if (tg) tg.moonBy = p;
+    if (tg) { const sp = Math.max(230, Math.hypot(p.vx, p.vy)), cur = Math.atan2(p.vy, p.vx); let d = Math.atan2(tg.y - 7 - p.y, tg.x - p.x) - cur; d = Math.atan2(Math.sin(d), Math.cos(d));
+      const a = cur + Math.max(-9 * dt, Math.min(9 * dt, d)); p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; }
+    else { const k = 1 - 1.6 * dt; p.vx *= k; p.vy *= k; }
+    return; }
   if (!p.back) { p.back = true; p.hit = new Set(); p.sp = Math.max(260, Math.hypot(p.vx, p.vy) * 1.4); }   // 回程：同一隻可以再被砍一次
   const dx = p.by.x - p.x, dy = p.by.y - 7 - p.y, d = Math.hypot(dx, dy) || 1; p.sp += 500 * dt;
   p.vx = dx / d * p.sp; p.vy = dy / d * p.sp;

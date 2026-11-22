@@ -22,7 +22,7 @@ export const WT = {
   hammer:{name:'戰鎚',base:24,cd:.8,range:27,arc:150,stam:22,skill:'quake',sn:'三重震波',scd:9,trait:'每一下都往下砸',sd:'連砸三下，震波一圈比一圈大（每圈 200%）並暈眩敵人'},
   scythe:{name:'鐮刀',base:14,cd:.5,range:33,arc:200,stam:13,skill:'reap',sn:'死神收割',scd:8,trait:'掃一大圈、打中會回血',sd:'把周圍的敵人拉過來一起砍（360%），每打中一隻回 4% 生命'},
   wolfblade:{name:'狼牙雙刃',base:14,cd:.38,range:24,arc:130,stam:9,skill:'wolfrush',sn:'狼影連襲',scd:7,trait:'狼王的獠牙',sd:'化為狼影，連續撲向三個敵人（每下 180%），期間無敵'},
-  bow:{name:'長弓',base:13,cd:.5,range:200,arc:0,stam:10,ranged:true,skill:'arrowrain',sn:'箭雨',scd:7,trait:'箭飛得越遠越痛',sd:'往前方射上天，落下一片箭雨（10 支，每支 110%）'},
+  bow:{name:'長弓',base:13,cd:.5,range:200,arc:0,stam:10,ranged:true,skill:'arrowrain',sn:'箭雨',scd:7,trait:'蓄力弓：按下拉弓、放開射箭，不能連點；拉滿射出穿透箭（第二段一次三支），箭飛越遠越痛',sd:'往前方射上天，落下一片箭雨（10 支，每支 110%）'},
   greatsword:{name:'大劍',base:26,cd:.86,range:34,arc:160,stam:22,skill:'cleave',sn:'破山斬',scd:8,trait:'揮劍時不會被打退、受傷減少',sd:'把劍舉過頭往前劈，地面裂出一條直線（380%）並暈眩敵人'},
   rapier:{name:'細劍',base:10,cd:.3,range:36,arc:0,stam:8,skill:'flurry',sn:'百花刺',scd:6,trait:'一直刺同一隻，越刺越容易暴擊',sd:'往前連刺八下（每下 70%），最後一下一定暴擊'},
   // 下面三種只有獨特武器（data/uniques.ts）才有：不會隨機掉、商人不賣
@@ -30,7 +30,7 @@ export const WT = {
   twinblade:{name:'雙頭刀',base:15,cd:.34,range:30,arc:130,stam:10,skill:'bladewheel',sn:'旋刃風車',scd:8,trait:'前後兩頭一起砍，四連擊',sd:'雙頭刀在身邊轉 1.5 秒，可以邊轉邊走（每 0.15 秒砍一下，每下 60%）'},
   darkmoon:{name:'暗月大劍',base:20,cd:.78,range:34,arc:150,stam:20,skill:'moonbeam',sn:'暗月光波',scd:7,trait:'打中會存月光，第三下全部放出去',sd:'舉劍吸收月光，往前放出一道巨大的月光劍浪（400%），一路穿透'},
   // 精靈武器（精靈王國）：也只有獨特版
-  elfbow:{name:'精靈弓',base:14,cd:.42,range:220,arc:0,stam:9,ranged:true,skill:'leafvolley',sn:'千葉齊射',scd:7,trait:'箭更快更遠，第三下一次三支',sd:'往前方扇形連射十二支葉箭，每支都會穿透（每支 80%）'},
+  elfbow:{name:'精靈弓',base:14,cd:.42,range:220,arc:0,stam:9,ranged:true,skill:'leafvolley',sn:'千葉齊射',scd:7,trait:'連發弓：按住就一直射（不能蓄力），箭更快更遠，第三下一次三支',sd:'往前方扇形連射十二支葉箭，每支都會穿透（每支 80%）'},
   elfrapier:{name:'精靈細劍',base:11,cd:.28,range:38,arc:0,stam:8,skill:'moonstep',sn:'月步',scd:6,trait:'第三下刺出一道葉刃',sd:'化成月光往前閃三次，每次穿過路上的敵人（每次 220%），期間無敵'},
   elfblades:{name:'精靈雙刀',base:12,cd:.3,range:28,arc:140,stam:8,skill:'windwaltz',sn:'風之輪舞',scd:7,trait:'左右交替的四連斬，第四下轉一圈',sd:'旋轉著往前衝，路上的敵人一直被砍（6 下，每下 100%），衝完再轉一圈（160%）'},
 };
@@ -180,7 +180,7 @@ export function fixGear(it: Item): Item | null {
   if (TT[it.type]) { if (!it.tk || !TRINKETS[it.tk]) { const n = makeTrinket(it.type === 'ring' ? 'hawk' : 'life'); n.id = it.id; return n; } it.aff = {}; return it; }
   return null;
 }
-export const DROP_WEAPONS = ['sword', 'dagger', 'axe', 'spear', 'staff', 'katana', 'hammer', 'scythe', 'bow', 'greatsword', 'rapier'];   // 會從怪物身上掉、商人會賣的武器（狼牙雙刃、月牙刀、雙頭刀、暗月大劍只有獨特的）
+export const DROP_WEAPONS = ['sword', 'dagger', 'axe', 'spear', 'staff', 'katana', 'hammer', 'bow', 'greatsword', 'rapier'];   // 會從怪物身上掉、商人會賣的武器（鐮刀打中會回血，只有 Boss 的獨特武器腐沼之鐮；狼牙雙刃、月牙刀、雙頭刀、暗月大劍只有獨特的）
 function pickWeaponType() {                                              // 你能裝備的武器類型比較容易掉（權重 3：1）
   const pl = G.me; if (!pl) return pick(DROP_WEAPONS);
   const w = DROP_WEAPONS.map(t => meets(pl, { type: t, ilvl: 0, slot: 'weapon' } as Item) ? 3 : 1), sum = w.reduce((a, b) => a + b, 0);

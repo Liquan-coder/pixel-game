@@ -11,7 +11,7 @@ import { resetBoss } from './boss';
 import { puzzleMove } from '../world/puzzles';
 import { dungeonAt } from '../world/dungeons';
 import { clearStatus, locked, moveMul, rollOut, rooted, silenced, struggle, tickStatus } from './status';
-import { blinkFx, busy, damageEnemy, dodgeCut, downPlayer, releaseCharge, stopCharge, targets, tryAttack, tryDodge, tryPot, trySkill, updFlip, updateCharge } from './combat';
+import { BOW_MIN, blinkFx, bowShot, busy, damageEnemy, dodgeCut, downPlayer, releaseCharge, stopCharge, targets, tryAttack, tryDodge, tryPot, trySkill, updFlip, updateCharge } from './combat';
 import { burst, shake } from './worldUpdate';
 import { STARC } from '../render/fx';
 import { flashHp, hideBanner, showArea, toast } from '../ui/hud';
@@ -96,14 +96,28 @@ export function updatePlayer(pl: Player, dt) {
   const atkDown = held.atk || keys.atk;
   const tap = () => { if (!tryAttack(pl)) pl.atkBuf = .25; };
   if (pl.atkBuf > 0) { pl.atkBuf -= dt; if (tryAttack(pl)) pl.atkBuf = 0; }      // 連點太快時先記住，冷卻一好就出手
-  if (pressed.atk) { pl.chargeArm = true; pl.chargeHold = 0; pl.charging = false; pl.charge = 0; pl.chargeLv = 0; }
+  /* 弓分兩種：精靈弓 = 連發弓（按住一直射、不蓄力）；長弓 = 蓄力弓（按下就拉弓，放開才射，不能連點） */
+  const wt = pl.weapon.type, drawBow = wt === 'bow';
+  if (wt === 'elfbow') { if (pressed.atk) tap(); else if (atkDown && !pl.dead) tryAttack(pl); if (pl.chargeArm) stopCharge(pl); }
+  else {
+  if (pressed.atk) { if (drawBow && pl.bowAuto && pl.charging) { pl.bowAuto = false; pl.chargeArm = true; }   // 蓄力弓自動拉弓途中又按下：接著原本拉的繼續（連點不會一直重拉）
+    else { pl.chargeArm = true; pl.chargeHold = 0; pl.charging = false; pl.charge = 0; pl.chargeLv = 0; pl.bowAuto = false; } }
   if (pl.chargeArm) {
     if (!atkDown || pl.dead) {                                         // 放開了
-      if (!pl.dead) { if (pl.charging && pl.chargeLv > 0) releaseCharge(pl, pl.chargeLv); else tap(); }   // 蓄到第一段以上 → 放招；很快放開 / 還沒蓄到第一段 → 普通攻擊
-      stopCharge(pl);
+      if (!pl.dead && drawBow && pl.charging) {                        // 蓄力弓：拉滿第一段以上 → 蓄力箭；拉超過 0.3 秒 → 一般箭；拉太短 → 自動拉到 0.3 秒再射
+        if (pl.chargeLv > 0 && pl.st > 0) { releaseCharge(pl, pl.chargeLv); stopCharge(pl); }
+        else if (pl.charge >= BOW_MIN) { bowShot(pl); stopCharge(pl); }
+        else { pl.bowAuto = true; pl.chargeArm = false; }
+      } else {
+        if (!pl.dead) { if (pl.charging && pl.chargeLv > 0) releaseCharge(pl, pl.chargeLv); else tap(); }   // 蓄到第一段以上 → 放招；很快放開 / 還沒蓄到第一段 → 普通攻擊
+        stopCharge(pl);
+      }
     }
     else if (pl.charging) { if (pl.dodge > 0 || pl.drink > 0 || pl.dash) stopCharge(pl); else updateCharge(pl, dt); }
-    else { pl.chargeHold += dt; if (pl.chargeHold > .22 && !busy(pl) && pl.st > 0) { pl.charging = true; pl.charge = 0; pl.chargeLv = 0; } }
+    else { pl.chargeHold += dt; if (drawBow ? pl.atkCd <= 0 && !busy(pl) : pl.chargeHold > .22 && !busy(pl) && pl.st > 0) { pl.charging = true; pl.charge = 0; pl.chargeLv = 0; } }   // 蓄力弓一按就開始拉
+  }
+  if (pl.bowAuto) { if (!pl.charging || pl.dead || pl.dodge > 0) { pl.bowAuto = false; stopCharge(pl); }
+    else { updateCharge(pl, dt); if (pl.charge >= BOW_MIN) { bowShot(pl); stopCharge(pl); pl.bowAuto = false; } } }
   }
   if (pressed.dodge) { tryDodge(pl); if (pl.dodge > 0) rollOut(pl); }
   if (pressed.skill) trySkill(pl);

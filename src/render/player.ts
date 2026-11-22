@@ -165,6 +165,7 @@ export function drawPlayer(pl: Player) {
   let ang, hA = pl.face, reach = 0, lift = 0, phase = '';                                   // ang = 武器角度，hA = 手在身體哪一側
   if (pl.spin > 0) ang = hA = spinA;
   else if (pl.slam > 0) { const q = pl.slam / .5; ang = q > .55 ? pl.face - 1.6 * dir : pl.face + .3 * dir; }
+  else if (pl.charging && (pl.weapon.type === 'bow' || pl.weapon.type === 'elfbow')) { ang = hA = pl.face; reach = REACH; }   // 弓：蓄力時拉弓對著前方（不是舉到身後）
   else if (pl.charging) { ang = (flip ? Math.PI + 2.3 : -2.3) + Math.sin(G.time * 34) * .04 * pl.chargeLv; hA = flip ? Math.PI : 0; }   // 蓄力時武器舉到身後
   else if (msw) { const m = msw, A = (r) => m.f + r * m.sd;
     if (m.t < m.wu) { const c = 1 - (1 - m.t / m.wu) ** 2; ang = A(m.rR + (m.r0 - m.rR) * c); lift = m.lift * c; phase = 'C'; }   // 蓄力：武器舉到頭上
@@ -198,6 +199,9 @@ export function drawPlayer(pl: Player) {
   if (!behind) drawW();
   if (showW && msw && !pl.dead) attackParticles(pl, msw, phase, gx, gy, ang);
   if (showW && !pl.dead) sealAura(pl, gx, gy, ang);
+  if (showW && !pl.dead && pl.charging && (pl.weapon.type === 'bow' || pl.weapon.type === 'elfbow')) {   // 拉弓：箭搭在弦上朝前，蓄力越滿箭頭越亮
+    const lv = pl.chargeLv, ax = gx + Math.cos(pl.face) * 11, ay = gy + Math.sin(pl.face) * 11, col = wcols(pl, pl.weapon.type);   // ax, ay = 箭頭（在弓的前面一點）
+    drawArrow(ax, ay, pl.face, 5 + lv * 1.5, col, false); drawStar(ax, ay, 1 + lv * 1.5 + Math.sin(G.time * 20) * .5, lv >= 2 ? '#ffd04a' : '#ffffff'); }
   if (!pl.dead) skillParticles(pl, gx, gy, ang);
   if (msw && phase === 'S') { (pl.wHist = pl.wHist || []).push([gx, gy, ang]); if (pl.wHist.length > 3) pl.wHist.shift(); } else pl.wHist = null;
   ctx.globalAlpha = 1;
