@@ -157,7 +157,8 @@ export function render() {
     else if (f.k === 'rune') drawRune(f, k, L);
     else if (f.k === 'cres') drawCrescent(f, k);
     else if (f.k === 'sorb') { if (f.o.done) { f.t = f.d; continue; } const o = f.o, p = 1 + .15 * Math.sin(G.time * 20);   // 噬魂的魂（game/weaponFx.ts）：紅色光球（紫色會跟魂晶搞混）
-      ctx.globalAlpha = 1; drawOrb(o.x, o.y, 4 * p, ['#4a0a14', '#e0283a', '#ff9aa4', '#ffffff']); addLight(L, o.x, o.y, 40, 1); }
+      ctx.globalAlpha = 1; drawOrb(o.x, o.y, (f.r || 4) * p, f.cols || ['#4a0a14', '#e0283a', '#ff9aa4', '#ffffff']); addLight(L, o.x, o.y, f.lr || 40, f.lw || 1); }   // 也用來畫燈魂、螢火蟲（game/signatures.ts：cols / r / 光的顏色）
+    else if (f.k === 'wghost') { const sp = SPR[f.kind]; if (sp && sp.wn) { const w = sp.w, h = sp.h; ctx.globalAlpha = .5 * (1 - k); ctx.drawImage(f.flip ? sp.wf : sp.wn, snapF(f.x - w / 2), snapF(f.y + 2 - h), w, h); } }   // 白色半透明的殘影（狼牙雙刃的狼影）
     else if (f.k === 'zap') { const fl = Math.floor(G.time * 30) % 2 ? 1 : .8, th = f.thin ? .55 : 1;   // 閃電（game/weaponFx.ts 的雷鳴）：淡黃光暈 + 黃 + 白芯，一閃一閃；f.br = 分岔
       const line = (P, s) => { artPath(); for (let i = 1; i < P.length; i++) artLine(P[i - 1][0], P[i - 1][1], P[i][0], P[i][1], Math.max(1, Math.round(s))); ctx.fill(); };
       for (const [P, w] of [[f.pts, 1], ...(f.br || []).map(b => [b, .5])]) {

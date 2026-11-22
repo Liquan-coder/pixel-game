@@ -18,6 +18,8 @@ import { bumpPot, showBanner, toast } from '../ui/hud';
 import type { Enemy } from '../types';
 import { dismount } from './mount';
 import { SEALC, bindFx, fxOf, onHit, onKill } from './weaponFx';
+import { bindSig, sigBlock, sigHit, sigKill, sigPre, sigSlam, sigSwing } from './signatures';
+import { UQSIG } from '../data/uniques';
 import { bindBuilds, buildHit, canDodge, dodgeStarted, forcedCrit, fullCharge, iframeHit, playerHurt } from './builds';
 import './bossTuning';                                                   // Boss 的傷害倍率和獎勵（平衡用）
 import type { Player } from '../types';
@@ -48,6 +50,7 @@ export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: 
   let { v, crit } = calcDmg(pl, mult, opts.cb || 0);
   v = Math.max(1, Math.round(v * gapDealt(level(pl), e.lv || 0) * (e.mStun > 0 ? 1.5 : 1)));   // 等級差（見 bossTuning.ts）；Boss 露出破綻時 ×1.5
   if (opts.crit && !crit) { crit = true; v = Math.round(v * 1.8); }      // 居合：一定暴擊
+  { const sg = sigPre(pl, e, !!opts.proc); if (sg.crit && !crit) { crit = true; v = Math.round(v * 1.8); } if (sg.mul !== 1) v = Math.round(v * sg.mul); }   // 獨特武器：背刺、蛛網易傷（game/signatures.ts）
   if (opts.heal) { if (G.time - (pl.healT0 || -9) > .6) { pl.healT0 = G.time; pl.healN = 0; }   // 鐮刀收割：打中一隻回一點血，一次技能最多算 3 隻
     if (pl.healN < 3) { pl.healN++; pl.hp = Math.min(pl.maxHp, pl.hp + Math.round(pl.maxHp * opts.heal * (e.boss ? .5 : 1))); } }
   v = buildHit(pl, e, v, crit, !!opts.proc);                           // 流派：怒氣、吸血、暴擊減冷卻（game/builds.ts）
@@ -63,10 +66,11 @@ export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: 
   crit ? sfx.crit() : sfx.hit();
   if (crit) shake(2, .1);
   if (!opts.proc) onHit(pl, e, v, crit);                                // 刻印效果（出血、燃燒、寒霜、雷鳴…）
+  if (!opts.proc) sigHit(pl, e);                                         // 獨特武器的招牌（game/signatures.ts）
   finish(pl, e);
 }
 function finish(pl: Player, e: Enemy) {                                  // 血量歸零 → 依種類走對應的死亡流程（只會走一次）
-  if (e.hp > 0 || e.dying) return; e.dying = true; e.soulMul = onKill(pl, e);
+  if (e.hp > 0 || e.dying) return; e.dying = true; e.soulMul = onKill(pl, e); sigKill(pl, e);
   if (e.rb) regionBossDie(e, pl); else if (e.boss) bossDie(pl); else killEnemy(e, pl);
 }
 /** 效果造成的傷害：不暴擊、不擊退、不再觸發效果 */
@@ -78,6 +82,7 @@ export function rawHit(pl: Player, e: Enemy, v: number, col: string) {
 }
 bindFx(rawHit, targets, shake);
 bindBuilds({ aoe: aoeHit, shake, quakeFx, dodge: tryDodge });
+bindSig({ damage: damageEnemy, aoe: aoeHit, line: lineHit, shoot: shootArrow, raw: rawHit, targets, shake, quake: quakeFx });
 function meleeHit(pl: Player, range, arcDeg, mult, opts?, fa = pl.face) {   // 回傳打中幾個（戰斧要知道有沒有砍到東西）；fa = 往哪個方向砍（雙頭刀的後半截往背後）
   const half = arcDeg / 2 * Math.PI / 180; let n = 0;
   for (const e of targets(pl)) {
@@ -115,6 +120,7 @@ export const WFX = {                                                         // 
 const MOONC = ['#23206e', '#8aa0ff', '#eef4ff'];                         // 暗月大劍的月光（不管有沒有刻印都是這個顏色）
 const SHADOWBLADE = ['#1a1030', '#6a4ad0', '#e0d0ff'];
 export function wcols(pl: Player, type) { const c = WFX[type].slice(), r = pl.weapon.rarity, fx = fxOf(pl.weapon);
+  const sg = pl.weapon.uq && UQSIG[pl.weapon.uq]; if (sg) { c[0] = sg.cols[0]; c[1] = sg.cols[1]; return c; }   // 獨特武器：招牌的顏色
   if (fx && SEALC[fx]) { c[0] = SEALC[fx][0]; c[1] = SEALC[fx][1]; return c; }    // 有刻印：刀光換成刻印的顏色（出血紅、燃燒橘、寒霜冰藍、雷鳴黃、噬魂紫）
   if (r >= 3) c[0] = RAR[r].c; return c; }
 function smearFx(pl: Player, a0, a1, r, w, sw, cols, hold = .12, delay = 0, sy = HSY) { G.fx.push({ k:'smear', follow:pl, a0, a1, r, w, sw, hold, delay, t:0, d:delay + sw + hold, cols, sy }); }
@@ -153,6 +159,7 @@ export function tryAttack(pl: Player) {
   if (type === 'axe' && !chain) pl.axeN = 0;
   if (type === 'darkmoon' && !chain) pl.moonN = 0;                     // 暗月：連段斷掉，存的月光就散了
   const fin = !solo && pl.combo === N - 1;
+  sigSwing(pl, fin);                                                     // 獨特武器：潮汐、近衛之盾、王之箭（第幾下）
   const st = type === 'hammer' ? 'slam' : type === 'axe' ? ((pl.axeSide = !pl.axeSide) ? 'flatR' : 'flat') : (A.C || ['diag', 'rise', 'diag'])[pl.combo];   // 三下各用不同揮法（斜劈 → 橫掃 → 重劈）
   pl.atkCd = W.cd / pl.aspd * (fin ? 1.3 : 1) * (type === 'axe' ? 1 - .1 * (pl.axeN || 0) : 1);
   if (type === 'bow') {                                               // 長弓：拉弓 → 放箭；第三下射穿透箭。箭飛越遠越痛
@@ -221,6 +228,7 @@ export function tryAttack(pl: Player) {
     if (type === 'hammer') {                                           // 戰鎚：砸在前方地上，一圈範圍、每下都震地、小怪會暈一下
       const cx = pl.x + Math.cos(pl.face) * 20, cy = pl.y + Math.sin(pl.face) * 20;
       aoeHit(pl, cx, cy, 22, 1.05, { heavy:true, stun:.3 }); quakeFx(cx, cy, 26); shake(3, .12); G.hitStop = Math.max(G.hitStop, .04);
+      sigSlam(pl, cx, cy);                                               // 霜鬃巨鎚的冰柱、古爐鍛鎚的熔岩爆炸
     } else {
       const n = meleeHit(pl, R, W.arc * (fin ? 1.3 : 1), fin ? 1.35 : 1, fin ? { heavy:true } : undefined);
       if (type === 'axe') { pl.axeN = n ? Math.min(3, (pl.axeN || 0) + 1) : 0;   // 砍中 → 下一下快 10%（最多 3 層）；揮空就重來
@@ -640,6 +648,7 @@ export function hurtPlayer(pl: Player, v, sx, sy, extra?: FX) {
   if (pl.dead) return false;
   if (!canSee(sx, sy - 6, pl.x, pl.y - 6)) return false;                 // 隔著牆打不到你
   if (pl.iframe > 0) { iframeHit(pl); return false; }                   // 無敵中：剛瞬移的話 = 完美閃避（game/builds.ts）
+  if (sigBlock(pl)) return false;                                        // 王城近衛劍的護盾擋下這一下
   const T0 = pl.tfx || {};
   if (T0.evade && Math.random() * 100 < Math.min(40, T0.evade)) {         // 閃避流：有機率完全閃開（最多 40%），閃開後 0.25 秒不會再被打
     pl.iframe = .25; G.nums.push({ x:pl.x, y:pl.y - 28, txt:'MISS', col:'#c8e8ff', t:0, d:.7 }); G.ghosts.push({ x:pl.x + Math.sign(pl.x - sx || 1) * 5, y:pl.y, flip:pl.flip, life:.25, max:.25 }); sfx.dodge(); return false; }

@@ -7,26 +7,26 @@ import type { AttrKey } from './attrs';
 
 export interface UniqueDef {
   type: string;                                   // 用哪一種武器的動作和技能（WT 的 key）
-  name: string; base: number; fx: string;
+  name: string; base: number; fx?: string;        // 獨特武器不用刻印（招牌能力在 UQSIG / game/signatures.ts）
   aff: Record<string, number>;
   req: Partial<Record<AttrKey, number>>; scale?: Partial<Record<AttrKey, number>>;
   lore: string; from: string;                     // 背景故事、從哪裡拿到
 }
 export const UQ: Record<string, UniqueDef> = {
-  // 翠風平原的三座地城（world/dungeons.ts）：早期就拿得到的獨特武器，基礎攻擊只比一般的高一點，重點是刻印
-  mossfang: { type: 'dagger', name: '苔牙短刀', base: 9, fx: 'bleed', aff: { crit: 6, speed: 8 }, req: { dex: 9 },
+  // 翠風平原的三座地城（world/dungeons.ts）：早期就拿得到的獨特武器，基礎攻擊只比一般的高一點，重點是招牌能力
+  mossfang: { type: 'dagger', name: '苔牙短刀', base: 9, aff: { crit: 6, speed: 8 }, req: { dex: 9 },
     lore: '從洞窟裡一隻長滿苔蘚的老狼口中拔下來的牙，磨成了短刀。', from: '翠風平原・苔石洞窟' },
-  barrowblade: { type: 'sword', name: '守墓人長劍', base: 13, fx: 'soul', aff: { crit: 5 }, req: { str: 8, dex: 7 },
+  barrowblade: { type: 'sword', name: '守墓人長劍', base: 13, aff: { crit: 5 }, req: { str: 8, dex: 7 },
     lore: '無名劍士的佩劍。劍柄上纏著一條褪色的髮帶。', from: '翠風平原・無名古墓' },
-  tidespear: { type: 'spear', name: '潮音長槍', base: 13, fx: 'shock', aff: { speed: 8, cdr: 10 }, req: { str: 7, dex: 10 },
+  tidespear: { type: 'spear', name: '潮音長槍', base: 13, aff: { speed: 8, cdr: 10 }, req: { str: 7, dex: 10 },
     lore: '槍尖是一枚巨大的螺貝，刺出去的時候會發出浪聲。', from: '翠風平原・潮音石窟' },
-  wolfblade: { type: 'wolfblade', name: '狼牙雙刃', base: 14, fx: 'bleed', aff: { crit: 10, lifesteal: 3, speed: 10 }, req: { dex: 12, str: 9 },
+  wolfblade: { type: 'wolfblade', name: '狼牙雙刃', base: 14, aff: { crit: 10, lifesteal: 3, speed: 10 }, req: { dex: 12, str: 9 },
     lore: '灰鬃的兩根獠牙磨成的雙刃，握著時能聽見遠方的狼嚎。', from: '狼王巢穴' },
-  emberstaff: { type: 'staff', name: '燼翼法杖', base: 13, fx: 'burn', aff: { crit: 10, cdr: 15, speed: 10 }, req: { int: 16 }, scale: { int: 1.25 },
+  emberstaff: { type: 'staff', name: '燼翼法杖', base: 13, aff: { crit: 10, cdr: 15, speed: 10 }, req: { int: 16 }, scale: { int: 1.25 },
     lore: '用巨龍燼翼的翼骨削成，杖頭的餘燼從來沒有熄過。', from: '熔岩高地・燼龍火口' },
-  frostmaul: { type: 'hammer', name: '霜鬃巨鎚', base: 28, fx: 'frost', aff: { crit: 6, hp: 40 }, req: { str: 20, end: 12 },
+  frostmaul: { type: 'hammer', name: '霜鬃巨鎚', base: 28, aff: { crit: 6, hp: 40 }, req: { str: 20, end: 12 },
     lore: '雪原巨人拿來敲碎冰河的鎚子，鎚面永遠結著一層霜。', from: '霜寒雪原・雪頂祭壇' },
-  rotscythe: { type: 'scythe', name: '腐沼之鐮', base: 17, fx: 'soul', aff: { lifesteal: 4, cdr: 15, speed: 10 }, req: { dex: 14, int: 16 },
+  rotscythe: { type: 'scythe', name: '腐沼之鐮', base: 17, aff: { lifesteal: 4, cdr: 15, speed: 10 }, req: { dex: 14, int: 16 },
     lore: '巫妖收割魂魄用的鐮刀。刀刃劃過的地方，連影子都會變淡。', from: '幽影沼澤・腐沼祭壇' },
 };
 for (const k in UQ) { UQ_REQ[k] = UQ[k].req; if (UQ[k].scale) UQ_SCALE[k] = UQ[k].scale; }
@@ -35,32 +35,53 @@ export const UQ_BY_NAME: Record<string, string> = Object.fromEntries(Object.entr
 
 /* ================= 地底的獨特武器（地底遺跡最深處的金箱） ================= */
 Object.assign(UQ, {
-  royalguard: { type: 'sword', name: '王城近衛劍', base: 22, fx: 'soul', aff: { crit: 8, speed: 6 }, req: { str: 14, dex: 12 },
+  royalguard: { type: 'sword', name: '王城近衛劍', base: 22, aff: { crit: 8, speed: 6 }, req: { str: 14, dex: 12 },
     lore: '近衛隊長的佩劍。王都陷落的那一夜，他守在地底的門前，一步也沒有退。', from: '骸骨荒地・王城地下墓所' },
-  forgehammer: { type: 'hammer', name: '古爐鍛鎚', base: 34, fx: 'burn', aff: { crit: 5, hp: 30 }, req: { str: 22, end: 14 },
+  forgehammer: { type: 'hammer', name: '古爐鍛鎚', base: 34, aff: { crit: 5, hp: 30 }, req: { str: 22, end: 14 },
     lore: '打造星核容器的鎚子。敲在鐵砧上的聲音，聽起來像心跳。', from: '熔岩高地・熔爐地底遺跡' },
-  deepstaff: { type: 'staff', name: '深淵祭司杖', base: 19, fx: 'frost', aff: { cdr: 18, crit: 9, speed: 8 }, req: { int: 24 }, scale: { int: 1.3 },
+  deepstaff: { type: 'staff', name: '深淵祭司杖', base: 19, aff: { cdr: 18, crit: 9, speed: 8 }, req: { int: 24 }, scale: { int: 1.3 },
     lore: '沉沒神殿的祭司用來「關上」星星的手杖。杖頭的寶石裡，有一片小小的夜空。', from: '幽影沼澤・沉沒神殿地底' },
 } as Record<string, UniqueDef>);
 /* ================= 自己一種武器的獨特武器（月牙刀、雙頭刀、暗月大劍：動作和技能都是自己的，見 game/combat.ts） ================= */
 Object.assign(UQ, {
-  silktwin: { type: 'twinblade', name: '巢母雙頭刀', base: 16, fx: 'bleed', aff: { speed: 10, crit: 6 }, req: { dex: 13, str: 8 },
+  silktwin: { type: 'twinblade', name: '巢母雙頭刀', base: 16, aff: { speed: 10, crit: 6 }, req: { dex: 13, str: 8 },
     lore: '巢母的兩根毒牙，用蛛絲綁在同一根骨頭的兩端。轉起來的時候，像一張會咬人的網。', from: '迷霧森林・蛛巢洞窟' },
-  sandcrescent: { type: 'crescent', name: '沙王的月牙刀', base: 16, fx: 'shock', aff: { crit: 8, cdr: 10 }, req: { dex: 13, str: 11 },
+  sandcrescent: { type: 'crescent', name: '沙王的月牙刀', base: 16, aff: { crit: 8, cdr: 10 }, req: { dex: 13, str: 11 },
     lore: '沙之王每晚對著月亮祈禱，月亮就把自己的一角借給了他。丟出去的刀，總會回到主人手上。', from: '骸骨荒地・沙埋神殿' },
-  darkmoon: { type: 'darkmoon', name: '暗月大劍', base: 23, fx: 'frost', aff: { crit: 6, cdr: 12 }, req: { str: 16, int: 18 }, scale: { str: .5, int: .7 },
+  darkmoon: { type: 'darkmoon', name: '暗月大劍', base: 23, aff: { crit: 6, cdr: 12 }, req: { str: 16, int: 18 }, scale: { str: .5, int: .7 },
     lore: '霜墓的騎士一直等著光回來。光沒有回來，月亮卻來了——落在他的劍上，再也沒有離開。', from: '霜寒雪原・霜墓' },
 } as Record<string, UniqueDef>);
 /* ================= 精靈武器（精靈王國，world/elfland.ts）：三種都是自己的武器種類 ================= */
 Object.assign(UQ, {
-  elfbow: { type: 'elfbow', name: '精靈王的長弓', base: 16, fx: 'shock', aff: { crit: 8, speed: 8 }, req: { dex: 15, int: 10 },
+  elfbow: { type: 'elfbow', name: '精靈王的長弓', base: 16, aff: { crit: 8, speed: 8 }, req: { dex: 15, int: 10 },
     lore: '弓弦是月光搓成的。精靈王說，他射出的每一支箭，都是一句沒說出口的道歉。', from: '精靈王國・精靈王城' },
-  elfrapier: { type: 'elfrapier', name: '月泉細劍', base: 13, fx: 'frost', aff: { crit: 10, cdr: 10 }, req: { dex: 15, int: 8 },
+  elfrapier: { type: 'elfrapier', name: '月泉細劍', base: 13, aff: { crit: 10, cdr: 10 }, req: { dex: 15, int: 8 },
     lore: '月泉湖心的島上插著這把劍。劍身映著的月亮，比天上的還要圓。', from: '精靈王國・月泉' },
-  elfblades: { type: 'elfblades', name: '螢火雙刀', base: 14, fx: 'bleed', aff: { speed: 10, crit: 6 }, req: { dex: 17 },
+  elfblades: { type: 'elfblades', name: '螢火雙刀', base: 14, aff: { speed: 10, crit: 6 }, req: { dex: 17 },
     lore: '月蛾女王吞下的螢火，最後凝成了兩把刀。揮起來的時候，刀光像一群飛走的螢火蟲。', from: '精靈王國・螢月禁林' },
 } as Record<string, UniqueDef>);
 for (const k of ['royalguard', 'forgehammer', 'deepstaff', 'silktwin', 'sandcrescent', 'darkmoon', 'elfbow', 'elfrapier', 'elfblades']) { UQ_REQ[k] = UQ[k].req; if (UQ[k].scale) UQ_SCALE[k] = UQ[k].scale; UQ_BY_NAME[UQ[k].name] = k; }
+
+/* ================= 獨特武器的招牌能力 =================
+   獨特武器不裝刻印，每把有自己的規則（寫在 game/signatures.ts）：n = 名字、d = 卡片上的說明、cols = 刀光顏色（深 / 中 / 亮） */
+export const UQSIG: Record<string, { n: string; d: string; cols: [string, string, string] }> = {
+  mossfang:     { n: '背刺', d: '從敵人背後打必定暴擊，傷害 ×1.3', cols: ['#2a5a1a', '#8ad060', '#e8ffd0'] },
+  barrowblade:  { n: '守墓燈火', d: '打倒敵人時召喚一盞燈魂繞著你轉（最多 3 盞，20 秒），每 1.2 秒射附近的敵人（攻擊力 35%）', cols: ['#6a3a10', '#f0a030', '#fff0c0'] },
+  tidespear:    { n: '潮汐', d: '第三下刺出一道水浪，把一整排敵人推開（攻擊力 80%）', cols: ['#1a4a8a', '#6ac8ff', '#e8f8ff'] },
+  wolfblade:    { n: '狼群', d: '連續打中 5 下，跳出一隻狼影撲咬目標（攻擊力 200%，暈眩 0.4 秒）', cols: ['#3a2470', '#9a6cff', '#f0e0ff'] },
+  emberstaff:   { n: '燼翼', d: '打中的地方燒起一片火海（2.5 秒，每 0.5 秒燒一次，攻擊力 15%）', cols: ['#8a2a0a', '#ff8a2a', '#fff0a0'] },
+  frostmaul:    { n: '冰柱', d: '每次砸地，周圍竄出一圈冰柱（每根攻擊力 35%，暈眩 0.3 秒）', cols: ['#1a3a5a', '#9ae0ff', '#f0faff'] },
+  rotscythe:    { n: '收割', d: '敵人剩 25% 生命以下直接斬殺（精英 12%，Boss 不會）；打中照樣回血', cols: ['#1a4a2a', '#3ad08a', '#e0fff0'] },
+  royalguard:   { n: '近衛之盾', d: '三連擊的最後一下給你一層金色護盾，8 秒內擋下一次攻擊', cols: ['#6a4a10', '#f2c14e', '#fff6d0'] },
+  forgehammer:  { n: '鍛打', d: '打中會讓鎚子變燙（最多 6 層），燒到最熱時下一次砸地熔岩爆炸（攻擊力 160%，留下一片火海）', cols: ['#7a2a0a', '#ff6a2a', '#fff0a0'] },
+  deepstaff:    { n: '深淵之眼', d: '法彈和火球會轉彎追蹤附近的敵人', cols: ['#1a0a30', '#6a3aa0', '#40e0c0'] },
+  silktwin:     { n: '蛛網', d: '打中黏上蛛網 3 秒：敵人變慢，受到的傷害 +20%', cols: ['#3a2a4a', '#c8c8d8', '#ffffff'] },
+  sandcrescent: { n: '沙暴月', d: '月牙飛到最遠時捲起一陣沙暴（1.4 秒），把附近的敵人吸過去', cols: ['#6a4a1a', '#d8b870', '#fff0c8'] },
+  darkmoon:     { n: '暗月', d: '月光劍浪經過的地方留下冷月光（2.5 秒），踩到的敵人變慢', cols: ['#23206e', '#8aa0ff', '#eef4ff'] },
+  elfbow:       { n: '王之箭', d: '每第 6 箭多射一支金色大箭，第一次打中就分裂成 3 支', cols: ['#8a6a10', '#ffe08a', '#ffffff'] },
+  elfrapier:    { n: '月痕', d: '連刺同一個敵人疊月痕（頭上的小月亮），5 層時月光爆發（攻擊力 150%，必定暴擊）', cols: ['#2a3a7a', '#a8c4ff', '#ffffff'] },
+  elfblades:    { n: '螢火', d: '打中有機會放出螢火蟲（最多 8 隻），飄一下再衝向附近的敵人（攻擊力 40%）', cols: ['#3a5a10', '#c8f060', '#f8ffc0'] },
+};
 
 /* ================= 獨特防具 / 飾品 =================
    新制（data/gear.ts）：沒有物品等級。防具的防禦 / 生命看類型（法袍 = 輕、皮甲 = 中、鎖甲 = 重），

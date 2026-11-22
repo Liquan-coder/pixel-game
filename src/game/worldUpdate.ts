@@ -17,6 +17,7 @@ import { updateBoss } from './boss';
 import { aoeHit, damageEnemy, hurtPlayer, targets } from './combat';
 import { tickWeaponFx } from './weaponFx';
 import { tickBuilds } from './builds';
+import { sigProj, sigTick } from './signatures';
 import { updatePlayer } from './playerUpdate';
 import { STARC, asn } from '../render/fx';
 import { gain, toast } from '../ui/hud';
@@ -35,7 +36,8 @@ function updateProjectiles(dt) {
       if (tg && !tg.dead) { const sp = Math.hypot(p.vx, p.vy), cur = Math.atan2(p.vy, p.vx), want = Math.atan2(tg.y - 6 - p.y, tg.x - p.x);
         let d = want - cur; d = Math.atan2(Math.sin(d), Math.cos(d)); const a = cur + Math.max(-p.home * dt, Math.min(p.home * dt, d)); p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; } }
     if (p.owner === 'e') bossProjMotion(p, dt);                        // Boss 彈幕：轉彎 / 停住再追 / 結界裡反彈
-    if (p.ret) boomMotion(p, dt);                                        // 月牙刀的月牙：飛出去一段，再飛回主人手上
+    if (p.ret) boomMotion(p, dt);
+    if (p.owner === 'p' && p.by) sigProj(p, dt);                         // 獨特武器：法彈追蹤、王之箭分裂、沙暴月、暗月光                                        // 月牙刀的月牙：飛出去一段，再飛回主人手上
     p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
     let dead = p.life <= 0 || (p.kind !== 'rain' && !p.arena && BLOCKP.has(tileAt(Math.floor(p.x / TS), Math.floor((p.y + 6) / TS))));
     if (p.back && Math.hypot(p.by.x - p.x, p.by.y - 7 - p.y) < 12) dead = true;   // 月牙飛回手上
@@ -234,7 +236,8 @@ export function update(dt) {
     const n0 = G.projs.length; G.hitCtx = e.hc || null; updateEnemy(e, dt); tagProjs(n0); }   // hitCtx = 等級差 + 異常狀態（game/combat.ts 的 hurtPlayer）
   G.hitCtx = null;
   tickWeaponFx(dt, targets(G.me));
-  tickBuilds(dt);                                                        // 流派：殘影爆炸、怒氣、後搖中按的瞬移（game/builds.ts）
+  tickBuilds(dt);
+  sigTick(dt);                                                           // 獨特武器：燈魂、螢火蟲、火海、沙暴、暗月光（game/signatures.ts）                                                        // 流派：殘影爆炸、怒氣、後搖中按的瞬移（game/builds.ts）
   updatePuzzles(dt);                                                     // 地城的機關（world/puzzles.ts）
   updateSecrets(dt);                                                     // 精靈王城的城門、密室（world/secrets.ts）
   updateNPCs(); updateQuest(); updateBoss(dt); updateRegionBosses(dt); separate(); updateProjectiles(dt); updateDrops(dt); updateSpawns(dt);

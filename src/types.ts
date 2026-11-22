@@ -61,7 +61,9 @@ export interface Player {
   rage?: number; rageT?: number;  // 反傷流：累積的怒氣、到什麼時候消失
   thirstAcc?: number; thirstT?: number; ccT?: number;
   load?: number; loadCap?: number; loadTier?: number;   // 負重：重量、上限、第幾段（data/gear.ts 的 LOAD_TIERS；recalc 算）
-  bowAuto?: boolean;              // 蓄力弓放開得太早：自動拉到 0.3 秒再射（game/playerUpdate.ts）   // 吸血流的回血數字（合在一起顯示）、暴擊流上一次減冷卻的時間
+  bowAuto?: boolean;
+  // 獨特武器的招牌（game/signatures.ts）：近衛之盾到什麼時候、狼群的層數、鍛打的熱度、王之箭數到第幾箭……
+  sigShield?: number; hunt?: number; huntT?: number; emT?: number; heat?: number; heatHit?: number; royalN?: number; flyT?: number;              // 蓄力弓放開得太早：自動拉到 0.3 秒再射（game/playerUpdate.ts）   // 吸血流的回血數字（合在一起顯示）、暴擊流上一次減冷卻的時間
   cutSet?: Set<any> | null;       // 月影之鈴：這次瞬移已經砍過的敵人
   healT0?: number; healN?: number; // 鐮刀收割：這一次技能已經回了幾次血
 

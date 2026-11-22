@@ -13,8 +13,8 @@ import { makeEnemy } from '../game/enemies';
 import { recalc } from '../game/player';
 import { RBDEF, rbs, reviveRB } from '../world/regionBoss';
 import { resetBoss, reviveWolf } from '../game/boss';
-import { makeUniqueGear } from '../data/items';
-import { UG } from '../data/uniques';
+import { makeUnique, makeUniqueGear } from '../data/items';
+import { UG, UQ, UQSIG } from '../data/uniques';
 import { effLines } from '../data/gear';
 import { toast } from '../ui/hud';
 import { openAll } from './test';
@@ -43,6 +43,7 @@ function god() {
 }
 
 function setWeapon(type: string, fx: string) {
+  if (type.startsWith('uq:')) { const k = type.slice(3); G.me.weapon = makeUnique(k); recalc(G.me); G.me.skillCd = 0; refresh(); toast(UQ[k].name + '・' + UQSIG[k].n + '：' + UQSIG[k].d, UQSIG[k].cols[1], true); return; }   // 獨特武器（沒有刻印，有招牌）
   G.me.weapon = makeWeapon(type, 0, fx || undefined); recalc(G.me); G.me.skillCd = 0;
   refresh();
 }
@@ -95,7 +96,7 @@ let bar: HTMLDivElement;
 function refresh() {
   if (!bar) return; const fx = fxOf(G.me.weapon) || '';
   bar.querySelectorAll<HTMLButtonElement>('[data-fx]').forEach(b => b.classList.toggle('on', b.dataset.fx === fx));
-  const sel = bar.querySelector<HTMLSelectElement>('select.w'); if (sel) sel.value = G.me.weapon.type;
+  const sel = bar.querySelector<HTMLSelectElement>('select.w'); if (sel) sel.value = G.me.weapon.uq ? 'uq:' + G.me.weapon.uq : G.me.weapon.type;
 }
 function panel() {
   bar = document.createElement('div'); bar.id = 'labBar';
@@ -110,7 +111,7 @@ function panel() {
   <b class="keep" style="color:#c8a8ff">刻印</b>
   ${SEALS.map(([k, n]) => `<button type="button" tabindex="-1" data-fx="${k}" style="${k ? 'color:' + WFXD[k].c : ''}">${n}</button>`).join('')}
   <span class="sep"></span>
-  <select class="w" tabindex="-1">${Object.keys(WT).map(k => `<option value="${k}">${WT[k].name}</option>`).join('')}</select>
+  <select class="w" tabindex="-1">${Object.keys(WT).map(k => `<option value="${k}">${WT[k].name}</option>`).join('')}<optgroup label="獨特武器">${Object.keys(UQSIG).map(k => `<option value="uq:${k}">${UQ[k].name}・${UQSIG[k].n}</option>`).join('')}</optgroup></select>
   <span class="sep"></span>
   <button type="button" tabindex="-1" data-a="pack">一群小怪</button>
   <button type="button" tabindex="-1" data-a="elite">精英</button>
@@ -127,7 +128,7 @@ function panel() {
   for (const t of ['pointerdown', 'touchstart', 'mousedown']) bar.addEventListener(t, stop);
   bar.addEventListener('click', ev => {
     const b = (ev.target as HTMLElement).closest('button'); if (!b) return; b.blur();
-    if (b.dataset.fx !== undefined) setWeapon(G.me.weapon.type, b.dataset.fx);
+    if (b.dataset.fx !== undefined && !G.me.weapon.uq) setWeapon(G.me.weapon.type, b.dataset.fx);   // 獨特武器不能裝刻印
     const a = b.dataset.a;
     if (a === 'pack') pack(); else if (a === 'elite') elite(); else if (a === 'bag') sandbag(); else if (a === 'brute') brute(); else if (a === 'clear') clearFoes();
     else if (a === 'min') { bar.classList.toggle('min'); b.textContent = bar.classList.contains('min') ? '＋' : '－'; }

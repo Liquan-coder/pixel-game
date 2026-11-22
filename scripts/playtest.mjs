@@ -405,8 +405,8 @@ const pageScript = async () => {
       m.bleedB = 80; m.fxT = G.time; step(60, { god: true }); if (m.bleedB !== 80) throw new Error('怪物的出血累積 2 秒內就開始退了');
       step(120, { god: true }); if (!(m.bleedB < 80 && m.bleedB > 0)) throw new Error('怪物的出血累積沒有隨時間退：' + m.bleedB); G.enemies = G.enemies.filter(o => o !== m); }
     const old = { id: 997, type: 'wolfblade', ilvl: 9, rarity: 4, atk: 40, aff: {}, name: '狼牙雙刃' }; await0.forge.migrateWeapon(old); items.fixWeapon(old);
-    if (old.uq !== 'wolfblade' || FX.fxOf(old) !== 'bleed') throw new Error('舊狼牙雙刃沒有變成獨特武器：' + JSON.stringify(old));
-    for (const k of Object.keys(await0.uq.UQ)) { const u = items.makeUnique(k); if (!u.atk || u.rarity !== 4 || !FX.fxOf(u)) throw new Error('獨特武器 ' + k + ' 不完整'); }
+    if (old.uq !== 'wolfblade' || FX.fxOf(old)) throw new Error('舊狼牙雙刃沒有變成獨特武器（獨特武器沒有刻印）：' + JSON.stringify(old));
+    for (const k of Object.keys(await0.uq.UQ)) { const u = items.makeUnique(k); if (!u.atk || u.rarity !== 4 || FX.fxOf(u) || !await0.uq.UQSIG[k]) throw new Error('獨特武器 ' + k + ' 不完整（要有招牌、不能有刻印）'); }
     G.me.weapon = makeItem('sword', 0, 0); recalc(G.me);
   });
 
@@ -761,6 +761,37 @@ const pageScript = async () => {
     G.me.end = 30; recalc(G.me); G.me.weapon = I.makeWeapon('hammer', 0); G.me.armor = I.makeArmor('chain'); recalc(G.me);
     if (G.me.loadTier > 1) throw new Error('耐力 30 拿戰鎚 + 鎖甲還是太重：' + G.me.load + '/' + G.me.loadCap);
     Object.assign(G.me, { weapon: keep.w, armor: keep.a, end: keep.end, str: keep.str }); recalc(G.me); G.me.st = G.me.maxSt;
+  });
+
+  run('獨特武器的招牌：16 把各自的能力都會觸發', () => {
+    const E = await0.enemies, C = await0.cb, I = await0.items, out = []; setMenu(null); G.enemies = [];
+    { const camp = CAMPS.find(c => c.id === 'start'), open = (x, y) => [-60, -30, 0, 30, 60].every(dx => [-30, 0, 30].every(dy => !await0.coll.collides(x + dx, y + dy, G.me.r + 2)));
+      let p = null; for (let r = 60; r < 500 && !p; r += 20) for (let a = 0; a < 6.28 && !p; a += .4) { const x = camp.x + Math.cos(a) * r, y = camp.y + Math.sin(a) * r; if (open(x, y)) p = [x, y]; }
+      if (!p) throw new Error('找不到空地'); tp(p[0], p[1]); G.me.dead = false; G.me.ride = false; step(2); }
+    const keep = G.me.weapon; G.me.str = G.me.dex = G.me.int = 60;
+    const mk = (kind, dx, dy, hp = 1e6) => { const e = E.makeEnemy(kind, 1, G.me.x + dx, G.me.y + dy, { alive: true, timer: 0 }); e.hp = e.maxHp = hp; e.stun = 99; e.dmg = 0; G.enemies.push(e); return e; };
+    const use = k => { G.enemies = []; G.projs = []; G.me.weapon = I.makeUnique(k); recalc(G.me); G.me.face = 0; G.me.flip = false; G.me.atkCd = 0; G.me.skillCd = 0; G.me.iframe = 0; G.me.timers = []; G.me.swing = null; };
+    const hitN = (e, n) => { for (let i = 0; i < n; i++) { damageEnemy(G.me, e, .01, G.me.x, G.me.y); step(8, { god: true }); } };
+    const ok = (k, cond, msg) => { if (!cond) throw new Error(k + '：' + msg); out.push(k); };
+    use('mossfang'); { const e = mk('skel', 20, 0); e.flip = false; G.me.crit = 0; const n0 = G.nums.length; damageEnemy(G.me, e, 1, G.me.x, G.me.y); ok('mossfang', G.nums.slice(n0).some(n => n.big), '從背後打沒有暴擊'); }
+    use('barrowblade'); { const e = mk('slime', 20, 0, 5); damageEnemy(G.me, e, 50, G.me.x, G.me.y); const f = mk('skel', 50, 0); const h = f.hp; step(120, { god: true }); ok('barrowblade', f.hp < h, '打倒敵人沒有燈魂，或燈魂沒有射'); }
+    use('tidespear'); { const e = mk('slime', 40, 0); e.stun = 0; const h = e.hp; for (let i = 0; i < 3; i++) { G.me.atkCd = 0; C.tryAttack(G.me); step(30, { god: true }); } ok('tidespear', e.hp < h, '第三下沒有水浪'); }
+    use('wolfblade'); { const e = mk('skel', 20, 0); hitN(e, 4); const h = e.hp; hitN(e, 1); step(30, { god: true }); ok('wolfblade', h - e.hp > G.me.atkPow, '打 5 下沒有狼影'); }
+    use('emberstaff'); { const e = mk('skel', 20, 0); damageEnemy(G.me, e, .01, G.me.x, G.me.y); const h = e.hp; step(70, { god: true }); ok('emberstaff', e.hp < h, '沒有火海'); }
+    use('frostmaul'); { const e = mk('skel', 20 + 26, 0); const h = e.hp; G.me.atkCd = 0; C.tryAttack(G.me); step(40, { god: true }); ok('frostmaul', e.hp < h, '砸地沒有冰柱'); }
+    use('rotscythe'); { const e = mk('slime', 20, 0, 1000); e.hp = 240; damageEnemy(G.me, e, .01, G.me.x, G.me.y); ok('rotscythe', e.hp <= 0, '剩 25% 以下沒有斬殺'); }
+    use('royalguard'); { for (let i = 0; i < 3; i++) { G.me.atkCd = 0; C.tryAttack(G.me); step(30, { god: true }); } ok('royalguard', G.me.sigShield > G.time, '三連擊沒有護盾');
+      const e = mk('skel', 20, 0); const hp = G.me.hp; G.me.iframe = 0; G.hitCtx = e.hc; hurtPlayer(G.me, 30, e.x, e.y); G.hitCtx = null; ok('royalguard', G.me.hp === hp && !(G.me.sigShield > G.time), '護盾沒有擋下攻擊'); }
+    use('forgehammer'); { const e = mk('skel', 20, 0); hitN(e, 6); if (G.me.heat < 6) throw new Error('forgehammer：打 6 下沒有熱到最高：' + G.me.heat); G.me.atkCd = 0; C.tryAttack(G.me); step(30, { god: true }); ok('forgehammer', G.me.heat === 0, '最熱的時候砸地沒有爆炸'); }
+    use('deepstaff'); { mk('skel', 60, 50); G.me.atkCd = 0; C.tryAttack(G.me); step(8, { god: true }); const b = G.projs.find(p => p.owner === 'p'); step(6, { god: true }); ok('deepstaff', b && b.vy > 20, '法彈沒有轉彎追蹤'); }
+    use('silktwin'); { const e = mk('skel', 20, 0); damageEnemy(G.me, e, .01, G.me.x, G.me.y); ok('silktwin', e.webT > G.time, '沒有黏上蛛網'); }
+    use('sandcrescent'); { const e = mk('slime', 140, 0); e.stun = 0; G.me.combo = 1; G.me.comboT = 1; G.me.atkCd = 0; C.tryAttack(G.me); const x0 = e.x; step(90, { god: true }); ok('sandcrescent', e.x < x0 - 2 || e.hp < 1e6, '月牙沒有捲起沙暴'); }
+    use('darkmoon'); { const e = mk('skel', 50, 0); e.stun = 0; G.me.skillCd = 0; C.trySkill(G.me); step(40, { god: true }); ok('darkmoon', e.slowT > 0 || e.spd0 != null, '月光劍浪沒有留下冷月光'); }
+    use('elfbow'); { mk('skel', 90, 0); let royal = false; for (let i = 0; i < 6; i++) { G.me.atkCd = 0; C.tryAttack(G.me); step(20, { god: true }); if (G.projs.some(p => p.royal)) royal = true; } ok('elfbow', royal, '第 6 箭沒有王之箭'); }
+    use('elfrapier'); { const e = mk('skel', 20, 0); hitN(e, 4); const h = e.hp; G.me.crit = 0; const n0 = G.nums.length; hitN(e, 1); ok('elfrapier', G.nums.slice(n0).some(n => n.big) && h - e.hp > G.me.atkPow, '5 層月痕沒有爆發'); }
+    use('elfblades'); { const e = mk('skel', 20, 0); let flew = false; for (let i = 0; i < 20 && !flew; i++) { G.me.flyT = 0; damageEnemy(G.me, e, .01, G.me.x, G.me.y); step(2); if (G.fx.some(f => f.k === 'sorb' && f.cols && f.cols[1] === '#c8f060')) flew = true; } ok('elfblades', flew, '沒有放出螢火蟲'); }
+    log.push('  招牌：' + [...new Set(out)].length + ' / 16');
+    G.me.weapon = keep; G.me.str = G.me.dex = G.me.int = 5; recalc(G.me); G.enemies = []; G.projs = []; G.me.sigShield = 0; G.me.hp = G.me.maxHp;
   });
 
   run('星狼（坐騎）：打倒狼王才叫得出來、跑得比較快、按攻擊跳下來、被打摔下來、城鎮 / 地城騎不進去', () => {

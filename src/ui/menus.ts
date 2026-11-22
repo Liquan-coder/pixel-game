@@ -4,7 +4,7 @@ import { AFFIX, ICON_URL, RAR, SLOTN, UP_MAX, WT, armorStats, attachSeal, detach
 import { ACLS, ARMORS, A_UP_MAX, A_WEIGHT, LOAD_TIERS, MAIN_BOSSES, T_SLOTS_MAX, W_WEIGHT, effLines, fmtW } from '../data/gear';
 import type { Item } from '../types';
 import { MATS, MAT_KEYS, ORE_URL } from '../data/forge';
-import { UG, UQ } from '../data/uniques';
+import { UG, UQ, UQSIG } from '../data/uniques';
 import { WFXD, fxOf } from '../game/weaponFx';
 import { CAMPS, MW, REGIONS, reg } from '../world/map';
 import { mini } from '../world/minimap';
@@ -95,7 +95,8 @@ export function itemCard(it, cmp?, cls = '') {
     const affs = Object.keys(it.aff || {}).map(k => '＋' + it.aff[k] + AFFIX[k].u + ' ' + AFFIX[k].n);
     tail = (affs.length ? '<div class="aff">' + affs.join('　') + '</div>' : '') +
       '<div class="scal">加成 ' + Object.keys(S).map(k => ATTR_NAME[k] + ' ' + grade(S[k])).join(' · ') + '</div>' +
-      (fx ? '<div class="sk">刻印 <b style="color:' + WFXD[fx].c + '">' + WFXD[fx].n + '</b>：' + WFXD[fx].d + '</div>' : (U ? '' : '<div class="sk" style="color:var(--muted)">沒有刻印（可以從背包裝上）</div>')) +
+      (U && UQSIG[it.uq] ? '<div class="sk">招牌 <b style="color:' + UQSIG[it.uq].cols[1] + '">' + UQSIG[it.uq].n + '</b>：' + UQSIG[it.uq].d + '</div>' :   // 獨特武器：招牌能力（不裝刻印）
+       fx ? '<div class="sk">刻印 <b style="color:' + WFXD[fx].c + '">' + WFXD[fx].n + '</b>：' + WFXD[fx].d + '</div>' : '<div class="sk" style="color:var(--muted)">沒有刻印（可以從背包裝上）</div>') +
       '<div class="sk">技能 <b>' + W.sn + '</b>：' + W.sd + '</div>' + (U ? '<div class="sk lore">' + U.lore + '<br><small>來源：' + U.from + '</small></div>' : ''); }
   else if (sl === 'armor') { const A = armorStats(it), C = ACLS[A.cls], B = c ? armorStats(c) : null;
     head += ' · ' + C.n + ' · 強化 +' + (it.up || 0) + '/' + A_UP_MAX + ' · 重量 ' + A_WEIGHT[A.cls];
@@ -190,7 +191,8 @@ function selSummary(sel, now, pv) {
 function selEffect(it: Item) {
   const sl = slotOf(it), line = (h: string) => '<div class="seleff">' + h + '</div>';
   if (sl === 'seal') { const F = WFXD[it.fx]; return F ? line(F.d) : ''; }
-  if (sl === 'weapon') { const fx = fxOf(it); return fx ? line('<b style="color:' + WFXD[fx].c + '">' + WFXD[fx].n + '</b>：' + WFXD[fx].d) : ''; }
+  if (sl === 'weapon') { const S = it.uq && UQSIG[it.uq]; if (S) return line('<b style="color:' + S.cols[1] + '">' + S.n + '</b>：' + S.d);   // 獨特武器：招牌
+    const fx = fxOf(it); return fx ? line('<b style="color:' + WFXD[fx].c + '">' + WFXD[fx].n + '</b>：' + WFXD[fx].d) : ''; }
   const ls = effLines(effOf(it)); return ls.length ? line(ls.join('，')) : '';
 }
 let salvArm = 0, salvAllArm = false;                                     // 分解要按兩次（強化過 / 刻印 / 獨特的那種）
