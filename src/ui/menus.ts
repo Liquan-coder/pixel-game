@@ -14,7 +14,7 @@ import { placeAtCamp, restoreWorld } from '../game/playerUpdate';
 import { burst } from '../game/worldUpdate';
 import { centerMap, clearMapSel, mapPick, mv, onMapPick, renderBigMap, zoomAt, type MapPick } from '../render/map';
 import { fightingRB, rbDead } from '../world/regionBoss';
-import { coinChip, openMenu, setMenu, soulChip, toast } from './hud';
+import { coinChip, hudIcon, openMenu, setMenu, soulChip, toast } from './hud';
 import { moveMerchant } from './shop';
 import { restockSmiths } from '../world/towns';
 import { save } from '../game/save';
@@ -28,7 +28,7 @@ export function restAt(c) {
   moveMerchant(); restockSmiths();
   G.lastCamp = c.id; restoreWorld(); save(); sfx.level();
   burst(G.me.x, G.me.y - 6, 14, '#f2c14e', 40); G.curCamp = c; G.campTab = 'lv'; clearPend(); renderCamp(); setMenu('camp');
-  toast('生命和藥水補滿了，野外的怪物也全部復活', '#f2c14e');
+  toast('生命和藥水補滿了，' + (c.dg ? '地城裡' : '野外') + '的怪物也全部復活', '#f2c14e');
 }
 /* 升級：先按 ＋／－ 分配（還沒花魂晶），按「確定」才一次扣掉。離開或切分頁就取消 */
 const pend: Record<string, number> = {};
@@ -63,11 +63,19 @@ function renderCamp() {
     body.scrollTop = keepY;
     const n = pendN(), cost = pendCost(), base = calcStats(G.me, curEq(G.me)), d = [];
     if (n) { if (now.maxHp !== base.maxHp) d.push('生命 +' + (now.maxHp - base.maxHp)); if (now.maxSt !== base.maxSt) d.push('體力 +' + (now.maxSt - base.maxSt)); if (now.atk !== base.atk) d.push('攻擊 +' + (now.atk - base.atk)); if (now.def !== base.def) d.push('防禦 +' + (now.def - base.def)); }
-    foot.innerHTML = ('<div class="lvfoot">魂晶 <b class="soulv">' + (G.me.souls - cost) + '</b>' + (n ? ' <small>(−' + cost + ')</small>' : '') + '<i>|</i>等級 <b class="lvv">' + (level(G.me) + n) + '</b>' + (n ? ' <small>(+' + n + ')</small>' : '') +
-      '<i>|</i>' + (free ? '免費點數 <b>' + free + '</b>' : canAdd ? '下一點 <b>' + nxtCost + '</b>' : '下一點要 ' + nxtCost + '，魂晶不夠') + (d.length ? '<span class="gain">' + d.join('、') + '</span>' : '') + '</div>') +
+    // 底下的帳：魂晶 1234 − 234 = 1000、等級 12 → 14；第二行寫「再加 1 點要多少、加完剩多少」→ 不用自己扣
+    const S = hudIcon('魂晶'), sv = (v: number, cls = 'soulv') => '<span class="sv">' + S + '<b class="' + cls + '">' + v + '</b></span>';
+    const left = G.me.souls - cost, paid = Math.max(0, n - G.me.freePts), lv0 = level(G.me);   // 用重生水滴洗出來的免費點數不會升級
+    const l1 = (n && cost ? sv(G.me.souls, '') + '<em>−</em>' + sv(cost, 'cost') + '<em>=</em>' + sv(left) : sv(left)) +
+      '<i>|</i>等級 ' + (paid ? '<b>' + lv0 + '</b><em>→</em><b class="lvv">' + (lv0 + paid) + '</b>' : '<b class="lvv">' + lv0 + '</b>');
+    const nx1 = nxtCost - cost;                                         // 再加一點要的魂晶
+    const l2 = free ? '<span class="nxt">免費點數 <b>' + free + '</b>（不花魂晶，等級不變）</span>'
+      : canAdd ? '<span class="nxt">再加 1 點：' + sv(nx1, 'cost') + '，加完剩 ' + sv(left - nx1) + '</span>'
+      : '<span class="nxt no">魂晶不夠：再加 1 點要 ' + sv(nx1, 'cost') + '，還差 ' + sv(nx1 - left, 'cost') + '</span>';
+    foot.innerHTML = '<div class="lvfoot"><div class="l1">' + l1 + '</div><div class="l2">' + l2 + (d.length ? '<span class="gain">' + d.join('、') + '</span>' : '') + '</div></div>' +
       '<button type="button" class="sec" data-reset' + (n ? '' : ' disabled') + '>重設</button><button type="button" class="pri" data-confirm' + (n ? '' : ' disabled') + '>確定</button>';
   } else {
-    body.innerHTML = '<div class="camplist">' + CAMPS.map(c => '<button type="button" data-tp="' + c.id + '"' + (c.lit && c !== G.curCamp ? '' : ' disabled') + '><span>' + c.name + '<small> · ' + REGIONS[reg[c.ty * MW + c.tx]].name + '</small></span><small>' +
+    body.innerHTML = '<div class="camplist">' + CAMPS.filter(c => !c.dg || c.lit).map(c => '<button type="button" data-tp="' + c.id + '"' + (c.lit && c !== G.curCamp ? '' : ' disabled') + '><span>' + c.name + '<small> · ' + REGIONS[reg[c.ty * MW + c.tx]].name + '</small></span><small>' +
       (c === G.curCamp ? '你在這裡' : c.lit ? '傳送' : '尚未點燃') + '</small></button>').join('') + '</div><p class="hintp">靠近營火就會點燃它，之後就能傳送過去。</p>';
   }
 }
@@ -161,7 +169,7 @@ function statDiff(now, nx) {                                            // 換�
     const d = nx[k] - now[k]; if (Math.abs(d) < 1e-6) continue;
     const v = pct(k) ? Math.round(Math.abs(d) * 100) + '%' : k === 'crit' ? Math.abs(d) + '%' : String(Math.round(Math.abs(d)));
     out.push('<span class="' + (d > 0 ? 'up' : 'down') + '">' + n + ' ' + (d > 0 ? '+' : '−') + v + '</span>'); }
-  return out.length ? out.join('，') : '<span>數值沒有變化</span>';
+  return out.length ? out.join('，') : '<span>基本數值不變</span>';
 }
 function selSummary(sel, now, pv) {
   const it = sel.it, sl = slotOf(it), r = reqOf(it), bad = sl === 'weapon' || sl === 'armor' ? unmet(G.me, it) : [];
@@ -171,10 +179,17 @@ function selSummary(sel, now, pv) {
     return head + ' · ' + bad.map(k => '<span class="down">' + ATTR_NAME[k] + '還差 ' + (r[k] - (G.me[k] ?? ATTR_BASE)) + ' 點</span>').join('，');
   }
   if (pv) return statDiff(now, pv);
-  if (sl === 'weapon') { const A = atkSplit(G.me, it), fx = fxOf(it); return '攻擊 ' + A.total + (fx ? ' · <b style="color:' + WFXD[fx].c + '">' + WFXD[fx].n + '</b>' : '') + ' · ' + WT[it.type].trait; }
+  if (sl === 'weapon') { const A = atkSplit(G.me, it); return '攻擊 ' + A.total + ' · ' + WT[it.type].trait; }
   if (sl === 'armor') { const A = armorStats(it); return '防禦 ' + A.def + ' · 生命 +' + A.hp; }
-  if (sl === 'trinket') return effLines(effOf(it))[0] || '';
-  return '<b style="color:' + WFXD[it.fx].c + '">' + WFXD[it.fx].n + '</b>：' + (G.me.weapon.uq ? '獨特武器不能裝刻印' : '裝到武器上');
+  if (sl === 'trinket') return '<span>飾品</span>';
+  return '<b style="color:' + WFXD[it.fx].c + '">' + WFXD[it.fx].n + '刻印</b> · ' + (G.me.weapon.uq ? '<span class="down">獨特武器不能裝刻印</span>' : '裝到武器上');
+}
+/* 選中卡直接寫出這件的效果（不用點問號）：刻印、飾品 / 防具的特殊效果（像「打倒敵人時回復 4% 生命」這種不會改數值的，上面那行看不到） */
+function selEffect(it: Item) {
+  const sl = slotOf(it), line = (h: string) => '<div class="seleff">' + h + '</div>';
+  if (sl === 'seal') { const F = WFXD[it.fx]; return F ? line(F.d) : ''; }
+  if (sl === 'weapon') { const fx = fxOf(it); return fx ? line('<b style="color:' + WFXD[fx].c + '">' + WFXD[fx].n + '</b>：' + WFXD[fx].d) : ''; }
+  const ls = effLines(effOf(it)); return ls.length ? line(ls.join('，')) : '';
 }
 let salvArm = 0, salvAllArm = false;                                     // 分解要按兩次（強化過 / 刻印 / 獨特的那種）
 function selActs(sel) {
@@ -199,7 +214,7 @@ export function renderInv() {
   if (!sel || sel.it.id !== lastSelId) infoMode = false;                  // 換選別件 → 回到數值
   const R = sel ? RAR[sel.it.rarity] : null, U = sel && sel.it.uq;
   const head = sel ? '<div class="selcard" style="border-color:' + R.c + '"><button type="button" class="sico' + (infoMode ? ' on' : '') + '" data-act="info" aria-label="說明"><img alt="" src="' + ICON_URL[sel.it.type] + '"><i>' + (infoMode ? '↩' : '?') + '</i></button><div class="selmid"><div class="selname"><b style="color:' + R.c + '">' + itemName(sel.it) + '</b><i>' + (U ? '獨特' : SLOTN[sl]) + '</i></div>' +
-    '<div class="selsum">' + selSummary(sel, now, pv) + '</div>' + (infoMode ? '' : reqLine(sel.it)) + '</div>' + selActs(sel) + '</div>' : '';
+    '<div class="selsum">' + selSummary(sel, now, pv) + '</div>' + (infoMode ? '' : selEffect(sel.it) + reqLine(sel.it)) + '</div>' + selActs(sel) + '</div>' : '';
   info.innerHTML = head + '<div class="cscroll">' + (sel && infoMode ? itemCard(sel.it, null, 'det') :   // 「說明」：這件的刻印、技能、需求、背景故事（取代下面的數值，不用往下捲）
     '<div class="keystats">' + keyTile('hp', '生命', 'maxHp', now, pv) + keyTile('atk', '攻擊', 'atk', now, pv) + keyTile('df', '防禦', 'def', now, pv) + '</div>' +
     '<div class="cbox"><div class="lbl">詳細屬性</div><div class="stattbl">' + statRows(now, pv) + '</div></div>' +

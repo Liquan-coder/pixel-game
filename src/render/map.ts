@@ -1,21 +1,20 @@
 import { G } from '../core/state';
 import { $, clamp } from '../core/util';
 import { OL } from '../art/sprite';
-import { CAMPS, MH, MW, OPEN_REGIONS, REGIONS, SUBS, TOWNS, TS, discovered, explored } from '../world/map';
+import { CAMPS, MH, MW, WH, OPEN_REGIONS, REGIONS, SUBS, TOWNS, TS, discovered, explored } from '../world/map';
 import { mctx, miniBase } from '../world/minimap';
 import { merchant } from '../ui/shop';
 import { drawRumors, flags, rumorsOpen } from '../game/quest';
 import { STATUES, statueKnown, statueLit, ZONE_NAME, zoneOfReg } from '../world/statues';
-import { DUNGEONS, DZONE, dungeonAt } from '../world/dungeons';
+import { DUNGEONS, OLDZ, dungeonAt } from '../world/dungeons';
 import { POIS } from '../data/poi';
 import { MAP_ICONS, MAP_ICON_SCALE } from '../art/mapIcons';
 
-/* 一座地城佔的範圍（格）：左上角 x0 / y0、寬 w 都有存；高度從 dungeonAt 往下量一次就記起來 */
+/* 一座地城佔的範圍（格）：左上角 x0 / y0、寬 w、高 h（world/dungeons.ts 排區塊時算好） */
 const BOX = new Map();
 function dungeonBox(d) {
   let b = BOX.get(d); if (b) return b;
-  let h = 0; while (h < 200 && dungeonAt((d.x0 + 1) * TS, (d.y0 + h) * TS) === d) h++;
-  b = { x0: d.x0, y0: d.y0, x1: d.x0 + d.w, y1: d.y0 + h }; BOX.set(d, b); return b;
+  b = { x0: d.x0, y0: d.y0, x1: d.x0 + d.w, y1: d.y0 + d.h }; BOX.set(d, b); return b;
 }
 export function renderMini() {
   const px = Math.floor(G.me.x / TS), py = Math.floor(G.me.y / TS), ox = clamp(px - 64, 0, MW - 128), oy = clamp(py - 40, 0, MH - 80);
@@ -23,8 +22,9 @@ export function renderMini() {
   mctx.drawImage(miniBase, ox, oy, 128, 80, 0, 0, 128, 80);
   const dg = dungeonAt(G.me.x, G.me.y);
   if (dg) { const b = dungeonBox(dg), bx = b.x0 - ox, by = b.y0 - oy, bw = b.x1 - b.x0, bh = b.y1 - b.y0;   // 在地城裡：只顯示這一座，其他地城塗黑
-    mctx.fillStyle = '#07060b'; mctx.fillRect(0, 0, 128, Math.max(0, by)); mctx.fillRect(0, by + bh, 128, 80); mctx.fillRect(0, by, Math.max(0, bx), bh); mctx.fillRect(bx + bw, by, 128, bh); }
-  else { for (const c of CAMPS) if (c.lit || seen(c.tx, c.ty)) { mctx.fillStyle = c.lit ? '#f2c14e' : '#8a869a'; mctx.fillRect(c.tx - ox - 1, c.ty - oy - 1, 3, 3); }   // 營火：點燃過的、或那一塊地圖亮了才標
+    mctx.fillStyle = '#07060b'; mctx.fillRect(0, 0, 128, Math.max(0, by)); mctx.fillRect(0, by + bh, 128, 80); mctx.fillRect(0, by, Math.max(0, bx), bh); mctx.fillRect(bx + bw, by, 128, bh);
+    for (const c of CAMPS) if (c.dg === dg.id && (c.lit || seen(c.tx, c.ty))) { mctx.fillStyle = c.lit ? '#f2c14e' : '#8a869a'; mctx.fillRect(c.tx - ox - 1, c.ty - oy - 1, 3, 3); } }   // 這座地城裡的營火
+  else { for (const c of CAMPS) if (!c.dg && (c.lit || seen(c.tx, c.ty))) { mctx.fillStyle = c.lit ? '#f2c14e' : '#8a869a'; mctx.fillRect(c.tx - ox - 1, c.ty - oy - 1, 3, 3); }   // 營火：點燃過的、或那一塊地圖亮了才標
     for (const s of STATUES) if (statueKnown(s)) { mctx.fillStyle = statueLit(s) ? '#ffe38a' : '#c8a8ff'; mctx.fillRect(s.tx - ox - 1, s.ty - oy - 2, 3, 4); } }
   // Boss、寶箱不標：讓玩家自己去找
   if (merchant) { const mx = Math.floor(merchant.x / TS) - ox, my = Math.floor(merchant.y / TS) - oy; mctx.fillStyle = OL; mctx.fillRect(mx - 2, my - 2, 5, 5); mctx.fillStyle = '#5ae0b0'; mctx.fillRect(mx - 1, my - 1, 3, 3); }
@@ -37,9 +37,9 @@ export function renderMini() {
 const bigmap = $<HTMLCanvasElement>('bigmap'), bctx = bigmap.getContext('2d');
 export const mv = { x: 0, y: 0, z: 3, w: 0, h: 0 };
 /* 地圖能看的範圍（格）：平常是整張世界；在地城裡 = 只有這一座地城（多留 2 格邊） */
-let area = { x0: 0, y0: 0, x1: MW, y1: MH };
+let area = { x0: 0, y0: 0, x1: MW, y1: WH };                          // 野外只到 WH（下面那一條是地城區）
 function setArea() { const dg = dungeonAt(G.me.x, G.me.y), b = dg && dungeonBox(dg);
-  area = b ? { x0: b.x0 - 2, y0: b.y0 - 2, x1: b.x1 + 2, y1: b.y1 + 2 } : { x0: 0, y0: 0, x1: MW, y1: MH }; }
+  area = b ? { x0: b.x0 - 2, y0: b.y0 - 2, x1: b.x1 + 2, y1: b.y1 + 2 } : { x0: 0, y0: 0, x1: MW, y1: WH }; }
 const zMin = () => Math.min(mv.w / (area.x1 - area.x0), mv.h / (area.y1 - area.y0)) * .9, zMax = 14;
 export function centerMap() {
   const r = bigmap.getBoundingClientRect(); if (!r.width) return; mv.w = r.width; mv.h = r.height; setArea();
@@ -75,12 +75,13 @@ export function renderBigMap() {
     if (G.lost && dungeonAt(G.lost.x, G.lost.y) === dg) icon('lost', { kind: 'lost', id: 'lost', name: '掉落的魂晶', desc: '上次倒下時掉的 ' + G.lost.amount + ' 魂晶' + (G.lost.gold ? '、' + G.lost.gold + ' 金幣' : '') + ' · 走過去就能撿回來（再死一次就沒了）', tx: G.lost.x / TS - .5, ty: G.lost.y / TS - .5 });
     const [x, y] = toScr(G.me.x / TS, G.me.y / TS), k = .5 + .5 * Math.sin(performance.now() / 160);
     g.strokeStyle = `rgba(127,220,255,${.35 + .45 * k})`; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 13 + 2 * k, 0, Math.PI * 2); g.stroke();
+    for (const c of CAMPS) if (c.dg === dg.id && (c.lit || seen(c.tx, c.ty))) icon(c.lit ? 'camp' : 'campOff', { kind: 'camp', id: c.id, name: c.name, desc: '', tx: c.tx, ty: c.ty });   // 地城裡的營火：一樣可以點了傳送
     icon('me', { kind: 'me', id: 'me', name: '你在這裡', desc: '在「' + dg.name + '」裡面', tx: G.me.x / TS - .5, ty: G.me.y / TS - .5 });
     drawPick(g, label); return;
   }
-  const [x0, y0] = toScr(0, 0), W = MW * mv.z, H = MH * mv.z;
-  g.drawImage(miniBase, x0, y0, W, H);   // 只畫看過的地方：自己走過的路 + 星之神像點亮的整塊地區（world/statues.ts）；其他地方一片黑
-  { const [zx, zy] = toScr(DZONE.x0 - 1, DZONE.y0 - 1), [zx1, zy1] = toScr(DZONE.x1 + 1, DZONE.y1 + 1); g.fillStyle = '#07060b'; g.fillRect(zx, zy, zx1 - zx, zy1 - zy); }   // 地城裡面是蓋在海上的，地圖上不顯示
+  const [x0, y0] = toScr(0, 0), W = MW * mv.z, H = WH * mv.z;
+  g.drawImage(miniBase, 0, 0, MW, WH, x0, y0, W, H);   // 只畫看過的地方：自己走過的路 + 星之神像點亮的整塊地區（world/statues.ts）；其他地方一片黑
+  { const [zx, zy] = toScr(OLDZ.x0 - 1, OLDZ.y0 - 1), [zx1, zy1] = toScr(OLDZ.x1 + 1, OLDZ.y1 + 1); g.fillStyle = '#07060b'; g.fillRect(zx, zy, zx1 - zx, zy1 - zy); }   // 以前蓋地城的那塊海上岩石，地圖上不顯示
   const big = mv.z >= 2.2;                                               // 拉近才顯示小地名
   if (mv.z < 5) for (const k of OPEN_REGIONS) if (flags.has('chart:' + zoneOfReg(k))) { const [x, y] = toScr(REGIONS[k].c[0], REGIONS[k].c[1]); label(REGIONS[k].name, x, y, '#f1e7d0', 16); }   // 地名：那一塊點亮了才寫
   if (big) for (const s of SUBS) if (discovered.has(s.name)) { const [x, y] = toScr(s.x, s.y); label(s.name, x, y + 18, '#c9bfa8', 11); }
@@ -91,7 +92,7 @@ export function renderBigMap() {
     icon(done ? 'dungeonDone' : 'dungeon', { kind: 'dungeon', id: d.id, name: d.name, desc: done ? '地城 · 已經攻略完了' : '地城 · 最深處有守護者看守著寶物', tx: d.ent[0], ty: d.ent[1] }); }
   if (merchant) icon('merchant', { kind: 'merchant', id: 'merchant', name: '流浪商人', desc: '會在點燃過的營火之間移動，賣藥水、礦石和裝備', tx: merchant.x / TS - .5, ty: merchant.y / TS - .5 });
   if (G.lost) icon('lost', { kind: 'lost', id: 'lost', name: '掉落的魂晶', desc: '上次倒下時掉的 ' + G.lost.amount + ' 魂晶' + (G.lost.gold ? '、' + G.lost.gold + ' 金幣' : '') + ' · 走過去就能撿回來（再死一次就沒了）', tx: G.lost.x / TS - .5, ty: G.lost.y / TS - .5 });
-  for (const c of CAMPS) if (c.lit || seen(c.tx, c.ty)) icon(c.lit ? 'camp' : 'campOff', { kind: 'camp', id: c.id, name: c.name, desc: '', tx: c.tx, ty: c.ty });   // 點燃過的、或那一塊地圖亮了才標（熄滅的樣子讓人想去點燃）
+  for (const c of CAMPS) if (!c.dg && (c.lit || seen(c.tx, c.ty))) icon(c.lit ? 'camp' : 'campOff', { kind: 'camp', id: c.id, name: c.name, desc: '', tx: c.tx, ty: c.ty });   // 點燃過的、或那一塊地圖亮了才標（熄滅的樣子讓人想去點燃）
   for (const st of STATUES) if (statueKnown(st)) { const [x, y] = toScr(st.tx + .5, st.ty + .5), lit = statueLit(st), k = 3 + Math.max(0, Math.min(4, mv.z - 2));   // 星之神像：小小的星星 + 石座
     g.fillStyle = '#07060b'; g.fillRect(Math.round(x - k - 1), Math.round(y + k * .4 - 1), Math.round(k * 2 + 2), Math.round(k * .8 + 2));
     g.fillStyle = '#8a84a0'; g.fillRect(Math.round(x - k), Math.round(y + k * .4), Math.round(k * 2), Math.round(k * .8));

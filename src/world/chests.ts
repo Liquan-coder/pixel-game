@@ -7,7 +7,7 @@ import { SH, sculpt } from '../art/monsters';
 import { makeUnique, randomLoot } from '../data/items';
 import { DUNGEONS } from './dungeons';
 import { flags } from '../game/quest';
-import { ARENA, CAMPS, GROUND, MH, MW, RFLOOR, ROAD, TOWNS, TS, WALKABLE, map, reg } from './map';
+import { ARENA, CAMPS, GROUND, MH, MW, WH, RFLOOR, ROAD, TOWNS, TS, WALKABLE, map, reg } from './map';
 import { RBDEF } from './regionBoss';
 import { drawArtSprite } from './chunks';
 import { dropItem, makeEnemy } from '../game/enemies';
@@ -45,10 +45,10 @@ export function genChests(reach: Uint8Array) {
     [545, 152, 1, 58], [470, 182, 1, 55], [612, 70, 2, 62], [500, 104, 0, 52],                                                      // 雪原
     [455, 342, 2, 70], [522, 300, 1, 68], [610, 260, 1, 70], [534, 462, 1, 72]]) {                                                 // 沼澤
     const p = near(x, y); if (p) add(p[0], p[1], tier, lv, false); }
-  // 地城：岔路房的銀箱 + 最深處的金箱（獨特武器，要先打倒守護者）。地城裡面走路到不了起點，所以直接放
+  // 地城：寶物房 / 死路的寶箱 + 最深處的金箱（獨特武器，要先打倒守護者）。地城裡面走路到不了起點，所以直接放
   for (const d of DUNGEONS) { if (!d.bossChest) continue;
     CHESTS.push({ id: 'd_' + d.id, tx: d.bossChest[0], ty: d.bossChest[1], x: d.bossChest[0] * TS + 8, y: d.bossChest[1] * TS + 10, tier: 2, lv: d.lv + 2, mimic: false, opened: false, t: 0, uq: d.uq, need: 'dgn:' + d.id });
-    d.sideChests.forEach(([x, y], k) => add(x, y, d.style === 'ruin' && k === 0 ? 2 : 1, d.lv + 1, false)); }
+    for (const [x, y, t] of d.sideChests) add(x, y, t, d.lv + (t === 2 ? 4 : 1), false); }   // 寶物房的金箱、死路的銀箱（world/dungeons.ts）
   // 月泉湖心的小島（精靈王國）：精靈細劍。旁邊有精英「月泉的劍聖」守著
   CHESTS.push({ id: 'c_elfspring', tx: 334, ty: 432, x: 334 * TS + 8, y: 432 * TS + 10, tier: 2, lv: 50, mimic: false, opened: false, t: 0, uq: 'elfrapier' });
   /* 野外隨機寶箱：每個地區只留幾個，而且最多是白銀寶箱、東西最高到藍色、只給一顆素材
@@ -57,7 +57,7 @@ export function genChests(reach: Uint8Array) {
   for (const r of [0, 1, 2, 3, 5, 6, 8]) {                             // 8（精靈王國）放最後：前面地區的寶箱位置不變
     let n = 0, tries = 0;
     while (n < (r === 0 ? 6 : 5) && tries++ < 120000) {
-      const x = 4 + Math.floor(R() * (MW - 8)), y = 4 + Math.floor(R() * (MH - 8));
+      const x = 4 + Math.floor(R() * (MW - 8)), y = 4 + Math.floor(R() * (WH - 8));
       if (reg[I(x, y)] !== r || !open(x, y) || blocked(x, y)) continue;
       if (CAMPS.some(c => Math.hypot(c.tx - x, c.ty - y) < 12) || TOWNS.some(T => Math.hypot(T.tx - x, T.ty - y) < T.r + 6)) continue;
       let road = false; for (let dy = -4; dy <= 4 && !road; dy++) for (let dx = -4; dx <= 4; dx++) if (map[I(x + dx, y + dy)] === ROAD) { road = true; break; }

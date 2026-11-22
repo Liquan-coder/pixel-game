@@ -5,7 +5,8 @@
    - 擋路的 = 高、有影子（樹、岩壁、石柱、牆）；走得過去的 = 平的（地面、路、石板、橋）。不放模稜兩可的小石頭。
    - 探索靠「引導」不是迷宮：路會岔到每個地點，地點有光 / 煙 / 霧，岩洞前面有小路。
    genWorld（gen.ts）會依序呼叫：formations() → vegetation() → （地標、道路、城鎮…）→ connectPockets() */
-import { CLIFF, GROUND, LAVA, MH, MW, ROCK, SUBS, TREE, WALKABLE, WATER, hgt, map, reg } from './map';
+import { CLIFF, GROUND, LAVA, MH, MW, WH, ROCK, SUBS, TREE, WALKABLE, WATER, hgt, map, reg } from './map';
+import { LEGACY_SLOTS } from './dungeons';
 import { I, inb, river } from './gen';
 import { hash2 } from '../art/monsters';
 
@@ -34,7 +35,7 @@ function boulders(cx: number, cy: number, r: number, n: number, R: () => number)
 /* 細胞自動機：讓一片東西的邊緣變圓、把小洞補起來、把單獨一格的拿掉 */
 function smooth(tile: number, inRegion: (r: number) => boolean, passes = 2, die = 3, born = 5) {
   for (let p = 0; p < passes; p++) { const prev = map.slice();
-    for (let y = 4; y < MH - 4; y++) for (let x = 4; x < MW - 4; x++) { const i = I(x, y), t = prev[i]; if ((t !== tile && t !== GROUND) || !inRegion(reg[i])) continue;
+    for (let y = 4; y < WH - 4; y++) for (let x = 4; x < MW - 4; x++) { const i = I(x, y), t = prev[i]; if ((t !== tile && t !== GROUND) || !inRegion(reg[i])) continue;
       let c = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && prev[I(x + dx, y + dy)] === tile) c++;
       if (t === tile && c < die) map[i] = GROUND; else if (t === GROUND && c >= born) map[i] = tile; } }
 }
@@ -79,7 +80,7 @@ export function formations(R: () => number, n: Noise) {
   blob(470, 424, 8, 5, WATER, n, .3, only(6));
   blob(542, 262, 6, 4, WATER, n, .3, only(6));
   blob(620, 420, 6, 4, WATER, n, .3, only(6));
-  for (let y = 4; y < MH - 4; y++) for (let x = 4; x < MW - 4; x++) { const i = I(x, y);         // 再加幾片大的淺水區（低頻雜訊 → 一大片一大片的）
+  for (let y = 4; y < WH - 4; y++) for (let x = 4; x < MW - 4; x++) { const i = I(x, y);         // 再加幾片大的淺水區（低頻雜訊 → 一大片一大片的）
     if (map[i] === GROUND && reg[i] === 6 && n(x * .45 + 900, y * .45 + 300) > .69) map[i] = WATER; }
   smooth(WATER, r => r === 6, 2, 3, 5);
 }
@@ -89,9 +90,9 @@ export function formations(R: () => number, n: Noise) {
    外面一圈樹當山腳；小片的就是普通樹林。總面積比 v9 少。 */
 export function vegetation(R: () => number, n: Noise, nBig: Noise) {
   /* 雜訊大於 th = 林子；大於 th + CORE = 山的岩峰（荒地、熔岩沒有自然林，它們的台地在 formations 裡） */
-  const nearSub = (x: number, y: number) => SUBS.some(S => Math.hypot(S.x - x, S.y - y) < S.r + 5);   // 有名字的地點（地標）旁邊不長岩山，地標才走得進去
+  const nearSub = (x: number, y: number) => SUBS.some(S => Math.hypot(S.x - x, S.y - y) < S.r + 5) || LEGACY_SLOTS.some(S => Math.hypot(S.x - x, S.y - y) < S.r + 5);   // LEGACY_SLOTS：v12 以前地城的地名範圍（照舊避開，野外才不會變）   // 有名字的地點（地標）旁邊不長岩山，地標才走得進去
   const MASS = { 1: .55, 6: .64, 5: .76, 0: .78, 8: .6 } as Record<number, number>, CORE = { 1: .22, 6: .2, 5: .13, 0: .12, 8: .2 } as Record<number, number>;   // 8 = 精靈王國的白森林
-  for (let y = 4; y < MH - 4; y++) for (let x = 4; x < MW - 4; x++) { const i = I(x, y); if (map[i] !== GROUND) continue; const r = reg[i];
+  for (let y = 4; y < WH - 4; y++) for (let x = 4; x < MW - 4; x++) { const i = I(x, y); if (map[i] !== GROUND) continue; const r = reg[i];
     const th = MASS[r]; if (th === undefined) continue;
     const v = nBig(x * .55 + r * 97, y * .55);
     if (v > th + CORE[r] && !nearSub(x, y)) map[i] = CLIFF; else if (v > th && (r === 8 ? hash2(x, y) < .92 : R() < .92)) map[i] = TREE;   // 精靈王國不用共用的亂數（其他地區的樹才不會跑掉）
@@ -119,9 +120,9 @@ export function props(R: () => number, avoid: (x: number, y: number) => boolean)
   const clear = (x: number, y: number) => { for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
     if (!inb(x + dx, y + dy) || map[I(x + dx, y + dy)] !== GROUND) return false; } return true; };
   for (const k in PROPS) { const r = +k, P = PROPS[r]; let area = 0;
-    for (let i = 0; i < MW * MH; i++) if (reg[i] === r && map[i] === GROUND) area++;
+    for (let i = 0; i < MW * WH; i++) if (reg[i] === r && map[i] === GROUND) area++;
     let want = Math.round(area / 1000 * P.d), tries = 0;
-    while (want > 0 && tries++ < 40000) { const x = 4 + Math.floor(R() * (MW - 8)), y = 4 + Math.floor(R() * (MH - 8));
+    while (want > 0 && tries++ < 40000) { const x = 4 + Math.floor(R() * (MW - 8)), y = 4 + Math.floor(R() * (WH - 8));
       if (reg[I(x, y)] !== r || avoid(x, y)) continue;
       const sh = SHAPES[Math.floor(R() * SHAPES.length)];
       if (!sh.every(([dx, dy]) => clear(x + dx, y + dy))) continue;
@@ -141,7 +142,7 @@ export function unpinch(keep: (x: number, y: number) => boolean) {
   const ok = (x: number, y: number) => { if (map[I(x, y)] !== GROUND || keep(x, y)) return false;
     for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const t = map[I(x + dx, y + dy)]; if (!(t === GROUND || NAT(t))) return false; } return true; };
   for (let pass = 0; pass < 4; pass++) { let changed = 0;
-    for (let y = 6; y < MH - 6; y++) for (let x = 6; x < MW - 6; x++) { if (!ok(x, y)) continue;
+    for (let y = 6; y < WH - 6; y++) for (let x = 6; x < MW - 6; x++) { if (!ok(x, y)) continue;
       const L = blk(x - 1, y), Rr = blk(x + 1, y), U = blk(x, y - 1), D = blk(x, y + 1), n = +L + +Rr + +U + +D;
       if (n >= 3 || (L && Rr) || (U && D)) { fill(x, y); changed++; continue; }                      // 1 格寬的縫 / 三面包住的凹槽
       if (L && !Rr && blk(x + 2, y) && ok(x + 1, y)) { fill(x, y); fill(x + 1, y); changed++; continue; }   // 2 格寬的縫（橫）
@@ -172,7 +173,7 @@ export function heights() {
 
 /* ================= 3. 收尾：單獨一格的岩石 / 斷崖拿掉（看起來像雜訊、又會卡人） ================= */
 export function despeckle() {
-  for (let y = 4; y < MH - 4; y++) for (let x = 4; x < MW - 4; x++) { const i = I(x, y), t = map[i]; if (t !== ROCK && t !== CLIFF) continue;
+  for (let y = 4; y < WH - 4; y++) for (let x = 4; x < MW - 4; x++) { const i = I(x, y), t = map[i]; if (t !== ROCK && t !== CLIFF) continue;
     let c = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) { const u = map[I(x + dx, y + dy)]; if (u === CLIFF || u === ROCK) c++; }
     if (c === 0 || (t === CLIFF && c < 2)) map[i] = GROUND; }
 }

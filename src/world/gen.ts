@@ -1,7 +1,7 @@
 import { G } from '../core/state';
 import { clamp, makeNoise, mulberry32 } from '../core/util';
 import { hash2 } from '../art/monsters';
-import { ARENA, BIGT, BRIDGE, CAMPS, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, HOUSE, HOUSES, LAVA, MH, MW, OPEN_REGIONS, PILLAR, PY, REGIONS, TOWNS, RFLOOR, ROAD, ROADS, ROCK, RWALL, STAIRS, SOLID, TREE, TS, WALKABLE, WATER, braziers, glows, map, reg, shade, spawns, torches } from './map';
+import { ARENA, BIGT, BRIDGE, CAMPS, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, HOUSE, HOUSES, LAVA, MH, MW, WH, OPEN_REGIONS, PILLAR, PY, REGIONS, TOWNS, RFLOOR, ROAD, ROADS, ROCK, RWALL, STAIRS, SOLID, TREE, TS, WALKABLE, WATER, braziers, glows, map, reg, shade, spawns, torches } from './map';
 import { RBDEF } from './regionBoss';
 import { addDungeonSpawns, inDZone, stampEntrances } from './dungeons';
 import { registerDungeonBosses } from './dungeonBoss';
@@ -46,7 +46,7 @@ export function genWorld() {
   const nA = makeNoise(11, 14), nB = makeNoise(23, 14), nC = makeNoise(37, 5), nD = makeNoise(51, 9), nE = makeNoise(77, 7);
   /* ---- 地區：好幾個中心點 + 雜訊扭曲 → 邊界彎彎曲曲 ---- */
   const centers: [number, number, number][] = []; for (const k of OPEN_REGIONS) for (const [cx, cy] of (REGIONS[k] as any).cs) centers.push([cx, cy, k]);
-  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+  for (let y = 0; y < WH; y++) for (let x = 0; x < MW; x++) {
     const px = x + (nA(x, y) - .5) * 46, py = y + (nB(x, y) - .5) * 46;
     let best = 0, bd = 1e9; for (const [cx, cy, k] of centers) { const d = (px - cx) ** 2 + (py - cy) ** 2; if (d < bd) { bd = d; best = k; } }
     if (y > 206 + PY && x < 262) best = 0;                              // 南半邊全部是平原
@@ -54,19 +54,20 @@ export function genWorld() {
     reg[I(x, y)] = best; shade[I(x, y)] = nC(x, y) > .56 ? 1 : 0;
   }
   map.fill(GROUND);
+  for (let i = WH * MW; i < MW * MH; i++) { map[i] = CLIFF; reg[i] = 7; }   // 地城區：先填滿岩石（world/dungeons.ts 再挖房間）
   /* ---- 海：平原的東岸、南岸、西岸（v7 的形狀，往南移 PY），平原東邊的海灣，森林和沼澤的南岸 ---- */
   const coastX = oy => 258 + Math.sin(oy * .05) * 12 + (nA(3, oy) - .5) * 24;
   const forestS = x => 410 + (nB(x, 9) - .5) * 16 + Math.sin(x * .07) * 4;
   const bayE = y => 404 + Math.sin(y * .07) * 6 + (nA(7, y) - .5) * 14;
   const swampS = x => 484 + Math.sin(x * .05) * 7 + (nC(x, 11) - .5) * 12;
-  for (let y = 186 + PY - 30; y < MH; y++) for (let x = 0; x < MW; x++) { const i = I(x, y), oy = y - PY;
+  for (let y = 186 + PY - 30; y < WH; y++) for (let x = 0; x < MW; x++) { const i = I(x, y), oy = y - PY;
     let sea = (x > coastX(oy) + Math.max(0, 200 - oy) * 3 && y > forestS(x)) || oy > 377 - nB(x, 5) * 6 || (oy >= 196 && x < 3 + nC(4, oy) * 4);
     if (x > bayE(y) && y < swampS(x)) sea = false;                      // 沼澤的陸地
     if (sea) { map[i] = WATER; reg[i] = 0; } }
   buildElfIsland();                                                     // 精靈王國：海灣裡的島（world/elfland.ts，用自己的亂數）
   /* ---- 地區交界：零星的石頭和樹（地面顏色在 tileArt 裡混色過渡）；有些交界是天然屏障 ---- */
-  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) { const i = I(x, y);
-    if (!inb(x, y)) { map[i] = CLIFF; continue; }
+  for (let y = 0; y < WH; y++) for (let x = 0; x < MW; x++) { const i = I(x, y);
+    if (!inb(x, y) || y >= WH - 3) { map[i] = CLIFF; continue; }
     if (map[i] !== GROUND) continue;
     const r = reg[i]; let other = -1;
     for (let dy = -1; dy <= 1 && other < 0; dy++) for (let dx = -1; dx <= 1; dx++) { const j = I(x + dx, y + dy); if (reg[j] !== r && map[j] !== WATER) { other = reg[j]; break; } }
@@ -75,7 +76,7 @@ export function genWorld() {
     if (bar && !bar.pass.some(([px, py, pr]) => Math.hypot(x - px, y - py) < pr + (nC(x, y) - .5) * 2)) { map[i] = bar.tile; continue; }
   }                                                                    // v9：其他交界不再亂撒石頭和樹，只有地面顏色混過去
   /* 斷崖、山脊加厚一點（熔岩那一側再多一格），磨掉單格的缺口 */
-  { const prev = map.slice(); for (let y = 4; y < MH - 4; y++) for (let x = 4; x < MW - 4; x++) { const i = I(x, y); if (prev[i] !== GROUND || reg[i] !== 3) continue;
+  { const prev = map.slice(); for (let y = 4; y < WH - 4; y++) for (let x = 4; x < MW - 4; x++) { const i = I(x, y); if (prev[i] !== GROUND || reg[i] !== 3) continue;
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (prev[I(x + dx, y + dy)] === CLIFF && reg[I(x + dx, y + dy)] !== 3) { if (!BARRIERS[0].pass.concat(BARRIERS[1].pass).some(([px, py, pr]) => Math.hypot(x - px, y - py) < pr + 1)) map[i] = CLIFF; break; } } }
   /* ---- 平原：河、南湖（鏡湖在 landmarks） ---- */
   const riverY = x => 300 - (x - 3) * .25 + Math.sin(x * .06) * 8 + PY;
@@ -152,7 +153,7 @@ export function genWorld() {
     }
   }
   { const RG = mulberry32(8105);                                         // 精靈王國的螢光花（自己的亂數，不影響上面）
-    for (let y = 3; y < MH - 3; y++) for (let x = 3; x < MW - 3; x++) { const i = I(x, y); if (reg[i] !== 8 || map[i] !== GROUND) continue;
+    for (let y = 3; y < WH - 3; y++) for (let x = 3; x < MW - 3; x++) { const i = I(x, y); if (reg[i] !== 8 || map[i] !== GROUND) continue;
       if (RG() < .012 && !glows.some(t => Math.abs(t.tx - x) + Math.abs(t.ty - y) < 4)) glows.push({ tx:x, ty:y, x:x * TS + 4 + RG() * 8, y:y * TS + 6 + RG() * 6, ph:RG() * 10, elf:true }); } }
   // 可到達範圍（被樹林圍住的空地先接上小路，再算一次）
   const flood = () => { const reach = new Uint8Array(MW * MH), q = [I(CAMPS[0].tx, CAMPS[0].ty + 1)]; reach[q[0]] = 1;
@@ -187,7 +188,7 @@ export function genWorld() {
   TABLE.forEach((T, r) => { if (!T) return;
     let n = 0, tries = 0;
     while (n < T.n && tries++ < 120000) {
-      const tx = 3 + Math.floor(R2() * (MW - 6)), ty = 3 + Math.floor(R2() * (MH - 6));
+      const tx = 3 + Math.floor(R2() * (MW - 6)), ty = 3 + Math.floor(R2() * (WH - 6));
       if (reg[I(tx, ty)] !== r || !ok(tx, ty) || near(tx, ty, 4)) continue;
       const d = Math.hypot(tx - T.anchor[0], ty - T.anchor[1]);
       const lv = clamp(T.lv[0] + Math.round(Math.min(1, d / T.span) * (T.lv[1] - T.lv[0])) + (R2() < .3 ? 2 : 0), T.lv[0], T.lv[1]);

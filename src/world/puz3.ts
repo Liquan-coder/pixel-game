@@ -13,7 +13,7 @@ import { burst, shake } from '../game/worldUpdate';
 import { teleCircle } from '../render/enemy';
 import { showBanner, toast } from '../ui/hud';
 import type { Player } from '../types';
-import { MECHS, floorAt, hitP, knockBack, openGate, pedestal, roomsOf, tileOf, type Puz } from './puzzles';
+import { MECHS, floorAt, hitP, knockBack, openGate, pedestal, tileOf, type Puz } from './puzzles';
 
 const key = (tx: number, ty: number) => ty * MW + tx;
 const inBox = (r: Room, tx: number, ty: number, pad = 0) => Math.abs(tx - r.x) <= r.rx + pad && Math.abs(ty - r.y) <= r.ry + pad;
@@ -54,19 +54,18 @@ MECHS.cold3 = { setup: (p, r) => setupCold(p, r, [[-6, -1], [-2, 2], [2, -2], [6
 /* ---------- 彈跳蘑菇（腐根洞窟，Boss 大廳前）：整間房變成毒沼，只剩四座小島。踩上蘑菇會被彈到別的島；有些蘑菇是爛的，會把你丟進毒沼 ---------- */
 MECHS.jump = {
   setup(p, r, R) {
-    const { hall } = roomsOf(p.d), isl = new Set<number>(), I: number[][] = [];
+    const sg = p.inD.side === 1 ? 1 : -1, isl = new Set<number>(), I: number[][] = [];   // sg = 1：從下面進來、從上面出去（-1 = 反過來）
     const island = (cx: number, cy: number, w: number, h: number) => { I.push([cx, cy]); for (let dy = -h; dy <= h; dy++) for (let dx = -w; dx <= w; dx++) isl.add(key(cx + dx, cy + dy)); };
-    island(r.x, r.y + r.ry - 1, 1, 1);                                    // 0：入口（下面）
+    island(r.x, r.y + sg * (r.ry - 1), 1, 1);                             // 0：入口那一邊
+    for (let k = 0; k <= 2; k++) for (let o = -1; o <= 1; o++) isl.add(key(p.inD.x + o, r.y + sg * (r.ry - k)));   //   入口的通道接到這座島
     island(r.x - 5, r.y, 1, 1); island(r.x + 5, r.y, 1, 1);               // 1、2：左右
-    const top = r.y - r.ry + 1; island(r.x, top, 1, 0); for (let x = Math.min(r.x, hall.x); x <= Math.max(r.x, hall.x); x++) isl.add(key(x, top)), isl.add(key(x, top - 1));   // 3：上面（接到 Boss 大廳的通道）
-    for (let ty = r.y - r.ry - 1; ty <= r.y + r.ry; ty++) for (let tx = r.x - r.rx - 1; tx <= r.x + r.rx + 1; tx++) if (floorAt(tx, ty) && inBox(r, tx, ty) && !isl.has(key(tx, ty))) map[key(tx, ty)] = WATER;
-    for (const k of isl) if (inBox(r, k % MW, (k / MW) | 0, 1) && !floorAt(k % MW, (k / MW) | 0)) map[k] = GROUND;
-    const { r2 } = roomsOf(p.d), s2 = Math.sign(r2.x - r.x) || 1; for (let k = 5; k <= r.rx + 1; k++) isl.add(key(r.x + s2 * k, r.y));   // 往寶箱房的那一邊要接得出去
-    for (const k of isl) if (inBox(r, k % MW, (k / MW) | 0, 1) && map[k] === WATER) map[k] = GROUND;
+    const top = r.y - sg * (r.ry - 1); island(r.x, top, 1, 0); for (let x = Math.min(r.x, p.outD.x) - 1; x <= Math.max(r.x, p.outD.x) + 1; x++) isl.add(key(x, top)), isl.add(key(x, top - sg));   // 3：出口那一邊（接到出口的通道）
+    for (let ty = r.y - r.ry; ty <= r.y + r.ry; ty++) for (let tx = r.x - r.rx; tx <= r.x + r.rx; tx++) if (floorAt(tx, ty) && !isl.has(key(tx, ty))) map[key(tx, ty)] = WATER;
+    for (const k of isl) if (inBox(r, k % MW, (k / MW) | 0) && !floorAt(k % MW, (k / MW) | 0)) map[k] = GROUND;
     const at = (i: number, dx: number) => ({ x: (I[i][0] + dx) * TS + 8, y: I[i][1] * TS + 8 }), side = R() < .5 ? 1 : 2, other = 3 - side;   // 正確的路：0 → side → other → 3（蘑菇放在島的邊上，落地點在島中間，不會一落地又被彈走）
     const pads = [
-      { ...at(0, -1), to: at(side, 0), rot: false }, { ...at(0, 1), to: { x: r.x * TS + 8, y: (r.y - 1) * TS + 8 }, rot: true },
-      { ...at(side, side === 1 ? 1 : -1), to: at(other, 0), rot: false }, { ...at(other, 0 + (other === 1 ? -1 : 1)), to: at(3, 0), rot: false }, { x: I[other][0] * TS + 8, y: (I[other][1] - 1) * TS + 8, to: { x: (r.x + (other === 1 ? 2 : -2)) * TS + 8, y: (r.y + 2) * TS + 8 }, rot: true },
+      { ...at(0, -1), to: at(side, 0), rot: false }, { ...at(0, 1), to: { x: r.x * TS + 8, y: (r.y - sg) * TS + 8 }, rot: true },
+      { ...at(side, side === 1 ? 1 : -1), to: at(other, 0), rot: false }, { ...at(other, 0 + (other === 1 ? -1 : 1)), to: at(3, 0), rot: false }, { x: I[other][0] * TS + 8, y: (I[other][1] - sg) * TS + 8, to: { x: (r.x + (other === 1 ? 2 : -2)) * TS + 8, y: (r.y + 2 * sg) * TS + 8 }, rot: true },
       { ...at(3, -1), to: at(0, 0), rot: false }];
     return { r, pads, fly: null as any, back: at(0, 0), used: new Set<number>() };
   },
@@ -97,7 +96,7 @@ MECHS.jump = {
 /* ---------- 黑暗迷宮（沉沒石窟，Boss 大廳前）：整間房變成一座迷宮，進去之後只看得到身邊一小圈。死路上有發光的珍珠 ---------- */
 MECHS.maze = {
   setup(p, r, R) {
-    const { hall, r2 } = roomsOf(p.d), nC = r.rx + 1, nR = r.ry;          // 格子中心：x = r.x - rx + 2i（i = 0…rx），y = r.y - ry + 1 + 2j（j = 0…ry-1）
+    const nC = r.rx + 1, nR = r.ry;          // 格子中心：x = r.x - rx + 2i（i = 0…rx），y = r.y - ry + 1 + 2j（j = 0…ry-1）
     const CX = (i: number) => r.x - r.rx + i * 2, CY = (j: number) => r.y - r.ry + 1 + j * 2;
     for (let ty = r.y - r.ry; ty <= r.y + r.ry; ty++) for (let tx = r.x - r.rx; tx <= r.x + r.rx; tx++) map[key(tx, ty)] = CLIFF;
     const seen = new Set<number>(), dead: number[][] = [], dig = (i: number, j: number) => { seen.add(j * nC + i); map[key(CX(i), CY(j))] = GROUND; let kids = 0;
@@ -109,8 +108,7 @@ MECHS.maze = {
     const link = (tx: number, ty: number, vertFirst: boolean) => { const [cx, cy] = near(tx, ty); let x = tx, y = ty;   // 從房間外的通道挖一條 L 形的路，接到最近的格子
       const stepY = () => { while (y !== cy) { map[key(x, y)] = GROUND; y += Math.sign(cy - y); } }, stepX = () => { while (x !== cx) { map[key(x, y)] = GROUND; x += Math.sign(cx - x); } };
       if (vertFirst) { stepY(); stepX(); } else { stepX(); stepY(); } map[key(x, y)] = GROUND; };
-    link(r.x, r.y + r.ry + 1, true); link(hall.x, r.y - r.ry - 1, true);   // 下面的入口、上面通往 Boss 大廳
-    const s2 = Math.sign(r2.x - r.x) || 1; link(r.x + s2 * (r.rx + 1), r.y, false);   // 旁邊通往寶箱房
+    for (const D of p.room.doors) link(D.x, D.y, D.side % 2 === 1);           // 每個門都接一條路進迷宮
     const tab = (p.d as any).tablet; if (tab && inBox(r, tab[0], tab[1])) { map[key(tab[0], tab[1])] = GROUND; const [cx, cy] = near(tab[0], tab[1]); for (let x = Math.min(cx, tab[0]); x <= Math.max(cx, tab[0]); x++) map[key(x, cy)] = GROUND; for (let y = Math.min(cy, tab[1]); y <= Math.max(cy, tab[1]); y++) map[key(tab[0], y)] = GROUND; }   // 石碑不能被埋在牆裡
     return { r, pearls: dead.slice(0, 4).map(([tx, ty]) => ({ x: tx * TS + 8, y: ty * TS + 8 })) };
   },

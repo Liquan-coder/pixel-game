@@ -1,5 +1,5 @@
 /* ================= 地城的招牌機關（一）：潮汐、蛛網、強風、推石板、冷卻熔岩、冰面 =================
-   每一種只用在一座地城（world/puzzles.ts 的 PUZ 表）。這個檔案被 main.ts 載入時，會把自己登記進 MECHS。 */
+   哪座地城用哪一種：world/dungeons.ts 的 PUZ 表。這個檔案被 main.ts 載入時，會把自己登記進 MECHS。 */
 import { G } from '../core/state';
 import { TAU, pick, rr } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
@@ -14,7 +14,7 @@ import { moveEnt } from '../game/collision';
 import { burst, shake } from '../game/worldUpdate';
 import { toast } from '../ui/hud';
 import type { Player } from '../types';
-import { MECHS, base, drawSym, floorAt, hitP, knockBack, openGate, pedestal, roomsOf, setTile, tileOf, type Puz } from './puzzles';
+import { MECHS, base, drawSym, floorAt, hitP, inner, knockBack, openGate, pedestal, setTile, tileOf, type Puz } from './puzzles';
 
 const key = (tx: number, ty: number) => ty * MW + tx;
 const inBox = (r: Room, tx: number, ty: number, pad = 0) => Math.abs(tx - r.x) <= r.rx + pad && Math.abs(ty - r.y) <= r.ry + pad;
@@ -27,9 +27,10 @@ const TIDE = { low: 3.4, warn: 1.3, high: 3.2 }, TIDE_T = TIDE.low + TIDE.warn +
 const tidePh = () => { const u = G.time % TIDE_T; return u < TIDE.low ? 'low' : u < TIDE.low + TIDE.warn ? 'warn' : 'high'; };
 MECHS.tide = {
   setup(p, r) {
-    const s = Math.sign(roomsOf(p.d).r3.x - r.x) || 1, isl = new Set<number>(), centers: number[][] = [];
-    for (const [ox, oy] of [[0, r.ry - 1], [-s * 3, 1], [s * 1, -2], [s * 5, 0]]) { const cx = r.x + ox, cy = r.y + oy; centers.push([cx, cy]);
-      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (floorAt(cx + dx, cy + dy)) isl.add(key(cx + dx, cy + dy)); }
+    const isl = new Set<number>(), centers: number[][] = [], a = inner(p.inD), c = [r.x, r.y], e = inner(p.outD);   // 石島：從入口沿著「入口 → 房間中間 → 出口」每 4 格一座
+    for (const [[x0, y0], [x1, y1]] of [[a, c], [c, e]]) { const L = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.round(L / 4));
+      for (let k = x0 === a[0] && y0 === a[1] ? 0 : 1; k <= n; k++) centers.push([Math.round(x0 + (x1 - x0) * k / n), Math.round(y0 + (y1 - y0) * k / n)]); }
+    for (const [cx, cy] of centers) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (floorAt(cx + dx, cy + dy)) isl.add(key(cx + dx, cy + dy));
     const wet = new Set(roomFloor(r).map(([x, y]) => key(x, y)).filter(k => !isl.has(k)));
     return { r, isl, wet, centers, warned: false };
   },
@@ -184,11 +185,11 @@ MECHS.cool = {
 /* ---------- 冰面（冰晶洞窟，第一間房）：整間房結冰，會滑、煞不住（有慣性）。地上有冰洞，掉進去會凍傷、回到入口 ---------- */
 MECHS.ice = {
   setup(p, r, R) {
-    const s = Math.sign(roomsOf(p.d).r3.x - r.x) || 1, path = new Set<number>(), seg = (x0, y0, x1, y1) => { for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) for (const d of [0, 1, -1, MW, -MW]) path.add(key(x, y) + d); };
-    seg(r.x, r.y + r.ry, r.x, r.y); seg(r.x, r.y, r.x + s * (r.rx + 1), r.y);                 // 入口 → 出口的那條路旁邊不放洞（但會滑，還是要小心）
+    const path = new Set<number>(), seg = (x0, y0, x1, y1) => { for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) for (const d of [0, 1, -1, MW, -MW]) path.add(key(x, y) + d); };
+    for (const D of [p.inD, p.outD]) if (D.side % 2) { seg(D.x, D.y, D.x, r.y); seg(D.x, r.y, r.x, r.y); } else { seg(D.x, D.y, r.x, D.y); seg(r.x, D.y, r.x, r.y); }   // 入口 → 房間中間 → 出口的那條路旁邊不放洞（但會滑，還是要小心）
     const ice = new Set(roomFloor(r).map(([x, y]) => key(x, y))), holes = new Set<number>();
     for (const k of ice) if (!path.has(k) && R() < .22) holes.add(k);
-    return { r, ice, holes, v: new Map<Player, { x: number; y: number }>(), start: { x: r.x * TS + 8, y: (r.y + r.ry + 1) * TS + 8 } };
+    return { r, ice, holes, v: new Map<Player, { x: number; y: number }>(), start: { x: p.inD.x * TS + 8, y: p.inD.y * TS + 8 } };
   },
   update(p, st) {
     for (const pl of G.players) { if (pl.dead || busyMove(pl)) continue; const [tx, ty] = plTile(pl);

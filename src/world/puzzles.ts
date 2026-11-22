@@ -1,22 +1,25 @@
 /* ================= 地城的機關和謎題 =================
-   不只打怪。每座地城從下面挑幾種（PUZ 表）：
-   第一間房（闖關）
+   每座地城有三個解謎區（world/dungeons.ts 的 PUZ 表選機關，world/dungeonLayout.ts 排房間）：
+   trap（主路上的陷阱房，走過去就好）
      spikes  尖刺陷阱：整片尖刺一排一排升起，像浪一樣往前推 → 看準空檔走，或用瞬移（無敵）穿過去
      crumble 崩塌石橋：整間房變成地底湖 / 熔岩池，只剩一條彎彎曲曲的石頭路；站太久石頭就會裂開掉下去 → 一直走，或瞬移跳過缺口。掉下去：扣血、回到起點
-   Boss 大廳前那間房（解謎，解開才會升起通往 Boss 大廳的鐵柵門）
+     （其他：潮汐、蛛網、強風、冰面、寒氣、冷卻熔岩、彈跳蘑菇、黑暗迷宮 → puz2.ts / puz3.ts）
+   vault（岔路上的謎題房：解開 → 鐵柵門升起，後面的寶物房有金箱）、boss（Boss 大廳前的謎題房：解開 → 通往 Boss 大廳的鐵柵門升起）
      braziers 火盆：牆上壁畫刻著四個符號的順序，照順序點燃四個火盆。點錯 → 火焰暴走 + 叫出守衛
      simon    符文踏板：碰一下記憶石，地上的四塊符文會依序亮起；照同樣的順序踩上去。踩錯 → 被電一下、重來
      statues  轉動雕像：四座雕像圍著祭壇，目光（光線）要全部聚在祭壇上。相鄰的雕像連在一起：轉一座，下一座也會跟著轉
-   寶箱房（探索）
-     secret   隱藏的牆：一面有裂痕的牆，砍一下就碎，後面藏著金箱（像艾爾登法環的幻影牆）
-   解開的狀態存在 quest 的 flags（'puz:地城:fire' = 門、'puz:地城:wall' = 牆），每幀對一次，讀檔 / 開新遊戲時門和牆自動變成對的樣子。 */
+     （其他：巨網、推石、寒氣火盆、潛行、熔爐、鏡子、月光花 → puz2.ts / puz3.ts）
+   secret（有的地城有）：某條死路的牆有裂痕，砍一下就碎，後面藏著金箱（像艾爾登法環的幻影牆）
+   一個解謎區 = PUZZLES 裡的一筆（Puz）。解開的狀態存在 quest 的 flags（Boss 前 'puz:地城:fire'、寶庫 'puz:地城:vault'、牆 'puz:地城:wall'），
+   每幀對一次，讀檔 / 開新遊戲時門和牆自動變成對的樣子。 */
 import { tier } from '../data/levels';
 import { G } from '../core/state';
 import { TAU, mulberry32, pick, rr } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
 import { sfx } from '../core/audio';
 import { CLIFF, GROUND, LAVA, MW, PROPS, RFLOOR, RWALL, TS, WATER, explored, map, spawns } from './map';
-import { DUNGEONS, type Dungeon, type Room } from './dungeons';
+import { DUNGEONS, PUZ, type Dungeon, type PuzCfg, type Room } from './dungeons';
+import type { LDoor, LRoom } from './dungeonLayout';
 import { invalidate, flame } from './chunks';
 import { miniPix } from './minimap';
 import { CHESTS } from './chests';
@@ -28,28 +31,7 @@ import { showBanner, toast } from '../ui/hud';
 import { save } from '../game/save';
 import type { Player } from '../types';
 
-type Cfg = { r1?: 'spikes' | 'crumble'; gate?: 'braziers' | 'simon' | 'statues'; secret?: boolean; pit?: 'water' | 'lava'; seq?: number;
-  x?: [string, 1 | 3][]; lock?: boolean; look?: 'bars' | 'web' };          // x = 其他檔案的機關（puz2.ts / puz3.ts）放在哪間房；lock = 要不要 Boss 大廳前的鐵柵門
-/* 每座地城一個「招牌機關」，玩法都不一樣（地底遺跡的 3 號房 = 中央十字廳） */
-const PUZ: Record<string, Cfg> = {
-  moss:        { gate: 'simon', secret: true, seq: 4 },                   // 符文踏板（記憶）
-  barrow:      { r1: 'spikes', gate: 'braziers', secret: true },          // 尖刺浪 + 火盆順序
-  grotto:      { x: [['tide', 1]] },                                      // 潮汐：漲潮時整間房淹水，退潮時從一座石島跳到下一座
-  nest:        { x: [['webs', 1], ['webs3', 3]], lock: true, look: 'web' },   // 蛛網：踩到會被纏住；拿火把燒掉，大廳前的巨網也要燒
-  roots:       { gate: 'statues', secret: true },                         // 轉動雕像（連動）
-  windcave:    { x: [['wind', 1]] },                                      // 強風：一陣一陣把你吹進流沙，躲在岩石後面
-  sandtemple:  { x: [['boulders', 3]], lock: true },                      // 推石板：把兩塊石頭推到壓力板上
-  lavatube:    { r1: 'crumble', pit: 'lava' },                            // 崩塌石橋（熔岩）
-  obsidian:    { x: [['cool', 3]] },                                      // 冷卻熔岩：敲水晶，熔岩河暫時變成黑曜石，快走過去
-  icecave:     { x: [['ice', 1]], secret: true },                         // 冰面：會滑，煞不住；地上有冰洞
-  frostcrypt:  { x: [['cold', 1], ['cold3', 3]], lock: true },            // 寒氣：一直累積凍傷，點火盆取暖；四個火盆都點亮 → 開門
-  rotcave:     { x: [['jump', 3]] },                                      // 彈跳蘑菇：跳過毒沼，有些蘑菇是爛的
-  sunkgrotto:  { x: [['maze', 3]], secret: true },                        // 黑暗迷宮
-  undercroft:  { x: [['stealth', 3]], lock: true },                       // 潛行：避開亡衛的視線，拉下拉桿
-  forgeruin:   { x: [['forge', 3]], lock: true },                         // 輸送帶 + 鍛錘
-  temple:      { x: [['mirrors', 3]], lock: true },                       // 光束鏡子
-  mothwood:    { x: [['moonflowers', 3]], lock: true },                   // 月光花：四朵同時開 → 開門（精靈王國）
-};
+export type At = 'trap' | 'vault' | 'boss' | 'secret';
 type Sym = 'moon' | 'sun' | 'star' | 'eye';
 const SYMS: Sym[] = ['moon', 'sun', 'star', 'eye'];
 const SYM_COL: Record<Sym, string> = { moon: '#8ac8ff', sun: '#ffb040', star: '#ffe38a', eye: '#c88aff' };
@@ -60,12 +42,13 @@ interface Plate { x: number; y: number; tx: number; ty: number; sym: Sym; flash:
 interface Stat { x: number; y: number; want: number; prop: Prop }        // want = 朝哪個方向才會看著祭壇（0 東、1 南、2 西、3 北）
 interface Crumb { x: number; y: number; tx: number; ty: number; on: number; crack: number; gone: number }
 export interface Puz {
-  d: Dungeon; cfg: Cfg; m: Record<string, any>;               // m = 其他檔案的機關各自的狀態
+  d: Dungeon; cfg: PuzCfg; m: Record<string, any>;            // m = 其他檔案的機關各自的狀態
+  kind: string; at: At; room: LRoom; inD: LDoor; outD: LDoor; fkey: string;   // 哪一種機關、哪個解謎區、哪間房、從哪個門進來 / 出去（鐵柵門在出口）、解開的旗標（'' = 沒有門）
   spikes: { x: number; y: number; row: number }[]; rows: number;
   crumb: Crumb[]; start: { x: number; y: number }; pitCol: string[];
   braz: Brazier[]; order: Sym[]; got: number; mural: { x: number; y: number };
   plates: Plate[]; seq: number[]; step: number; show: number; stone: { x: number; y: number } | null; shown: boolean; onPlate: number;
-  stats: Stat[]; off: number[]; altar: { x: number; y: number } | null;
+  stats: Stat[]; off: number[]; off0?: number[]; altar: { x: number; y: number } | null;   // off0 = 一開始打亂的樣子（門的旗標不見了 → 轉回這樣）
   gate: { x: number; y: number; prop: Prop }[]; gateOpen: boolean; gateT: number;
   wall: { tx: number; ty: number }[]; wallOpen: boolean; wallHint: { x: number; y: number }; wallT: number;
   lastSwing?: any;
@@ -82,13 +65,15 @@ export interface PuzMech {
   reset?: (p: Puz, st: any) => void;                                        // 門的旗標不見了（開新遊戲）→ 回到還沒解開的樣子
 }
 export const MECHS: Record<string, PuzMech> = {};
-const fFire = (p: Puz) => 'puz:' + p.d.id + ':fire', fWall = (p: Puz) => 'puz:' + p.d.id + ':wall';
+const fWall = (p: Puz) => 'puz:' + p.d.id + ':wall';
 export const isFloor = (t: number) => t === RFLOOR || t === GROUND;
 export const base = (p: Puz) => 10 + 3 * tier(p.d.lv);
 export const floorAt = (tx: number, ty: number) => isFloor(map[ty * MW + tx]);
 export const tileOf = (x: number, y: number) => [Math.floor(x / TS), Math.floor(y / TS)];
-/** 地城的房間：1 號 = 第一間（入口後面）；2 號 = 寶箱房；3 號 = Boss 大廳前那間（地底遺跡是中央十字廳）；hall = Boss 大廳 */
-export function roomsOf(d: Dungeon) { const r = d.rooms, ruin = d.style === 'ruin'; return { r1: r[1], r2: ruin ? r[7] : r[2], r3: ruin ? r[5] : r[3], hall: ruin ? r[6] : r[4] }; }
+/** 這座地城的 Boss 大廳（舊的 roomsOf 只剩這個還有人用） */
+export function roomsOf(d: Dungeon) { return { hall: d.lay.hall }; }
+/** 門往房間裡面走一格 */
+export const inner = (D: LDoor, k = 1): [number, number] => [D.x - [1, 0, -1, 0][D.side] * k, D.y - [0, 1, 0, -1][D.side] * k];
 export function setTile(tx: number, ty: number, t: number) { const i = ty * MW + tx; if (map[i] === t) return; map[i] = t; invalidate(tx, ty); if (explored[i]) miniPix(i); }
 /** 機關打人：傷害照地城等級（Boss 招式的基準 × k），可以帶異常狀態 */
 export function hitP(p: Puz, pl: Player, k: number, fx?: Record<string, number>, sx = pl.x, sy = pl.y + 3) { G.hitCtx = { lv: p.d.lv }; const r = hurtPlayer(pl, Math.round(base(p) * k), sx, sy, fx); G.hitCtx = null; return r; }
@@ -102,75 +87,82 @@ export function knockBack(p: Puz, pl: Player, x: number, y: number, frac: number
 /* ---- 生成：main.ts 在 dressEntrances 之後呼叫（PROPS 那時候才清乾淨） ---- */
 export function setupPuzzles() {
   PUZZLES.length = 0;
-  for (const id in PUZ) { const d = DUNGEONS.find(x => x.id === id); if (!d || !d.rooms) continue;
-    const cfg = PUZ[id], { r1, r2, r3, hall } = roomsOf(d), R = mulberry32(id.length * 131 + d.ent[0]);
+  for (const d of DUNGEONS) { const cfg = PUZ[d.id], lay = d.lay; if (!cfg || !lay) continue;
+    const R = mulberry32(d.id.length * 131 + d.ent[0]), id = d.id;
     const I = (x: number, y: number) => y * MW + x, floor = (x: number, y: number) => isFloor(map[I(x, y)]);
     const near = (x: number, y: number) => { for (let r = 0; r <= 2; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (floor(x + dx, y + dy)) return [x + dx, y + dy]; return null; };
     const inRoom = (r: Room, tx: number, ty: number) => Math.abs(tx - r.x) <= r.rx + 1 && Math.abs(ty - r.y) <= r.ry + 1;
-    const use1 = cfg.r1 || cfg.x?.some(m => m[1] === 1), use3 = cfg.gate || cfg.lock || cfg.x?.some(m => m[1] === 3);
-    for (let i = spawns.length - 1; i >= 0; i--) if ((use1 && inRoom(r1, spawns[i].tx, spawns[i].ty)) || (use3 && inRoom(r3, spawns[i].tx, spawns[i].ty))) spawns.splice(i, 1);   // 機關房裡不放怪
-    const p: Puz = { d, cfg, m: {}, spikes: [], rows: r1.ry * 2 + 1, crumb: [], start: { x: 0, y: 0 }, pitCol: cfg.pit === 'lava' ? ['#5a1408', '#e8743b', '#ffd04a'] : ['#0e2440', '#3b6ea8', '#a8dcff'],
+    const mkPuz = (at: At, kind: string, room: LRoom, inD: LDoor, outD: LDoor): Puz => ({ d, cfg, m: {}, kind, at, room, inD, outD, fkey: at === 'boss' ? 'puz:' + id + ':fire' : at === 'vault' ? 'puz:' + id + ':vault' : '',
+      spikes: [], rows: room.ry * 2 + 1, crumb: [], start: { x: 0, y: 0 }, pitCol: cfg.pit === 'lava' ? ['#5a1408', '#e8743b', '#ffd04a'] : ['#0e2440', '#3b6ea8', '#a8dcff'],
       braz: [], order: [], got: 0, mural: { x: 0, y: 0 }, plates: [], seq: [], step: 0, show: 0, stone: null, shown: false, onPlate: -1, stats: [], off: [], altar: null,
-      gate: [], gateOpen: false, gateT: 0, wall: [], wallOpen: false, wallHint: { x: 0, y: 0 }, wallT: 0 };
-    // ---- 第一間房 ----
-    if (cfg.r1 === 'spikes') for (let ty = r1.y - r1.ry; ty <= r1.y + r1.ry; ty++) for (let tx = r1.x - r1.rx; tx <= r1.x + r1.rx; tx++) if (floor(tx, ty)) p.spikes.push({ x: tx * TS + 8, y: ty * TS + 8, row: r1.y + r1.ry - ty });
-    if (cfg.r1 === 'crumble') {                                          // 只留一條彎路，其他地板變成水 / 熔岩
-      const s = Math.sign(r3.x - r1.x) || 1, yb = r1.y + r1.ry, path = new Set<number>(), seg = (x0: number, y0: number, x1: number, y1: number) => {
-        for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) path.add(I(x, y)); };
-      const up = Math.abs(r3.x - r1.x) <= r1.rx;                          // 往 3 號房的通道：先沿著 r1.y 橫走到 r3.x 再往上 → r3.x 在房間範圍內 = 從房間上面出去，不然從旁邊出去
-      const pts = [[r1.x, yb + 1], [r1.x, yb - 2], [r1.x - s * 4, yb - 2], [r1.x - s * 4, r1.y - 2], [r1.x + s * 2, r1.y - 2], [r1.x + s * 2, r1.y],
-        ...(up ? [[r3.x, r1.y], [r3.x, r1.y - r1.ry - 1]] : [[r1.x + s * (r1.rx + 1), r1.y]])];
-      for (let k = 1; k < pts.length; k++) seg(pts[k - 1][0], pts[k - 1][1], pts[k][0], pts[k][1]);
-      const pit = cfg.pit === 'lava' ? LAVA : WATER;
-      for (let ty = r1.y - r1.ry - 1; ty <= r1.y + r1.ry; ty++) for (let tx = r1.x - r1.rx - 1; tx <= r1.x + r1.rx + 1; tx++) if (floor(tx, ty) && !path.has(I(tx, ty)) && Math.abs(tx - r1.x) <= r1.rx && Math.abs(ty - r1.y) <= r1.ry) map[I(tx, ty)] = pit;
-      const fl = d.style === 'crypt' ? RFLOOR : GROUND, list = [...path];
-      for (const i of list) { map[i] = fl; }
-      let k = 0; for (let j = 1; j < pts.length; j++) { const [x0, y0] = pts[j - 1], [x1, y1] = pts[j], n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));   // 照走的順序排，頭尾三格不會碎
-        for (let q = j === 1 ? 0 : 1; q <= n; q++) { const tx = x0 + Math.sign(x1 - x0) * q, ty = y0 + Math.sign(y1 - y0) * q; k++;
-          if (k > 3 && !(j === pts.length - 1 && q > n - 3)) p.crumb.push({ x: tx * TS + 8, y: ty * TS + 8, tx, ty, on: 0, crack: 0, gone: 0 }); } }
-      p.start = { x: r1.x * TS + 8, y: (yb + 1) * TS + 8 };
-    }
-    // ---- Boss 大廳前的謎題 ----
-    const gy = hall.y + hall.ry + 1;
-    if (cfg.gate || cfg.lock) for (let tx = hall.x - 3; tx <= hall.x + 3; tx++) if (floor(tx, gy)) { const prop = { x: tx * TS + 8, y: gy * TS + 8, r: 9 }; PROPS.push(prop); p.gate.push({ x: prop.x, y: prop.y, prop }); }
+      gate: [], gateOpen: false, gateT: 0, wall: [], wallOpen: false, wallHint: { x: 0, y: 0 }, wallT: 0 });
     const shuf = <T,>(a: T[]) => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
-    if (cfg.gate === 'braziers') {
-      p.order = id === 'barrow' ? ['moon', 'sun', 'star', 'eye'] : shuf(SYMS);
-      const at: Sym[] = id === 'barrow' ? ['star', 'moon', 'eye', 'sun'] : shuf(SYMS);
-      [-6, -2, 2, 6].forEach((ox, k) => { const q = near(r3.x + ox, r3.y + 1); if (!q) return; const x = q[0] * TS + 8, y = q[1] * TS + 10, prop = { x, y, r: 5 };   // 房間四角有柱子（±5, ±2）
-        PROPS.push(prop); p.braz.push({ x, y, sym: at[k], lit: false, prop }); });
-      p.mural = { x: (r3.x - 2) * TS + 8, y: (r3.y - r3.ry) * TS };
+    for (const at of ['trap', 'vault', 'boss'] as const) {
+      const S = lay[at], kind = cfg[at], r = S.room, p = mkPuz(at, kind, r, S.inD, S.outD);
+      for (let i = spawns.length - 1; i >= 0; i--) if (inRoom(r, spawns[i].tx, spawns[i].ty)) spawns.splice(i, 1);   // 解謎區裡不放怪
+      // 鐵柵門：出口那條（上下方向的）通道上一排三格
+      if (at !== 'trap') for (let tx = S.outD.x - 1; tx <= S.outD.x + 1; tx++) if (floor(tx, S.outD.y)) { const prop = { x: tx * TS + 8, y: S.outD.y * TS + 8, r: 9 }; PROPS.push(prop); p.gate.push({ x: prop.x, y: prop.y, prop }); }
+      if (kind === 'spikes') for (let ty = r.y - r.ry; ty <= r.y + r.ry; ty++) for (let tx = r.x - r.rx; tx <= r.x + r.rx; tx++) if (floor(tx, ty)) p.spikes.push({ x: tx * TS + 8, y: ty * TS + 8, row: r.y + r.ry - ty });
+      if (kind === 'crumble') {                                          // 只留一條彎路（入口 → 繞兩個彎 → 房間中間 → 出口），其他地板變成水 / 熔岩
+        const iD = S.inD, oD = S.outD, F = [-[1, 0, -1, 0][iD.side], -[0, 1, 0, -1][iD.side]], Lt = [F[1], -F[0]], sg = R() < .5 ? 1 : -1;
+        const dc = iD.side % 2 ? r.ry + 1 : r.rx + 1, lm = Math.min(4, (iD.side % 2 ? r.rx : r.ry) - 1);
+        const P = (a: number, b: number) => [iD.x + F[0] * b + Lt[0] * a * sg, iD.y + F[1] * b + Lt[1] * a * sg];
+        const pts = [P(0, 0), P(0, 3), P(-lm, 3), P(-lm, dc + 2), P(Math.min(2, lm), dc + 2), P(Math.min(2, lm), dc)];
+        const cur = pts[pts.length - 1]; pts.push(oD.side % 2 ? [oD.x, cur[1]] : [cur[0], oD.y], [oD.x, oD.y]);
+        const path = new Set<number>(), seg = (x0: number, y0: number, x1: number, y1: number) => { for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) path.add(I(x, y)); };
+        for (let k = 1; k < pts.length; k++) seg(pts[k - 1][0], pts[k - 1][1], pts[k][0], pts[k][1]);
+        const pit = cfg.pit === 'lava' ? LAVA : WATER;
+        for (let ty = r.y - r.ry; ty <= r.y + r.ry; ty++) for (let tx = r.x - r.rx; tx <= r.x + r.rx; tx++) if (floor(tx, ty) && !path.has(I(tx, ty))) map[I(tx, ty)] = pit;
+        const fl = d.style === 'crypt' || d.style === 'ruin' ? RFLOOR : GROUND;
+        for (const i of path) map[i] = fl;
+        let k = 0; for (let j = 1; j < pts.length; j++) { const [x0, y0] = pts[j - 1], [x1, y1] = pts[j], n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));   // 照走的順序排，頭尾三格不會碎
+          for (let q = j === 1 ? 0 : 1; q <= n; q++) { const tx = x0 + Math.sign(x1 - x0) * q, ty = y0 + Math.sign(y1 - y0) * q; k++;
+            if (k > 3 && !(j === pts.length - 1 && q > n - 3) && inRoom({ x: r.x, y: r.y, rx: r.rx - 1, ry: r.ry - 1 }, tx, ty)) p.crumb.push({ x: tx * TS + 8, y: ty * TS + 8, tx, ty, on: 0, crack: 0, gone: 0 }); } }
+        p.start = { x: iD.x * TS + 8, y: iD.y * TS + 8 };
+      }
+      if (kind === 'braziers') {
+        p.order = id === 'barrow' ? ['moon', 'sun', 'star', 'eye'] : shuf(SYMS);
+        const symAt: Sym[] = id === 'barrow' ? ['star', 'moon', 'eye', 'sun'] : shuf(SYMS);
+        [-6, -2, 2, 6].forEach((ox, k) => { const q = near(r.x + ox, r.y + 1); if (!q) return; const x = q[0] * TS + 8, y = q[1] * TS + 10, prop = { x, y, r: 5 };
+          PROPS.push(prop); p.braz.push({ x, y, sym: symAt[k], lit: false, prop }); });
+        const tops = r.doors.filter(q => q.side === 3).map(q => q.x), mx = [-3, 3, 0].sort((a, b) => Math.min(...tops.map(t => Math.abs(r.x + b - t)), 99) - Math.min(...tops.map(t => Math.abs(r.x + a - t)), 99))[0];   // 壁畫掛在上面那面牆，離門遠一點
+        p.mural = { x: (r.x + mx) * TS + 8, y: (r.y - r.ry) * TS };
+      }
+      if (kind === 'simon') {
+        [-4, -1, 2, 5].forEach((ox, k) => { const q = near(r.x + ox, r.y + 1); if (q) p.plates.push({ x: q[0] * TS + 8, y: q[1] * TS + 8, tx: q[0], ty: q[1], sym: SYMS[k], flash: 0, bad: 0 }); });
+        const n = cfg.seq || 5; for (let k = 0; k < n; k++) { let v; do v = Math.floor(R() * p.plates.length); while (k && v === p.seq[k - 1]); p.seq.push(v); }   // 不會連續兩次同一塊
+        const q = near(r.x, r.y - 2); if (q) { p.stone = { x: q[0] * TS + 8, y: q[1] * TS + 12 }; PROPS.push({ x: p.stone.x, y: p.stone.y, r: 6 }); }
+      }
+      if (kind === 'statues') {
+        const ax = r.x, ay = r.y; p.altar = { x: ax * TS + 8, y: ay * TS + 12 }; PROPS.push({ x: p.altar.x, y: p.altar.y, r: 6 });
+        for (const [ox, oy, want] of [[-3, 0, 0], [0, -2, 1], [3, 0, 2], [0, 2, 3]]) { if (!floor(ax + ox, ay + oy)) continue; const x = (ax + ox) * TS + 8, y = (ay + oy) * TS + 12, prop = { x, y, r: 6 }; PROPS.push(prop); p.stats.push({ x, y, want, prop }); }
+        p.off = p.stats.map(() => 0); const n = p.stats.length;
+        for (let k = 0; k < 5 || p.off.every(o => o === 0); k++) { const i = Math.floor(R() * n); p.off[i] = (p.off[i] + 1) % 4; p.off[(i + 1) % n] = (p.off[(i + 1) % n] + 1) % 4; }   // 從「已解開」往回亂轉 → 一定解得開
+        p.off0 = [...p.off];
+      }
+      const M = MECHS[kind]; if (M) p.m[kind] = M.setup(p, r, R);            // 其他檔案的機關
+      PUZZLES.push(p);
     }
-    if (cfg.gate === 'simon') {
-      [-4, -1, 2, 5].forEach((ox, k) => { const q = near(r3.x + ox, r3.y + 1); if (q) p.plates.push({ x: q[0] * TS + 8, y: q[1] * TS + 8, tx: q[0], ty: q[1], sym: SYMS[k], flash: 0, bad: 0 }); });
-      const n = cfg.seq || 5; for (let k = 0; k < n; k++) { let v; do v = Math.floor(R() * p.plates.length); while (k && v === p.seq[k - 1]); p.seq.push(v); }   // 不會連續兩次同一塊
-      const q = near(r3.x, r3.y - 2); if (q) { p.stone = { x: q[0] * TS + 8, y: q[1] * TS + 12 }; PROPS.push({ x: p.stone.x, y: p.stone.y, r: 6 }); }
+    // ---- 隱藏的牆：死路房四邊找一邊，牆後面 3×3 都是實心的 → 挖一個小房間放金箱 ----
+    if (cfg.secret) {
+      const W0 = d.style === 'crypt' || d.style === 'ruin' ? RWALL : CLIFF, fl0 = W0 === RWALL ? RFLOOR : GROUND, p = mkPuz('secret', 'secret', lay.rooms[lay.ends[0]], null, null);
+      const solid = (x: number, y: number) => map[I(x, y)] === W0 && x > d.x0 + 1 && x < d.x0 + d.w - 2 && y > d.y0 + 1 && y < d.y0 + d.h - 2;
+      found: for (const ri of lay.ends) { const r2 = lay.rooms[ri];
+        for (const [dx, dy] of [[0, 1], [1, 0], [-1, 0], [0, -1]]) {
+          const ex = dx ? r2.x + dx * (r2.rx + 1) : r2.x, ey = dy ? r2.y + dy * (r2.ry + 1) : r2.y;
+          const cells: number[][] = [], room: number[][] = [];
+          for (let k = -1; k <= 1; k++) cells.push(dx ? [ex, ey + k] : [ex + k, ey]);
+          for (let a = 1; a <= 3; a++) for (let k = -1; k <= 1; k++) room.push(dx ? [ex + dx * a, ey + k] : [ex + k, ey + dy * a]);
+          if (![...cells, ...room].every(([x, y]) => solid(x, y))) continue;
+          if (!cells.some(([x, y]) => floor(x - dx, y - dy))) continue;      // 牆的這一面要對著房間的地板（不然砍不到）
+          const ring = room.flatMap(([x, y]) => [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]).filter(([x, y]) => !room.some(q => q[0] === x && q[1] === y) && !cells.some(q => q[0] === x && q[1] === y));
+          if (!ring.every(([x, y]) => map[I(x, y)] === W0)) continue;
+          for (const [x, y] of room) map[I(x, y)] = fl0;
+          p.room = r2; p.wall = cells.map(([tx, ty]) => ({ tx, ty })); p.wallT = W0; p.wallHint = { x: ex * TS + 8, y: ey * TS + 8 };
+          const [cx, cy] = room[4], cid = 'pz_' + d.id;
+          if (!CHESTS.some(c => c.id === cid)) CHESTS.push({ id: cid, tx: cx, ty: cy, x: cx * TS + 8, y: cy * TS + 10, tier: 2, lv: d.lv + 8, mimic: false, opened: false, t: 0 });
+          PUZZLES.push(p); break found; } }
     }
-    if (cfg.gate === 'statues') {
-      const ax = r3.x, ay = r3.y; p.altar = { x: ax * TS + 8, y: ay * TS + 12 }; PROPS.push({ x: p.altar.x, y: p.altar.y, r: 6 });
-      for (const [ox, oy, want] of [[-3, 0, 0], [0, -2, 1], [3, 0, 2], [0, 2, 3]]) { if (!floor(ax + ox, ay + oy)) continue; const x = (ax + ox) * TS + 8, y = (ay + oy) * TS + 12, prop = { x, y, r: 6 }; PROPS.push(prop); p.stats.push({ x, y, want, prop }); }
-      p.off = p.stats.map(() => 0); const n = p.stats.length;
-      for (let k = 0; k < 5 || p.off.every(o => o === 0); k++) { const i = Math.floor(R() * n); p.off[i] = (p.off[i] + 1) % 4; p.off[(i + 1) % n] = (p.off[(i + 1) % n] + 1) % 4; }   // 從「已解開」往回亂轉 → 一定解得開
-    }
-    // ---- 隱藏的牆：寶箱房四邊找一邊，牆後面 3×3 都是實心的 → 挖一個小房間放金箱 ----
-    const W0 = d.style === 'crypt' ? RWALL : CLIFF, fl0 = d.style === 'crypt' ? RFLOOR : GROUND;
-    if (cfg.secret) for (const [dx, dy] of [[0, 1], [1, 0], [-1, 0], [0, -1]]) {
-      const ex = dx ? r2.x + dx * (r2.rx + 1) : r2.x, ey = dy ? r2.y + dy * (r2.ry + 1) : r2.y;
-      const cells: number[][] = [], room: number[][] = [];
-      for (let k = -1; k <= 1; k++) cells.push(dx ? [ex, ey + k] : [ex + k, ey]);
-      for (let a = 1; a <= 3; a++) for (let k = -1; k <= 1; k++) room.push(dx ? [ex + dx * a, ey + k] : [ex + k, ey + dy * a]);
-      const solid = (x: number, y: number) => map[I(x, y)] === W0 && x > d.x0 + 1 && x < d.x0 + d.w - 2 && y > d.y0 + 1;
-      if (![...cells, ...room].every(([x, y]) => solid(x, y))) continue;
-      if (!cells.some(([x, y]) => [[x - dx, y - dy]].every(([a, b]) => floor(a, b)))) continue;   // 牆的這一面要對著寶箱房的地板（不然砍不到）
-      const ring = room.flatMap(([x, y]) => [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]).filter(([x, y]) => !room.some(q => q[0] === x && q[1] === y) && !cells.some(q => q[0] === x && q[1] === y));
-      if (!ring.every(([x, y]) => map[I(x, y)] === W0)) continue;
-      for (const [x, y] of room) map[I(x, y)] = fl0;
-      p.wall = cells.map(([tx, ty]) => ({ tx, ty })); p.wallT = W0; p.wallHint = { x: ex * TS + 8, y: ey * TS + 8 };
-      const [cx, cy] = room[4], cid = 'pz_' + d.id;
-      if (!CHESTS.some(c => c.id === cid)) CHESTS.push({ id: cid, tx: cx, ty: cy, x: cx * TS + 8, y: cy * TS + 10, tier: 2, lv: d.lv + 8, mimic: false, opened: false, t: 0 });
-      break; }
-    for (const [name, ri] of cfg.x || []) { const M = MECHS[name]; if (M) p.m[name] = M.setup(p, ri === 1 ? r1 : r3, R); }   // 其他檔案的機關
-    PUZZLES.push(p);
   }
 }
 
@@ -179,7 +171,7 @@ function setWall(p: Puz, open: boolean) {
   p.wallOpen = open; const fl = p.wallT === RWALL ? RFLOOR : GROUND;
   for (const { tx, ty } of p.wall) { const i = ty * MW + tx; map[i] = open ? fl : p.wallT; invalidate(tx, ty); if (explored[i]) miniPix(i); }
 }
-export function openGate(p: Puz) { flags.add(fFire(p)); p.gateOpen = true; p.gateT = 0; sfx.level(); shake(4, .5); showBanner('遠處傳來鐵柵門升起的聲音', '', 2400); save(); }
+export function openGate(p: Puz) { if (!p.fkey) return; flags.add(p.fkey); p.gateOpen = true; p.gateT = 0; sfx.level(); shake(4, .5); showBanner('遠處傳來鐵柵門升起的聲音', '', 2400); save(); }
 const swingFace = (pl: Player, x: number, y: number) => Math.abs(((Math.atan2(y - pl.y, x - pl.x) - pl.face) % TAU + TAU * 1.5) % TAU - Math.PI) < 1.2;
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 const statDir = (p: Puz, i: number) => (p.stats[i].want + p.off[i]) % 4;
@@ -187,9 +179,9 @@ const statDir = (p: Puz, i: number) => (p.stats[i].want + p.off[i]) % 4;
 /* ---- 每幀 ---- */
 export function updatePuzzles(dt: number) {
   for (const p of PUZZLES) {
-    const fire = flags.has(fFire(p)), wall = flags.has(fWall(p));
+    const fire = !!p.fkey && flags.has(p.fkey), wall = flags.has(fWall(p));
     if (p.wall.length && p.wallOpen !== wall) setWall(p, wall);
-    if (fire !== p.gateOpen) { if (!fire) for (const k in p.m) MECHS[k].reset?.(p, p.m[k]); p.gateOpen = fire; p.gateT = fire ? 0 : 1; for (const b of p.braz) b.lit = fire; p.got = fire ? 4 : 0; p.step = fire ? p.seq.length : 0; if (fire) p.off = p.off.map(() => 0); }
+    if (fire !== p.gateOpen) { if (!fire) for (const k in p.m) MECHS[k].reset?.(p, p.m[k]); p.gateOpen = fire; p.gateT = fire ? 0 : 1; for (const b of p.braz) b.lit = fire; p.got = fire ? 4 : 0; p.step = fire ? p.seq.length : 0; p.off = fire ? p.off.map(() => 0) : [...(p.off0 || p.off)]; }
     if (p.gateOpen && p.gateT < 1) p.gateT = Math.min(1, p.gateT + dt / 1.2);
     for (const g of p.gate) g.prop.r = p.gateOpen && p.gateT > .6 ? 0 : 9;   // 升到一半以上就可以走過去
     if (p.show > 0) p.show -= dt;                                        // 符文踏板：記憶石正在示範
@@ -336,7 +328,7 @@ export function drawPuzzles(vis, list, L, addLight) {
           ctx.fillStyle = hit ? '#ffe38a' : '#c8a8ff'; ctx.fillRect(snapF(s.x - 1 + dx * 2), snapF(s.y - 24 + dy), 2, 2); } }); });   // 眼睛朝向 = 目光的方向
     }
     // 鐵柵門：一排鐵條，打開時往上收
-    if (p.gate.length && p.cfg.look !== 'web' && vis(p.gate[0].x, p.gate[0].y, 60)) { const g0 = p.gate[0], g1 = p.gate[p.gate.length - 1], lift = p.gateOpen ? p.gateT * 20 : 0;
+    if (p.gate.length && p.kind !== 'webs3' && vis(p.gate[0].x, p.gate[0].y, 60)) { const g0 = p.gate[0], g1 = p.gate[p.gate.length - 1], lift = p.gateOpen ? p.gateT * 20 : 0;
       list.push({ y: g0.y + 7, f: () => { const L0 = g0.x - 8, W = g1.x - g0.x + 16, top = g0.y - 22, H = 30 - lift;
         if (H > 1) { for (let x = L0 + 1; x < L0 + W; x += 4) { ctx.fillStyle = '#2a2632'; ctx.fillRect(snapF(x), snapF(top), 2, H); ctx.fillStyle = '#6a6a80'; ctx.fillRect(snapF(x), snapF(top), HK, H); }
           ctx.fillStyle = '#3a3646'; for (const yy of [top + 4, top + H - 4]) ctx.fillRect(snapF(L0), snapF(yy), W, 2); }

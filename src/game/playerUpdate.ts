@@ -9,6 +9,7 @@ import { sfx } from '../core/audio';
 import { respawnAll } from './enemies';
 import { resetBoss } from './boss';
 import { puzzleMove } from '../world/puzzles';
+import { dungeonAt } from '../world/dungeons';
 import { clearStatus, locked, moveMul, rollOut, rooted, silenced, struggle, tickStatus } from './status';
 import { blinkFx, busy, damageEnemy, downPlayer, releaseCharge, stopCharge, targets, tryAttack, tryDodge, tryPot, trySkill, updFlip, updateCharge } from './combat';
 import { burst, shake } from './worldUpdate';
@@ -106,7 +107,8 @@ export function updatePlayer(pl: Player, dt) {
   }
   const rg = REGIONS[regAt(pl.x, pl.y)].key;
   const tx = pl.x / TS, ty = pl.y / TS; let sb = '';
-  for (const s of SUBS) if (Math.abs(s.x - tx) < s.r && Math.hypot(s.x - tx, s.y - ty) < s.r) { sb = s.name; break; }
+  if (rg === 'dungeon') sb = dungeonAt(pl.x, pl.y)?.name || '';                // 地城裡：地名 = 這座地城
+  else for (const s of SUBS) if (Math.abs(s.x - tx) < s.r && Math.hypot(s.x - tx, s.y - ty) < s.r) { sb = s.name; break; }
   if (rg !== G.region) { G.region = rg; G.sub = sb;
     if (rg === 'dungeon' && sb) { const first = !discovered.has(sb); discovered.add(sb); showArea(sb, first ? '發現新地點 · 地城' : '地城'); if (first) sfx.discover(); }   // 地城：直接顯示地城的名字
     else showArea(REGIONS.find(r => r.key === rg).name, REGIONS.find(r => r.key === rg).sub); }

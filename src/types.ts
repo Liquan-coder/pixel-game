@@ -105,4 +105,5 @@ export interface Camp {
   tx: number; ty: number;         // 格子座標
   lit?: boolean;                  // 點燃了沒
   x?: number; y?: number;         // 像素座標（載入時由 tx/ty 算出來）
+  dg?: string;                    // 地城裡的營火：哪一座地城（world/dungeons.ts 生成時加進 CAMPS）
 }

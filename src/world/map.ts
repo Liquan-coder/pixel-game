@@ -1,6 +1,8 @@
 import type { Camp } from '../types';
 /* ================= WORLD ================= */
-export const TS = 16, MW = 640, MH = 680;          // v8：整張地圖重排。平原整塊往南移 216 格（PY），其他五個地區各自擴大到差不多平原大小，排在平原北邊和東邊
+export const TS = 16, MW = 640, WH = 680, MH = 1008;   // WH = 野外的高度；WH 以下（y ≥ 680）是地城區（world/dungeons.ts），走路到不了
+/* MH 以前是 680：野外生成（gen / terrain / 寶箱）全部改用 WH，野外跟以前一模一樣；只有地城搬到下面這一條 */
+//          // v8：整張地圖重排。平原整塊往南移 216 格（PY），其他五個地區各自擴大到差不多平原大小，排在平原北邊和東邊
 export const PY = 216;                                                // 平原往南移了幾格（存檔換算用）
 export const GROUND = 0, ROAD = 1, WATER = 2, LAVA = 3, CLIFF = 4, RWALL = 5, RFLOOR = 6, BRIDGE = 7, TREE = 8, ROCK = 9, PILLAR = 10, CRATE = 11, FOG = 12, GRAVE = 13, BIGT = 14;
 export const HOUSE = 15;                                              // 城鎮的房子：一棟佔好幾格，整棟畫成一張圖

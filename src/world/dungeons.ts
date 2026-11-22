@@ -1,40 +1,44 @@
 /* ================= 地城（洞窟 / 古墓 / 石窟）+ 地底遺跡（大型、很多房間） =================
-   做法：地城的「裡面」也蓋在同一張地圖上，放在東南邊的海裡（DZONE，走路到不了）。
+   做法：地城的「裡面」也蓋在同一張地圖上，放在野外的下面（y ≥ WH 那一條，DZONE，走路到不了）。
    野外的入口（山壁上的洞口 / 石門；地底遺跡是建築物裡往下的石階）按攻擊鍵 → 傳送到裡面；裡面入口的傳送門（打倒 Boss 後大廳也會出現一個）→ 回到入口前面。
    這樣碰撞、怪物、燈光、寶箱、存檔都不用另外寫一套。
 
-   每個地城：入口房 → 幾個有怪的房間（岔出去的小房間放銀箱）→ 最深處的 Boss 大廳 + 被封印的金箱。
+   每座地城的格局都是自己亂數排的（world/dungeonLayout.ts）：入口 → 彎彎曲曲的主路 → Boss 大廳，路上有三個營火、
+   三個解謎區（陷阱房、寶庫的謎題房、Boss 大廳前的謎題房，機關在 world/puzzles.ts）、幾條放寶箱的死路。
    - 小怪：每座地城有自己專屬的小怪（data/items.ts 的 KIND，art/dungeonMonsters.ts），野外不會出現
    - Boss：真正的 Boss（自己的圖、會換招、有預警、二階段），走進大廳的結界就開打。定義在 world/dungeonBoss.ts
      打倒後記在 quest 的 flags（'dgn:編號'）→ 不會再出現、金箱解開封印；Boss 一定掉一件「招牌裝備」（sig，data/uniques.ts 的 UG）
-   地底遺跡（style: 'ruin'）：佔兩格寬，房間更多、岔路更多，有兩個寶物房，最深處的金箱是獨特武器。
-   新增地城：在 DUNGEONS 加一筆，區塊會自動排好。 */
+   地底遺跡（style: 'ruin'）：格子比較多（6×6），岔路比較多，最深處的金箱是獨特武器。
+   新增地城：在 DUNGEONS 加一筆、PUZ 加一筆，區塊會自動排好。 */
 import { G } from '../core/state';
 import { mulberry32 } from '../core/util';
-import { BIGT, BRIDGE, CLIFF, CRATE, GRAVE, GROUND, LAVA, MW, PILLAR, PROPS, RFLOOR, ROAD, ROCK, RWALL, STAIRS, SUBS, TREE, TS, WALKABLE, WATER, glows, map, reg, spawns } from './map';
+import { BIGT, BRIDGE, CAMPS, CLIFF, CRATE, GRAVE, GROUND, LAVA, MH, MW, PILLAR, PROPS, RFLOOR, ROAD, ROCK, RWALL, STAIRS, TREE, TS, WALKABLE, WATER, WH, map, reg, spawns } from './map';
 import { POIS } from '../data/poi';
+import { carveLayout, slotSize, type Layout, type LRoom } from './dungeonLayout';
 import type { Player } from '../types';
 
 export const DREG = 7;                                                   // 地城的地區編號（REGIONS[7]）
-export const DZONE = { x0: 266, y0: 500, x1: 636, y1: 674 };              // 地城區塊放在這裡（東南邊的海上，走路到不了，大地圖會蓋掉）：一排 7 格、3 排
+export const DZONE = { x0: 0, y0: WH, x1: MW - 1, y1: MH - 1 };           // 地城區：地圖最下面那一條（大地圖不畫）
+/* v12 以前地城蓋在東南邊的海上（這一塊）。現在空著，但一樣填滿岩石：野外生成（gen 的 busy、terrain 的 nearSub）照舊避開這裡 → 野外跟以前一模一樣 */
+export const OLDZ = { x0: 266, y0: 500, x1: 636, y1: 674 };
 export interface Dungeon {
   id: string; name: string; style: 'cave' | 'crypt' | 'grotto' | 'ruin';
   ent: [number, number];                                                  // 野外入口：山壁正面那一格（玩家站在它下面一格）；地底遺跡 = 地上的石階那一格
   stairs?: boolean;                                                       // 入口是建築物裡的石階（地底遺跡）
   liquid?: 'lava' | 'water';                                              // 石窟的暗河換成熔岩；地底遺跡有了這個才會有一條河（熔岩 / 水）
-  mirror?: boolean;                                                       // 地底遺跡：房間左右鏡像（讓三座遺跡長得不一樣）
+  mirror?: boolean;                                                       // （舊）地底遺跡左右鏡像；現在每座的格局本來就不一樣，沒有用到
   lv: number; kinds: string[];                                            // 專屬小怪
   boss: string;                                                           // world/dungeonBoss.ts 的 DBOSS 編號
   sig: string;                                                            // Boss 一定掉的招牌裝備（data/uniques.ts 的 UG）
   uq?: string;                                                            // 最深處金箱裡的獨特武器（沒有 = 一般的黃金寶箱）
   lore: { title: string; text: string };                                  // 地城裡的石碑
   desc?: string;                                                          // 地圖上點了顯示的說明
-  // genWorld 算出來的：
-  x0?: number; y0?: number; w?: number; inX?: number; inY?: number; exX?: number; exY?: number;
-  bossAt?: [number, number, number]; bossChest?: [number, number]; sideChests?: [number, number][]; tablet?: [number, number];
+  // 算出來的：
+  x0?: number; y0?: number; w?: number; h?: number; inX?: number; inY?: number; exX?: number; exY?: number;
+  bossAt?: [number, number, number]; bossChest?: [number, number]; sideChests?: [number, number, number][]; tablet?: [number, number];   // sideChests：[x, y, 寶箱等級]
   portal?: [number, number];                                              // Boss 大廳的傳送門（世界座標，打倒 Boss 後才出現）
-  deco?: Deco[];
-  rooms?: Room[];                                                         // 裡面的房間（world/puzzles.ts 用來放機關）                                                          // 野外入口前院的裝飾（dressEntrances）
+  deco?: Deco[];                                                          // 野外入口前院的裝飾（dressEntrances）
+  rooms?: LRoom[]; lay?: Layout;                                          // 裡面的房間（world/puzzles.ts 用來放機關）
 }
 export const DUNGEONS: Dungeon[] = [
   // ---- 翠風平原 ----
@@ -84,15 +88,47 @@ export const DUNGEONS: Dungeon[] = [
     desc: '螢火林岩壁上的洞口。精靈說，裡面的月亮從來不會落下',
     lore: { title: '禁林入口的告示', text: '「王命：任何人不得進入。」底下用小刀刻了一行字：「月蛾吃掉了我們的光。王知道，但王不說。」' } },
 ];
-/* 區塊：一格 50×54，地底遺跡佔兩格寬。一排排滿就換下一排 */
-const SLOT_W = 50, SLOT_H = 54, COLS = 7;
+/* 每座地城的三個解謎區（機關在 world/puzzles.ts、puz2.ts、puz3.ts）：
+   trap  = 主路上的陷阱房，走過去就好（尖刺、崩塌石橋、潮汐、蛛網、強風、冰面、寒氣、冷卻熔岩、彈跳蘑菇、黑暗迷宮）
+   vault = 岔路上的謎題房，解開 → 鐵柵門升起，後面的寶物房有金箱（火盆、符文踏板、雕像、推石、鏡子……）
+   boss  = Boss 大廳前的謎題房，解開 → 通往 Boss 大廳的鐵柵門升起
+   secret = 某條死路的牆後面藏著金箱（砍一下就碎）；pit = 崩塌石橋下面是水還是熔岩；seq = 符文踏板要記幾步 */
+export interface PuzCfg { trap: string; vault: string; boss: string; secret?: boolean; pit?: 'water' | 'lava'; seq?: number }
+export const PUZ: Record<string, PuzCfg> = {
+  moss:       { trap: 'crumble', vault: 'statues', boss: 'simon', secret: true, seq: 4, pit: 'water' },
+  barrow:     { trap: 'spikes', vault: 'simon', boss: 'braziers', secret: true },
+  grotto:     { trap: 'tide', vault: 'mirrors', boss: 'boulders' },
+  nest:       { trap: 'webs', vault: 'braziers', boss: 'webs3' },
+  roots:      { trap: 'crumble', vault: 'simon', boss: 'statues', secret: true, pit: 'water' },
+  windcave:   { trap: 'wind', vault: 'boulders', boss: 'simon' },
+  sandtemple: { trap: 'spikes', vault: 'mirrors', boss: 'boulders' },
+  lavatube:   { trap: 'crumble', vault: 'statues', boss: 'braziers', pit: 'lava' },
+  obsidian:   { trap: 'cool', vault: 'simon', boss: 'boulders' },
+  icecave:    { trap: 'ice', vault: 'mirrors', boss: 'simon', secret: true },
+  frostcrypt: { trap: 'cold', vault: 'statues', boss: 'cold3' },
+  rotcave:    { trap: 'jump', vault: 'braziers', boss: 'boulders' },
+  sunkgrotto: { trap: 'maze', vault: 'statues', boss: 'mirrors', secret: true },
+  undercroft: { trap: 'spikes', vault: 'braziers', boss: 'stealth', secret: true },
+  forgeruin:  { trap: 'crumble', vault: 'simon', boss: 'forge', pit: 'lava' },
+  temple:     { trap: 'tide', vault: 'statues', boss: 'mirrors' },
+  mothwood:   { trap: 'maze', vault: 'simon', boss: 'moonflowers' },
+};
+const VERT_TRAPS = new Set(['cool', 'jump']);                            // 這兩種陷阱房要「從下面進來、從上面出去」
+/* 區塊：照順序一排一排排在地城區裡（一排排滿就換下一排），大小看格子數（world/dungeonLayout.ts 的 slotSize） */
+{ let x = 3, y = WH + 2, rowH = 0;
+  for (const d of DUNGEONS) { const { w, h } = slotSize(d); if (x + w > MW - 3) { x = 3; y += rowH + 2; rowH = 0; }
+    d.x0 = x; d.y0 = y; d.w = w; d.h = h; x += w + 2; rowH = Math.max(rowH, h); }
+  if (y + rowH > MH - 3) throw new Error('地城區不夠大：MH 要再加大'); }
+/* v12 以前的區塊位置（一格 50×54，一排 7 格）：讀舊存檔時，把站在舊地城裡的人換到新的地城裡；terrain 也照舊避開這幾個地名的範圍 */
+export const LEGACY_SLOTS: { id: string; x0: number; y0: number; w: number; h: number; x: number; y: number; r: number }[] = [];
 { let col = 0, row = 0;
-  for (const d of DUNGEONS) { const n = d.style === 'ruin' ? 2 : 1; if (col + n > COLS) { col = 0; row++; }
-    d.w = SLOT_W * n + (SLOT_W === 50 && n === 2 ? 3 : 0); d.x0 = DZONE.x0 + col * (SLOT_W + 3); d.y0 = DZONE.y0 + row * (SLOT_H + 3); col += n;
-    SUBS.push({ name: d.name, x: d.x0 + d.w / 2, y: d.y0 + SLOT_H / 2, r: 27 }); } }   // r 不能大過半個區塊，不然會蓋到隔壁的地城（遺跡比較寬：中間那一段一樣算）
+  for (const d of DUNGEONS) { const n = d.style === 'ruin' ? 2 : 1; if (col + n > 7) { col = 0; row++; }
+    const w = 50 * n + (n === 2 ? 3 : 0), x0 = OLDZ.x0 + col * 53, y0 = OLDZ.y0 + row * 57; col += n;
+    LEGACY_SLOTS.push({ id: d.id, x0, y0, w, h: 54, x: x0 + w / 2, y: y0 + 27, r: 27 }); } }
 for (const d of DUNGEONS) if (d.style === 'ruin') POIS.push({ id: 'ruin_' + d.id, name: d.name, tx: d.ent[0], ty: d.ent[1], kind: 'ruin', desc: d.desc });
-export const inDZone = (tx: number, ty: number) => tx >= DZONE.x0 && tx <= DZONE.x1 && ty >= DZONE.y0 && ty <= DZONE.y1;
-export const dungeonAt = (x: number, y: number) => { const tx = x / TS, ty = y / TS; return inDZone(tx, ty) ? DUNGEONS.find(d => ty >= d.y0 && ty < d.y0 + SLOT_H && tx >= d.x0 && tx < d.x0 + d.w) || null : null; };
+export const inDZone = (tx: number, ty: number) => ty >= WH || (tx >= OLDZ.x0 && tx <= OLDZ.x1 && ty >= OLDZ.y0 && ty <= OLDZ.y1);
+export const dungeonAt = (x: number, y: number) => { const tx = x / TS, ty = y / TS; return ty >= WH ? DUNGEONS.find(d => ty >= d.y0 && ty < d.y0 + d.h && tx >= d.x0 && tx < d.x0 + d.w) || null : null; };
+export const legacyDungeonAt = (tx: number, ty: number) => { const s = LEGACY_SLOTS.find(s => tx >= s.x0 && tx < s.x0 + s.w && ty >= s.y0 && ty < s.y0 + s.h); return s ? DUNGEONS.find(d => d.id === s.id) : null; };
 
 /* ---- 野外入口：遠遠就看得出「那裡有個洞」 ----
    洞窟 / 石窟 / 古墓 = 一座岩丘（正面是岩壁，洞口開在正中間，上面還有一根高高的尖岩，dungeonArt 畫）
@@ -144,56 +180,33 @@ function trail(sx: number, sy: number, inb: (x: number, y: number) => boolean) {
       map[i] = c === WATER || c === LAVA || c === BRIDGE ? BRIDGE : ROAD; } }
 }
 export type Room = { x: number; y: number; rx: number; ry: number };
-/* ---- 地城裡面：房間鏈 ---- */
+/* ---- 地城裡面：照 world/dungeonLayout.ts 排好的格局挖房間，再放怪、營火、寶箱、石碑 ---- */
+const CAMP_N = ['入口', '深處', '守護者前'];
 export function carveDungeons(roomSpawn: (d: Dungeon, tx: number, ty: number, kind: string, lv: number) => void) {
-  for (let y = DZONE.y0 - 2; y <= DZONE.y1 + 2; y++) for (let x = DZONE.x0 - 2; x <= DZONE.x1; x++) { map[y * MW + x] = CLIFF; reg[y * MW + x] = DREG; }   // 整塊先填滿岩石：從地城裡往外看不會看到海
+  for (let y = OLDZ.y0 - 2; y <= OLDZ.y1 + 2; y++) for (let x = OLDZ.x0 - 2; x <= OLDZ.x1; x++) { map[y * MW + x] = CLIFF; reg[y * MW + x] = DREG; }   // 舊的地城區塊：照舊填滿岩石
+  for (let i = CAMPS.length - 1; i >= 0; i--) if (CAMPS[i].dg) CAMPS.splice(i, 1);
   for (const d of DUNGEONS) {
-    const R = mulberry32(d.id.length * 977 + d.ent[0] * 31 + d.ent[1]), X0 = d.x0, Y0 = d.y0, W = d.w, built = d.style === 'crypt' || d.style === 'ruin';
-    const wall = built ? RWALL : CLIFF, floor = built ? RFLOOR : GROUND, liquid = d.liquid === 'lava' ? LAVA : WATER;
-    for (let y = Y0; y < Y0 + SLOT_H; y++) for (let x = X0; x < X0 + W; x++) { map[y * MW + x] = wall; reg[y * MW + x] = DREG; }
-    const set = (x: number, y: number, t: number) => { if (x > X0 && y > Y0 && x < X0 + W - 1 && y < Y0 + SLOT_H - 1) map[y * MW + x] = t; };
-    const j = (n: number) => Math.round((R() - .5) * n);
-    /* 房間（相對座標）。一般地城：0 入口（最下面）→ 1 → 3 → 4 Boss 大廳（最上面）；2 是岔出去的寶箱房
-       地底遺跡：0 入口 → 左右兩條路（1、2 → 3、4）→ 5 中央十字廳 → 6 Boss 大廳；7、8 是兩邊最遠的寶物房 */
-    const ruin = d.style === 'ruin';
-    const plan = ruin
-      ? [[51, 47, 6, 4], [24 + j(4), 40, 7, 4], [78 + j(4), 40, 7, 4], [20 + j(4), 25 + j(2), 7, 5], [82 + j(4), 25 + j(2), 7, 5], [51, 30, 8, 5], [51, 11, 13, 8], [7, 9, 4, 4], [96, 9, 4, 4]]
-      : [[25, 46, 6, 5], [13 + j(6), 35 + j(2), 7, 5], [40 + j(4), 33 + j(4), 5, 4], [22 + j(8), 25, 7, 4], [25, 11, 11, 8]];
-    const rooms: Room[] = plan.map(([x, y, rx, ry]) => ({ x: X0 + (d.mirror ? W - 1 - x : x), y: Y0 + y, rx, ry })); d.rooms = rooms;
-    const corr = new Set<number>();
-    const room = (r: Room) => { for (let y = r.y - r.ry - 1; y <= r.y + r.ry + 1; y++) for (let x = r.x - r.rx - 1; x <= r.x + r.rx + 1; x++) {
-      if (built) { if (Math.abs(x - r.x) <= r.rx && Math.abs(y - r.y) <= r.ry) set(x, y, floor); }
-      else if (((x - r.x) / (r.rx + .5)) ** 2 + ((y - r.y) / (r.ry + .5)) ** 2 < 1 + (R() - .5) * .35) set(x, y, floor); } };
-    const tunnel = (a: Room, b: Room) => {                                // 先橫後直的通道，寬 3 格；洞窟會左右扭一點
-      const wig = (k: number) => built ? 0 : Math.round(Math.sin(k * .45) * .8);
-      let k = 0; for (let x = a.x; x !== b.x; x += Math.sign(b.x - a.x)) { for (let o = -1; o <= 1; o++) { const py = a.y + o + wig(k); set(x, py, floor); corr.add(py * MW + x); } k++; }
-      for (let y = a.y; y !== b.y; y += Math.sign(b.y - a.y)) { for (let o = -1; o <= 1; o++) { const px = b.x + o + wig(k); set(px, y, floor); corr.add(y * MW + px); } k++; } };
-    rooms.forEach(room);
-    const links = ruin ? [[0, 1], [0, 2], [1, 3], [2, 4], [3, 5], [4, 5], [5, 6], [3, 7], [4, 8]] : [[0, 1], [1, 3], [3, 4], [3, 2]];
-    for (const [a, b] of links) tunnel(rooms[a], rooms[b]);
-    const hall = ruin ? rooms[6] : rooms[4], entry = rooms[0];
-    if (built) for (const r of ruin ? [rooms[5], rooms[6], rooms[3], rooms[4]] : [rooms[3], rooms[4]]) for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) set(r.x + dx * (r.rx - 2), r.y + dy * (r.ry - 2), PILLAR);   // 大廳的柱子
-    if (ruin) for (let y = hall.y - hall.ry + 2; y <= hall.y + hall.ry - 2; y += 4) for (const dx of [-hall.rx + 1, hall.rx - 1]) set(hall.x + dx, y, PILLAR);   // Boss 大廳兩側一排柱子
-    if (d.style === 'grotto' || (ruin && d.liquid)) {                       // 石窟 / 熔岩遺跡：一條暗河（熔岩河）橫過去，通道經過的地方是橋；房間裡有一攤一攤的水
-      const cy = ruin ? rooms[5].y - rooms[5].ry - 3 : Math.round((rooms[1].y + rooms[3].y) / 2);   // 遺跡：河在 Boss 大廳和中央十字廳之間
-      for (let x = X0 + 1; x < X0 + W - 1; x++) for (const y of [cy, cy + 1]) { const i = y * MW + x; if (map[i] === floor) map[i] = corr.has(i) ? BRIDGE : liquid; }
-      for (const r of ruin ? [rooms[3], rooms[4]] : [rooms[2], rooms[4]]) for (let k = 0; k < 2; k++) { const px = r.x + (k ? 1 : -1) * (r.rx - 2), py = r.y + j(2);
-        if (r === hall && Math.abs(px - hall.x) < 9) continue;             // Boss 大廳中間不要有水
-        for (let y = py - 1; y <= py + 1; y++) for (let x = px - 1; x <= px + 1; x++) if (map[y * MW + x] === floor && (x - px) ** 2 + (y - py) ** 2 <= 1.5) map[y * MW + x] = liquid; }
-    }
-    if (!built) for (const r of rooms) for (let k = 0; k < 3; k++) { const gx = r.x + j(r.rx * 2), gy = r.y + j(r.ry * 2);      // 洞窟裡的發光蘑菇 = 光源
-      if (map[gy * MW + gx] === floor) glows.push({ tx: gx, ty: gy, x: gx * TS + 4 + R() * 8, y: gy * TS + 6 + R() * 6, ph: R() * 10 }); }
+    const R = mulberry32(d.id.length * 977 + d.ent[0] * 31 + d.ent[1]), built = d.style === 'crypt' || d.style === 'ruin', floor = built ? RFLOOR : GROUND;
+    for (let y = d.y0; y < d.y0 + d.h; y++) for (let x = d.x0; x < d.x0 + d.w; x++) reg[y * MW + x] = DREG;
+    const lay = carveLayout(d, R, VERT_TRAPS.has(PUZ[d.id]?.trap)); d.lay = lay; d.rooms = lay.rooms;
+    const { rooms, hall } = lay, entry = rooms[lay.path[0]];
     d.inX = entry.x * TS + 8; d.inY = (entry.y - 1) * TS + 8; d.exX = entry.x * TS + 8; d.exY = (entry.y + 3) * TS + 8;
-    set(entry.x, entry.y + 3, floor);
-    const fightRooms = ruin ? [1, 2, 3, 4, 5, 7, 8] : [1, 2, 3];
-    for (const ri of fightRooms) { const r = rooms[ri], n = (ruin ? 3 : 2) + (R() < .5 ? 1 : 0);
-      for (let k = 0; k < n; k++) for (let t = 0; t < 12; t++) { const x = r.x + j(r.rx * 1.6), y = r.y + j(r.ry * 1.6); if (map[y * MW + x] !== floor) continue;
+    map[(entry.y + 3) * MW + entry.x] = floor; map[(entry.y - 1) * MW + entry.x] = floor;
+    // 營火：入口房（傳送門旁邊）、主路中段、Boss 大廳前那間謎題房的前一間
+    lay.camps.forEach((ri, k) => { const r = rooms[ri], tx = r.x + (k === 0 ? 3 : 0), ty = r.y + (k === 0 ? 1 : 0);
+      for (let y = ty - 1; y <= ty + 1; y++) for (let x = tx - 1; x <= tx + 1; x++) if (map[y * MW + x] === CLIFF || map[y * MW + x] === RWALL || map[y * MW + x] === PILLAR) map[y * MW + x] = floor;
+      CAMPS.push({ id: 'dg_' + d.id + '_' + k, name: d.name + '・' + CAMP_N[k] + '營火', tx, ty, lit: false, x: tx * TS + 8, y: ty * TS + 10, dg: d.id }); });
+    // 小怪：一般的路、岔路；入口、營火房、解謎區、寶物房不放
+    for (const r of rooms) { if (r.role !== 'path' && r.role !== 'branch' && r.role !== 'end') continue;
+      const n = 1 + (r.rx * r.ry >= 16 ? 1 : 0) + (R() < .5 ? 1 : 0);
+      for (let k = 0; k < n; k++) for (let t = 0; t < 12; t++) { const x = r.x + Math.round((R() - .5) * r.rx * 1.6), y = r.y + Math.round((R() - .5) * r.ry * 1.6); if (map[y * MW + x] !== floor) continue;
         roomSpawn(d, x, y, d.kinds[Math.floor(R() * d.kinds.length)], d.lv + (R() < .4 ? 2 : 0)); break; } }
-    d.bossAt = [hall.x, hall.y + 1, Math.min(hall.rx, hall.ry) - .5];       // Boss 的結界：大廳中央，半徑比房間小一點
+    d.bossAt = [hall.x, hall.y + 1, Math.min(hall.rx, hall.ry) - .5];        // Boss 的結界：大廳中央，半徑比房間小一點
     d.bossChest = [hall.x, hall.y - hall.ry + 1];
     d.portal = [hall.x * TS + 8, (hall.y + 3) * TS + 8];                   // 大廳中央偏下：不會擋到最深處的金箱
-    d.sideChests = ruin ? [[rooms[7].x, rooms[7].y], [rooms[8].x, rooms[8].y]] : [[rooms[2].x, rooms[2].y]];
-    const tr = ruin ? rooms[5] : rooms[3]; d.tablet = [tr.x + tr.rx - 1, tr.y - tr.ry + 1];
+    const tr = rooms[lay.treasure];
+    d.sideChests = [[tr.x, tr.y, 2], ...lay.ends.map((ri, k): [number, number, number] => [rooms[ri].x, rooms[ri].y, d.style === 'ruin' && k === 0 ? 2 : 1])];   // 寶物房 = 金箱；死路 = 銀箱（遺跡第一條是金箱）
+    const mid = rooms[lay.camps[1]]; d.tablet = [mid.x + mid.rx - 1, mid.y - mid.ry + 1]; map[d.tablet[1] * MW + d.tablet[0]] = floor;
   }
 }
 export function addDungeonSpawns() {

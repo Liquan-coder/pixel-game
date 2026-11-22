@@ -48,8 +48,8 @@ export function rollSmith(lv) {
   if (lv >= 50) st.push(stockItem(makeArmor(lv >= 62 ? 'fur' : 'ember'), 1.1));
   return st;
 }
-export function moveMerchant() {
-  const lit = CAMPS.filter(c => c.lit && (!merchant || c.id !== merchant.camp)), c = lit.length ? pick(lit) : CAMPS.find(c => c.id === (merchant ? merchant.camp : 'start'));
+export function moveMerchant() {                                       // 換到另一個點燃過的營火（地城裡的營火不算：商人不會跑進地城）
+  const lit = CAMPS.filter(c => c.lit && !c.dg && (!merchant || c.id !== merchant.camp)), c = lit.length ? pick(lit) : CAMPS.find(c => c.id === (merchant ? merchant.camp : 'start'));
   placeMerchant(c.id);
 }
 export const nearMerchant = () => merchant && !G.me.dead && Math.abs(merchant.x - G.me.x) < 26 && Math.hypot(merchant.x - G.me.x, merchant.y - G.me.y) < 26;
