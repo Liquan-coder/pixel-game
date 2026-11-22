@@ -16,7 +16,7 @@ import { burst, hitSpark, quakeFx, shake } from './worldUpdate';
 import { STARC } from '../render/fx';
 import { bumpPot, showBanner, toast } from '../ui/hud';
 import type { Enemy } from '../types';
-import { dismount } from './mount';
+import { WOLF_DASH, dismount, wolfDashFx } from './mount';
 import { SEALC, bindFx, fxOf, onHit, onKill } from './weaponFx';
 import { bindSig, sigBlock, sigHit, sigKill, sigPre, sigSlam, sigSwing } from './signatures';
 import { UQSIG } from '../data/uniques';
@@ -632,11 +632,11 @@ export function tryDodge(pl: Player) {                                          
   const C = ACLS[pl.acls] || ACLS.medium, cost = 20 + C.dodgeSt;        // 防具類型：輕甲省體力、閃得遠；重甲相反
   if (!canDodge(pl, cost)) return;                                       // 體力要付得起、閃完 0.32 秒內不能再閃（game/builds.ts）
   stopCharge(pl); spendSt(pl, cost); dodgeStarted(pl, cost); const m = Math.hypot(input.mx, input.my);
-  const a = m > .2 ? Math.atan2(input.my, input.mx) : pl.face, sp = 520 * C.dodgeMul;
+  const a = m > .2 ? Math.atan2(input.my, input.mx) : pl.face, sp = 520 * C.dodgeMul * (pl.ride ? WOLF_DASH : 1);   // 騎著星狼：往前撲，距離短一點
   pl.dodge = .14; pl.cutSet = null; pl.iframe = Math.max(pl.iframe, .3); pl.dvx = Math.cos(a) * sp; pl.dvy = Math.sin(a) * sp;
   if (pl.tfx && pl.tfx.dodgeAtk) pl.dodgeAtkT = G.time + 1.5; pl.skillLock = 0; pl.timers = []; pl.lunge = null; pl.wheelT = 0;
   if (pl.swing && pl.swing.anim && pl.swing.t < pl.swing.wu) { pl.swing = null; for (let i = G.fx.length - 1; i >= 0; i--) if (G.fx[i].k === 'smear' && G.fx[i].follow === pl && G.fx[i].t < (G.fx[i].delay || 0)) G.fx.splice(i, 1); }   // 預備中翻滾 = 取消這一刀
-  blinkFx(pl, pl.x, pl.y, true); sfx.blink();
+  if (pl.ride) wolfDashFx(pl); else { blinkFx(pl, pl.x, pl.y, true); sfx.blink(); }
 }
 export function tryPot(pl: Player) {
   if (pl.pot <= 0 || busy(pl)) { if (pl.pot <= 0) toast('藥水用完了，回營火休息可以補滿', '#ff8a8a'); return; }

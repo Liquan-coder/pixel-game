@@ -14,6 +14,7 @@ import { cam, light } from '../game/player';
 import { regAt } from '../game/collision';
 import { drawCoin } from '../game/worldUpdate';
 import { drawNum, drawPlayer, drawShadow, heroSlices } from './player';
+import { drawWolf } from '../art/starWolf';
 import { drawBlind, drawStatus } from '../game/status';
 import { SET } from '../ui/pause';
 import { artLine, artPath, asn, drawArrow, drawCrescent, drawLance, drawOrb, drawQuake, drawRibbon, drawRune, drawSmear, drawSpikes, drawStar, drawWarp, drawWaveP, fxCols } from './fx';
@@ -100,6 +101,7 @@ export function render() {
   if (merchant && vis(merchant.x, merchant.y, 60)) { list.push({ y:merchant.y, f:drawMerchant }); addLight(L, merchant.x - 5, merchant.y - 10, 46 + Math.sin(G.time * 6) * 2, 1); }
   // 殘影：衝刺是紫色剪影（最新的疊白光），翻滾是會跟著轉的淡白剪影
   for (const g of G.ghosts) { const k = g.life / g.max, sp = HERO.walk[0], w = sp.w * HK, h = sp.h * HK;
+    if (g.col === 'wolf') { ctx.globalAlpha = .55 * k; drawWolf(g.x, g.y + 2, g.flip, 'leap', 'p'); continue; }   // 騎著星狼往前撲：紫色的狼殘影
     if (g.col === 'glitch') { ctx.globalAlpha = .85 * k; heroSlices(sp, snapF(g.x - (g.flip ? HERO_W - 26 : 26) * HK), snapF(g.y + 2 - h), g.flip, HK, (1 - k) * 12 + 1, k > .6); continue; }
     ctx.save(); ctx.translate(snapF(g.x), snapF(g.y + 2 - h / 2));
     if (g.rot !== undefined) { ctx.rotate(g.rot); ctx.scale(.85, .85); }

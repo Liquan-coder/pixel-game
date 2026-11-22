@@ -57,7 +57,7 @@ function bindBtn(id, key) {
   el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
   el.addEventListener('contextmenu', e => e.preventDefault());
 }
-bindBtn('bAtk', 'atk'); bindBtn('bSkill', 'skill'); bindBtn('bDodge', 'dodge'); bindBtn('bPot', 'pot'); bindBtn('bMount', 'mount');
+bindBtn('bAtk', 'atk'); bindBtn('bSkill', 'skill'); bindBtn('bDodge', 'dodge'); bindBtn('bPot', 'pot');
 document.addEventListener('gesturestart', e => e.preventDefault());
 document.addEventListener('touchmove', e => { const t = e.target as HTMLElement; if (!t.closest || !t.closest('.panel')) e.preventDefault(); }, { passive:false });
 let lastMenu = null;

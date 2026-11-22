@@ -17,7 +17,7 @@ import { burst, shake } from './worldUpdate';
 import { STARC } from '../render/fx';
 import { flashHp, hideBanner, showArea, toast } from '../ui/hud';
 import { save } from './save';
-import { RIDE_SPD, dismount, toggleMount, updateMount } from './mount';
+import { CALL_SHOW, RIDE_SPD, dismount, toggleMount, updateMount } from './mount';
 import type { Player } from '../types';
 
 /* ================= PLAYER UPDATE ================= */
@@ -73,10 +73,10 @@ export function updatePlayer(pl: Player, dt) {
     dodgeCut(pl);                                                       // 月影之鈴：穿過的敵人被砍一刀
     G.fx.push({ k:'aline', x:ox, y:oy - 8 + rr(-5, 5), a:Math.atan2(pl.y - oy, pl.x - ox), len:Math.hypot(pl.x - ox, pl.y - oy) + 4, t:0, d:.16, col:'#d8c8ff' });
     if (Math.random() < .7) G.parts.push({ x:pl.x + rr(-4, 4), y:pl.y - rr(2, 16), vx:rr(-15, 15), vy:rr(-20, 0), life:rr(.25, .45), max:.45, col:pick(STARC), star:rr(.6, 1.8), drag:3 });
-    if (pl.dodge <= 0) { pl.dodge = 0; blinkFx(pl, pl.x, pl.y, false); sfx.blinkIn(); }   // 歸零：停在負數的話 !pl.dodge 會一直是 false → pl.moving 永遠 false（凝視石像抓不到人、受傷不閃爍）
+    if (pl.dodge <= 0) { pl.dodge = 0; if (!pl.ride) { blinkFx(pl, pl.x, pl.y, false); sfx.blinkIn(); } }   // 歸零：停在負數的話 !pl.dodge 會一直是 false → pl.moving 永遠 false（凝視石像抓不到人、受傷不閃爍）
   } else if (puzzleMove(pl, dt)) {                                      // 機關接手移動：冰面滑行、被蘑菇彈飛（world/puzzles.ts）
   } else if (m > .05 && !locked(pl) && !rooted(pl)) {
-    const spd = 84 * moveMul(pl) * (pl.drink > 0 ? .45 : 1) * (pl.skillLock > 0 ? .25 : 1) * (pl.swing ? .6 : 1) * (pl.charging ? .45 : 1) * (pl.ride ? RIDE_SPD : LOAD_TIERS[pl.loadTier ?? 1].mv) * (pl.rideT > 0 ? .3 : 1) * (map[(pl.y / TS | 0) * MW + (pl.x / TS | 0)] === ROAD ? 1.12 : 1);
+    const spd = 84 * moveMul(pl) * (pl.drink > 0 ? .45 : 1) * (pl.skillLock > 0 ? .25 : 1) * (pl.swing ? .6 : 1) * (pl.charging ? .45 : 1) * (pl.ride ? RIDE_SPD : LOAD_TIERS[pl.loadTier ?? 1].mv) * (pl.rideT > CALL_SHOW ? .5 : 1) * (map[(pl.y / TS | 0) * MW + (pl.x / TS | 0)] === ROAD ? 1.12 : 1);
     moveEnt(pl, input.mx * spd * dt, input.my * spd * dt);
     if (pl.aimLock <= 0) { pl.face = Math.atan2(input.my, input.mx); updFlip(pl); }
   }
@@ -91,7 +91,7 @@ export function updatePlayer(pl: Player, dt) {
   }
   if (pressed.skill && silenced(pl)) { pressed.skill = false; if (pl === G.me && G.time - (pl.silT || -9) > 1.2) { pl.silT = G.time; toast('被封印了，暫時不能用技能', '#c8a8ff'); } }
   if (pressed.mount) toggleMount(pl);
-  if (pl.ride && (pressed.atk || pressed.skill || pressed.pot || pressed.dodge)) dismount(pl);   // 騎著按動作鍵：先跳下來，這一下照常做
+  if (pl.ride && (pressed.atk || pressed.skill || pressed.pot)) dismount(pl);   // 騎著按攻擊 / 技能 / 喝藥：先跳下來，這一下照常做（瞬移 = 星狼往前撲）
   // 點一下 = 普通攻擊；按住 = 蓄力，放開放招。
   // 按下去的當下先不出手，等「放開」或「按滿 0.22 秒」才決定是哪一種 → 按住蓄力時不會先多揮一刀
   const atkDown = held.atk || keys.atk;

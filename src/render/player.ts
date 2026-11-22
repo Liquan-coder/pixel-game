@@ -11,8 +11,8 @@ import { asn, drawArrow, drawStar, drawWarp, fillArt } from './fx';
 import { camDt } from '../main';
 import type { Player } from '../types';
 import { bodyGone, deathFx } from './pfx';
-import { SEAT_X, WOLF_CX, drawWolf, wolfLift } from '../art/starWolf';
-import { DROP_T, RIDE_Y } from '../game/mount';
+import { RIDE_Y, SEAT_X, WOLF_CX, drawWolf, wolfSeatDy, type WolfAnim } from '../art/starWolf';
+import { DROP_T, callProgress } from '../game/mount';
 
 /* ================= RENDER ================= */
 const DIG = { '0':['111','101','101','101','111'], '1':['010','110','010','010','111'], '2':['111','001','111','100','111'], '3':['111','001','111','001','111'],
@@ -122,15 +122,15 @@ function edgeMir(pl: Player, msw, dir) {
   return rot > 0;
 }
 export function drawPlayer(pl: Player) {
-  if (pl.dodge > 0 && !pl.dead) return;                                  // 瞬移中完全隱身
+  if (pl.dodge > 0 && !pl.dead && !pl.ride) return;                     // 瞬移中完全隱身（騎著星狼的衝刺看得到：狼往前撲）
   const blink = pl.iframe > 0 && !pl.dodge && !pl.dash && pl.skillLock <= 0 && !(pl.blinkIn > 0) && Math.floor(G.time * 20) % 2 === 0;
   const fade = pl.dead ? (bodyGone(pl) ? 0 : 1) : 1;                  // 倒下：身體交給碎裂特效去畫（pixelfx disintegrate）
   ctx.globalAlpha = fade;
-  const ride = !!pl.ride && !pl.dead, run = ride && pl.moving ? pl.rideRun || 0 : null;
-  drawShadow(pl.x, pl.y + 1, ride ? 30 : 12);
+  const ride = !!pl.ride && !pl.dead, run: WolfAnim = !ride ? null : pl.dodge > 0 ? 'leap' : pl.moving ? pl.rideRun || 0 : null;
+  drawShadow(pl.x, pl.y + 1, ride ? 22 : 12);
   if (ride) drawMount(pl, run);
   // 騎著：整個人抬到狼背上（跟著步伐一起騰空）；剛跳下來：從狼背落回地上
-  const rideY = ride ? RIDE_Y + (run === null ? 0 : wolfLift(run) * HK) : pl.rideDrop > 0 ? RIDE_Y * pl.rideDrop / DROP_T : 0;
+  const rideY = ride ? RIDE_Y - wolfSeatDy(run) : pl.rideDrop > 0 ? RIDE_Y * pl.rideDrop / DROP_T : 0;
   const py = pl.y - rideY, seat = ride ? (SEAT_X - WOLF_CX) * HK * (pl.flip ? -1 : 1) : 0;
   const dir = pl.flip ? -1 : 1, spinA = pl.spin > 0 ? pl.face + (1 - pl.spin / .3) * TAU * dir : 0;
   const ap = heroAttackPose(pl), vs = Math.abs(Math.cos(pl.face));   // 面向上下時前傾減半（只分兩檔，姿勢圖不會無限增加）
@@ -148,6 +148,10 @@ export function drawPlayer(pl: Player) {
   deathFx(pl, flip ? frame.f : frame.n, X, Y, pl.x + lx, pl.y + ly + 2 - bob, flip);   // 倒下的第一幀：用這一格的女巫開始碎成光點
   const layer = sp => ctx.drawImage(white ? (flip ? sp.wf : sp.wn) : (flip ? sp.f : sp.n), X, Y, sp.w * k, sp.h * k);
   const hand = (cx, cy) => [X + (PX0 + (flip ? HERO_W - cx : cx)) * k, Y + (PY0 + cy) * k];
+  const cq = callProgress(pl);
+  if (cq > 0) { const R = ride ? 17 : 14, sy = .45, pulse = cq >= 1 ? 1 : .75 + .25 * Math.sin(G.time * 12);   // 按住瞬移鍵呼喚星狼：腳下的星光圈慢慢畫滿
+    fillArt(pl.x - R - 1, pl.y - R * sy - 1, pl.x + R + 1, pl.y + R * sy + 1, (x, y) => { const dx = x - pl.x, dy = (y - pl.y) / sy, d = Math.sqrt(dx * dx + dy * dy); if (d > R || d < R - 2.4) return 0;
+      let v = Math.atan2(dy, dx) + Math.PI / 2; v = (v % TAU + TAU) % TAU; return v / TAU <= cq ? 2 : 1; }, ['rgba(20,10,40,.5)', 'rgba(200,168,255,' + pulse + ')']); }
   if (pl.charging) {                                                    // 蓄力：腳下的環依進度填滿（紫 → 亮紫 → 金）
     const lv = pl.chargeLv, prog = lv >= 2 ? 1 : lv === 1 ? (pl.charge - CH1) / (CH2 - CH1) : pl.charge / CH1, R = 13, sy = .45;
     fillArt(pl.x - R - 1, pl.y - R * sy - 1, pl.x + R + 1, pl.y + R * sy + 1, (x, y) => { const dx = x - pl.x, dy = (y - pl.y) / sy, d = Math.sqrt(dx * dx + dy * dy); if (d > R || d < R - 2.4) return 0;
@@ -210,7 +214,7 @@ export function drawPlayer(pl: Player) {
     ctx.drawImage(sp, -w / 2, -h / 2, w, h); ctx.restore(); }
 }
 /* 星狼：剛騎上時從白光裡浮現（白色剪影淡出）*/
-function drawMount(pl: Player, run: number | null) {
+function drawMount(pl: Player, run: WolfAnim) {
   const a0 = ctx.globalAlpha;
   drawWolf(pl.x, pl.y + 2, pl.flip, run);
   if (pl.rideIn > 0) { ctx.globalAlpha = a0 * Math.min(1, pl.rideIn / .35); drawWolf(pl.x, pl.y + 2, pl.flip, run, 'w'); ctx.globalAlpha = a0; }

@@ -119,8 +119,6 @@ body.menu .toast{background:#000d;border:1px solid var(--line);padding:3px 12px}
 #bDodge{right:6px;bottom:98px;width:58px;height:58px}
 #bPot{right:92px;bottom:86px;width:50px;height:50px}
 #bPot .ic{width:46%;height:56%}
-#bMount{right:152px;bottom:100px;width:48px;height:48px}#bMount span{font-size:10px}   /* 星狼：解鎖後才出現（game/mount.ts）；騎著時亮紫色，這裡不能騎時變暗 */
-#bMount.on{border-color:#b49cffcc;box-shadow:0 0 8px #9a7cff99}#bMount.on .ic{opacity:.95}#bMount.off{opacity:.45}
 #bSkill .cd{position:absolute;inset:0;background:conic-gradient(#000b calc(var(--cd,0)*360deg),transparent 0);pointer-events:none}
 #bSkill span{position:relative;font-size:10px;line-height:1.1;text-align:center;padding:0 6px}
 #bPot b{position:absolute;right:8px;bottom:4px;font-size:11px;color:var(--gold);font-weight:400}
