@@ -6,6 +6,7 @@ import { ANIM, HAND_R, HERO, HERO_H, HERO_W, HSY, PPX, PPY, REACH, STYLE, WLEN, 
 import { drawWeapon } from '../art/weapon';
 import { ICON, WT } from '../data/items';
 import { CH1, CH2, CHC, restAng, wcols } from '../game/combat';
+import { fxOf } from '../game/weaponFx';
 import { asn, drawArrow, drawStar, drawWarp, fillArt } from './fx';
 import { camDt } from '../main';
 import type { Player } from '../types';
@@ -68,6 +69,17 @@ function attackParticles(pl: Player, m, phase, gx, gy, ang) {                   
     drawStar(gx2, gy2, 2.4 * (1 - k * .5), '#ffffff');
     emit(28, () => { const [bx, by] = along(rr(.3, 1)); G.parts.push({ x:bx, y:by, vx:-Math.cos(pl.face) * rr(10, 30), vy:rr(-20, -6), life:.32, max:.32, col:pick([col[0], col[1], '#e8dcff']), star:rr(.5, 1.3), drag:3 }); });
   }
+}
+/* 武器上的刻印：平常拿著就會一直冒刻印的粒子，一眼看得出這把裝了什麼
+   出血 = 刀身滴血、燃燒 = 往上竄的火星、寒霜 = 往下飄的雪、雷鳴 = 一閃一閃的電花、噬魂 = 慢慢飄上去的紫色魂 */
+function sealAura(pl: Player, gx, gy, ang) {
+  const fx = fxOf(pl.weapon); if (!fx) return;
+  const L = WLEN[pl.weapon.type] || 8, c = Math.cos(ang), s = Math.sin(ang), along = (u: number) => [gx + c * L * u, gy + s * L * u];
+  if (fx === 'bleed') emit(7, () => { const [x, y] = along(rr(.4, 1)); G.parts.push({ x, y, vx:rr(-3, 3), vy:rr(0, 8), life:rr(.35, .55), max:.55, col:pick(['#c01020', '#ff3a4a']), s:1, g:160 }); });
+  else if (fx === 'burn') emit(22, () => { const [x, y] = along(rr(.3, 1)); G.parts.push({ x:x + rr(-1, 1), y, vx:rr(-5, 5), vy:-rr(18, 36), life:rr(.25, .45), max:.45, col:pick(['#ffe08a', '#ffa040', '#e8402a']), star:rr(.6, 1.3), drag:1 }); });
+  else if (fx === 'frost') emit(9, () => { const [x, y] = along(rr(.3, 1)); G.parts.push({ x:x + rr(-2, 2), y:y + rr(-2, 2), vx:rr(-5, 5), vy:rr(6, 14), life:rr(.5, .8), max:.8, col:pick(['#ffffff', '#d8f0ff', '#9ae0ff']), star:rr(.5, 1.1), drag:1 }); });
+  else if (fx === 'shock') emit(10, () => { const [x, y] = along(rr(.3, 1)), a = rr(0, TAU); G.parts.push({ x, y, vx:Math.cos(a) * 60, vy:Math.sin(a) * 60, life:.08, max:.08, col:pick(['#ffffff', '#ffe85a', '#ffe85a']), star:rr(1, 1.8), drag:8 }); });
+  else if (fx === 'soul') emit(8, () => { const [x, y] = along(rr(.3, 1)); G.parts.push({ x, y, vx:rr(-4, 4), vy:-rr(8, 16), life:rr(.6, .9), max:.9, col:pick(['#c8a8ff', '#f0e8ff', '#9a6cff']), star:rr(.6, 1.3), drag:.5 }); });
 }
 function skillParticles(pl: Player, gx, gy, ang) {                                   // 技能持續中的粒子
   const L = WLEN[pl.weapon.type] || 8, tx = gx + Math.cos(ang) * L, ty = gy + Math.sin(ang) * L, wc = wcols(pl, pl.weapon.type);
@@ -178,6 +190,7 @@ export function drawPlayer(pl: Player) {
   ctx.globalAlpha = fade;
   if (!behind) drawW();
   if (showW && msw && !pl.dead) attackParticles(pl, msw, phase, gx, gy, ang);
+  if (showW && !pl.dead) sealAura(pl, gx, gy, ang);
   if (!pl.dead) skillParticles(pl, gx, gy, ang);
   if (msw && phase === 'S') { (pl.wHist = pl.wHist || []).push([gx, gy, ang]); if (pl.wHist.length > 3) pl.wHist.shift(); } else pl.wHist = null;
   ctx.globalAlpha = 1;

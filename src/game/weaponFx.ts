@@ -2,7 +2,7 @@
    史詩武器隨機帶一種、傳說（獨特）武器固定帶一種。稀有度不加攻擊力，改成給這些效果。
    掛在 combat.ts 的 damageEnemy（每次命中）和擊殺時；燃燒每幀在 tickWeaponFx 結算。 */
 import { G } from '../core/state';
-import { pick, rr } from '../core/util';
+import { TAU, pick, rr } from '../core/util';
 import { sfx } from '../core/audio';
 import type { Enemy, Item, Player } from '../types';
 import { UQ } from '../data/uniques';
@@ -20,11 +20,40 @@ export const fxOf = (it: Item | null) => it ? (it.uq && UQ[it.uq] ? UQ[it.uq].fx
 
 type RawHit = (pl: Player, e: Enemy, v: number, col: string) => void;
 type Targets = (pl: Player) => Enemy[];
-let rawHit: RawHit, targetsOf: Targets;
-export function bindFx(r: RawHit, t: Targets) { rawHit = r; targetsOf = t; }   // combat.ts 開機時接上（避免互相 import）
+let rawHit: RawHit, targetsOf: Targets, shake: (m: number, t: number) => void = () => {};
+export function bindFx(r: RawHit, t: Targets, sh: (m: number, t: number) => void) { rawHit = r; targetsOf = t; shake = sh; }   // combat.ts 開機時接上（避免互相 import）
 
-const num = (e: Enemy, txt: string, col: string) => G.nums.push({ x: e.x + rr(-4, 4), y: e.y - (e.boss ? 34 : 22), txt, col, t: 0, d: .8, big: true });
+/* 刻印的顏色：深 / 中 / 亮。刀光、武器身上的粒子（render/player.ts）都用這個 */
+export const SEALC: Record<string, [string, string, string]> = {
+  bleed: ['#8a1020', '#ff5a64', '#ffc0c8'], burn: ['#c0401a', '#ffa040', '#ffe08a'], frost: ['#2a6aa0', '#9ae0ff', '#ffffff'],
+  shock: ['#a08a10', '#ffe85a', '#ffffff'], soul: ['#5a3a9a', '#c8a8ff', '#f0e8ff'] };
+const ICE_SECS = (e: Enemy) => e.elite ? .4 : 1;                       // 凍住幾秒（Boss 不會被凍住）
+
+const num = (e: Enemy, txt: string, col: string) => G.nums.push({ x: e.x + rr(-4, 4), y: e.y - (e.boss ? 34 : 22), txt, col, t: 0, d: .9, big: true });
 function sparks(e: Enemy, col: string, n: number) { for (let i = 0; i < n; i++) G.parts.push({ x: e.x + rr(-5, 5), y: e.y - rr(2, 14), vx: rr(-40, 40), vy: -rr(20, 70), life: rr(.3, .6), max: .6, col, star: rr(.8, 1.8), drag: 2 }); }
+/* 發作的瞬間：畫面停一下 + 輕輕震 + 怪閃白，讓人注意到「剛剛那一下不一樣」 */
+function popJuice(e: Enemy, stop: number, mag: number) { G.hitStop = Math.max(G.hitStop, stop); shake(mag, .12); e.flash = Math.max(e.flash || 0, .12); }
+function bleedPop(e: Enemy) {                                          // 出血：往上噴的血花（會掉下來）+ 紅色圈
+  for (let i = 0; i < 26; i++) { const a = rr(-Math.PI, 0), s = rr(50, 150); G.parts.push({ x: e.x + rr(-3, 3), y: e.y - 10, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rr(.35, .75), max: .75, col: pick(['#c01020', '#ff3a4a', '#7a0810', '#ff7a84']), s: Math.random() < .3 ? 2 : 1, g: 320 }); }
+  G.fx.push({ k: 'ring', x: e.x, y: e.y - 6, r0: 4, r1: 26, t: 0, d: .3, col: '#ff3a4a' });
+  popJuice(e, .06, 2.5); sfx.bleedPop();
+}
+function freezePop(e: Enemy) {                                         // 寒霜：冰屑四散 + 冰藍圈；小怪被包進冰塊（render/enemy.ts 畫）
+  for (let i = 0; i < 20; i++) { const a = rr(0, TAU), v = rr(40, 120); G.parts.push({ x: e.x, y: e.y - 8, vx: Math.cos(a) * v, vy: Math.sin(a) * v * .6 - 20, life: rr(.4, .8), max: .8, col: pick(['#ffffff', '#d8f0ff', '#9ae0ff']), star: rr(.6, 1.8), drag: 3 }); }
+  G.fx.push({ k: 'ring', x: e.x, y: e.y - 4, r0: 4, r1: 28, t: 0, d: .35, col: '#9ae0ff' });
+  if (!e.boss) e.iceT = G.time + ICE_SECS(e);
+  popJuice(e, .06, 2); sfx.freeze();
+}
+function ignitePop(e: Enemy) {                                         // 燃燒：剛點著的時候「呼」一下竄出火
+  for (let i = 0; i < 14; i++) G.parts.push({ x: e.x + rr(-6, 6), y: e.y - rr(0, 8), vx: rr(-20, 20), vy: -rr(40, 90), life: rr(.3, .55), max: .55, col: pick(['#ffe08a', '#ffa040', '#e8402a']), star: rr(.8, 2), drag: 2 });
+  G.fx.push({ k: 'ring', x: e.x, y: e.y, r0: 3, r1: 18, t: 0, d: .25, col: '#ffa040' });
+  sfx.ignite();
+}
+function soulWisps(pl: Player, e: Enemy) {                             // 噬魂：幾顆紫色的魂從怪身上飛進主角
+  for (let i = 0; i < 7; i++) { const life = rr(.35, .55), sx = e.x + rr(-6, 6), sy = e.y - rr(4, 14);
+    G.parts.push({ x: sx, y: sy, vx: (pl.x - sx) / life, vy: (pl.y - 10 - sy) / life, life, max: life, col: pick(['#c8a8ff', '#f0e8ff', '#9a6cff']), star: rr(1, 2.2) }); }
+  sfx.soulTake();
+}
 
 /** 每次命中（proc = 由效果本身造成的傷害，不再觸發，避免連鎖無限）
     B 也照武器速度調：慢的武器每下累積比較多 / 比較容易觸發，所以每種武器大約一樣快爆（太刀 0.34 秒一下 = 1 倍；短刀 0.76 倍、戰鎚 2.35 倍） */
@@ -32,31 +61,31 @@ export const SPD_REF = .34;
 export function onHit(pl: Player, e: Enemy, v: number, crit: boolean) {
   const fx = fxOf(pl.weapon); if (!fx || e.hp <= 0) return;
   const pow = pl.atkPow || pl.weapon.atk || 10, B = (1 + ((pl.tfx && pl.tfx.fxBuild) || 0) / 100) * (WT[pl.weapon.type]?.cd || SPD_REF) / SPD_REF;   // 飾品「刻印效果加強」× 武器速度
-  if (fx === 'bleed') { e.bleedB = (e.bleedB || 0) + (22 + (crit ? 15 : 0)) * B;
+  if (fx === 'bleed') { e.bleedB = (e.bleedB || 0) + (22 + (crit ? 15 : 0)) * B; e.fxT = G.time;   // fxT：最後一次累積的時間（頭上的圖示要不要畫）
     if (e.bleedB >= 100) { e.bleedB = 0; const d = Math.round(Math.max(pow * .6, e.maxHp * (e.boss ? .05 : .15)));
-      num(e, '出血 ' + d, WFXD.bleed.c); sparks(e, '#e0303a', 16); sfx.crit(); rawHit(pl, e, d, WFXD.bleed.c); } }
-  else if (fx === 'frost') { e.frostB = (e.frostB || 0) + 25 * B;
-    if (e.frostB >= 100) { e.frostB = 0; const d = Math.round(pow * 1.5); if (!e.boss) e.stun = Math.max(e.stun || 0, e.elite ? .4 : 1);
-      num(e, '凍傷 ' + d, WFXD.frost.c); sparks(e, '#c8f0ff', 14); G.fx.push({ k: 'ring', x: e.x, y: e.y, r0: 4, r1: 22, t: 0, d: .3, col: '#9ae0ff' }); rawHit(pl, e, d, WFXD.frost.c); } }
-  else if (fx === 'burn') { if (Math.random() < .3 * B) { if (!(e.burnT > 0)) sparks(e, '#ff9a3a', 8); e.burnT = 3; e.burnD = Math.max(1, Math.round(pow * .2)); e.burnBy = pl; } }
+      num(e, '出血 ' + d, WFXD.bleed.c); bleedPop(e); rawHit(pl, e, d, WFXD.bleed.c); } }
+  else if (fx === 'frost') { e.frostB = (e.frostB || 0) + 25 * B; e.fxT = G.time;
+    if (e.frostB >= 100) { e.frostB = 0; const d = Math.round(pow * 1.5); if (!e.boss) e.stun = Math.max(e.stun || 0, ICE_SECS(e));
+      num(e, '凍傷 ' + d, WFXD.frost.c); freezePop(e); rawHit(pl, e, d, WFXD.frost.c); } }
+  else if (fx === 'burn') { if (Math.random() < .3 * B) { if (!(e.burnT > 0)) ignitePop(e); e.burnT = 3; e.burnD = Math.max(1, Math.round(pow * .2)); e.burnBy = pl; } }
   else if (fx === 'shock') { if (Math.random() < .2 * B) {
     const near = targetsOf(pl).filter(o => o !== e && o.hp > 0 && Math.hypot(o.x - e.x, o.y - e.y) < 64).sort((a, b) => Math.hypot(a.x - e.x, a.y - e.y) - Math.hypot(b.x - e.x, b.y - e.y)).slice(0, 2);
-    for (const o of near) { bolt(e.x, e.y - 8, o.x, o.y - 8); rawHit(pl, o, Math.max(1, Math.round(v * .6)), WFXD.shock.c); }
-    if (near.length) sfx.crit(); } }
+    for (const o of near) { bolt(e.x, e.y - 8, o.x, o.y - 8); sparks(o, '#ffe85a', 8); o.flash = Math.max(o.flash || 0, .1); rawHit(pl, o, Math.max(1, Math.round(v * .6)), WFXD.shock.c); }
+    if (near.length) { sparks(e, '#ffffff', 6); G.fx.push({ k: 'ring', x: e.x, y: e.y - 8, r0: 2, r1: 14, t: 0, d: .18, col: '#ffe85a' }); shake(1.5, .08); sfx.zap(); } } }
 }
 /** 擊殺（回傳魂晶倍率） */
 export function onKill(pl: Player, e: Enemy) {
   if (!pl) return 1;
   const T = pl.tfx || {}, soul = fxOf(pl.weapon) === 'soul', heal = (soul ? 4 : 0) + (T.killHeal || 0);   // 噬魂刻印 + 飾品「打倒敵人回血」
   if (heal) { const h = Math.round(pl.maxHp * heal / 100); pl.hp = Math.min(pl.maxHp, pl.hp + h);
-    G.nums.push({ x: pl.x, y: pl.y - 28, txt: '+' + h, col: '#c8a8ff', t: 0, d: .7 }); if (soul) sparks(e, '#c8a8ff', 10); }
+    G.nums.push({ x: pl.x, y: pl.y - 28, txt: '+' + h, col: '#c8a8ff', t: 0, d: .7, big: soul }); if (soul) { sparks(e, '#c8a8ff', 10); soulWisps(pl, e); } }
   return (soul ? 1.25 : 1) * (1 + (T.souls || 0) / 100);                 // 魂晶倍率
 }
 /** 燃燒：每 0.5 秒扣一次 */
 export function tickWeaponFx(dt: number, list: Enemy[]) {
   for (const e of list) { if (!(e.burnT > 0) || e.hp <= 0) continue;
     e.burnT -= dt; e.burnAcc = (e.burnAcc || 0) + dt;
-    if (Math.random() < dt * 14) G.parts.push({ x: e.x + rr(-4, 4), y: e.y - rr(2, 10), vx: rr(-6, 6), vy: -rr(20, 40), life: .4, max: .4, col: pick(['#ff9a3a', '#ffd27a', '#e8402a']), star: 1, drag: 1 });
+    if (Math.random() < dt * 30) G.parts.push({ x: e.x + rr(-5, 5), y: e.y - rr(0, 12), vx: rr(-6, 6), vy: -rr(25, 50), life: rr(.3, .5), max: .5, col: pick(['#ff9a3a', '#ffd27a', '#e8402a', '#ffffff']), star: rr(.8, 1.6), drag: 1 });   // 身上一直冒火
     if (e.burnAcc >= .5) { e.burnAcc -= .5; G.nums.push({ x: e.x + rr(-4, 4), y: e.y - 18, txt: String(e.burnD), col: WFXD.burn.c, t: 0, d: .5 }); rawHit(e.burnBy || G.me, e, e.burnD, WFXD.burn.c); } }
 }
 function bolt(x0: number, y0: number, x1: number, y1: number) {                // 鋸齒狀閃電：三段斜線

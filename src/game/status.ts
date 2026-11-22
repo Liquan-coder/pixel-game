@@ -93,16 +93,19 @@ export function drawStatus(pl: Player) {
   const icons = ([['bleed', S.bleed], ['frost', S.frost]] as [string, number][]).filter(([, v]) => v > 0);
   icons.forEach(([k, v], i) => buildIcon(BUILD[k], x + (i - (icons.length - 1) / 2) * 12, y - 32, v / 100, t));
 }
-/* 累積圖示的形狀（x = 有顏色的格子，外框自動加）和顏色：亮 / 反光 / 暗（還沒累積的部分） */
-const BUILD: Record<string, { rows: string[]; lit: string; hi: string; dark: string; hx: number; hy: number }> = {
+/* 累積圖示的形狀（x = 有顏色的格子，外框自動加）和顏色：亮 / 反光 / 暗（還沒累積的部分）
+   怪物身上的刻印累積也用同一套（render/enemy.ts）：burn = 燃燒還剩幾秒 */
+export const BUILD: Record<string, { rows: string[]; lit: string; hi: string; dark: string; hx: number; hy: number }> = {
+  burn: { lit: '#ff9a3a', hi: '#ffe08a', dark: '#6a2a10', hx: 3, hy: 6, rows: [
+    '...x...', '..xx...', '..xxx..', '.xxxx..', '.xxxxx.', 'xxxxxxx', 'xxxxxxx', 'xxxxxxx', '.xxxxx.', '..xxx..'] },
   bleed: { lit: '#ff3a4a', hi: '#ffc0c8', dark: '#6a2028', hx: 2, hy: 6, rows: [
     '...x...', '...x...', '..xxx..', '..xxx..', '.xxxxx.', 'xxxxxxx', 'xxxxxxx', 'xxxxxxx', '.xxxxx.', '..xxx..'] },
   frost: { lit: '#a8dcff', hi: '#ffffff', dark: '#34506e', hx: 4, hy: 4, rows: [
     '....x....', '.x..x..x.', '..x.x.x..', '...xxx...', 'xxxxxxxxx', '...xxx...', '..x.x.x..', '.x..x..x.', '....x....'] },
 };
-function buildIcon(B, cx: number, bottom: number, f: number, t: number) {
+export function buildIcon(B, cx: number, bottom: number, f: number, t: number, warnAt = .75) {   // warnAt：累積到多少開始閃（燃燒不閃 → 傳 2）
   const P = HK * 3, H = B.rows.length, W = B.rows[0].length, X = snapF(cx - W * P / 2), Y = snapF(bottom - H * P);
-  const litFrom = H - Math.round(H * Math.min(1, f)), warn = f >= .75 && Math.sin(t * 18) > 0;   // 第幾列以下是亮的
+  const litFrom = H - Math.round(H * Math.min(1, f)), warn = f >= warnAt && Math.sin(t * 18) > 0;   // 第幾列以下是亮的
   ctx.fillStyle = warn ? '#ffffff' : '#0e0b14';                                                    // 外框：每一格往四周多畫一圈
   B.rows.forEach((r, ry) => { for (let rx = 0; rx < W; rx++) if (r[rx] === 'x') ctx.fillRect(X + (rx - 1) * P, Y + (ry - 1) * P, P * 3, P * 3); });
   B.rows.forEach((r, ry) => { for (let rx = 0; rx < W; rx++) if (r[rx] === 'x') {

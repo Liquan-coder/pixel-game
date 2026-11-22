@@ -16,7 +16,7 @@ import { burst, hitSpark, quakeFx, shake } from './worldUpdate';
 import { STARC } from '../render/fx';
 import { bumpPot, showBanner, toast } from '../ui/hud';
 import type { Enemy } from '../types';
-import { bindFx, onHit, onKill } from './weaponFx';
+import { SEALC, bindFx, fxOf, onHit, onKill } from './weaponFx';
 import './bossTuning';                                                   // Boss 的傷害倍率和獎勵（平衡用）
 import type { Player } from '../types';
 
@@ -73,7 +73,7 @@ export function rawHit(pl: Player, e: Enemy, v: number, col: string) {
   if (col === '#ffe85a') G.nums.push({ x:e.x + rr(-3, 3), y:e.y - (e.boss ? 26 : 16), txt:String(v), col, t:0, d:.6 });
   finish(pl, e);
 }
-bindFx(rawHit, targets);
+bindFx(rawHit, targets, shake);
 function meleeHit(pl: Player, range, arcDeg, mult, opts?, fa = pl.face) {   // 回傳打中幾個（戰斧要知道有沒有砍到東西）；fa = 往哪個方向砍（雙頭刀的後半截往背後）
   const half = arcDeg / 2 * Math.PI / 180; let n = 0;
   for (const e of targets(pl)) {
@@ -110,7 +110,9 @@ export const WFX = {                                                         // 
   elfbow: ['#1e7a5a', '#9ae0b4', '#ffffff'], elfrapier: ['#1e7a6a', '#a8f0e0', '#ffffff'], elfblades: ['#2a8a4a', '#b8f0a0', '#ffffff'] };   // 精靈武器：葉綠色
 const MOONC = ['#23206e', '#8aa0ff', '#eef4ff'];                         // 暗月大劍的月光（不管有沒有刻印都是這個顏色）
 const SHADOWBLADE = ['#1a1030', '#6a4ad0', '#e0d0ff'];
-export function wcols(pl: Player, type) { const c = WFX[type].slice(), r = pl.weapon.rarity; if (r >= 3) c[0] = RAR[r].c; return c; }
+export function wcols(pl: Player, type) { const c = WFX[type].slice(), r = pl.weapon.rarity, fx = fxOf(pl.weapon);
+  if (fx && SEALC[fx]) { c[0] = SEALC[fx][0]; c[1] = SEALC[fx][1]; return c; }    // 有刻印：刀光換成刻印的顏色（出血紅、燃燒橘、寒霜冰藍、雷鳴黃、噬魂紫）
+  if (r >= 3) c[0] = RAR[r].c; return c; }
 function smearFx(pl: Player, a0, a1, r, w, sw, cols, hold = .12, delay = 0, sy = HSY) { G.fx.push({ k:'smear', follow:pl, a0, a1, r, w, sw, hold, delay, t:0, d:delay + sw + hold, cols, sy }); }
 function lanceFx(pl: Player, a, len, w, cols, d, follow) {
   G.fx.push({ k:'lance', follow:follow ? pl : null, x:pl.x + Math.cos(a) * 6, y:pl.y - 7 + Math.sin(a) * 6, a, len, w, t:0, d, cols });
