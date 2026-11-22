@@ -42,9 +42,9 @@ export function placeFromSave(d) {
     G.me.x = p.x; G.me.y = p.y; cam.x = p.x - LW / 2; cam.y = p.y - LH / 2; return; }
   placeAtCamp(G.me, G.lastCamp);
 }
-export function save() { if (!G.started) return; try { localStorage.setItem(SLOT_KEYS[slot], JSON.stringify(serialize())); } catch (e) {} }
+export function save() { if (!G.started || G.lab) return; try { localStorage.setItem(SLOT_KEYS[slot], JSON.stringify(serialize())); } catch (e) {} }
 export function loadSave(n = slot) { try { const s = localStorage.getItem(SLOT_KEYS[n]); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
-export function clearSave(n = slot) { try { localStorage.removeItem(SLOT_KEYS[n]); } catch (e) {} }
+export function clearSave(n = slot) { if (G.lab) return; try { localStorage.removeItem(SLOT_KEYS[n]); } catch (e) {} }
 export function applySave(d) {
   resetPlayers();
   Object.assign(G.me, migrateAttrs(d)); G.me.souls = d.souls || 0;   // 舊存檔的三種能力值會換算成新的六種

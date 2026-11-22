@@ -83,6 +83,7 @@ function boot(data) {
   initTitle();                                                          // 標題畫面：三格存檔（ui/title.ts）
   if (data && data.save && data.started) { if (data.slot >= 0) setSlot(data.slot); applySave(data.save); placeFromSave(data.save); restoreWorld(); G.started = true; $('title').hidden = true; setMenu(null); }
   requestAnimationFrame(frame);
+  if (import.meta.env.DEV && new URLSearchParams(location.search).has('lab')) import('./dev/lab').then(m => m.startLab(startGame));   // 開發用：?lab = 刻印測試場（不存檔）
 }
 try { window.claude && window.claude.hot && window.claude.hot.snapshot && window.claude.hot.snapshot(() => ({ save: G.started ? serialize() : null, started: G.started, slot })); } catch (e) {}
 const H = window.claude && window.claude.hot;
