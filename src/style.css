@@ -445,10 +445,18 @@ button.fneed{width:100%;text-align:left;font-family:var(--font)}
 .cbag{container-type:inline-size}
 @container (max-width:240px){.bagtabs{display:grid;grid-template-columns:repeat(3,1fr)}}   /* 背包欄太窄：分頁排成兩排 */
 .bagtabs button{white-space:nowrap}
-.sico{position:relative;width:40px;height:40px;padding:0;background:#0008;border:1px solid var(--line)}   /* 選中卡的圖示：點一下看說明（刻印、技能、背景故事），再點回到數值 */
+.sico{position:relative;width:40px;height:40px;padding:0;background:#0008;border:1px solid var(--line)}   /* 選中卡的圖示 */
 .sico img{width:100%;height:100%;image-rendering:pixelated;display:block}
-.sico i{position:absolute;right:-5px;bottom:-5px;width:15px;height:15px;font-style:normal;font-size:11px;line-height:13px;text-align:center;background:var(--gold);color:var(--ink);border:1px solid var(--ink)}
-.sico.on{border-color:var(--gold)}
+/* 中間欄裝備欄下面的能力值：兩欄三排；選中的東西需要的那幾項亮起來，不夠的變紅 */
+.cattrs{width:184px;background:#0004;border:2px solid var(--line);padding:4px 8px}
+.cattrs .lbl{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;letter-spacing:.1em;margin-bottom:2px}
+.cattrs .lbl small{font-size:10px;color:var(--muted);letter-spacing:0}
+.cattrs .alist{display:grid;grid-template-columns:1fr 1fr;gap:1px 12px}
+.cattrs .alist div{display:flex;justify-content:space-between;font-size:12px;line-height:1.5}
+.cattrs .alist span{color:var(--muted)} .cattrs .alist b{font-weight:400;font-variant-numeric:tabular-nums}
+.cattrs .alist .rq span,.cattrs .alist .rq b{color:var(--gold)}
+.cattrs .alist .no span,.cattrs .alist .no b{color:#ff6a5a}
+@media (max-height:500px){.cattrs{padding:2px 7px}.cattrs .lbl{display:none}.cattrs .alist div{font-size:11px;line-height:1.4}}
 @container (max-width:280px){.attr .bar2{display:none}.attr{grid-template-columns:1fr auto}}   /* 左欄太窄：能力值只留數字 */
 .card.det{margin:0}
 /* 一頁看完：矮螢幕（手機橫放）把左欄壓緊，不用往下捲 */
@@ -461,5 +469,4 @@ button.fneed{width:100%;text-align:left;font-family:var(--font)}
   .card.det{font-size:11px;line-height:1.4;padding:4px 7px}.card.det .sk{margin-top:2px;padding-top:2px}.card.det .atk{font-size:13px}.card.det .req{margin-top:1px;font-size:11px}
   .matrow small{display:none}.matrow img{width:22px;height:22px}.matrow{grid-template-columns:22px minmax(0,1fr) auto;padding:1px 8px 1px 1px}
 }
-.card.det .reqno,.selcard .reqno{display:none}
-.selcard .req{margin-top:1px;font-size:11px;line-height:1.3}   /* 選中卡直接顯示需求，不用點問號 */   /* 選中卡的按鈕已經寫「能力不夠」 */
+.card.det .reqno{display:none}   /* 選中卡的按鈕已經寫「能力不夠」 */
