@@ -71,10 +71,11 @@ export function drawQuestArrow() {
   if (!G.started || G.me.dead || !navT || dungeonAt(G.me.x, G.me.y)) return;
   const x = navT.x, y = navT.y, dx = x - G.me.x, dy = y - G.me.y, d = Math.hypot(dx, dy);
   if (d < 40) { toast('抵達 ' + navT.name, '#ffe38a'); setNav(null); return; }
-  const a = Math.atan2(dy, dx), r = 20 + Math.sin(G.time * 4) * 1.5, cx = G.me.x + Math.cos(a) * r, cy = G.me.y - 8 + Math.sin(a) * r * .8;
-  ctx.save(); ctx.translate(snapF(cx), snapF(cy)); ctx.rotate(a); ctx.globalAlpha = .85;
+  const a = Math.atan2(dy, dx), r = 22 + Math.sin(G.time * 4) * 2, cx = G.me.x + Math.cos(a) * r, cy = G.me.y - 8 + Math.sin(a) * r * .8;
+  const glow = .5 + .5 * Math.sin(G.time * 7);                          // 一明一暗地閃，比較容易注意到
+  ctx.save(); ctx.translate(snapF(cx), snapF(cy)); ctx.rotate(a); ctx.scale(1.5, 1.5); ctx.globalAlpha = .6 + .4 * glow;
   ctx.fillStyle = '#1a1020'; ctx.beginPath(); ctx.moveTo(5, 0); ctx.lineTo(-3, -4); ctx.lineTo(-1, 0); ctx.lineTo(-3, 4); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#ffd04a'; ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(-2, -3); ctx.lineTo(-.5, 0); ctx.lineTo(-2, 3); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = glow > .7 ? '#fff2b0' : '#ffd04a'; ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(-2, -3); ctx.lineTo(-.5, 0); ctx.lineTo(-2, 3); ctx.closePath(); ctx.fill();
   ctx.restore(); ctx.globalAlpha = 1;
 }
 /* 地圖上的傳聞：一個模糊的虛線圈（不給精確位置）。s = 每格幾個像素，ox/oy = 地圖偏移 */

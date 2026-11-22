@@ -152,7 +152,7 @@ export function stampEntrances(inb: (x: number, y: number) => boolean) {
    兩根破旗、一圈發著紫光的符文石，地上散著頭骨和插在土裡的舊劍（world/dungeonArt.ts 畫）。
    在 main.ts 生成完寶箱、怪物之後才跑：只清掉前院的樹和石頭，不會讓其他東西的位置跑掉（舊存檔照樣對得上）。
    deco 的座標都是世界座標；雕像、石碑、旗桿會擋路（PROPS） */
-export interface Deco { k: 'statue' | 'banner' | 'rune' | 'skull' | 'bones' | 'sword'; x: number; y: number; flip?: boolean }
+export interface Deco { k: 'statue' | 'banner' | 'rune' | 'skull' | 'bones' | 'sword' | 'crystal'; x: number; y: number; flip?: boolean }
 export function dressEntrances(avoid: { x: number; y: number }[] = []) {   // avoid = 寶箱：不要把雕像蓋在寶箱上
   PROPS.length = 0;
   const CLEAR = new Set([TREE, ROCK, BIGT, GRAVE, CRATE]);
@@ -165,6 +165,13 @@ export function dressEntrances(avoid: { x: number; y: number }[] = []) {   // av
     const put = (k: Deco['k'], x: number, y: number, r = 0, flip = false) => { if (r && !free(x, y, r)) return; d.deco.push({ k, x, y, flip }); if (r) PROPS.push({ x, y, r }); };
     for (const s of [-1, 1]) { put('statue', cx + s * 52, cy + 40, 7, s > 0); put('banner', cx + s * 88, cy + 14, 2.5, s > 0); }
     for (let k = 0; k < 6; k++) { const a = Math.PI * (.12 + .76 * k / 5); put('rune', cx + Math.cos(a) * 118, cy + 30 + Math.sin(a) * 72, 5); }   // 前院外圍半圈符文石
+    // 岩丘的背面和兩側：再圍半圈符文石 → 從後面、旁邊走過來也看得出「這是地城」
+    const hx = ex * TS + 8, hy = (ey - 2.5) * TS + 8;                                              // 岩丘中心（stampEntrances 那個橢圓）
+    for (let k = 0; k < 7; k++) { const a = Math.PI - .1 + (Math.PI + .2) * k / 6; put('rune', hx + Math.cos(a) * 140, hy + Math.sin(a) * 110, 5); }
+    // 岩丘上冒出來的紫水晶（長在岩壁格子上，不擋路）
+    for (const [a, f] of [[Math.PI + .35, .72], [Math.PI + .95, .6], [Math.PI * 1.5 - .25, .78], [Math.PI * 1.5 + .45, .66], [-.4, .7], [Math.PI + .05, .55], [.05, .6]]) {
+      const x = hx + Math.cos(a) * 106 * f, y = hy + Math.sin(a) * 80 * f;
+      if (map[Math.floor(y / TS) * MW + Math.floor(x / TS)] === CLIFF) d.deco.push({ k: 'crystal', x, y, flip: Math.cos(a) < 0 }); }
     for (const [k, ox, oy] of [['skull', -30, 30], ['sword', 34, 66], ['bones', -42, 84], ['skull', 24, 22], ['sword', -16, 98], ['bones', 46, 40], ['skull', 62, 92]] as [Deco['k'], number, number][]) {
       const x = cx + ox, y = cy + oy, t = map[Math.floor(y / TS) * MW + Math.floor(x / TS)]; if (WALKABLE(t) && t !== ROAD) d.deco.push({ k, x, y, flip: ox < 0 }); }
   }

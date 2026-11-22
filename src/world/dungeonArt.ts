@@ -77,6 +77,19 @@ function drawFog(ex: number, ey: number, crypt: boolean, seed: number) {
   for (let n = 0; n < 2; n++) if (Math.random() < .6) G.parts.push({ x: ex + rr(-W, W), y: ey - rr(0, H), vx: rr(-7, 7), vy: -rr(8, 28), life: rr(.9, 1.8), max: 1.8, col: pick(['#ffffff', '#ffffff', '#eef2ff']), star: rr(.6, 1.6), drag: .6 });   // 白色光點從霧裡飄出來
 }
 
+/* 尖岩 / 方尖碑頂端：一團紫光 + 往上淡掉的光柱 + 一直往上飄的紫色光點。比岩丘高，從四面八方遠遠就看得到。打完地城就熄掉 */
+function beacon(x: number, y: number, seed: number) {
+  const t = G.time, p = .5 + .5 * Math.sin(t * 2 + seed);
+  const col = ctx.createLinearGradient(0, y - 90, 0, y);                                          // 光柱：往上越來越淡
+  col.addColorStop(0, 'rgba(200,168,255,0)'); col.addColorStop(1, 'rgba(200,168,255,' + (.34 + .12 * p) + ')');
+  ctx.fillStyle = col; ctx.fillRect(snapF(x - 3), snapF(y - 90), 6, 90);
+  ctx.globalAlpha = .5; ctx.fillRect(snapF(x - 1), snapF(y - 90), 2, 90); ctx.globalAlpha = 1;
+  const g = ctx.createRadialGradient(x, y, 0, x, y, 16 + 3 * p); g.addColorStop(0, 'rgba(255,255,255,.95)'); g.addColorStop(.25, 'rgba(216,190,255,.8)'); g.addColorStop(1, 'rgba(140,90,230,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 16 + 3 * p, 0, Math.PI * 2); ctx.fill();
+  for (let k = 0; k < 3; k++) { const a = t * 1.6 + k * 2.094; ctx.fillStyle = k ? '#c8a8ff' : '#ffffff'; ctx.fillRect(snapF(x + Math.cos(a) * 8), snapF(y + Math.sin(a) * 4), HKP * 1.5, HKP * 1.5); }   // 繞著轉的光點
+  if (Math.random() < .35) G.parts.push({ x: x + rr(-3, 3), y: y - rr(0, 4), vx: rr(-5, 5), vy: -rr(16, 34), life: rr(1, 1.8), max: 1.8, col: pick(['#c8a8ff', '#9a6ae8', '#f0e8ff']), star: rr(.6, 1.5), drag: .6 });
+}
+
 /* ================= 地城前院的裝飾（位置在 world/dungeons.ts 的 dressEntrances） =================
    石板地 + 發黑的地面 + 守門雕像 + 破旗 + 符文石 + 頭骨 / 舊劍。打完以後雕像的眼睛、符文石的光會熄掉 */
 const STONE = ['#2e2a36', '#4a4558', '#6a6478', '#8e88a0'], BONE = ['#6a6456', '#a8a08a', '#d8d0b8', '#f4f0e0'], STEEL = ['#3a3a4e', '#6a6a80', '#a8a8c0', '#e8e8f8'];
@@ -109,6 +122,12 @@ const BONES = sculpt(30, 14, [{ sh: SH.cap(3, 4, 26, 11, 1.5, 1.5), ramp: BONE, 
 const SWORD = sculpt(16, 40, [{ sh: SH.ell(8, 37, 7, 3), ramp: ['#1e1a14', '#3a3226', '#4e4434'], grp: 1 }, { sh: SH.box(8, 24, 1.8, 13, 2), ramp: STEEL, grp: 2 },
   { sh: SH.box(8, 10, 6.5, 1.4, 2), ramp: ['#3a2a14', '#6a4a24', '#a07a3a', '#d0a860'], grp: 3 }, { sh: SH.box(8, 5, 1.3, 3.5, 2), ramp: WOOD, grp: 4 }, { sh: SH.ell(8, 1.5, 1.8, 1.6), ramp: STEEL, grp: 5 }], a => {
   for (let y = 18; y < 34; y += 3) if (a.get(9, y)) a.set(9, y, '#7a5a3a'); });                 // 生鏽
+const CRYS = ['#1e0e38', '#4a2a88', '#8a5ae0', '#c8a8ff', '#f0e8ff'];   // 岩丘上的紫水晶：三根斜斜的晶柱（30×42 細像素）
+const CRYSTAL = sculpt(30, 42, [{ sh: SH.ell(15, 39, 13, 3), ramp: ['#16121c', '#2a2434', '#3a3446'], grp: 1 },
+  { sh: SH.poly([[5, 40], [11, 40], [8, 16], [4, 22]]), ramp: CRYS, tex: .1, grp: 2 }, { sh: SH.poly([[19, 40], [25, 40], [28, 20], [24, 14]]), ramp: CRYS, tex: .1, grp: 3 },
+  { sh: SH.poly([[10, 40], [20, 40], [18, 8], [15, 1], [12, 8]]), ramp: CRYS, tex: .1, bias: .1, grp: 4 }], a => {
+  for (let y = 5; y < 34; y++) if (a.get(15, y)) a.set(15, y, y % 7 ? CRYS[4] : CRYS[3]);   // 中間那根的亮邊
+  for (const [x, y] of [[7, 22], [24, 20], [25, 24]]) if (a.get(x, y)) a.set(x, y, CRYS[4]); });
 const plazaCache = new Map<string, HTMLCanvasElement>();
 function plaza(d: any, R: string[]) {                                    // 碎石板地：一片 144×88 世界像素的圖（細像素 ×3），邊緣的石板一塊一塊缺掉
   if (plazaCache.has(d.id)) return plazaCache.get(d.id);
@@ -132,8 +151,18 @@ function drawDeco(d: any, vis, list, L, addLight, done: boolean) {
     ctx.globalAlpha = .8; drawArtSprite(plaza(d, R), ex, cy + 90); ctx.globalAlpha = 1;
     if (!done && Math.random() < .25) G.parts.push({ x: ex + rr(-110, 110), y: cy + rr(0, 100), vx: rr(-3, 3), vy: -rr(6, 14), life: rr(1.2, 2), max: 2, col: pick(['#3a1c5a', '#5a2e88', '#1e0e30']), s: 1, drag: .5 });   // 地上飄起來的黑紫色塵
   } });
+  const hx = ex, hy = (d.ent[1] - 2.5) * TS + 8;                                                // 岩丘中心
+  if (vis(hx, hy, 190)) list.push({ y: cy - 601, f: () => {                                     // 岩丘四周一圈發黑、發紫的地（從背面、側面走過來也覺得不對勁）
+    const g = ctx.createRadialGradient(hx, hy, 60, hx, hy, 190); g.addColorStop(0, done ? 'rgba(20,14,28,.18)' : 'rgba(30,10,46,.5)'); g.addColorStop(1, 'rgba(30,10,46,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(hx, hy, 190, 160, 0, 0, Math.PI * 2); ctx.fill();
+    if (!done && Math.random() < .2) { const a = rr(Math.PI, Math.PI * 2), r = rr(110, 170); G.parts.push({ x: hx + Math.cos(a) * r, y: hy + Math.sin(a) * r * .8, vx: rr(-3, 3), vy: -rr(6, 14), life: rr(1.2, 2), max: 2, col: pick(['#3a1c5a', '#5a2e88', '#1e0e30']), s: 1, drag: .5 }); }
+  } });
   for (const o of d.deco || []) { if (!vis(o.x, o.y, 60)) continue; const { x, y } = o;
-    if (o.k === 'statue') { const sp = statueArt(d.style === 'crypt' ? 'hood' : 'garg', R);
+    if (o.k === 'crystal') { list.push({ y, f: () => { if (o.flip) { ctx.save(); ctx.translate(snapF(x), 0); ctx.scale(-1, 1); drawArtSprite(CRYSTAL, 0, y + 1); ctx.restore(); } else drawArtSprite(CRYSTAL, x, y + 1);
+        if (!done) { ctx.globalAlpha = .18 + .14 * Math.sin(G.time * 2.4 + x * .07); ctx.fillStyle = '#e0c8ff'; ctx.beginPath(); ctx.ellipse(snapF(x), snapF(y - 6), 7, 9, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+          if (Math.random() < .06) G.parts.push({ x: x + rr(-4, 4), y: y - rr(4, 12), vx: rr(-3, 3), vy: -rr(8, 18), life: rr(.6, 1.1), max: 1.1, col: pick(['#c8a8ff', '#f0e8ff']), star: rr(.5, 1.2), drag: 1 }); } } });
+      addLight(L, x, y - 6, done ? 10 : 22, 3); }
+    else if (o.k === 'statue') { const sp = statueArt(d.style === 'crypt' ? 'hood' : 'garg', R);
       list.push({ y, f: () => { drawShadow(x, y + 1, 20); drawArtSprite(sp, x, y + 2);
         if (!done) { const eyY = y + 2 - 124 * HK + (d.style === 'crypt' ? 42 : 44) * HK, gl = .65 + .35 * Math.sin(G.time * 3 + x);   // 眼睛發紫光
           ctx.globalAlpha = gl; ctx.fillStyle = DCOL; for (const ox of d.style === 'crypt' ? [-2, 1] : [-5, 2]) ctx.fillRect(snapF(x + ox * HK), snapF(eyY), HK * 3, HK * 2); ctx.globalAlpha = 1; } } });
@@ -157,9 +186,10 @@ export function drawDoors(vis, list, L, addLight) {
       list.push({ y: sy + 8, f: () => { ctx.globalAlpha = .22 + .08 * Math.sin(G.time * 2); ctx.fillStyle = '#ffffff'; ctx.fillRect(snapF(sx - 7), snapF(sy - 8), 14, 16); ctx.globalAlpha = 1;
         if (Math.random() < .5) G.parts.push({ x: sx + rr(-7, 7), y: sy + rr(-6, 8), vx: rr(-4, 4), vy: -rr(8, 24), life: rr(.8, 1.5), max: 1.5, col: pick(['#ffffff', '#e8eeff']), star: rr(.4, 1.2), drag: 1 }); } }); } }
     if (!d.stairs) drawDeco(d, vis, list, L, addLight, done);                                       // 前院：石板地、雕像、破旗、符文石……
-    if (!d.stairs && (vis(ex, ey, 60) || vis(ex, ey - 70, 40))) {
+    if (!d.stairs && (vis(ex, ey, 60) || vis(ex, ey - 110, 90))) {
       const crypt = d.style === 'crypt', sp = crypt ? CRYPT_SP : CAVE_SP, top = crypt ? OBELISK : CRAG[regAtT(d.ent[0], d.ent[1])] || CRAG[0];
-      list.push({ y: ey - 40, f: () => drawArtSprite(top, ex + (crypt ? 0 : 10), ey - 40) });                 // 岩丘上的尖岩 / 方尖碑（排在洞口後面）
+      list.push({ y: ey - 40, f: () => { drawArtSprite(top, ex + (crypt ? 0 : 10), ey - 40); if (!done) beacon(ex + (crypt ? 0 : 11), ey - 40 - (crypt ? 52 : 62), d.ent[0]); } });   // 岩丘上的尖岩 / 方尖碑（排在洞口後面）+ 頂端的紫光
+      if (!done) addLight(L, ex + (crypt ? 0 : 11), ey - (crypt ? 92 : 102), 40 + Math.sin(G.time * 2) * 4, 3);
       list.push({ y: ey - 2, f: () => { drawArtSprite(sp, ex, ey); if (!done) drawFog(ex, ey, crypt, d.ent[0] * .13); } });
       for (const s of [-1, 1]) { const tx = ex + s * 30, ty = ey + 22;                               // 洞口兩邊的火把
         list.push({ y: ty, f: () => { drawArtSprite(TORCH_POST, tx, ty); flame(tx, ty - 12, 4, d.ent[0] + s); } }); addLight(L, tx, ty - 14, 46 + Math.sin(G.time * 9 + s) * 2, 1); }

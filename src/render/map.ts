@@ -4,7 +4,7 @@ import { OL } from '../art/sprite';
 import { CAMPS, MH, MW, WH, OPEN_REGIONS, REGIONS, SUBS, TOWNS, TS, discovered, explored } from '../world/map';
 import { mctx, miniBase } from '../world/minimap';
 import { merchant } from '../ui/shop';
-import { drawRumors, flags, rumorsOpen } from '../game/quest';
+import { drawRumors, flags, navT, rumorsOpen } from '../game/quest';
 import { STATUES, statueKnown, statueLit, ZONE_NAME, zoneOfReg } from '../world/statues';
 import { DUNGEONS, OLDZ, dungeonAt } from '../world/dungeons';
 import { POIS } from '../data/poi';
@@ -32,7 +32,23 @@ export function renderMini() {
   if (merchant) { const mx = Math.floor(merchant.x / TS) - ox, my = Math.floor(merchant.y / TS) - oy; mctx.fillStyle = OL; mctx.fillRect(mx - 2, my - 2, 5, 5); mctx.fillStyle = '#5ae0b0'; mctx.fillRect(mx - 1, my - 1, 3, 3); }
   if (G.lost) { mctx.fillStyle = '#b49cff'; mctx.fillRect(Math.floor(G.lost.x / TS) - ox - 1, Math.floor(G.lost.y / TS) - oy - 1, 3, 3); }
   drawRumors(mctx, 1, ox, oy);
+  if (navT && !dg) navMini(navT.x / TS - ox, navT.y / TS - oy, px - ox, py - oy);
   mctx.fillStyle = Math.floor(G.time * 4) % 2 ? '#ffffff' : '#7fdcff'; mctx.fillRect(px - ox - 1, py - oy - 1, 3, 3);
+}
+/* 小地圖上的導航目標：在範圍內 = 閃爍的金色菱形；在範圍外 = 邊緣一個指過去的小箭頭 */
+const navOn = () => Math.floor(performance.now() / 300) % 2 === 0;
+function navMini(x: number, y: number, mx: number, my: number) {
+  const g = mctx, on = navOn();
+  if (x >= 2 && x < 126 && y >= 2 && y < 78) {
+    g.fillStyle = OL; g.fillRect(x - 3, y - 1, 7, 3); g.fillRect(x - 1, y - 3, 3, 7);
+    g.fillStyle = on ? '#fff2b0' : '#ffd04a'; g.fillRect(x - 2, y, 5, 1); g.fillRect(x, y - 2, 1, 5); g.fillRect(x - 1, y - 1, 3, 3); return; }
+  const a = Math.atan2(y - my, x - mx), c = Math.cos(a), s = Math.sin(a);   // 從你的位置往目標方向，撞到小地圖邊緣的那一點
+  const t = Math.min(c > 0 ? (125 - mx) / c : c < 0 ? (3 - mx) / c : 1e9, s > 0 ? (77 - my) / s : s < 0 ? (3 - my) / s : 1e9);
+  const ex = mx + c * t, ey = my + s * t;
+  g.save(); g.translate(ex, ey); g.rotate(a);
+  g.fillStyle = OL; g.beginPath(); g.moveTo(4, 0); g.lineTo(-3, -4); g.lineTo(-3, 4); g.closePath(); g.fill();
+  g.fillStyle = on ? '#fff2b0' : '#ffd04a'; g.beginPath(); g.moveTo(2.5, 0); g.lineTo(-2, -2.5); g.lineTo(-2, 2.5); g.closePath(); g.fill();
+  g.restore();
 }
 /* ================= 世界地圖：拖曳平移、雙指 / 滾輪縮放、點營火快速傳送 =================
    mv = 地圖鏡頭：(x, y) = 畫面中心是哪一格，z = 每格幾個 CSS 像素 */
@@ -103,6 +119,22 @@ export function renderBigMap() {
     hits.push({ kind: 'statue', id: 's' + st.k, name: '星之神像', desc: lit ? ZONE_NAME[st.k] + ' · 已經點亮了' : '去那裡祈禱，' + ZONE_NAME[st.k] + '的地圖就會亮起來', tx: st.tx, ty: st.ty, x, y }); }
   drawRumors(g, mv.z, mv.x - mv.w / 2 / mv.z, mv.y - mv.h / 2 / mv.z);   // 傳聞：模糊的虛線圈
   for (const r of rumorsOpen()) { const [x, y] = toScr(r.tx, r.ty); hits.push({ kind: 'rumor', id: r.id, name: '傳聞', desc: '「' + r.text + '」——' + r.src, tx: r.tx, ty: r.ty, x, y }); }
+  if (navT) {                                                            // 導航目標：從你拉一條金色虛線過去 + 一閃一閃的標記
+    const [mx, my] = toScr(G.me.x / TS, G.me.y / TS), [tx, ty] = toScr(navT.x / TS, navT.y / TS), on = navOn(), k = .5 + .5 * Math.sin(performance.now() / 140);
+    g.save(); g.setLineDash([6, 5]); g.lineDashOffset = -performance.now() / 60;
+    g.strokeStyle = '#07060b'; g.lineWidth = 4; g.beginPath(); g.moveTo(mx, my); g.lineTo(tx, ty); g.stroke();
+    g.strokeStyle = 'rgba(255,208,74,.9)'; g.lineWidth = 2; g.beginPath(); g.moveTo(mx, my); g.lineTo(tx, ty); g.stroke(); g.restore();
+    g.strokeStyle = `rgba(255,226,120,${.4 + .5 * k})`; g.lineWidth = 2; g.beginPath(); g.arc(tx, ty, 10 + 5 * k, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = '#07060b'; g.beginPath(); g.moveTo(tx, ty - 8); g.lineTo(tx + 6, ty); g.lineTo(tx, ty + 8); g.lineTo(tx - 6, ty); g.closePath(); g.fill();
+    g.fillStyle = on ? '#fff2b0' : '#ffd04a'; g.beginPath(); g.moveTo(tx, ty - 6); g.lineTo(tx + 4, ty); g.lineTo(tx, ty + 6); g.lineTo(tx - 4, ty); g.closePath(); g.fill();
+    label('導航：' + navT.name, tx, ty - 14, '#ffe38a', 12);
+    const M = 26; if (tx < 0 || tx > mv.w || ty < 0 || ty > mv.h) {          // 目標在畫面外：在畫面邊緣畫一個大箭頭指過去
+      const a = Math.atan2(ty - my, tx - mx), c = Math.cos(a), s = Math.sin(a);
+      const t = Math.min(c > 0 ? (mv.w - M - mx) / c : c < 0 ? (M - mx) / c : 1e9, s > 0 ? (mv.h - M - my) / s : s < 0 ? (M - my) / s : 1e9);
+      const ex = mx + c * Math.max(0, t), ey = my + s * Math.max(0, t);
+      g.save(); g.translate(ex, ey); g.rotate(a); g.fillStyle = '#07060b'; g.beginPath(); g.moveTo(14, 0); g.lineTo(-8, -11); g.lineTo(-3, 0); g.lineTo(-8, 11); g.closePath(); g.fill();
+      g.fillStyle = on ? '#fff2b0' : '#ffd04a'; g.beginPath(); g.moveTo(10, 0); g.lineTo(-6, -8); g.lineTo(-1.5, 0); g.lineTo(-6, 8); g.closePath(); g.fill(); g.restore();
+      label(navT.name, clamp(ex - c * 26, 50, mv.w - 50), clamp(ey - s * 22 + 4, 16, mv.h - 8), '#ffe38a', 12); } }
   // 你：魔女帽 + 一圈閃爍的光
   { const [x, y] = toScr(G.me.x / TS, G.me.y / TS), k = .5 + .5 * Math.sin(performance.now() / 160);
     g.strokeStyle = `rgba(127,220,255,${.35 + .45 * k})`; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 13 + 2 * k, 0, Math.PI * 2); g.stroke();

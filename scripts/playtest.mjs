@@ -111,20 +111,22 @@ const pageScript = async () => {
     tp(e.def.x, e.def.y + 40); step(200, { god: true });
     if (e.state === 'sleep') throw new Error('Boss 沒有醒來，state=' + e.state);
     const MC = await0.mech, M = MC.mechOf(e);
-    if (M) {                                                            // 機制：66% 發動 → 打不到 → 打碎四個物件 → 破綻
+    if (M) {                                                            // 機制：66% 發動 → 護盾打不到 → 引 Boss 的招打壞四個物件 → 破綻
       e.hp = e.maxHp * .6; let k = 0; while (!e.mech && k++ < 600) step(1, { god: true }); if (!e.mech) throw new Error('血量 60% 機制沒發動（' + M.kind + '）state=' + e.state);
       const h0 = e.hp; damageEnemy(G.me, e, 5, G.me.x, G.me.y); if (e.hp !== h0) throw new Error('機制中還打得到 Boss');
-      if (MC.MECH && M.kind !== 'shield' && !e.hidden) throw new Error('鑽地 / 升空時 Boss 還看得到');
       step(30, { god: true });
-      for (const o of e.mech.objs) for (let i = 0; i < 3; i++) damageEnemy(G.me, o, 1, o.x, o.y + 1);
+      { const o = e.mech.objs.find(o => !o.dead), hp0 = o.hp; for (let i = 0; i < 5; i++) damageEnemy(G.me, o, 1, o.x, o.y + 1); if (o.dead || o.hp !== hp0) throw new Error('玩家自己砍得壞機制的物件'); }
+      { const m = e.mech; let t = 0; while (e.mech === m && t++ < 60 * 30) { const o = m.objs.find(o => !o.dead); if (o) { const dx = o.x - e.def.x, dy = o.y - e.def.y, L = Math.hypot(dx, dy) || 1; tp(o.x + dx / L * 14, o.y + dy / L * 14); } G.me.iframe = 1; step(1, { god: true }); }   // 站在物件外側，讓 Boss 的招打過來
+        if (e.mech === m) throw new Error('站在物件旁邊 30 秒，Boss 的招還沒打壞四個（剩 ' + m.objs.filter(o => !o.dead).length + '）');
+        if (m.objs.some(o => o.hatched)) e.mStun = 1; }                 // 卵孵化了 → 沒有破綻是正常的，這裡只測得到破綻的流程
       step(2, { god: true }); if (e.mech) throw new Error('四個物件打碎了機制沒結束');
       if (!(e.mStun > 0)) throw new Error('解開機制沒有破綻');
       const h1 = e.hp; damageEnemy(G.me, e, 5, e.x, e.y + 20); if (!(e.hp < h1)) throw new Error('破綻時打不到 Boss');
-      log.push('  ' + e.def.name + '：' + ({ burrow: '鑽地', sky: '升空', shield: '護盾' })[M.kind] + ' → ' + M.name + ' ×4 → 破綻');
+      log.push('  ' + e.def.name + '：護盾 → 引招打壞' + M.name + ' ×4 → 破綻');
       e.mi = 9; step(260, { god: true });
     }
     e.hp = e.maxHp * .4; step(400, { god: true, atkEvery: 15 });
-    if (!e.dead) { e.hp = 1; e.immune = false; e.hidden = false; damageEnemy(G.me, e, 5, e.x, e.y + 20); step(120, { god: true }); }
+    if (!e.dead) { e.hp = 1; e.immune = false; damageEnemy(G.me, e, 5, e.x, e.y + 20); step(120, { god: true }); }
     if (!e.dead) throw new Error('Boss 沒死');
   });
 

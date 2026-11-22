@@ -1,4 +1,4 @@
-import { mechTick } from './bossMech';
+import { mechAfter, mechTick } from './bossMech';
 import { G } from '../core/state';
 import { $, TAU, clamp, pick, rr } from '../core/util';
 import { HK, ctx } from '../core/canvas';
@@ -111,6 +111,7 @@ export function updateRegionBosses(dt) {
     if (EXTRA_STATES.has(e.state)) { G.dmgMul = 1; extraStates(e, dt); }  // 新招的傷害本來就照等級算，不要再乘一次
     else AI[d.ai](e, dt, dist2, dx, dy);
     tagProjs(n0); G.hitCtx = null;
+    mechAfter(e, dt);                                                  // 機制中：這一招有沒有打到裂口 / 水晶 / 卵……（world/bossMech.ts）
     recolorNew(e, f0, p0, n0);                                         // 區域 Boss：沿用來的特效換成自己的顏色（world/bossThemes.ts）
     for (let i = n0; i < G.projs.length; i++) if (G.projs[i].owner === 'e' && !G.projs[i].scaled) { G.projs[i].dmg = Math.max(1, Math.round(G.projs[i].dmg * G.dmgMul)); G.projs[i].scaled = true; }
     G.dmgMul = 1;

@@ -1,30 +1,22 @@
 /* ================= Boss 的機制（打到 66% 和 33% 血時發動） =================
-   不只是「躲招 → 砍」：每隻 Boss 有一個照牠的樣子設計的機制，要解開才打得下去。
-
-   burrow 鑽地：Boss 鑽進地底（打不到），地面隆起的土丘一直追著你，追到就從腳下衝出來（紅圈預警）。
-                結界四周出現 4 個地脈裂口 → 一個一個砍到封住，Boss 就會被逼出地面、暈眩露出破綻（受到的傷害 ×1.5）。
-                30 秒內沒封完 → 牠自己衝出來（沒有破綻）。熔渣蠕蟲、風蝕巨蠍、沙暴巨人、深淵水鬼
-   sky    升空：飛上天 / 爬上天花板（打不到），地上只看得到影子，每隔一下就俯衝砸你。
-                4 個機關（弩砲的鎖鏈、霧之圖騰……）砍完 → 被拉下來摔在地上、暈眩。巢母、熔岩巨龍、冰霜飛龍、霧林女妖
-   shield 護盾：Boss 照樣打你，但被一層護盾包住（打不到），護盾連到 4 個東西上（水晶、燈籠、旗子、樹根……）。
-                全部打碎 → 護盾碎掉、暈眩。有些是「卵 / 孢子囊」：太慢打破就會孵出小怪。冰晶女王、星之看守者、巫妖、蘑菇王、根縛樹心、沙王
-   打機關不看傷害、看「打中幾下」（武器強不強都一樣要 3 下），所以拿什麼武器都解得開。 */
+   Boss 被一層護盾包住（打不到），護盾連到場上 4 個東西（裂口、弩砲、水晶、卵、旗子……）。
+   這 4 個東西「你自己砍不壞」，要引 Boss 的招打中它：站在它旁邊，等 Boss 的攻擊落下來的瞬間閃開。
+   算「打中」的有：預警範圍（紅色的圈 / 直線 / 扇形 / 甜甜圈）放出來的那一下、從天上掉下來的一擊、
+   Boss 的子彈、Boss 衝撞 / 跳躍落地時撞到。大招一下就打壞，子彈要 2 發。
+   4 個都壞了 → 護盾碎掉、Boss 暈眩露出破綻（受到的傷害 ×1.5）。45 秒內沒打完 → 護盾自己消失（沒有破綻）。
+   有些是「卵 / 孢子囊」：太慢打破就會孵出小怪。
+   Boss 全程都在場上照常出招（以前鑽地 / 升空會整隻消失，配上瞬移等於休息時間，所以改掉了）。
+   kind 只決定提示文字：burrow = 地脈裂口，sky = 拉住牠的機關，shield = 連著護盾的東西 */
 import { G } from '../core/state';
 import { TAU, pick, rr } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
 import { sfx } from '../core/audio';
-import { DG } from '../data/items';
-import { tier } from '../data/levels';
-import { collides, moveEnt } from '../game/collision';
-import { hurtPlayer } from '../game/combat';
+import { collides } from '../game/collision';
 import { makeEnemy } from '../game/enemies';
-import { nearestPlayer } from '../game/player';
 import { hitSpark, quakeFx, shake } from '../game/worldUpdate';
 import { burst as dust } from './bossThemes';
-import { teleCircle } from '../render/enemy';
 import { drawStar } from '../render/fx';
 import { toast } from '../ui/hud';
-import { keepIn } from './regionBoss';
 
 type Kind = 'burrow' | 'sky' | 'shield';
 type ObjK = 'vent' | 'crystal' | 'lantern' | 'root' | 'egg' | 'banner' | 'ballista' | 'totem';
@@ -53,40 +45,80 @@ export const MECH: Record<string, MDef> = {
   elfking:     { kind: 'shield', obj: 'banner', col: ['#1e3a5e', '#9ad8ff', '#e0c060'], name: '精靈王旗' },     // 精靈王國
   mothqueen:   { kind: 'sky', obj: 'egg', col: ['#6a5a80', '#e8dcb0', '#ffffff'], name: '蛾繭', hatch: 'mothE' },
 };
-const AT = [.66, .33], HITS = 3, HATCH = 11, LIMIT = 30;
+const AT = [.66, .33], HITS = 2, HATCH = 13, LIMIT = 45, NEAR = 56;   // NEAR = 你離物件多近，Boss 的招才算得上打到它
 export const mechOf = (e) => MECH[e.def.dg ? String(e.kind).slice(3) : e.def.id];
-const dmgOf = (e, k: number) => Math.round((10 + 3 * tier(e.lv)) * k);
 
 function start(e, M: MDef) {
   const d = e.def, objs = [];
   for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2;
     let r = d.R * .64, x = d.x + Math.cos(a) * r, y = d.y + Math.sin(a) * r * .8;
     for (let n = 0; n < 6 && collides(x, y, 8); n++) { r *= .82; x = d.x + Math.cos(a) * r; y = d.y + Math.sin(a) * r * .8; }
-    objs.push({ obj: true, x, y, r: 9, hp: HITS, maxHp: HITS, lv: e.lv, dead: false, hatched: false, k: M.obj, owner: e, flash: 0, hatchT: M.hatch ? HATCH + k * .8 : 0, ph: rr(0, 9), kx: 0, ky: 0, state: 'obj' }); }
-  e.mech = { M, t: 0, objs, mx: e.x, my: e.y, hitT: 1.6, hit: null };
-  e.immune = true; e.tele = null; e.z = 0; e.state = 'idle';
-  if (M.kind !== 'shield') { e.hidden = true; dust(e.x, e.y, M.kind === 'burrow' ? 'dust' : 'stars', 30); quakeFx(e.x, e.y, 40); sfx.boom(); shake(6, .5); }
-  else { sfx.skill(); G.fx.push({ k: 'warp', x: e.x, y: e.y - 10, r0: 6, r1: 40, th: 4, t: 0, d: .5, col: M.col[1] }); }
-  toast(M.kind === 'burrow' ? d.short + '鑽進了地底……封住四周的' + M.name + '，逼牠出來'
-    : M.kind === 'sky' ? d.short + '離開了地面……打壞四周的' + M.name + '，把牠拉下來'
-    : d.short + '被護盾包住了……打碎連著護盾的' + M.name + (M.hatch ? '（太慢會孵化）' : ''), M.col[2]);
+    objs.push({ obj: true, x, y, r: 9, hp: HITS, maxHp: HITS, lv: e.lv, dead: false, hatched: false, k: M.obj, owner: e, flash: 0, hatchT: M.hatch ? HATCH + k * .8 : 0, ph: rr(0, 9), kx: 0, ky: 0, state: 'obj', mark: 0 }); }
+  e.mech = { M, t: 0, objs, tele: null, st: '', tx: e.x, ty: e.y, pend: [], px: e.x, py: e.y, pz: 0, hintT: 0 };
+  e.immune = true;
+  sfx.skill(); G.fx.push({ k: 'warp', x: e.x, y: e.y - 10, r0: 6, r1: 40, th: 4, t: 0, d: .5, col: M.col[1] });
+  const verb = M.kind === 'burrow' ? '震塌' : M.kind === 'sky' ? '打壞' : '打碎';
+  toast(d.short + '被護盾包住了……引牠的攻擊' + verb + '四周的' + M.name + (M.hatch ? '（太慢會孵化）' : ''), M.col[2]);
 }
 function finish(e, clean: boolean) {
-  const M: MDef = e.mech.M; e.mech = null; e.immune = false; e.hidden = false; e.mi = (e.mi || 0) + 1; e.state = 'idle'; e.t = .6;
+  const M: MDef = e.mech.M; e.mech = null; e.immune = false; e.mi = (e.mi || 0) + 1;
   dust(e.x, e.y, M.kind === 'burrow' ? 'dust' : 'stars', 34); quakeFx(e.x, e.y, 50); shake(7, .4); sfx.boom();
   for (const dl of [0, .1]) G.fx.push({ k: 'warp', x: e.x, y: e.y, r0: 6, r1: 70, th: 5, delay: dl, t: 0, d: .45 + dl, col: M.col[1] });
-  if (clean) { e.mStun = 4; G.hitStop = Math.max(G.hitStop, .2); toast(e.def.short + '露出了破綻！', '#ffe38a'); }
-  else { sfx.howl(); toast(e.def.short + '回來了', '#ff8a6a'); }
+  if (clean) { e.state = 'idle'; e.t = .6; e.tele = null; e.mStun = 4; e.hidden = e.mound = false; G.hitStop = Math.max(G.hitStop, .2); toast(e.def.short + '的護盾碎了，露出了破綻！', '#ffe38a'); }   // hidden / mound：鑽地衝出的途中被打破 → 直接冒出來暈眩
+  else { sfx.howl(); toast(e.def.short + '的護盾消失了', '#ff8a6a'); }
 }
-/* 物件被打中（game/combat.ts 的 damageEnemy 轉過來）：不看傷害，每下 -1 */
+function breakObj(o) {
+  o.dead = true; sfx.boom(); shake(3, .15); const C = o.owner.mech?.M.col || ['#888', '#ccc', '#fff'];
+  for (let i = 0; i < 18; i++) { const a = rr(0, TAU), s = rr(40, 120); G.parts.push({ x: o.x, y: o.y - 10, vx: Math.cos(a) * s, vy: Math.sin(a) * s * .7 - 30, life: rr(.4, .8), max: .8, col: pick(C), s: 1, g: 260 }); }
+  G.fx.push({ k: 'warp', x: o.x, y: o.y - 6, r0: 4, r1: 26, th: 3, t: 0, d: .35, col: C[2] });
+}
+/* Boss 的攻擊打中物件：n = 扣幾格（大招 2 = 直接打壞，子彈 1） */
+export function bossHitObj(o, n: number) {
+  if (o.dead) return; o.hp -= n; o.flash = .15; sfx.hit(); hitSpark(o.x, o.y - 10, true, -Math.PI / 2);
+  if (o.hp <= 0) breakObj(o);
+}
+/* 你砍到物件（game/combat.ts 的 damageEnemy 轉過來）：砍不動，只冒火花 + 提示怎麼解 */
 export function objHit(o) {
-  if (o.dead) return; o.hp -= 1; o.flash = .15; sfx.hit(); hitSpark(o.x, o.y - 10, false, -Math.PI / 2);
-  if (o.hp <= 0) { o.dead = true; sfx.boom(); shake(3, .15); const C = o.owner.mech?.M.col || ['#888', '#ccc', '#fff'];
-    for (let i = 0; i < 18; i++) { const a = rr(0, TAU), s = rr(40, 120); G.parts.push({ x: o.x, y: o.y - 10, vx: Math.cos(a) * s, vy: Math.sin(a) * s * .7 - 30, life: rr(.4, .8), max: .8, col: pick(C), s: 1, g: 260 }); }
-    G.fx.push({ k: 'warp', x: o.x, y: o.y - 6, r0: 4, r1: 26, th: 3, t: 0, d: .35, col: C[2] }); }
+  if (o.dead) return; o.flash = .08; hitSpark(o.x, o.y - 10, false, -Math.PI / 2); sfx.hit();
+  const m = o.owner.mech; if (m && G.time - m.hintT > 4) { m.hintT = G.time; toast('砍不動……引' + o.owner.def.short + '的攻擊打中它', '#e8d8b0'); }
 }
 
-/* 每幀（world/regionBoss.ts 在跑 Boss 的 AI 之前呼叫）。回傳 true = 這一幀由機制接手，不跑原本的 AI */
+/* ---- 判斷 Boss 的一招有沒有打到物件 ---- */
+const angDiff = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+function covers(t, ex: number, ey: number, o): boolean {
+  const R = o.r, ox = o.x, oy = o.y;
+  if (t.k === 'circle') return Math.hypot(ox - (t.x ?? ex), oy - (t.y ?? ey)) < t.r + R;
+  const dx = ox - ex, dy = oy - 6 - (ey - 6), d = Math.hypot(dx, dy);
+  if (t.k === 'lane') { const c = Math.cos(t.a), s = Math.sin(t.a), al = dx * c + dy * s, pe = Math.abs(-dx * s + dy * c); return al > -R && al < t.L + R && pe < t.W + R; }
+  if (t.k === 'sector') return d < t.r + R && (d < R || angDiff(Math.atan2(dy, dx), t.a) < t.half + R / Math.max(d, 1));
+  if (t.k === 'ring') return d > t.r0 - R && d < t.r + R;
+  return false;
+}
+/* 每幀在 Boss 的 AI 跑完之後呼叫（world/regionBoss.ts）：看這一幀 Boss 有沒有出招打到物件 */
+export function mechAfter(e, dt: number) {
+  const m = e.mech; if (!m) return;
+  e.immune = true;                                                       // 有些招（鑽地衝出）結束時會把 immune 關掉 → 護盾還在就一直補回來
+  mechHits(e, m, dt);
+  // 記下這一幀的狀態給下一幀比對；正在預警的範圍蓋到的物件 → 閃白框提示「站這裡就對了」
+  m.tele = e.tele; m.st = e.state; m.tx = e.x; m.ty = e.y; m.pend = (e.pend || []).slice(); m.px = e.x; m.py = e.y; m.pz = e.z || 0;
+  for (const o of m.objs) o.mark = !o.dead && G.players.some(pl => !pl.dead && Math.hypot(pl.x - o.x, pl.y - o.y) < NEAR) && ((e.tele || []).some(t => covers(t, e.x, e.y, o)) || (e.pend || []).some(p => Math.hypot(o.x - p.x, o.y - p.y) < (p.r || 22) + o.r)) ? .25 : Math.max(0, o.mark - dt);
+}
+function mechHits(e, m, dt: number) {
+  // 只有「你附近」的物件會被打中：要你自己站過去把招引過來，繞著 Boss 一整圈的大招也不會一次打壞四個
+  const live = m.objs.filter(o => !o.dead && G.players.some(pl => !pl.dead && Math.hypot(pl.x - o.x, pl.y - o.y) < NEAR));
+  const hit = (o, n) => bossHitObj(o, n);
+  if (m.tele && e.state !== m.st)                                      // 預警放出來了（狀態從「XXWind」換成出招）→ 範圍裡的物件被打中
+    for (const o of live) if (m.tele.some(t => covers(t, m.tx, m.ty, o))) hit(o, 2);
+  for (const p of m.pend) if (p.t <= 0 && !(e.pend || []).includes(p))  // 從天上掉下來的一擊落地了
+    for (const o of live) if (Math.hypot(o.x - p.x, o.y - p.y) < (p.r || 22) + o.r) hit(o, 2);
+  const sp = Math.hypot(e.x - m.px, e.y - m.py) / Math.max(dt, 1e-3), landed = m.pz > 4 && !(e.z > 0);
+  if (sp > 150 || landed) for (const o of live) if (Math.hypot(o.x - e.x, o.y - e.y) < e.r + o.r + (landed ? 18 : 4)) hit(o, 2);   // 衝撞 / 跳起來砸下來
+  if (live.length) for (let i = G.projs.length - 1; i >= 0; i--) { const p = G.projs[i];   // Boss 的子彈
+    if (p.owner !== 'e' || p.kind === 'rain' || !p.hc || p.hc.src !== e) continue;
+    const o = live.find(o => !o.dead && Math.hypot(o.x - p.x, o.y - 8 - p.y) < (p.r || 4) + o.r); if (o) { hit(o, 1); G.projs.splice(i, 1); } }
+}
+
+/* 每幀（world/regionBoss.ts 在跑 Boss 的 AI 之前呼叫）。回傳 true = 這一幀由機制接手，不跑原本的 AI（只有暈眩的時候） */
 export function mechTick(e, dt: number): boolean {
   const M = mechOf(e); if (!M) return false;
   if (e.mStun > 0) { e.mStun -= dt; e.state = 'idle'; e.tele = null;   // 破綻：站著不動
@@ -100,25 +132,18 @@ export function mechTick(e, dt: number): boolean {
     if (!o.dead && M.hatch && (o.hatchT -= dt) <= 0) { o.dead = true; o.hatched = true; sfx.howl();   // 孵化：跳出兩隻小怪
       for (let k = 0; k < 2; k++) { const w = makeEnemy(M.hatch, Math.max(1, e.lv - 5), o.x + rr(-12, 12), o.y + rr(-8, 8)); w.state = 'chase'; w.rbAdd = d.id; G.enemies.push(w); }
       dust(o.x, o.y, 'web', 16); } }
-  if (m.objs.every(o => o.dead)) { finish(e, m.objs.every(o => !o.hatched)); return M.kind !== 'shield'; }
-  if (M.kind === 'shield') return false;                                 // 護盾：照常出招，只是打不到
-  if (m.t > LIMIT) { for (const o of m.objs) o.dead = true; e.x = m.mx; e.y = m.my; finish(e, false); return true; }
-  // 鑽地：土丘追著最近的玩家；升空：影子追得比較快
-  const tg = nearestPlayer(m.mx, m.my), sp = M.kind === 'burrow' ? 70 : 105;
-  if (tg && !tg.dead && !m.hit) { const dx = tg.x - m.mx, dy = tg.y - m.my, L = Math.hypot(dx, dy); if (L > 3) { m.mx += dx / L * Math.min(L, sp * dt); m.my += dy / L * Math.min(L, sp * dt); } }
-  const q = { x: m.mx, y: m.my }; keepIn(q, d, 16); m.mx = q.x; m.my = q.y; e.x = m.mx; e.y = m.my;
-  if (M.kind === 'burrow' && Math.random() < .5) G.parts.push({ x: m.mx + rr(-10, 10), y: m.my + rr(-4, 4), vx: rr(-20, 20), vy: -rr(20, 60), life: .4, max: .4, col: pick(M.col), s: 1, g: 300 });
-  if (!m.hit) { m.hitT -= dt; if (m.hitT <= 0) m.hit = { x: m.mx, y: m.my, t: .85, T: .85, r: M.kind === 'burrow' ? 34 : 42 }; }   // 預警：紅圈慢慢填滿
-  else if ((m.hit.t -= dt) <= 0) { const h = m.hit; m.hit = null; m.hitT = e.phase === 2 ? 1.5 : 1.9;
-    for (const pl of G.players) if (Math.hypot(pl.x - h.x, pl.y - h.y) < h.r - DG && hurtPlayer(pl, dmgOf(e, 1.25), h.x, h.y, { stun: .45 })) hitSpark(pl.x, pl.y - 8, true, -Math.PI / 2);
-    quakeFx(h.x, h.y, h.r); dust(h.x, h.y, M.kind === 'burrow' ? 'lava' : 'stars', 24); sfx.boom(); shake(5, .25);
-    for (let i = 0; i < 16; i++) { const a = rr(0, TAU), s = rr(40, 140); G.parts.push({ x: h.x, y: h.y - 4, vx: Math.cos(a) * s * .6, vy: -rr(80, 200), life: rr(.4, .8), max: .8, col: pick(M.col), s: 2, g: 420 }); } }
-  return true;
+  if (m.objs.every(o => o.dead)) { finish(e, m.objs.every(o => !o.hatched)); return e.mStun > 0; }
+  if (m.t > LIMIT) { for (const o of m.objs) o.dead = true; finish(e, false); }
+  return false;                                                          // 照常出招，只是打不到
 }
 
 /* ================= 畫 ================= */
 function drawObj(o, M: MDef, list) {
   const C = M.col, x = o.x, y = o.y, fl = o.flash > 0, t = G.time + o.ph;
+  if (!o.dead && o.mark > 0) list.push({ y: y - 51, f: () => {          // Boss 正在預警的範圍蓋到它 → 腳下一圈閃白光：「這一下會打中它」
+    const p = .5 + .5 * Math.sin(G.time * 24); ctx.globalAlpha = .6 + .4 * p; ctx.lineWidth = HK * 5;
+    ctx.strokeStyle = '#1a1020'; ctx.beginPath(); ctx.ellipse(snapF(x), snapF(y), 17, 7.5, 0, 0, TAU); ctx.stroke();
+    ctx.lineWidth = HK * 3; ctx.strokeStyle = p > .5 ? '#ffffff' : '#ffe38a'; ctx.beginPath(); ctx.ellipse(snapF(x), snapF(y), 17, 7.5, 0, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; } });
   if (o.dead) { if (M.obj === 'vent' && !o.hatched) list.push({ y: y - 50, f: () => { ctx.fillStyle = '#3a3646'; ctx.beginPath(); ctx.ellipse(snapF(x), snapF(y), 10, 4, 0, 0, TAU); ctx.fill(); ctx.fillStyle = '#6a6478'; ctx.fillRect(snapF(x - 6), snapF(y - 3), 12, HK * 3); } });   // 封住的裂口：一塊石頭
     return; }
   if (M.obj === 'vent') { list.push({ y: y - 50, f: () => {                // 地上的裂口：發光、一直噴出東西
@@ -157,16 +182,9 @@ export function drawMechs(rbs, vis, list, L, addLight) {
     if (e.mStun > 0) list.push({ y: e.y + 1, f: () => { for (let k = 0; k < 3; k++) { const a = G.time * 5 + k / 3 * TAU; drawStar(e.x + Math.cos(a) * 12, e.y - 38 - (e.z || 0) + Math.sin(a) * 3, 2.6, '#ffe38a'); } } });   // 破綻：頭上轉星星
     if (!m) continue;
     for (const o of m.objs) { if (vis(o.x, o.y, 40)) drawObj(o, M, list); if (!o.dead) addLight(L, o.x, o.y - 10, 28, 3); }
-    if (M.kind === 'shield') {                                           // 護盾：包住 Boss 的光球 + 連到每個物件的光線
-      list.push({ y: e.y + 2, f: () => { const r = 24 + Math.sin(G.time * 4) * 1.5;
-        for (const o of m.objs) if (!o.dead) { ctx.globalAlpha = .35 + .25 * Math.sin(G.time * 6 + o.ph); ctx.strokeStyle = M.col[1]; ctx.lineWidth = HK * 3; ctx.beginPath(); ctx.moveTo(o.x, o.y - 12); ctx.lineTo(e.x, e.y - 14); ctx.stroke(); }
-        ctx.globalAlpha = .22; ctx.fillStyle = M.col[1]; ctx.beginPath(); ctx.ellipse(e.x, e.y - 14, r, r * .95, 0, 0, TAU); ctx.fill();
-        ctx.globalAlpha = .75; ctx.strokeStyle = M.col[2]; ctx.lineWidth = HK * 2; ctx.beginPath(); ctx.ellipse(e.x, e.y - 14, r, r * .95, 0, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; } });
-      continue; }
-    if (M.kind === 'burrow') { ctx.fillStyle = M.col[0]; ctx.globalAlpha = .75; ctx.beginPath(); ctx.ellipse(m.mx, m.my, 14, 6, 0, 0, TAU); ctx.fill();   // 土丘（地面在動）
-      ctx.fillStyle = M.col[1]; ctx.globalAlpha = .5 + .3 * Math.sin(G.time * 12); ctx.beginPath(); ctx.ellipse(m.mx, m.my - 1, 8, 3, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1; }
-    else { ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(m.mx, m.my, 20 + Math.sin(G.time * 2) * 3, 8, 0, 0, TAU); ctx.fill(); }   // 天上的影子
-    if (m.hit) teleCircle(m.hit.x, m.hit.y, m.hit.r, 1 - m.hit.t / m.hit.T);
+    list.push({ y: e.y + 2, f: () => { const r = 24 + Math.sin(G.time * 4) * 1.5, cy = e.y - 14 - (e.z || 0);   // 護盾：包住 Boss 的光球 + 連到每個物件的光線
+      for (const o of m.objs) if (!o.dead) { ctx.globalAlpha = .35 + .25 * Math.sin(G.time * 6 + o.ph); ctx.strokeStyle = M.col[1]; ctx.lineWidth = HK * 3; ctx.beginPath(); ctx.moveTo(o.x, o.y - 12); ctx.lineTo(e.x, cy); ctx.stroke(); }
+      ctx.globalAlpha = .22; ctx.fillStyle = M.col[1]; ctx.beginPath(); ctx.ellipse(e.x, cy, r, r * .95, 0, 0, TAU); ctx.fill();
+      ctx.globalAlpha = .75; ctx.strokeStyle = M.col[2]; ctx.lineWidth = HK * 2; ctx.beginPath(); ctx.ellipse(e.x, cy, r, r * .95, 0, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; } });
   }
 }
-void moveEnt;
