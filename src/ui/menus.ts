@@ -182,7 +182,7 @@ function selSummary(sel, now, pv) {
   if (sl === 'weapon') { const A = atkSplit(G.me, it); return '攻擊 ' + A.total + ' · ' + WT[it.type].trait; }
   if (sl === 'armor') { const A = armorStats(it); return '防禦 ' + A.def + ' · 生命 +' + A.hp; }
   if (sl === 'trinket') return '<span>飾品</span>';
-  return '<b style="color:' + WFXD[it.fx].c + '">' + WFXD[it.fx].n + '刻印</b> · ' + (G.me.weapon.uq ? '<span class="down">獨特武器不能裝刻印</span>' : '裝到武器上');
+  return G.me.weapon.uq ? '<span class="down">現在的武器是獨特武器，不能裝刻印</span>' : '<span>裝到武器上才有效果</span>';
 }
 /* 選中卡直接寫出這件的效果（不用點問號）：刻印、飾品 / 防具的特殊效果（像「打倒敵人時回復 4% 生命」這種不會改數值的，上面那行看不到） */
 function selEffect(it: Item) {
