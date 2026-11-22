@@ -1,7 +1,7 @@
 import './style.css';
 import { G } from './core/state';
 import { $ } from './core/util';
-import { isTouch, resize } from './core/canvas';
+import { isTouch, resize, ECO } from './core/canvas';
 import './art/sprite';
 import './art/hero';
 import { SPR } from './art/monsters';
@@ -59,8 +59,11 @@ export function startGame(cont) {
 if (isTouch) $('tkeys').hidden = true;
 
 export let lastT = 0, camDt = 1 / 60;
+let lastTs = 0, ecoAcc = 0;
 function frame(ts) {
   requestAnimationFrame(frame);
+  // 省電：120Hz / 90Hz 的手機也只畫每秒 60 格（多畫的那些格眼睛幾乎看不出來，但會讓手機發燙）
+  if (ECO) { ecoAcc += ts - lastTs; lastTs = ts; if (ecoAcc < 1000 / 60 - 4) return; ecoAcc = Math.min(1000 / 60, Math.max(0, ecoAcc - 1000 / 60)); }
   const t = ts / 1000; const dt = Math.min(.05, Math.max(0, t - lastT)); lastT = t; camDt = dt;
   readInput();
   if (!G.paused) { if (G.hitStop > 0) { G.hitStop -= dt; G.time += dt * .2; } else update(dt); } else G.time += dt;   // 重擊時停頓一下（hit-stop）

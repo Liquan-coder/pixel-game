@@ -1,16 +1,16 @@
 /* ================= 暫停選單 =================
    右上角的「選單」（或鍵盤 Esc / P）→ 遊戲停住，打開這個面板：
      選單：繼續遊戲 / 設定 / 操作說明 / 回到標題畫面（會先自動存檔）
-     設定：音效開關、音量、畫面震動、傷害數字、按鈕大小（手機）。設定存在這台裝置上（localStorage），跟存檔無關 */
+     設定：音效開關、音量、畫面震動、傷害數字、省電模式、按鈕大小（手機）。設定存在這台裝置上（localStorage），跟存檔無關 */
 import { G } from '../core/state';
 import { $, onTap } from '../core/util';
 import { initAudio, sfx } from '../core/audio';
-import { isTouch } from '../core/canvas';
+import { isTouch, setEco } from '../core/canvas';
 import { openMenu, setMenu } from './hud';
 import { save } from '../game/save';
 import { initTitle } from './title';
 
-export const SET = { sound: true, vol: 70, shake: true, nums: true, btn: 1 };
+export const SET = { sound: true, vol: 70, shake: true, nums: true, btn: 1, eco: true };
 const KEY = 'pw_settings';
 try { Object.assign(SET, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
 export function applySettings() {
@@ -35,6 +35,7 @@ function render() {
     body.innerHTML = tog('sound', '音效', SET.sound) +
       '<div class="prow"><span>音量</span><input type="range" min="0" max="100" step="5" value="' + SET.vol + '" id="volIn"' + (SET.sound ? '' : ' disabled') + '><b id="volTxt">' + SET.vol + '</b></div>' +
       tog('shake', '畫面震動', SET.shake) + tog('nums', '傷害數字', SET.nums) +
+      tog('eco', '省電模式<small>畫面稍微沒那麼細，比較不會燙、比較省電</small>', SET.eco) +
       '<div class="prow"><span>按鈕大小<small>手機的攻擊、技能、瞬移按鈕</small></span><div class="seg">' +
       BTN_SIZES.map(([v, n]) => '<button type="button" data-bs="' + v + '"' + (SET.btn === v ? ' class="on"' : '') + '>' + n + '</button>').join('') + '</div></div>';
   } else body.innerHTML = '<div class="phelp">' + (isTouch
@@ -55,7 +56,7 @@ $('pauseMenu').addEventListener('click', e => {
   if (a === 'resume') setMenu(null);
   else if (a === 'set' || a === 'help') { tab = a; render(); }
   else if (a === 'title') backToTitle();
-  else if (t.dataset.tog) { const k = t.dataset.tog as 'sound' | 'shake' | 'nums'; SET[k] = !SET[k]; applySettings(); if (k === 'sound' && SET.sound) { initAudio(); sfx.pick(); } render(); }
+  else if (t.dataset.tog) { const k = t.dataset.tog as 'sound' | 'shake' | 'nums' | 'eco'; SET[k] = !SET[k]; applySettings(); if (k === 'eco') setEco(SET.eco); if (k === 'sound' && SET.sound) { initAudio(); sfx.pick(); } render(); }
   else if (t.dataset.bs) { SET.btn = +t.dataset.bs; applySettings(); render(); }
 });
 $('pauseMenu').addEventListener('input', e => {
