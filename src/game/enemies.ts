@@ -90,8 +90,10 @@ export function updateEnemy(e, dt) {
       break;
     case 'chase':
       e.blind = canSee(e.x, e.y - 6, e.tgt.x, e.tgt.y - 6) ? 0 : (e.blind || 0) + dt;   // 被牆擋住看不到你超過 2 秒 → 放棄，走回家
-      e.lost = d > e.aggro * 2 ? (e.lost || 0) + dt : 0;                // 你跑到察覺範圍 2 倍以外超過 2 秒 → 也放棄（史萊姆 = 160 以外）
-      if (e.tgt.dead || homeD > e.leash || e.blind > 2 || e.lost > 2) { e.state = 'return'; e.t = 0; e.lost = 0; break; }
+      e.lost = d > e.aggro * 1.5 ? (e.lost || 0) + dt : 0;              // 你跑到察覺範圍 1.5 倍以外超過 1.2 秒 → 也放棄（史萊姆 = 120 以外；走路大約 2 秒就甩掉）
+      if (e.tgt.dead || homeD > e.leash || e.blind > 2 || e.lost > 1.2) {
+        if (!e.tgt.dead) G.nums.push({ x:e.x, y:e.y - 20, txt:'?', col:'#c8c0d8', t:0, d:.8 });   // 頭上冒「?」：跟發現你的「!」對應，讓你知道甩掉了
+        e.state = 'return'; e.t = 0; e.lost = 0; break; }
       if (e.beh === 'ranged') {
         if (d < 55) { stepToward(e, e.x - dx, e.y - dy, e.spd, dt); e.flip = dx < 0; }
         else if (d > 115) stepToward(e, e.tgt.x, e.tgt.y, e.spd, dt);
