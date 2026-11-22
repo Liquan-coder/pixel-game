@@ -35,7 +35,7 @@ const emit = (rate, fn) => { let n = rate * camDt; while (n > 0) { if (n >= 1 ||
 function attackParticles(pl: Player, m, phase, gx, gy, ang) {                       // 攻擊四段的粒子
   const type = pl.weapon.type, L = WLEN[type] || 8, c = Math.cos(ang), s = Math.sin(ang), tx = gx + c * L, ty = gy + s * L, col = wcols(pl, type);
   const along = u => [gx + c * L * u, gy + s * L * u], fx0 = pl.x, fy0 = pl.y;
-  if (type === 'bow') {                                                 // 長弓：拉弓時箭搭在弦上，箭頭慢慢亮起來
+  if (type === 'bow' || type === 'elfbow') {                            // 長弓 / 精靈弓：拉弓時箭搭在弦上，箭頭慢慢亮起來
     if (phase === 'C') { const k = m.t / m.wu; drawArrow(gx + Math.cos(pl.face) * 6, gy + Math.sin(pl.face) * 6, pl.face, 8 + k * 4, col, false); drawStar(gx + Math.cos(pl.face) * 6, gy + Math.sin(pl.face) * 6, 1 + k * 2, '#ffffff'); }
     return;
   }

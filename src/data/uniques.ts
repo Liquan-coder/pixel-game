@@ -51,7 +51,16 @@ Object.assign(UQ, {
   darkmoon: { type: 'darkmoon', name: '暗月大劍', base: 23, fx: 'frost', aff: { crit: 6, cdr: 12 }, req: { str: 16, int: 18 }, scale: { str: .5, int: .7 },
     lore: '霜墓的騎士一直等著光回來。光沒有回來，月亮卻來了——落在他的劍上，再也沒有離開。', from: '霜寒雪原・霜墓' },
 } as Record<string, UniqueDef>);
-for (const k of ['royalguard', 'forgehammer', 'deepstaff', 'silktwin', 'sandcrescent', 'darkmoon']) { UQ_REQ[k] = UQ[k].req; if (UQ[k].scale) UQ_SCALE[k] = UQ[k].scale; UQ_BY_NAME[UQ[k].name] = k; }
+/* ================= 精靈武器（精靈王國，world/elfland.ts）：三種都是自己的武器種類 ================= */
+Object.assign(UQ, {
+  elfbow: { type: 'elfbow', name: '精靈王的長弓', base: 16, fx: 'shock', aff: { crit: 8, speed: 8 }, req: { dex: 15, int: 10 },
+    lore: '弓弦是月光搓成的。精靈王說，他射出的每一支箭，都是一句沒說出口的道歉。', from: '精靈王國・精靈王城' },
+  elfrapier: { type: 'elfrapier', name: '月泉細劍', base: 13, fx: 'frost', aff: { crit: 10, cdr: 10 }, req: { dex: 15, int: 8 },
+    lore: '月泉湖心的島上插著這把劍。劍身映著的月亮，比天上的還要圓。', from: '精靈王國・月泉' },
+  elfblades: { type: 'elfblades', name: '螢火雙刀', base: 14, fx: 'bleed', aff: { speed: 10, crit: 6 }, req: { dex: 17 },
+    lore: '月蛾女王吞下的螢火，最後凝成了兩把刀。揮起來的時候，刀光像一群飛走的螢火蟲。', from: '精靈王國・螢月禁林' },
+} as Record<string, UniqueDef>);
+for (const k of ['royalguard', 'forgehammer', 'deepstaff', 'silktwin', 'sandcrescent', 'darkmoon', 'elfbow', 'elfrapier', 'elfblades']) { UQ_REQ[k] = UQ[k].req; if (UQ[k].scale) UQ_SCALE[k] = UQ[k].scale; UQ_BY_NAME[UQ[k].name] = k; }
 
 /* ================= 獨特防具 / 飾品 =================
    新制（data/gear.ts）：沒有物品等級。防具的防禦 / 生命看類型（法袍 = 輕、皮甲 = 中、鎖甲 = 重），
@@ -85,4 +94,5 @@ export const UG: Record<string, UniqueGearDef> = {
   boilheart:   { type: 'amulet', name: '沸騰之心', eff: { lowHp: 25, res_lava: 15 }, lore: '從熔渣池撈出來的一顆泡泡，到現在還在冒煙。', from: '熔岩高地・熔渣池' },
   wyrmscale:   { type: 'mail', name: '凜翼鱗甲', eff: { res_snow: 30, guard: 4 }, lore: '冰霜飛龍胸口最硬的那幾片鱗。', from: '霜寒雪原・冰封湖' },
   purplering:  { type: 'ring', name: '紫冠指環', eff: { souls: 25, killHeal: 3 }, lore: '毒菇母后的冠。戴著它的人，打倒的東西會變成養分。', from: '幽影沼澤・沉木林' },
+  mothcloak:   { type: 'robe', name: '月蛾鱗衣', eff: { evade: 12, dodgeAtk: 20 }, lore: '月蛾女王翅膀上的鱗粉織成的衣服。在月光下，連影子都會變淡。', from: '精靈王國・螢月禁林' },
 };

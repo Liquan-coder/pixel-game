@@ -12,6 +12,7 @@ import { RBDEF, rbDead, rbs } from './world/regionBoss';
 import './world/bossAI';
 import './world/bossAI3';
 import './art/dungeonMonsters';
+import './art/elfMonsters';
 import './art/dungeonBosses';
 import { genWorld, reachable } from './world/gen';
 import './world/tileArt';

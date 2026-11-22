@@ -94,7 +94,7 @@ export function bakeTileHD(buf, CA, tx, ty, ox, oy) {
       let c = WP[k];
       if (!isWaterish(up)) { if (ly < 7) c = S.bank[ly < 2 ? 2 : (hash2(ax, ay >> 2) < .3 ? 0 : 1)]; else if (ly < 9) c = WP[6]; else if (ly < 14) c = WP[Math.max(k, 5)]; }
       buf[at(lx, ly)] = c; }
-    if (t === WATER && (r === 6 || r === 1) && hash2(tx, ty) < (r === 6 ? .45 : .2)) lily(buf, CA, ox + 8 + ((hash2(ty, tx) * 26) | 0), oy + 14 + ((hash2(tx + 5, ty) * 22) | 0), hash2(tx, ty + 9));
+    if (t === WATER && (r === 6 || r === 1 || r === 8) && hash2(tx, ty) < (r === 6 ? .45 : .2)) lily(buf, CA, ox + 8 + ((hash2(ty, tx) * 26) | 0), oy + 14 + ((hash2(tx + 5, ty) * 22) | 0), hash2(tx, ty + 9));
   } else if (t === LAVA || (t === BRIDGE && r === 3)) {                 // 熔岩：流動紋 + 黑色結痂 + 發光邊
     for (let ly = 0; ly < TA; ly++) for (let lx = 0; lx < TA; lx++) { const ax = AX + lx, ay = AY + ly;
       const n = .65 * nz(NZ1, ax * .45, ay * 1.1) + .35 * nz(NZ0, ax * 2, ay * 2), m = nz(NZ1, ax * .3 + 70, ay * .3 + 20);
@@ -207,7 +207,7 @@ const DECO = {
 const DP = {
   p0: { a:0, b:0 }, flowers: ['#f4e27a', '#ffffff', '#f29bb8', '#9ac8ff', '#c8a0ff'].map(hexU),
   stone: [UL(['#1a1820','#b0adbb','#8d8a99','#6b6878']), UL(['#0f1712','#8a9a8a','#6a7a6a','#4a5a4a']), UL(['#2a2014','#d8c8a8','#b0a080','#8a7a5a']), UL(['#100a0a','#6a5a5c','#4a3a3c','#2e2224']), UL(['#0e0b14','#6a6478','#4a4558','#34303f']),
-    UL(['#2a3448','#e8f0fa','#b0bed0','#8494ac']), UL(['#0e120a','#5e6a52','#46503c','#2e3626']), UL(['#0e0b14','#6a6478','#4a4558','#34303f'])],
+    UL(['#2a3448','#e8f0fa','#b0bed0','#8494ac']), UL(['#0e120a','#5e6a52','#46503c','#2e3626']), UL(['#0e0b14','#6a6478','#4a4558','#34303f']), UL(['#2a3240','#e4ecf4','#b4c0cc','#8a96a6'])],
 };
 function decoBones(buf, CA, x, y) { stamp(buf, CA, DECO.bone, { w:hexU('#e8e0cc'), k:hexU('#8a8270') }, x, y); }
 function decoGround(buf, CA, r, tx, ty, ox, oy) {
@@ -239,6 +239,11 @@ function decoGround(buf, CA, r, tx, ty, ox, oy) {
     if (R() < .08) P(DECO.mush, { k:DK, r:hexU('#8a4ab0'), w:hexU('#e0c8f0'), S:hexU('#c8b8a0') });
     if (R() < .1) P(DECO.twig, { n:hexU('#3a2c1c') });
     if (R() < .05) P(DECO.fern, { a:hexU('#3e5a30'), b:hexU('#22301a') });
+  } else if (r === 8) {                                               // 精靈王國：白色和淡藍的月光花、蕨類、小草
+    if (R() < .35) P(DECO.tuft2, { a:G[5], b:G[2] });
+    if (R() < .16) { const col = hexU(R() < .5 ? '#e8f4ff' : R() < .5 ? '#9ad8ff' : '#c8b0ff'); for (let k = 0; k < 1 + ((R() * 3) | 0); k++) P(DECO.flower, { p:col, c:hexU('#fff4b0'), s:G[1] }); }
+    if (R() < .1) P(DECO.fern, { a:hexU('#4a9a86'), b:hexU('#26604e') });
+    if (R() < .04) P(DECO.pebble, stoneP);
   } else {
     if (R() < .07) P(DECO.bone, { w:hexU('#d8d0bc'), k:hexU('#6a6270') });
     if (R() < .08) P(DECO.pebble, stoneP);
@@ -251,10 +256,11 @@ export const SRAMP = {
   pine: ['#0e2a1e','#163a2a','#1f4c36','#2a6044','#387656'], bark: ['#2a1a0e','#432c1a','#5e3e24','#7a5432','#946a42'],
   dead: ['#2a2018','#3e3226','#54463a','#6c5c4c','#857462'], obs: ['#120c14','#20162a','#30223c','#46344e','#625068'],
   rock: [['#2a2834','#4a4858','#6b6878','#8d8a99','#b0adbb'], ['#1a261e','#33433a','#4a5a4a','#6a7a6a','#8a9a8a'], ['#4a3c28','#6e5e44','#8a7a5a','#b0a080','#d8c8a8'], ['#140c0c','#241a1a','#3a2c2e','#4a3a3c','#6a5a5c'], ['#1a1822','#2e2a38','#46425a','#5e5a72','#7a7690'],
-    ['#3a4458','#5e6a82','#8494ac','#b0bed0','#e8f0fa'], ['#141810','#262c20','#3a4230','#525c44','#6a765a']],
+    ['#3a4458','#5e6a82','#8494ac','#b0bed0','#e8f0fa'], ['#141810','#262c20','#3a4230','#525c44','#6a765a'], ['#1c1a18','#2c2824','#3f3931','#4a4339','#5a5044'], ['#3a4250','#5a6474','#7e8a9a','#a6b2c0','#d0dae4']],
   pineS: ['#14283a','#1c3648','#26465a','#32586c','#426e80'], leafS: ['#141a10','#1e2616','#2a341e','#384428','#4a5634'], deadS: ['#121008','#22200e','#363218','#4a4422','#5e582e'],
   crate: ['#3a2414','#5a3c26','#7a5434','#9a7048','#b48a5a'], metal: ['#2a2834','#4a4858','#7a788a','#aaa8ba'],
   grave: ['#3a3846','#5e5a6a','#7a7688','#9a96a8','#bab6c6'], dirt: ['#2e2216','#46341f','#5a4a3a','#6e5c48'],
+  leafE: ['#12303a','#1c4a50','#266462','#348074','#4ea08a','#7ccab0'], leafE2: ['#16244a','#203a6a','#2c528a','#3e6ea8','#5a90c8','#8ab8e8'], birch: ['#4a4e5c','#7a808e','#a8aebb','#d0d4dc','#f0f2f6'],   // 精靈王國：藍綠 / 月藍的葉子、白樺樹皮
 };
 function hdTreeRound(seed, L, B) { const R = mulberry32(seed), j = () => R() * 3 - 1.5;
   return sculpt(54, 66, [
@@ -324,7 +330,7 @@ function hdGrave(seed) { const G = SRAMP.grave, R = mulberry32(seed);
     { sh: SH.box(17, 25, 11, 16, 5), ramp: G, grp: 2 }, { sh: SH.ell(17, 11, 11, 9, (x, y) => y < 14), ramp: G, grp: 2 },
   ], a => { a.rect(16, 13, 2, 16, G[0]); a.rect(11, 18, 12, 2, G[0]); a.line(16, 14, 16, 28, G[1]);
     for (let k = 0; k < 10; k++) { const x = 7 + R() * 20, y = 30 + R() * 10; if (a.get(x, y)) a.set(x, y, R() < .5 ? '#4a6a3a' : '#5a8a46'); } }); }
-function hdBigTree() { const L = SRAMP.leaf, B = SRAMP.bark, R = mulberry32(77);
+function hdBigTree(L = SRAMP.leaf, B = SRAMP.bark, petal = ['#f2a4c8', '#ffd8ea', '#d880a8']) { const R = mulberry32(77);
   const parts: Record<string, any>[] = [{ sh: SH.cap(78, 196, 78, 110, 18, 13), ramp: B, tex: .35, grp: 1 },
     { sh: SH.cap(78, 188, 46, 197, 9, 3), ramp: B, tex: .3, grp: 1 }, { sh: SH.cap(78, 188, 110, 197, 9, 3), ramp: B, tex: .3, grp: 1 },
     { sh: SH.cap(70, 120, 36, 92, 7, 4), ramp: B, tex: .3, grp: 1 }, { sh: SH.cap(86, 118, 122, 88, 7, 4), ramp: B, tex: .3, grp: 1 },
@@ -332,7 +338,7 @@ function hdBigTree() { const L = SRAMP.leaf, B = SRAMP.bark, R = mulberry32(77);
   for (const [x, y, rx, ry] of [[36, 74, 34, 30], [120, 72, 34, 30], [78, 64, 44, 34], [52, 40, 34, 28], [106, 38, 34, 28], [78, 24, 36, 24]]) parts.push({ sh: SH.ell(x, y, rx, ry), ramp: L, tex: .5, grp: parts.length, line: L[1] });
   return sculpt(156, 200, parts, a => {
     for (let k = 0; k < 40; k++) { const x = 10 + R() * 136, y = 4 + R() * 100; a.ell(x, y, 3.5, 1.8, L[5], true); a.set(x - 2, y - 1, L[5]); }
-    for (let k = 0; k < 24; k++) { const x = 14 + R() * 128, y = 10 + R() * 90; if (a.get(x, y)) { a.set(x, y, '#f2a4c8'); a.set(x + 1, y, '#ffd8ea'); a.set(x, y + 1, '#d880a8'); } }
+    for (let k = 0; k < 24; k++) { const x = 14 + R() * 128, y = 10 + R() * 90; if (a.get(x, y)) { a.set(x, y, petal[0]); a.set(x + 1, y, petal[1]); a.set(x, y + 1, petal[2]); } }
     for (const [x, y0] of [[72, 130], [84, 150], [76, 168]]) for (let y = y0; y < y0 + 16; y++) a.set(x + Math.round(Math.sin(y * .5) * 1.5), y, B[0]);
     a.ell(80, 150, 5, 7, '#1a0e06'); });
 }
@@ -340,10 +346,13 @@ function hdBigTree() { const L = SRAMP.leaf, B = SRAMP.bark, R = mulberry32(77);
    晨風鎮：米色灰泥牆 + 木頭框架；霜歌鎮：原木小屋 + 屋頂積雪 + 冰柱。大一點的房子門上有一個小山牆（三角形的屋頂）。
    全部在 post 裡一格一格畫：pid 0 = 牆、1 = 屋頂、2 = 山牆、3 = 煙囪 */
 const ROOFS = [['#3e1412', '#62201c', '#86302a', '#a84638', '#c8664c'], ['#16203a', '#22345a', '#30487a', '#425e98', '#5c7cb4'],
-  ['#162c1c', '#22422a', '#30583a', '#43704a', '#5c8c5c'], ['#2a1a10', '#44301e', '#5e442a', '#7a5c3a', '#96784e']];
-const PLASTER = ['#6e5e4a', '#988670', '#bcab90', '#d6c8aa', '#e8dcc2'], STONE_W = ['#2e2a38', '#48445a', '#686480', '#8a86a0', '#aaa6be'];
-const BEAMS = ['#2a1a0e', '#45301a', '#634628', '#80603a'];
+  ['#162c1c', '#22422a', '#30583a', '#43704a', '#5c8c5c'], ['#2a1a10', '#44301e', '#5e442a', '#7a5c3a', '#96784e'],
+  ['#0e3036', '#16484c', '#226464', '#32807a', '#4ea090'], ['#1e2a4a', '#2c3e6a', '#3e568a', '#5472a8', '#7496c8']];   // 4、5 = 精靈的城鎮：藍綠、銀藍
+const PLASTER0 = ['#6e5e4a', '#988670', '#bcab90', '#d6c8aa', '#e8dcc2'], PLASTER_E = ['#7a8290', '#a2aab6', '#c4ccd6', '#dee4ec', '#f0f4f8'], STONE_W = ['#2e2a38', '#48445a', '#686480', '#8a86a0', '#aaa6be'];
+const BEAMS0 = ['#2a1a0e', '#45301a', '#634628', '#80603a'], BEAMS_E = ['#2e3240', '#4a5060', '#6c7486', '#9098aa'];
+let PLASTER = PLASTER0, BEAMS = BEAMS0;                                  // 精靈的房子（屋頂 4、5）換成白牆 + 銀色木框
 function hdHouse(wT, hT, roof, snow, smith) {
+  PLASTER = roof >= 4 ? PLASTER_E : PLASTER0; BEAMS = roof >= 4 ? BEAMS_E : BEAMS0;
   const W = wT * TA, H = hT * TA, R = ROOFS[roof], rng = mulberry32(wT * 31 + hT * 7 + roof * 3 + (snow ? 11 : 0));
   const top = 8, eave = Math.round(H * .5), wl = 7, wr = W - 7, foot = H - 9, LOG = SRAMP.bark;
   const dcx = wT >= 5 ? Math.round(W * .6) : Math.round(W / 2), big = wT >= 4, gw = 30;              // 門的中心；大房子門上有山牆
@@ -448,9 +457,11 @@ function houseArt(h) { const k = h.w + ',' + h.h + ',' + h.roof + ',' + h.snow +
 const SCN = {
   trees: [[hdTreeRound(1, SRAMP.leaf, SRAMP.bark), hdTreeRound(2, SRAMP.leaf, SRAMP.bark), hdTreeRound(3, SRAMP.leaf, SRAMP.bark)],
     [hdPine(4), hdPine(5), hdPine(6)], [hdDead(7, SRAMP.dead), hdDead(8, SRAMP.dead)], [hdSpike(9), hdSpike(10)], [hdDead(11, SRAMP.obs), hdTreeRound(12, SRAMP.leafD, SRAMP.bark)],
-    [hdPineSnow(13), hdPineSnow(14), hdPineSnow(15)], [hdDead(16, SRAMP.deadS), hdTreeRound(17, SRAMP.leafS, SRAMP.deadS), hdDead(18, SRAMP.deadS)]],
-  rocks: SRAMP.rock.map((Rm, r) => { const moss = r === 1 ? ['#2e5a36', '#4a8a4e'] : r === 5 ? ['#dce8f4', '#ffffff'] : r === 6 ? ['#2e3a1e', '#4a6a2e'] : null; return [hdRock(20 + r, Rm, moss, r === 3), hdRock(30 + r, Rm, moss, false)]; }),
+    [hdPineSnow(13), hdPineSnow(14), hdPineSnow(15)], [hdDead(16, SRAMP.deadS), hdTreeRound(17, SRAMP.leafS, SRAMP.deadS), hdDead(18, SRAMP.deadS)],
+    [], [hdTreeRound(41, SRAMP.leafE, SRAMP.birch), hdTreeRound(42, SRAMP.leafE, SRAMP.birch), hdTreeRound(43, SRAMP.leafE2, SRAMP.birch)]],   // 7 = 地城（沒有樹）、8 = 精靈王國的白樺
+  rocks: SRAMP.rock.map((Rm, r) => { const moss = r === 1 ? ['#2e5a36', '#4a8a4e'] : r === 5 ? ['#dce8f4', '#ffffff'] : r === 6 ? ['#2e3a1e', '#4a6a2e'] : r === 8 ? ['#2e6a5a', '#4a9a7a'] : null; return [hdRock(20 + r, Rm, moss, r === 3), hdRock(30 + r, Rm, moss, false)]; }),
   pillars: RUIN.map(u => hdPillar(u)), crate: hdCrate(), graves: [hdGrave(1), hdGrave(2)], big: hdBigTree(),
+  bigE: hdBigTree(['#3a5868', '#5a8094', '#86aabc', '#b4d0dc', '#dceef4', '#ffffff'], SRAMP.birch, ['#9ad8ff', '#e8f8ff', '#6ab0e8']),   // 精靈王國的白樹：白色樹皮、銀藍色的葉子
 };
 function shadowEll(g, cx, cy, rx, ry, a = .28) { g.fillStyle = 'rgba(0,0,0,' + a + ')'; g.beginPath();
   for (let y = -ry; y <= ry; y++) { const w = Math.round(rx * Math.sqrt(Math.max(0, 1 - (y / ry) ** 2))); if (w > 0) g.rect(Math.round(cx - w), Math.round(cy + y), w * 2, 1); } g.fill(); }
@@ -465,5 +476,5 @@ export function bakeObjectHD(g, tx, ty, x, y) {
   else if (t === HOUSE) { const h = HOUSES.find(h => h.tx === tx && h.ty + h.h - 1 === ty);                // 只在房子的左下角那格畫整棟
     if (h) { shadowEll(g, x + h.w * TA / 2, y + TA - 2, h.w * TA / 2 + 4, 8, .3); g.drawImage(houseArt(h), x, y + TA - h.h * TA); } }
   else if (t === BIGT && tileAt(tx - 1, ty) !== BIGT && tileAt(tx, ty + 1) !== BIGT) {
-    shadowEll(g, x + TA, y + TA - 2, 70, 10, .3); g.drawImage(SCN.big, Math.round(x + TA - SCN.big.width / 2), Math.round(y + TA + 4 - SCN.big.height)); }
+    const B = r === 8 ? SCN.bigE : SCN.big; shadowEll(g, x + TA, y + TA - 2, 70, 10, .3); g.drawImage(B, Math.round(x + TA - B.width / 2), Math.round(y + TA + 4 - B.height)); }
 }

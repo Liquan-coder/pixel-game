@@ -23,7 +23,7 @@ export interface Chest { id: string; tx: number; ty: number; x: number; y: numbe
   uq?: string; need?: string; poof?: boolean; wild?: boolean }         // wild = 野外隨機寶箱（東西最高到藍色）                        // poof = 打開後消失的特效已經放過了                                           // uq = 固定的獨特武器；need = 要先達成的旗標（地城守護者倒下）
 export const CHESTS: Chest[] = [];
 const TIER = [{ n:'木製寶箱', col:'#c8a070' }, { n:'白銀寶箱', col:'#9ad0ff' }, { n:'黃金寶箱', col:'#f2c14e' }];
-const REG_LV = [8, 20, 32, 45, 20, 58, 70, 10];                               // 每個地區野外寶箱的等級
+const REG_LV = [8, 20, 32, 45, 20, 58, 70, 10, 48];                           // 每個地區野外寶箱的等級（8 = 精靈王國）
 export const WILD_CAP = 2;                                              // 野外寶箱開出來的東西最高到藍色（RAR[2]）：沒有刻印、沒有獨特
 
 /* 放寶箱：reach = 從起點走得到的格子。偏僻 = 離道路、營火都有一段距離 */
@@ -49,10 +49,12 @@ export function genChests(reach: Uint8Array) {
   for (const d of DUNGEONS) { if (!d.bossChest) continue;
     CHESTS.push({ id: 'd_' + d.id, tx: d.bossChest[0], ty: d.bossChest[1], x: d.bossChest[0] * TS + 8, y: d.bossChest[1] * TS + 10, tier: 2, lv: d.lv + 2, mimic: false, opened: false, t: 0, uq: d.uq, need: 'dgn:' + d.id });
     d.sideChests.forEach(([x, y], k) => add(x, y, d.style === 'ruin' && k === 0 ? 2 : 1, d.lv + 1, false)); }
+  // 月泉湖心的小島（精靈王國）：精靈細劍。旁邊有精英「月泉的劍聖」守著
+  CHESTS.push({ id: 'c_elfspring', tx: 334, ty: 432, x: 334 * TS + 8, y: 432 * TS + 10, tier: 2, lv: 50, mimic: false, opened: false, t: 0, uq: 'elfrapier' });
   /* 野外隨機寶箱：每個地區只留幾個，而且最多是白銀寶箱、東西最高到藍色、只給一顆素材
      （以前一百多個、還會開出刻印和一堆素材，路邊隨手開幾個就變很強。刻印要去地城、地標、機關拿） */
   const R = mulberry32(4242);
-  for (const r of [0, 1, 2, 3, 5, 6]) {
+  for (const r of [0, 1, 2, 3, 5, 6, 8]) {                             // 8（精靈王國）放最後：前面地區的寶箱位置不變
     let n = 0, tries = 0;
     while (n < (r === 0 ? 6 : 5) && tries++ < 120000) {
       const x = 4 + Math.floor(R() * (MW - 8)), y = 4 + Math.floor(R() * (MH - 8));

@@ -47,7 +47,7 @@ export const PAGES: { n: string; mat: MatKey; dg: string[] }[] = [
   { n: '星屑篇', mat: 'mat2', dg: ['moss', 'barrow', 'grotto'] },          // 翠風平原
   { n: '星片篇', mat: 'mat3', dg: ['nest', 'roots'] },                     // 迷霧森林
   { n: '星石篇', mat: 'mat4', dg: ['windcave', 'sandtemple', 'undercroft'] },   // 骸骨荒地
-  { n: '星晶篇', mat: 'mat5', dg: ['lavatube', 'obsidian', 'forgeruin'] }, // 熔岩高地
+  { n: '星晶篇', mat: 'mat5', dg: ['lavatube', 'obsidian', 'forgeruin', 'mothwood'] }, // 熔岩高地（+ 精靈王國的螢月禁林，等級差不多）
   { n: '星髓篇', mat: 'mat6', dg: ['icecave', 'frostcrypt'] },             // 霜寒雪原
   { n: '隕星篇', mat: 'core', dg: ['rotcave', 'sunkgrotto', 'temple'] },   // 幽影沼澤
 ];

@@ -224,3 +224,27 @@ MECHS.mirrors = {
   target(p, st, pl) { if (p.gateOpen) return null; for (const q of st.ms) if (Math.hypot(q.tx * TS + 8 - pl.x, q.ty * TS + 10 - pl.y) < 20) return { btn: '轉動', text: '轉動鏡子', run: () => { q.m = 1 - q.m; sfx.hit(); } }; return null; },
 };
 void GROUND; void hitP;
+
+/* ---------- 月光花（螢月禁林，Boss 大廳前）：整間房很暗，只看得到身邊一小圈。四朵花苞，敲一下就開花、發光 9 秒（花旁邊是亮的），
+   時間到又合起來。四朵同時開著 → 開門。月蛾會被光吸過來（房間裡的小怪本來就有） ---------- */
+const BLOOM = 9;
+MECHS.moonflowers = {
+  setup: (p, r) => { const fl = [[-5, -2], [-2, 2], [2, -2], [5, 2]].map(([ox, oy]) => { const [tx, ty] = findFloor(r.x + ox, r.y + oy), f = { x: tx * TS + 8, y: ty * TS + 10, t: 0 }; PROPS.push({ x: f.x, y: f.y, r: 5 }); return f; });
+    return { r, fl }; },
+  update: (p, st, dt) => {
+    if (p.gateOpen) { for (const f of st.fl) f.t = BLOOM; return; }
+    for (const f of st.fl) if (f.t > 0) { f.t -= dt; if (f.t <= 0) { f.t = 0; burst(f.x, f.y - 8, 6, '#6a5a80', 30); } }
+    if (st.fl.every(f => f.t > 0)) { openGate(p); toast('四朵月光花同時開了', '#c8f0ff'); } },
+  target: (p, st, pl) => { for (const f of st.fl) if (f.t <= 0 && Math.hypot(f.x - pl.x, f.y - pl.y) < 22) return { btn: '敲', text: '敲一下花苞', run: () => { f.t = BLOOM; sfx.pick(); burst(f.x, f.y - 10, 14, '#c8f0ff', 50); } }; return null; },
+  dark: (p, st, pl) => { if (p.gateOpen) return 0; const [tx, ty] = plTile(pl); if (!inBox(st.r, tx, ty)) return 0;
+    return st.fl.some(f => f.t > 0 && Math.hypot(f.x - pl.x, f.y - pl.y) < 70) ? 0 : 52; },
+  draw: (p, st, vis, list, L, addLight) => { const r = st.r; if (!vis(r.x * TS, r.y * TS, r.rx * TS + 40)) return;
+    for (const f of st.fl) { const open = f.t > 0, q = open ? Math.min(1, f.t / 1.5) : 0;
+      list.push({ y: f.y, f: () => { ctx.fillStyle = '#26443a'; ctx.fillRect(snapF(f.x - 1), snapF(f.y - 12), 2, 12);       // 莖
+        for (let k = 0; k < 5; k++) { const a = k / 5 * TAU + G.time * .3, R = open ? 6 : 2.5; ctx.fillStyle = open ? (k % 2 ? '#e8f8ff' : '#9ad8ff') : '#6a5a80';
+          ctx.fillRect(snapF(f.x + Math.cos(a) * R - 2), snapF(f.y - 14 + Math.sin(a) * R * .6 - 2), 4, 4); }
+        ctx.fillStyle = open ? '#fff6c0' : '#8e7ea4'; ctx.fillRect(snapF(f.x - 1.5), snapF(f.y - 15.5), 3, 3);
+        if (open && f.t < 3 && Math.floor(G.time * 6) % 2) { ctx.fillStyle = '#ffffff'; ctx.fillRect(snapF(f.x - 1), snapF(f.y - 15), 2, 2); } } });   // 快要合起來：閃
+      if (open) { addLight(L, f.x, f.y - 14, 70 * (.6 + .4 * q), 2); if (Math.random() < .2) G.parts.push({ x: f.x + rr(-6, 6), y: f.y - 14, vx: rr(-8, 8), vy: -rr(10, 24), life: 1, max: 1, col: '#c8f0ff', star: 1, drag: 1 }); } } },
+  reset: (p, st) => { for (const f of st.fl) f.t = 0; },
+};

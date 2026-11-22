@@ -37,6 +37,8 @@ export const THEME: Record<string, Theme> = {
   drowned:     { proj: 'drop', rain: 'pillar', impact: 'splash', sweep: 'wave', lash: 'chain', pool: 'water', trail: 'splash' },
   forgeguard:  { proj: 'cinder', rain: 'meteor', rainCols: ['#2a2024', '#f07a32', '#ffe38a'], impact: 'sparks', sweep: 'blade', lash: 'firewhip', pool: 'lava', trail: 'sparks' },
   starwarden:  { proj: 'star', rain: 'star', rainCols: ['#7a4a1a', '#f2c14e', '#fff6d0'], impact: 'stars', sweep: 'wave', lash: 'beam', pool: 'water', trail: 'stars' },
+  mothqueen:   { cols: ['#4a3a6a', '#c8b0ff', '#fff6e0'], proj: 'sporeG', rain: 'spore', rainCols: ['#4a3a6a', '#c8b0ff', '#fff6e0'], impact: 'stars', sweep: 'wave', lash: 'beam', pool: 'web', trail: 'stars' },
+  elfking:     { cols: ['#1e3a5e', '#9ad8ff', '#ffffff'], proj: 'arrow', rain: 'arrow', rainCols: ['#4a3018', '#e0c060', '#ffffff'], impact: 'leaves', sweep: 'blade', lash: 'beam', pool: 'water', trail: 'leaves' },
 };
 
 /* ---- 噴出來的碎片 ---- n = 數量；sp = 往外的速度；up = 往上的速度；g = 重力；star = 用四芒星畫 */

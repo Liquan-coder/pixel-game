@@ -20,8 +20,8 @@ import { drawShadow } from '../render/player';
 import type { Player } from '../types';
 
 /* 地區 → 第幾塊地圖（0 = 一開始就亮的平原；4 = 狼王巢穴跟森林一起；7 = 地城，不算） */
-const ZONE_OF_REG = [0, 1, 2, 3, 1, 4, 5, -1];
-export const ZONE_NAME = ['翠風平原', '迷霧森林', '骸骨荒地', '熔岩高地', '霜寒雪原', '幽影沼澤'];
+const ZONE_OF_REG = [0, 1, 2, 3, 1, 4, 5, -1, 6];                 // 8 = 精靈王國 → 第 6 塊
+export const ZONE_NAME = ['翠風平原', '迷霧森林', '骸骨荒地', '熔岩高地', '霜寒雪原', '幽影沼澤', '精靈王國'];
 /* 神像 k（1～5）：放在 a、b 兩個地區的交界，越靠近 hint 越好；frag = 哪隻 Boss 掉這張殘頁 */
 const DEF = [
   { k: 1, a: 0, b: 1, hint: [190, 410], frag: 'queen' },
@@ -29,7 +29,9 @@ const DEF = [
   { k: 3, a: 1, b: 3, hint: [250, 220], frag: 'general' },
   { k: 4, a: 3, b: 5, hint: [430, 110], frag: 'dragon' },
   { k: 5, a: 5, b: 6, hint: [480, 225], frag: 'yeti' },
+  { k: 6, a: 8, b: 1, hint: [347, 422], frag: 'mistwitch' },            // 精靈王國：林間渡口（從森林過橋上島的地方）；殘頁 = 霧林女妖
 ];
+export const STATUE_N = DEF.length;
 export interface Statue { k: number; x: number; y: number; tx: number; ty: number; frag: string; prop: { x: number; y: number; r: number } }
 export const STATUES: Statue[] = [];
 export const fragBoss = (k: number) => DEF[k - 1].frag;
@@ -81,7 +83,7 @@ function pray(s: Statue) {
   flags.add('statue:' + s.k); chartZone(s.k); sfx.level(); sfx.epic();
   for (const dl of [0, .15, .3]) G.fx.push({ k: 'warp', x: s.x, y: s.y - 20, r0: 6, r1: 120, th: 5, delay: dl, t: 0, d: .8 + dl, col: dl ? '#ffe38a' : '#c8a8ff' });
   for (let i = 0; i < 40; i++) { const a = rr(0, TAU), v = rr(40, 160); G.parts.push({ x: s.x, y: s.y - 34, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40, life: rr(.6, 1.4), max: 1.4, col: pick(['#ffe38a', '#fff6d0', '#c8a8ff', '#ffffff']), star: rr(1, 3), drag: 2 }); }
-  const all = fragCount() >= 5;
+  const all = fragCount() >= STATUE_N;
   showBanner(all ? '整片荒野都在地圖上了' : '地圖亮了起來', ZONE_NAME[s.k] + (all ? '' : ' · 打開地圖看看'), 3200); save();
 }
 export function cartoTarget(pl: Player, npc: { name: string; x: number; y: number } | null): { btn: string; text: string; run: () => void } | null {

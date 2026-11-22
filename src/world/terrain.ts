@@ -7,6 +7,7 @@
    genWorld（gen.ts）會依序呼叫：formations() → vegetation() → （地標、道路、城鎮…）→ connectPockets() */
 import { CLIFF, GROUND, LAVA, MH, MW, ROCK, SUBS, TREE, WALKABLE, WATER, hgt, map, reg } from './map';
 import { I, inb, river } from './gen';
+import { hash2 } from '../art/monsters';
 
 type Noise = (x: number, y: number) => number;
 
@@ -89,11 +90,11 @@ export function formations(R: () => number, n: Noise) {
 export function vegetation(R: () => number, n: Noise, nBig: Noise) {
   /* 雜訊大於 th = 林子；大於 th + CORE = 山的岩峰（荒地、熔岩沒有自然林，它們的台地在 formations 裡） */
   const nearSub = (x: number, y: number) => SUBS.some(S => Math.hypot(S.x - x, S.y - y) < S.r + 5);   // 有名字的地點（地標）旁邊不長岩山，地標才走得進去
-  const MASS = { 1: .55, 6: .64, 5: .76, 0: .78 } as Record<number, number>, CORE = { 1: .22, 6: .2, 5: .13, 0: .12 } as Record<number, number>;
+  const MASS = { 1: .55, 6: .64, 5: .76, 0: .78, 8: .6 } as Record<number, number>, CORE = { 1: .22, 6: .2, 5: .13, 0: .12, 8: .2 } as Record<number, number>;   // 8 = 精靈王國的白森林
   for (let y = 4; y < MH - 4; y++) for (let x = 4; x < MW - 4; x++) { const i = I(x, y); if (map[i] !== GROUND) continue; const r = reg[i];
     const th = MASS[r]; if (th === undefined) continue;
     const v = nBig(x * .55 + r * 97, y * .55);
-    if (v > th + CORE[r] && !nearSub(x, y)) map[i] = CLIFF; else if (v > th && R() < .92) map[i] = TREE;
+    if (v > th + CORE[r] && !nearSub(x, y)) map[i] = CLIFF; else if (v > th && (r === 8 ? hash2(x, y) < .92 : R() < .92)) map[i] = TREE;   // 精靈王國不用共用的亂數（其他地區的樹才不會跑掉）
   }
   /* 指定位置的山（平原、雪原）和小樹林（荒地的枯樹林、熔岩的焦木） */
   const M = (cx: number, cy: number, rx: number, ry: number) => { blob(cx, cy, rx * .45, ry * .45, CLIFF, n, .25); blob(cx, cy, rx, ry, TREE, n, .3); };
@@ -103,15 +104,15 @@ export function vegetation(R: () => number, n: Noise, nBig: Noise) {
   G(242, 172, 5, 3); G(400, 120, 4, 3);                                                           // 熔岩
   M(470, 182, 13, 9); M(540, 62, 12, 7); G(456, 150, 6, 4); G(600, 200, 7, 5);                    // 雪原的針葉林
   /* 林子和山的邊緣磨圓、小洞補起來、單棵的拿掉 */
-  smooth(CLIFF, r => r === 1 || r === 5 || r === 6 || r === 0, 2, 3, 5);
-  smooth(TREE, r => r === 1 || r === 5 || r === 6 || r === 2 || r === 3 || r === 0, 3, 3, 5);
+  smooth(CLIFF, r => r === 1 || r === 5 || r === 6 || r === 0 || r === 8, 2, 3, 5);
+  smooth(TREE, r => r === 1 || r === 5 || r === 6 || r === 2 || r === 3 || r === 0 || r === 8, 3, 3, 5);
 }
 
 /* ================= 2b. 零散的障礙：空地上一棵樹、一小叢樹、一堆石頭，讓人有東西可以繞、可以閃 =================
    規則：每個障礙四周 3 格內什麼都沒有 → 障礙之間最窄也有 3 格，不會有卡人的縫。不放在路、營火、城鎮、地城入口旁邊。
    在道路、地標、城鎮都蓋好之後才放（genWorld 呼叫），所以看得到它們、會避開。 */
 const PROPS = {                                                       // 每個地區：每 1000 格平地大約幾個、樹 / 石頭的比例
-  0: { d: 4.5, tree: .7 }, 1: { d: 4, tree: .85 }, 2: { d: 3.5, tree: .3 }, 3: { d: 3, tree: .2 }, 5: { d: 3.5, tree: .6 }, 6: { d: 3, tree: .75 },
+  0: { d: 4.5, tree: .7 }, 1: { d: 4, tree: .85 }, 2: { d: 3.5, tree: .3 }, 3: { d: 3, tree: .2 }, 5: { d: 3.5, tree: .6 }, 6: { d: 3, tree: .75 }, 8: { d: 3.5, tree: .8 },
 } as Record<number, { d: number; tree: number }>;
 export function props(R: () => number, avoid: (x: number, y: number) => boolean) {
   const SHAPES = [[[0, 0]], [[0, 0]], [[0, 0], [1, 0]], [[0, 0], [1, 0], [0, 1]], [[0, 0], [1, 0], [0, 1], [1, 1]], [[0, 0], [1, 1], [2, 0]]];

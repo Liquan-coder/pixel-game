@@ -50,6 +50,8 @@ export const MECH: Record<string, MDef> = {
   starwarden:  { kind: 'shield', obj: 'crystal', col: VOID, name: '星之柱' },
   mushking:    { kind: 'shield', obj: 'egg', col: SPORE, name: '孢子囊', hatch: 'shroom' },
   lich:        { kind: 'shield', obj: 'crystal', col: ['#1a4a1a', '#6ae04a', '#d0ffb0'], name: '命匣' },
+  elfking:     { kind: 'shield', obj: 'banner', col: ['#1e3a5e', '#9ad8ff', '#e0c060'], name: '精靈王旗' },     // 精靈王國
+  mothqueen:   { kind: 'sky', obj: 'egg', col: ['#6a5a80', '#e8dcb0', '#ffffff'], name: '蛾繭', hatch: 'mothE' },
 };
 const AT = [.66, .33], HITS = 3, HATCH = 11, LIMIT = 30;
 export const mechOf = (e) => MECH[e.def.dg ? String(e.kind).slice(3) : e.def.id];

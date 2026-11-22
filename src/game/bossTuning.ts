@@ -29,7 +29,7 @@ const REWARD: Record<string, string> = {
 const UNIQUE_W: Record<string, string> = { dragon: 'emberstaff', yeti: 'frostmaul', lich: 'rotscythe' };   // 這三隻掉獨特武器（原本就是）
 /* 等所有程式都載入完才改（這個檔案被 combat.ts 引入時，regionBoss.ts 可能還沒跑完 → RBDEF 還不能用） */
 queueMicrotask(() => { for (const d of Object.values(RBDEF) as any[]) {
-  if (d.dg) continue;                                                    // 地城 Boss 的傷害本來就照等級算（world/bossAI3.ts），獎勵是地城的招牌裝備
+  if (d.dg || d.ai === 'dgn') continue;                                  // 地城 Boss（和用同一套招式的精靈王）的傷害本來就照等級算（world/bossAI3.ts），獎勵另外設定
   d.dmgMul = bossMul(d.lv);
   if (REWARD[d.id]) { const k = REWARD[d.id]; d.reward = () => makeUniqueGear(k); }
   else if (UNIQUE_W[d.id]) { const k = UNIQUE_W[d.id]; d.reward = () => makeUnique(k); }

@@ -79,6 +79,10 @@ export const DUNGEONS: Dungeon[] = [
   { id: 'temple', name: '沉沒神殿地底', style: 'ruin', stairs: true, liquid: 'water', ent: [534, 458], lv: 75, kinds: ['frogT', 'wraithT', 'ghoulT'], boss: 'starwarden', sig: 'wardenveil', uq: 'deepstaff',
     desc: '沉沒神殿裡往下的石階。看守星星的人曾經住在這裡',
     lore: { title: '看守者的日記', text: '「我把七顆星星關進了七個身體。等她回來，她會知道該怎麼做。」' } },
+  // ---- 精靈王國（放在最後：前面的地城區塊位置不變）----
+  { id: 'mothwood', name: '螢月禁林', style: 'cave', ent: [380, 478], lv: 50, kinds: ['mothE', 'wraithE', 'elfShade'], boss: 'mothqueen', sig: 'mothcloak', uq: 'elfblades',
+    desc: '螢火林岩壁上的洞口。精靈說，裡面的月亮從來不會落下',
+    lore: { title: '禁林入口的告示', text: '「王命：任何人不得進入。」底下用小刀刻了一行字：「月蛾吃掉了我們的光。王知道，但王不說。」' } },
 ];
 /* 區塊：一格 50×54，地底遺跡佔兩格寬。一排排滿就換下一排 */
 const SLOT_W = 50, SLOT_H = 54, COLS = 7;

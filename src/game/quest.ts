@@ -16,7 +16,7 @@ import { setMenu, showBanner, toast } from '../ui/hud';
 import { sfx } from '../core/audio';
 import { forgeFlags } from '../data/forge';
 import { save } from './save';
-import { fragCount, fragsHeld, updateStatues, ZONE_NAME } from '../world/statues';
+import { STATUE_N, fragCount, fragsHeld, updateStatues, ZONE_NAME } from '../world/statues';
 
 export const flags = new Set<string>(), loreRead = new Set<string>();
 dungeonHooks.cleared = d => flags.has('dgn:' + d.id);
@@ -41,7 +41,7 @@ export function updateQuest() {
   const k = (top ? top.id : '') + '|' + fold + '|' + (navT ? navT.key : '') + '|' + cores() + '|' + fragCount() + '|' + held;
   if (k !== hudKey) { hudKey = k; const Q = $('quest'); Q.classList.toggle('fold', fold); Q.classList.toggle('nav', !!navT);
     const navEl = navT ? '<em class="qnav">➤ ' + navT.name + '<button class="qnavx" type="button" title="取消導航">✕</button></em>' : '';
-    const stat = '<i>' + STAR + cores() + '/' + CORE_N + '</i><i class="qmap">地圖 ' + fragCount() + '/5' + (held ? ' · <span class="qfrag">殘頁 ' + held + ' → 製圖師</span>' : '') + '</i>';
+    const stat = '<i>' + STAR + cores() + '/' + CORE_N + '</i><i class="qmap">地圖 ' + fragCount() + '/' + STATUE_N + (held ? ' · <span class="qfrag">殘頁 ' + held + ' → 製圖師</span>' : '') + '</i>';
     Q.title = fold ? '展開' : '';
     Q.innerHTML = fold ? '<b>◆</b>' + stat + navEl
       : '<div class="qh"><b>◆ 旅程</b><button class="qfold" type="button" title="收起">－</button></div>'
@@ -120,6 +120,6 @@ export function renderJournal() {
   $('journal').innerHTML = '<p class="premise">' + PREMISE + '</p>' +
     '<div class="lbl">記憶碎片・' + cores() + '/' + CORE_N + '</div>' + mem +
     '<div class="lbl" style="margin-top:10px">傳聞</div><ol class="qsteps">' + (rum || '<li>還沒有聽到什麼。</li>') + '</ol>' +
-    '<div class="lbl" style="margin-top:10px">地圖・' + fragCount() + '/5 座神像</div><p class="hintp">已經點亮：' + (lit || '—') + (fragsHeld().length ? '。身上有 ' + fragsHeld().length + ' 張還沒交出去的地圖殘頁' : '') + '</p>' +
+    '<div class="lbl" style="margin-top:10px">地圖・' + fragCount() + '/' + STATUE_N + ' 座神像</div><p class="hintp">已經點亮：' + (lit || '—') + (fragsHeld().length ? '。身上有 ' + fragsHeld().length + ' 張還沒交出去的地圖殘頁' : '') + '</p>' +
     '<div class="lbl" style="margin-top:10px">碑文・' + TAB.filter(t => loreRead.has(t.id)).length + ' 則</div>' + (tabs || '<p class="hintp">荒野各處的石碑上刻著當年的事。</p>');
 }

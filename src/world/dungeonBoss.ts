@@ -10,7 +10,7 @@ import { tier } from '../data/levels';
 import { RBDEF } from './regionBoss';
 import { DUNGEONS } from './dungeons';
 import { TS } from './map';
-import { makeUniqueGear } from '../data/items';
+import { makeUnique, makeUniqueGear } from '../data/items';
 import { THEME } from './bossThemes';
 
 export type Move = [string, number, Record<string, any>?];
@@ -66,7 +66,17 @@ export const DBOSS: Record<string, DBossDef> = {
   starwarden: { name: '星之看守者', sub: '「你終於回來了。……不，你不是她。」', lv: 80, hp: 8800, spd: 48, ring: ['#c8a8ff', '#ffffff'], aura: ['#6a4ad0', '#b49cff', '#ffffff'], cols: V, proj: 'bolt',
     moves: [['fan', 3, { n: 7, spread: 1, spd: 170, k: .9 }], ['rain', 2, { n: 9, r: 24, k: 1.1, cols: V }], ['nova', 2, { n: 16, spd: 140, k: .8 }], ['lash', 1, { L: 180, W: 18, k: 1.4 }]],
     p2: [['summon', 1, { n: 3, max: 4 }], ['charge', 2, { L: 170, W: 24, spd: 380, k: 1.2 }]] },
+  // 螢月禁林（精靈王國的地城）：月蛾女王。鱗粉一圈一圈地灑、翅膀搧出強風、天上掉下發光的孢子；二階段叫出月蛾
+  mothqueen: { name: '月蛾女王・露娜', sub: '整片螢火同時熄滅了', lv: 50, hp: 3800, spd: 40, ring: ['#c8b0ff', '#ffffff'], aura: ['#7a64a8', '#e8dcb0', '#ffffff'], cols: ['#4a3a6a', '#c8b0ff', '#fff6e0'], proj: 'glob',
+    moves: [['nova', 3, { n: 12, spd: 120, k: .8 }], ['sweep', 2, { r: 62, half: 1.2, k: 1.2 }], ['rain', 2, { n: 7, r: 22, k: 1 }], ['fan', 2, { n: 5, spread: .8, spd: 150, k: .85 }]],
+    p2: [['summon', 1, { n: 2, max: 4 }], ['pools', 2, { n: 3, r: 24, t: 4, k: .35, cols: ['#4a3a6a', '#c8b0ff', '#fff6e0'] }]] },
 };
+/* 精靈王・艾瑟蘭：精靈王國的區域 Boss（王座中庭）。用地城 Boss 的招式庫：扇形放箭、箭雨、月光貫穿（長直線）、拔劍衝刺；
+   二階段叫弓手和劍舞者、射追蹤箭、十字月光。招式定義跟地城 Boss 一樣，但不是地城（registerElfKing 放進 RBDEF） */
+export const ELFKING: DBossDef = { name: '精靈王・艾瑟蘭', sub: '「星星落下的那一夜，我們選擇了閉上眼睛。」', lv: 52, hp: 4600, spd: 46, ring: ['#7affd8', '#ffffff'], aura: ['#2c5a8a', '#9ad8ff', '#ffffff'],
+  cols: ['#1e3a5e', '#9ad8ff', '#ffffff'], proj: 'bolt',
+  moves: [['fan', 3, { n: 5, spread: .7, spd: 210, k: .9 }], ['rain', 3, { n: 8, r: 22, k: 1.1 }], ['lash', 2, { L: 190, W: 14, k: 1.3 }], ['charge', 2, { L: 150, W: 22, spd: 360, k: 1.2 }]],
+  p2: [['summon', 1, { n: 2, max: 3 }], ['nova', 2, { n: 14, spd: 130, k: .8 }]] };
 
 /* ---- 新招（world/bossAI3.ts 的 pull / donut / cross / homing）：[一階段就會用, 二階段才會用] ----
    吸引 → 要往外走；甜甜圈 → 要往內衝；十字光束 → 站斜角；追蹤彈 → 繞圈甩掉。配合每隻 Boss 的異常狀態（data/ailments.ts）就很難站著硬砍 */
@@ -79,8 +89,10 @@ const EXTRA: Record<string, [Move[], Move[]]> = {
   icequeen: [[HOMING(3)], [DONUT(), CROSS()]], frostknight: [[DONUT(46, 120)], [CROSS()]], toadking: [[PULL(56, 1.4)], [HOMING(4)]],
   drowned: [[PULL(58)], [HOMING(4), DONUT()]], captain: [[CROSS(160, 1.3)], [DONUT()]],  forgeguard: [[DONUT(48, 128, 1.4)], [CROSS(), PULL(60)]],
   starwarden: [[CROSS(190), HOMING(4)], [PULL(60), DONUT(46, 130)]],
+  mothqueen: [[DONUT(44, 120)], [HOMING(4, .8)]],
 };
 for (const k in EXTRA) { DBOSS[k].moves.push(...EXTRA[k][0]); DBOSS[k].p2.push(...EXTRA[k][1]); }
+ELFKING.moves.push(HOMING(3)); ELFKING.p2.push(CROSS(190, 1.3), PULL(58));
 /* 主線 / 區域 Boss：二階段每 6~9 秒插一招新招（world/regionBoss.ts）。牠們原本的招式不變 */
 export const REXTRA: Record<string, Move[]> = {
   queen: [DONUT(40, 120), HOMING(3)], general: [CROSS(170, 1.3), PULL(56)], dragon: [DONUT(48, 140, 1.4), PULL(60)], mushking: [PULL(56), HOMING(4)],
@@ -95,5 +107,12 @@ export function registerDungeonBosses() {
     RBDEF['dg_' + d.id] = { id: 'dg_' + d.id, name: B.name, short: B.name.split('・')[0], sub: B.sub, tx, ty, tr, lv: B.lv, hp: B.hp, kind: 'db_' + d.boss, ai: 'dgn', boss: B, theme: THEME[d.boss], dg: d.id,
       adds: d.kinds, ring: B.ring, aura: B.aura, souls: Math.round(tier(B.lv) * 45), gold: Math.round(tier(B.lv) * 18), star: B.lv >= 50,
       x: tx * TS + 8, y: ty * TS + 8, R: tr * TS, reward: () => makeUniqueGear(d.sig) };
-  }
+  }  registerElfKing();
+}
+/* 精靈王：王座中庭的中間（world/elfland.ts 的精靈王城）。打倒 → 精靈弓（rbDead 'elfking'） */
+export const ELFKING_AT = { tx: 366, ty: 437, tr: 9.5 };
+function registerElfKing() { const B = ELFKING, { tx, ty, tr } = ELFKING_AT;
+  RBDEF.elfking = { id: 'elfking', name: B.name, short: '精靈王', sub: B.sub, tx, ty, tr, lv: B.lv, hp: B.hp, kind: 'elfking', ai: 'dgn', boss: B, theme: THEME.elfking, region: true,
+    adds: ['elfArcher', 'elfBlade'], ring: B.ring, aura: B.aura, souls: Math.round(tier(B.lv) * 50), gold: Math.round(tier(B.lv) * 20), star: true,
+    x: tx * TS + 8, y: ty * TS + 8, R: tr * TS, reward: () => makeUnique('elfbow') };
 }

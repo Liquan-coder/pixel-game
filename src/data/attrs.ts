@@ -29,6 +29,7 @@ export const WSCALE: Record<string, Partial<Record<AttrKey, number>>> = {
   katana: { dex: .85, str: .25 }, scythe: { dex: .5, int: .55 }, staff: { int: 1.15 }, wolfblade: { dex: .75, str: .35 },
   bow: { dex: .95 }, greatsword: { str: 1.1, end: .1 }, rapier: { dex: 1.05 },
   crescent: { dex: .6, str: .45 }, twinblade: { dex: .8, str: .3 }, darkmoon: { str: .55, int: .6 },
+  elfbow: { dex: .8, int: .3 }, elfrapier: { dex: .9, int: .25 }, elfblades: { dex: 1 },
 };
 export const grade = (c: number) => c >= 1 ? 'S' : c >= .75 ? 'A' : c >= .5 ? 'B' : c >= .3 ? 'C' : c > 0 ? 'D' : '-';
 
@@ -39,6 +40,7 @@ const REQW: Record<string, Partial<Record<AttrKey, number>>> = {
   katana: { dex: 11, str: 6 }, hammer: { str: 15, end: 8 }, scythe: { dex: 9, int: 9 }, wolfblade: { dex: 12, str: 9 },
   bow: { dex: 10 }, greatsword: { str: 16, end: 9 }, rapier: { dex: 12 },
   crescent: { dex: 12, str: 10 }, twinblade: { dex: 13, str: 8 }, darkmoon: { str: 16, int: 16 },
+  elfbow: { dex: 14, int: 9 }, elfrapier: { dex: 15, int: 8 }, elfblades: { dex: 16 },
 };
 /** 獨特武器可以有自己的需求 / 加成（data/uniques.ts 會填進來） */
 export const UQ_REQ: Record<string, Partial<Record<AttrKey, number>>> = {}, UQ_SCALE: Record<string, Partial<Record<AttrKey, number>>> = {};

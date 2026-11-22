@@ -15,6 +15,8 @@ export const MOB_FX: Record<string, FX> = {
   frogG: WET, frogT: WET, wraithP: WET,
   wraithB: { silence: 3 }, wraithK: { silence: 3 }, wraithT: { silence: 3, slow: 1.5 },
   wraithS: SAND, beetleS: { blind: 1.5 },
+  elfBlade: { bleed: 18 }, elfArcher: { slow: 1.5 }, elfHound: { bleed: 16 }, elfTreant: { root: .8, stun: .45 },   // 精靈王國
+  elfShade: { bleed: 20, silence: 2 }, wraithE: { blind: 2 }, mothE: { blind: 1.5 },
 };
 export function mobFx(kind: string, elite: boolean): FX | undefined {
   const f = MOB_FX[kind]; if (!f || !elite) return f;
@@ -25,11 +27,11 @@ export function mobFx(kind: string, elite: boolean): FX | undefined {
 export const RB_FX: Record<string, FX> = {
   queen: { slow: 2.5 }, general: { bleed: 30 }, dragon: { burn: 3 }, mushking: { poison: 5 }, yeti: { frost: 32 }, lich: { poison: 5, silence: 2 },
   mossguard: { bleed: 25 }, mistwitch: { blind: 2.5 }, sandgiant: { blind: 2 }, slagmother: { burn: 3 }, frostwyrm: { frost: 32 }, toxqueen: { poison: 6 },
-  wolf: { bleed: 28 },
+  wolf: { bleed: 28 }, elfking: { bleed: 22, slow: 1.5 },
 };
 /* 地城 Boss（world/dungeonBoss.ts 的 DBOSS key） */
 export const DB_FX: Record<string, FX> = {
   snail: { poison: 4 }, warden: { burn: 2.5 }, tidecrab: { slow: 2 }, broodmother: { poison: 4, root: .6 }, rootheart: { root: .8 },
   scorpion: { poison: 5 }, sandking: { blind: 2.5 }, salamander: { burn: 3 }, magmaworm: { burn: 3 }, icequeen: { frost: 30 }, frostknight: { frost: 26, bleed: 14 },
-  toadking: { poison: 5 }, drowned: { slow: 2.5 }, captain: { bleed: 30 }, forgeguard: { burn: 3 }, starwarden: { silence: 3, frost: 16 },
+  toadking: { poison: 5 }, drowned: { slow: 2.5 }, captain: { bleed: 30 }, forgeguard: { burn: 3 }, starwarden: { silence: 3, frost: 16 }, mothqueen: { blind: 2.5, poison: 3 },
 };

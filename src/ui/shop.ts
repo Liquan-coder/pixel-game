@@ -26,10 +26,10 @@ type Stock = { kind: string; price: number; left?: number; item?: Item; mat?: Ma
 const oreRow = (mat: MatKey, price: number, left: number): Stock => ({ kind: 'ore', mat, price, left, pg: REGION_MAT.indexOf(mat) });   // pg = 要先打倒哪個地區的地城守護者才會賣
 const shown = (o: Stock) => o.kind !== 'ore' || hasPage(o.pg);         // 素材：探索過那個地區的地城才擺出來（貨先產生好，打完地城回來就看得到）
 function merchantSpot(c) { for (const [ox, oy] of [[42, 6], [-42, 6], [0, 42], [30, -30], [-30, -30]]) { const x = c.x + ox, y = c.y + oy; if (!collides(x, y, 7)) return [x, y]; } return [c.x + 20, c.y + 20]; }
-const REG_KEYS = ['plains', 'forest', 'wastes', 'lava', 'den', 'snow', 'swamp'];   // reg 編號 → 地區（跟 world/map.ts 的 REGIONS 同順序）
+const REG_KEYS = ['plains', 'forest', 'wastes', 'lava', 'den', 'snow', 'swamp', 'dungeon', 'elf'];   // reg 編號 → 地區（跟 world/map.ts 的 REGIONS 同順序）
 function stockItem(it: Item, mul = 1): Stock { return { kind:'item', item:it, price:Math.round(itemPrice(it) * mul) }; }
 function rollStock(c) {
-  const R0 = reg[c.ty * MW + c.tx], deep = Math.min(4, [0, 1, 2, 3, 1, 4, 4][R0] ?? 0), rg = REG_KEYS[R0] || 'plains', st: Stock[] = [{ kind:'pot', price:25 }];
+  const R0 = reg[c.ty * MW + c.tx], deep = Math.min(4, [0, 1, 2, 3, 1, 4, 4, 0, 3][R0] ?? 0), rg = REG_KEYS[R0] || 'plains', st: Stock[] = [{ kind:'pot', price:25 }];
   if (G.potMax < 8) st.push({ kind:'potUp', price:250 * (G.potMax - 2), left:1 });
   st.push({ kind:'tear', price:1000, left:1 });                           // 重生水滴：每批一顆
   st.push(oreRow('mat1', 90, 4)); if (deep >= 1) st.push(oreRow('mat2', 220, 3));                   // 流浪商人：少量前期素材（後面的要自己去打）

@@ -29,6 +29,10 @@ export const WT = {
   crescent:{name:'月牙刀',base:14,cd:.44,range:30,arc:150,stam:12,skill:'moonring',sn:'月輪迴旋',scd:7,trait:'第三下把刀氣丟出去，還會飛回來',sd:'丟出三道月牙，飛出去再飛回手上，來回都會砍到（每道 150%）'},
   twinblade:{name:'雙頭刀',base:15,cd:.34,range:30,arc:130,stam:10,skill:'bladewheel',sn:'旋刃風車',scd:8,trait:'前後兩頭一起砍，四連擊',sd:'雙頭刀在身邊轉 1.5 秒，可以邊轉邊走（每 0.15 秒砍一下，每下 60%）'},
   darkmoon:{name:'暗月大劍',base:20,cd:.78,range:34,arc:150,stam:20,skill:'moonbeam',sn:'暗月光波',scd:7,trait:'打中會存月光，第三下全部放出去',sd:'舉劍吸收月光，往前放出一道巨大的月光劍浪（400%），一路穿透'},
+  // 精靈武器（精靈王國）：也只有獨特版
+  elfbow:{name:'精靈弓',base:14,cd:.42,range:220,arc:0,stam:9,ranged:true,skill:'leafvolley',sn:'千葉齊射',scd:7,trait:'箭更快更遠，第三下一次三支',sd:'往前方扇形連射十二支葉箭，每支都會穿透（每支 80%）'},
+  elfrapier:{name:'精靈細劍',base:11,cd:.28,range:38,arc:0,stam:8,skill:'moonstep',sn:'月步',scd:6,trait:'第三下刺出一道葉刃',sd:'化成月光往前閃三次，每次穿過路上的敵人（每次 160%），期間無敵'},
+  elfblades:{name:'精靈雙刀',base:12,cd:.3,range:28,arc:140,stam:8,skill:'windwaltz',sn:'風之輪舞',scd:7,trait:'左右交替的四連斬，第四下轉一圈',sd:'旋轉著往前衝，路上的敵人一直被砍（6 下，每下 70%），衝完再轉一圈'},
 };
 /* 顏色（沒有品階了，只用來分辨是哪一種東西）：0 一般、2 地區防具 / 飾品、3 刻印（或裝了刻印的武器）、4 獨特。m 只給舊存檔換算用 */
 export const RAR = [
@@ -71,6 +75,10 @@ export const KIND = {
   ghoulK:{beh:'blade',name:'王城亡衛',col:'#706e84'}, wraithK:{beh:'ranged',name:'王魂',col:'#6a5096',proj:'bolt'}, batK:{beh:'lunge',name:'墓蝠',col:'#4a3e58'},
   impF:{beh:'ranged',name:'爐火小鬼',col:'#d07a28',proj:'ember'}, beetleF:{beh:'lunge',name:'青銅甲蟲',col:'#9a6c32'}, spiderB:{beh:'lunge',name:'熔爐蛛',col:'#7e7054'},
   frogT:{beh:'slime',name:'祭壇蛙',col:'#3a7e68'}, wraithT:{beh:'ranged',name:'看守之影',col:'#3a4a96',proj:'bolt'}, ghoulT:{beh:'blade',name:'沉沒祭司',col:'#406a50'},
+  // 精靈王國（art/elfMonsters.ts）+ 地城「螢月禁林」
+  elfHound:{beh:'lunge',name:'銀月獵犬',col:'#9ab8c0'}, elfArcher:{beh:'ranged',name:'精靈弓手',col:'#62904a',proj:'arrow'},
+  elfBlade:{beh:'blade',name:'精靈劍舞者',col:'#40867a'}, elfTreant:{beh:'heavy',name:'古樹衛士',col:'#c8ccd6'},
+  elfShade:{beh:'blade',name:'墮落的精靈',col:'#503a7a'}, wraithE:{beh:'ranged',name:'螢火之靈',col:'#c8f0a0',proj:'glob'}, mothE:{beh:'lunge',name:'月蛾',col:'#e8dcb0'},
 } as Record<string, { beh: string; name: string; col: string; proj?: string }>;
 /* ================= 武器 =================
    攻擊力 = 武器的基礎攻擊（每種武器固定）× 強化倍率。沒有品階、沒有隨機詞綴：

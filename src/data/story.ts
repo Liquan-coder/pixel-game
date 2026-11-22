@@ -36,12 +36,13 @@ export const RUMORS: Rumor[] = [
   { id: 'dragon', text: '高地的火口被粗重的鐵鍊鎖住。鎖住的不是火。', src: '要塞門前的石碑', learn: q => q.read('t16') || q.boss('general'), done: q => q.boss('dragon'), tx: 324, ty: 74, r: 26 },
   { id: 'yeti', text: '雪原東北的山頂上，有一個巨大的白色身影。', src: '霜歌鎮的獵人', learn: q => q.flag('talk:frost:獵人') || q.read('t21') || q.boss('dragon'), done: q => q.boss('yeti'), tx: 594, ty: 40, r: 26 },
   { id: 'lich', text: '沼澤最深處沉著一座大殿。裡面有人，一直在等誰回來。', src: '霜歌鎮的修女', learn: q => q.flag('talk:frost:修女') || q.read('t18') || q.boss('yeti'), done: q => q.boss('lich'), tx: 584, ty: 436, r: 26 },
+  { id: 'elf', text: '東岸的海灣對面，有一座月光永遠不落下的白森林。那裡的王，很久沒有走出城門了。', src: '東岸的石碑', learn: q => q.read('t9') || q.found('銀葉城'), done: q => q.boss('elfking'), tx: 340, ty: 446, r: 30 },
 ];
 
 /* 石碑：散落在各地，走近按 E 閱讀，讀過的會收進「旅程」 */
 export const TABLETS = [
   { id: 't0', tx: 122, ty: 568, title: '山丘上的石碑', text: '「醒來的人啊，往北走吧。河的那一邊，風會帶你到有人的地方。」' },
-  { id: 't9', tx: 236, ty: 460, title: '東岸的石碑', text: '「海的另一邊什麼也沒有。星星掉下來的時候，連海都安靜了。」' },
+  { id: 't9', tx: 236, ty: 460, title: '東岸的石碑', text: '「海灣的另一邊，有一座白色的森林。星星掉下來的那一夜，那裡的人選擇閉上了眼睛。」' },
   { id: 't1', tx: 34, ty: 376, title: '營火旁的石碑', text: '「迷途的光啊，在這裡休息吧。火會記得你走過的路。」' },
   { id: 't2', tx: 90, ty: 356, title: '殘破村落的石碑', text: '「星墜之夜，村子燒了一整晚。我們往西逃，在風最溫柔的地方蓋了新的鎮。」' },
   { id: 't10', tx: 60, ty: 326, title: '聖堂橋頭的石碑', text: '「聖堂的修女每晚對著湖水祈禱。星墜之夜，湖水回應了——它凝成了一位女王，坐上了聖壇。別在晴朗的夜裡看湖，湖裡的星星會看回來。」' },

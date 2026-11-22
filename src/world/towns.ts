@@ -11,7 +11,7 @@ import { moveEnt } from '../game/collision';
 import { flags } from '../game/quest';
 import { fragsHeld } from './statues';
 
-type Look = { robe: string[]; hair: string[]; skin?: string[]; beard?: boolean; helm?: boolean; apron?: boolean; hood?: boolean; spear?: boolean; small?: boolean };
+type Look = { robe: string[]; hair: string[]; skin?: string[]; beard?: boolean; helm?: boolean; apron?: boolean; hood?: boolean; spear?: boolean; small?: boolean; ears?: boolean };   // ears = 精靈的尖耳朵
 const SKIN = ['#8a5a44', '#c8907a', '#ecc0a4', '#fadcc8'];
 function hdVillager(L: Look) {                                       // Q 版村民：大頭、袍子、兩顆眼睛；用參數換衣服、頭髮、配件
   const S = L.skin || SKIN, s = L.small ? .82 : 1, X = v => 15 + (v - 15) * s, Y = v => 40 - (40 - v) * s;
@@ -26,6 +26,7 @@ function hdVillager(L: Look) {                                       // Q 版村
   return sculpt(30, 40, parts, a => {
     for (const ex of [12, 18]) { a.rect(X(ex), Y(12), 1, 2, '#1a1012'); }
     a.set(X(11), Y(14.5), '#e88a8a'); a.set(X(19), Y(14.5), '#e88a8a');
+    if (L.ears) for (const [sx, d] of [[X(6.5), -1], [X(23.5), 1]] as const) for (let k = 0; k < 4; k++) { a.set(sx + d * k, Y(11 - k * .8), S[2]); a.set(sx + d * k, Y(12 - k * .8), S[1]); }   // 尖耳朵往兩邊斜上
     if (L.beard) { a.ell(X(15), Y(17), 5 * s, 3.5 * s, '#e8e4dc'); a.ell(X(15), Y(19), 3 * s, 2.5 * s, '#ffffff'); }
     if (L.spear) { a.line(X(26), Y(38), X(26), Y(2), '#7a5434'); a.line(X(25), Y(5), X(26), Y(0), '#c8c6dc'); a.line(X(27), Y(5), X(26), Y(0), '#9a98b0'); }
     if (L.apron) { a.rect(X(23), Y(26), 2, 6, '#7a788a'); a.rect(X(22), Y(25), 4, 2, '#4a4858'); }      // 手上的小鐵鎚
@@ -40,6 +41,10 @@ const LOOK: Record<string, Look> = {
   nun: { robe: ['#141a2a', '#222c44', '#344262', '#4a5a80'], hair: ['#c8d0e0', '#e8ecf4', '#ffffff'], hood: true },
   kid: { robe: ['#1a4a2a', '#2a6a3a', '#3a8a4a', '#5aaa62'], hair: ['#5a3a1a', '#8a5a2a', '#b07a3a'], small: true },
   carto: { robe: ['#2a2414', '#4a3e24', '#6a5a36', '#8a784c'], hair: ['#6a6660', '#9a968c', '#c8c4b8'], beard: true },   // 製圖師
+  elfElder: { robe: ['#0e2a2a', '#1a4442', '#2a6460', '#40867a'], hair: ['#8a92a8', '#c8d0e0', '#f4f8fc'], ears: true },   // 精靈（銀葉城）
+  elfGuard: { robe: ['#141632', '#22264e', '#32386e', '#464e90'], hair: [], helm: true, spear: true, ears: true },
+  elfSmith: { robe: ['#1a2a24', '#2a3e36', '#3e5a4e', '#567a6a'], hair: ['#7a5a20', '#b08a34', '#dcbc58'], apron: true, ears: true },
+  elfGirl: { robe: ['#2a2a5a', '#3e3e86', '#5a5ab0', '#8a8ad8'], hair: ['#b08a34', '#dcbc58', '#fff0a8'], ears: true },
 };
 const ART: Record<string, HTMLCanvasElement> = {}; for (const k in LOOK) ART[k] = hdVillager(LOOK[k]);
 
@@ -75,6 +80,17 @@ const DEF = [
   { town: 'frost', look: 'carto', name: '製圖師', dx: 2, dy: -5, lines: ['晨風鎮的老傢伙是我師父。殘頁拿給我也一樣。', '雪原的神像在山口那邊……大概吧。'] },
   { town: 'frost', look: 'smith', name: '鐵匠', dx: 6, dy: 8, smith: true, lines: ['在這種冷天打鐵最舒服了。看看吧。'] },
   { town: 'frost', look: 'kid', name: '小孩', dx: -5, dy: 2, lines: ['下雪了！你看，雪花！', '媽媽說不可以去冰封湖玩。'] },
+  { town: 'elf', look: 'elfElder', name: '精靈長老', dx: -2, dy: -3, lines: [
+    '人類的魔女？……不，你的帽子上，有和她一樣的星星。',
+    '星星掉下來的那一夜，我們的王下令關上城門、閉上眼睛。我們活了下來——可是月光再也沒有落下。',
+    '王城在島的東邊。王在王座上坐了很多年，一句話也沒有說過。'] },
+  { town: 'elf', look: 'elfGuard', name: '精靈衛兵', dx: 6, dy: 1, lines: [
+    '月泉的湖心島上插著一把劍。守著它的劍聖，誰靠近都會拔劍。',
+    '螢火林的岩壁上有一個洞，王命禁止進入。裡面的月蛾……會把光吃掉。',
+    '島上的弓手看得見你，在你看見他們以前。'] },
+  { town: 'elf', look: 'elfGirl', name: '精靈少女', dx: -6, dy: 2, lines: ['妳是從海的那一邊來的嗎？那邊的天空，晚上也有星星嗎？', '白樹之丘的那棵樹，以前是綠色的喔。'] },
+  { town: 'elf', look: 'carto', name: '製圖師', dx: 2, dy: -5, lines: ['我師父在晨風鎮。殘頁拿給我也一樣。', '這座島的神像在北邊的渡口。從森林過橋來的人，第一眼就會看到它。'] },
+  { town: 'elf', look: 'elfSmith', name: '精靈鐵匠', dx: 6, dy: 8, smith: true, lines: ['精靈打的刀，比月光還薄。看看吧。'] },
 ];
 export const NPCS = DEF.map(d => { const T = TOWNS.find(t => t.id === d.town);
   return { ...d, lv: T.lv, x: (T.tx + d.dx) * TS + 8, y: (T.ty + d.dy) * TS + 10, line: -1, near: false, flip: d.dx > 0, stock: null as any }; });

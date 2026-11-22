@@ -228,7 +228,7 @@ const pageScript = async () => {
 
   run('地圖：一開始只亮平原 → 殘頁 → 製圖師 → 神像祈禱 → 整片地區亮起來', () => {
     const ST = await0.statues, Q = await0.quest, M = await0.map, towns = await0.towns;
-    if (ST.STATUES.length !== 5) throw new Error('神像不是 5 座：' + ST.STATUES.length);
+    if (ST.STATUES.length !== ST.STATUE_N || ST.STATUE_N !== 6) throw new Error('神像不是 6 座：' + ST.STATUES.length);   // 6 = 精靈王國
     for (const s of ST.STATUES) if (await0.coll.collides(s.x, s.y + 18, 5) && await0.coll.collides(s.x + 18, s.y, 5) && await0.coll.collides(s.x - 18, s.y, 5)) throw new Error('神像 ' + s.k + ' 四周走不到');
     step(2); if (!Q.flags.has('chart:0')) throw new Error('平原沒有一開始就亮');
     const s1 = ST.STATUES[0], fz = M.REGIONS.findIndex(r => r.key === 'forest'), fi = M.reg.findIndex((r, i) => r === fz && !M.explored[i]);
@@ -668,6 +668,24 @@ const pageScript = async () => {
       for (let m = 0; m < 32 && !solved; m++) { st.ms.forEach((q, i) => q.m = (m >> i) & 1); step(1); solved = Q.flags.has('puz:temple:fire'); }
       if (!solved) throw new Error('鏡子怎麼轉都打不到水晶'); leave(p.d); out.push('鏡子'); }
     log.push('  ' + out.join('、'));
+  });
+
+  run('精靈王國：島、三座橋走得到、銀葉城、月泉的金箱、月光花機關', () => {
+    const M = await0.map, PU = await0.puz, Q = await0.quest, C = await0.chests, I = (x, y) => y * M.MW + x;
+    let n = 0; for (let i = 0; i < M.MW * M.MH; i++) if (M.reg[i] === 8) n++; if (n < 4000) throw new Error('精靈王國太小：' + n + ' 格');
+    const seen = new Uint8Array(M.MW * M.MH), q = [I(118, 573)]; seen[q[0]] = 1;            // 從起點走得到島上的三個營火、王城門口、地城洞口
+    for (let h = 0; h < q.length; h++) { const i = q[h], x = i % M.MW, y = (i / M.MW) | 0; for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const j = I(x + a, y + b); if (!seen[j] && M.WALKABLE(M.map[j])) { seen[j] = 1; q.push(j); } } }
+    for (const id of ['elfbridge', 'elfspring', 'elfcourt']) { const c = M.CAMPS.find(c => c.id === id); if (!seen[I(c.tx, c.ty + 1)]) throw new Error('走不到營火 ' + id); }
+    if (!seen[I(366, 450)]) throw new Error('走不到精靈王的王座中庭'); if (!seen[I(380, 479)]) throw new Error('走不到螢月禁林的洞口'); if (!seen[I(334, 433)]) throw new Error('走不到月泉的湖心島');
+    if (M.spawns.filter(s => M.reg[I(s.tx, s.ty)] === 8).length < 100) throw new Error('精靈王國的怪太少');
+    const ch = C.CHESTS.find(c => c.id === 'c_elfspring'); ch.opened = false; tp(ch.x, ch.y + 14); step(2); C.openChest(G.me, ch); step(2);
+    if (!(G.drops.some(d => d.item && d.item.uq === 'elfrapier') || G.me.inv.some(x => x.uq === 'elfrapier'))) throw new Error('月泉的金箱沒有掉出精靈細劍');
+    const p = PU.PUZZLES.find(p => p.d.id === 'mothwood'); if (!p || !p.m.moonflowers) throw new Error('螢月禁林沒有月光花');
+    Q.flags.delete('puz:mothwood:fire'); p.gateOpen = false; const st = p.m.moonflowers; for (const f of st.fl) f.t = 0; step(2);
+    st.fl[0].t = 9; st.fl[1].t = 9; st.fl[2].t = 9; step(2); if (p.gateOpen) throw new Error('三朵就開門了');
+    st.fl[3].t = 9; step(2); if (!p.gateOpen) throw new Error('四朵同時開，門沒有開');
+    log.push('  精靈王國 ' + n + ' 格、怪 ' + M.spawns.filter(s => M.reg[I(s.tx, s.ty)] === 8).length + ' 隻');
+    const c0 = M.CAMPS[0]; tp(c0.x + 30, c0.y + 20); G.enemies = G.enemies.filter(e => e.rb); G.drops.length = 0; G.coins.length = 0; step(30);   // 回到起點，別讓島上的怪影響下一個測試
   });
 
   run('死亡 → 重生：魂晶和金幣掉 80%、撿回來；死在 Boss 結界裡，那包放在結界外面', () => {

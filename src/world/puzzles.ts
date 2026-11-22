@@ -48,6 +48,7 @@ const PUZ: Record<string, Cfg> = {
   undercroft:  { x: [['stealth', 3]], lock: true },                       // 潛行：避開亡衛的視線，拉下拉桿
   forgeruin:   { x: [['forge', 3]], lock: true },                         // 輸送帶 + 鍛錘
   temple:      { x: [['mirrors', 3]], lock: true },                       // 光束鏡子
+  mothwood:    { x: [['moonflowers', 3]], lock: true },                   // 月光花：四朵同時開 → 開門（精靈王國）
 };
 type Sym = 'moon' | 'sun' | 'star' | 'eye';
 const SYMS: Sym[] = ['moon', 'sun', 'star', 'eye'];

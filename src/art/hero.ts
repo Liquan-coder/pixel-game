@@ -17,7 +17,8 @@ const WPAL2 = { o:'#0a0610',
   n:'#c08a56', N:'#8a5a34', M:'#5a3820',
   R:'#ff9ab0', S:'#e0486a', T:'#8e2444',
   k:'#5e4c96', K:'#3a2e66', L:'#211a40',
-  f:'#e4e0f0', F:'#9a96b4', G:'#5e5a78' };
+  f:'#e4e0f0', F:'#9a96b4', G:'#5e5a78',
+  a:'#e8fff0', b:'#9ae0b4', c:'#4ab088', d:'#227a5a', e:'#0e4a38' };     // a～e：精靈武器的葉綠色（亮 → 暗）
 function wgrid(w, h) { const g = []; for (let y = 0; y < h; y++) g.push(Array(w).fill('.')); return g; }
 function wset(g, x, y, ch) { if (y >= 0 && y < g.length && x >= 0 && x < g[0].length) g[y][x] = ch; }
 function wrows(g) { return g.map(r => r.join('')); }
@@ -209,6 +210,34 @@ const GEN = {
     for (let y = 57; y <= 59; y++) { wset(g, c - 2, y, 'f'); wset(g, c + 2, y, 'G'); }
     gem(g, c, 58, 'B', 'C', 'D', 'E');
     return { rows: wrows(g), grip: [c, 50] }; },
+  elfbow() { const c = 20, W = 41, g = wgrid(W, 18), H = c - 1;      // 精靈弓：銀白色的弓臂、綠色的葉片裝飾、兩端是捲起來的葉子
+    const Y = a => a < .82 ? 3 + 9 * Math.pow(a / .82, 1.6) : 12 - Math.pow((a - .82) / .18, 1.5) * 3;
+    for (let x = 1; x < W - 1; x++) { const a = Math.abs(x - c) / H, y = Math.round(Y(a));
+      if (a > .84) { wset(g, x, y, 'a'); wset(g, x, y + 1, 'b'); wset(g, x, y + 2, 'c'); continue; }          // 葉子形狀的弓角
+      wset(g, x, y, '1'); wset(g, x, y + 1, '2'); wset(g, x, y + 2, a < .2 ? '3' : '4'); if (a < .15) wset(g, x, y + 3, '5');
+      if (a > .25 && a < .8 && x % 4 === 0) { wset(g, x, y - 1, 'b'); wset(g, x + (x < c ? -1 : 1), y - 1, 'c'); } }   // 弓臂上一片一片的小葉子
+    const sy = Math.round(Y(.84)) + 3; for (let x = 2; x < W - 2; x++) if (g[sy][x] === '.') wset(g, x, sy, 'f');
+    wrap(g, c, 2, 6, 2, ['b', 'c', 'd']); gem(g, c, 3, 'a', 'b', 'c', 'd');
+    for (let x = c - 3; x <= c + 3; x++) { wset(g, x, 1, '7'); wset(g, x, 7, '8'); }
+    wset(g, c, 0, '6');
+    for (let y = 8; y < 13; y++) { wset(g, c, y, y % 2 ? 'b' : 'c'); } wset(g, c - 1, 12, 'c'); wset(g, c + 1, 12, 'c');   // 垂下來的葉子穗
+    return { rows: wrows(g), grip: [c, 4] }; },
+  elfrapier() { const c = 6, g = wgrid(13, 50);                       // 精靈細劍：很細的銀色劍身（中間一條綠光）、葉子捲成的護手
+    for (let r = 0; r < 34; r++) { wset(g, c, r, r < 2 ? '2' : r % 6 === 3 ? 'b' : '1'); if (r > 2) wset(g, c + 1, r, r % 9 === 0 ? '3' : '4'); if (r > 6 && r < 30) wset(g, c - 1, r, '2'); }
+    for (const [x, y, ch] of [[c - 2, 34, 'c'], [c - 3, 33, 'b'], [c - 4, 32, 'a'], [c - 5, 33, 'b'], [c - 4, 34, 'c'], [c + 2, 34, 'c'], [c + 3, 33, 'b'], [c + 4, 32, 'a'], [c + 5, 33, 'b'], [c + 4, 34, 'c'],
+      [c - 1, 35, 'd'], [c, 35, 'd'], [c + 1, 35, 'd'], [c + 5, 36, 'c'], [c + 5, 37, 'c'], [c + 5, 38, 'd'], [c + 5, 39, 'd'], [c + 4, 40, 'd']] as const) wset(g, x, y, ch);   // 葉子護手 + 繞到手背的藤
+    gem(g, c, 35, 'a', 'b', 'c', 'd');
+    wrap(g, c, 37, 43, 1, ['f', 'F', 'G']);
+    for (let x = c - 1; x <= c + 1; x++) { wset(g, x, 44, '7'); wset(g, x, 46, '9'); } wset(g, c - 1, 45, '7'); wset(g, c, 45, 'b'); wset(g, c + 1, 45, '8');
+    return { rows: wrows(g), grip: [c, 40] }; },
+  elfblades() { const c = 6, g = wgrid(14, 36);                       // 精靈雙刀（畫一把）：葉子形狀的彎刀，刀背是綠色的，刃口銀白
+    for (let r = 0; r < 22; r++) { const hw = Math.round(2.6 * Math.sin(Math.PI * (r + 1) / 23)), off = Math.round(Math.sin(r / 22 * Math.PI) * 2.2);   // 刀身往一邊彎
+      for (let d = -hw; d <= hw; d++) wset(g, c + d + off, r, d === -hw ? '1' : d === -hw + 1 ? '2' : d === hw ? 'd' : d === hw - 1 ? 'c' : d === 0 ? (r > 3 && r < 19 ? 'b' : '3') : '3'); }
+    for (let x = c - 3; x <= c + 3; x++) { wset(g, x, 22, x < c ? 'a' : 'b'); wset(g, x, 23, 'c'); }
+    wset(g, c - 4, 21, 'b'); wset(g, c + 4, 21, 'c');
+    wrap(g, c, 24, 30, 1, ['b', 'c', 'd']);
+    for (let x = c - 1; x <= c + 1; x++) { wset(g, x, 31, '7'); wset(g, x, 33, '9'); } wset(g, c - 1, 32, '7'); wset(g, c, 32, 'a'); wset(g, c + 1, 32, '8');
+    return { rows: wrows(g), grip: [c, 27] }; },
 };
 export const WEAP = { staff: { rows: STAFF_ART.rows, grip: STAFF_ART.grip, base: STAFF_ART.base, pal: HERO_PAL } };
 for (const k in GEN) { const g = GEN[k](); WEAP[k] = { rows: g.rows, grip: g.grip, base: -Math.PI / 2, pal: WPAL2 }; }
@@ -255,6 +284,9 @@ export const ANIM = {
   rapier:   { wu:.05, sw:.08, hold:.06, back:.1, up:-.1, to:0, lift:0, P:{ C:[-3, 0, 0], S:[7, 0, 1], H:[5, 1, 1], R:[2, 0, 0] } },
   crescent: { C:['diag', 'flatR', 'flat'], wu:.09, sw:.1, hold:.12, back:.14, up:-2.4, from:-1.5, to:1.0, lift:5, P:{ C:[-3, -1, 0], S:[5, 1, 1], H:[5, 2, 1], R:[2, 0, 0] } },
   twinblade:{ C:['flat', 'flatR', 'diag', 'rise'], wu:.06, sw:.08, hold:.08, back:.12, up:-2.3, from:-1.5, to:1.0, lift:3, P:{ C:[-3, -1, 0], S:[5, 1, 1], H:[6, 2, 1], R:[2, 0, 0] } },
+  elfbow:   { wu:.1, sw:.05, hold:.08, back:.12, up:0, to:0, lift:2, P:{ C:[-3, 0, 0], S:[2, 0, 1], H:[1, 0, 0], R:[0, 0, 0] } },   // 精靈弓：跟長弓一樣，拉得快一點
+  elfrapier:{ wu:.045, sw:.07, hold:.05, back:.09, up:-.1, to:0, lift:0, P:{ C:[-3, 0, 0], S:[7, 0, 1], H:[5, 1, 1], R:[2, 0, 0] } },
+  elfblades:{ C:['flat', 'flatR', 'flat', 'flatR'], wu:.05, sw:.07, hold:.07, back:.1, up:-2.2, from:-1.4, to:1.0, lift:3, P:{ C:[-3, -1, 0], S:[5, 1, 1], H:[6, 2, 1], R:[2, 0, 0] } },   // 左右交替的四連斬
   darkmoon: { C:['diag', 'flatR', 'slam'], wu:.22, sw:.13, hold:.16, back:.18, up:-2.9, from:-1.7, to:1.3, lift:8, P:{ C0:[-3, -1, 0], C:[-6, -3, 0], S:[4, 1, 1], H:[7, 4, 1], R:[3, 2, 0] } },
 };
 const BACKP = { C:[-2, 2, 0], S:[4, 1, 1], H:[4, -2, 1] };              // 由下往上撩：壓低 → 往上

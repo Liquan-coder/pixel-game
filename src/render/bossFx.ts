@@ -105,6 +105,7 @@ export function drawFall(m, q: number) {
     case 'meteor': drawOrb(x, y, 5.5, cols); for (let i = 1; i < 4; i++) drawOrb(x + i * 1.5, y - i * 5, 3.6 - i * .8, cols); break;
     case 'icicle': shard(x, y, Math.PI / 2, 20, 3.4, cols); break;
     case 'sword': blade(x, y + 6, 22, cols); break;
+    case 'arrow': for (const dx of [-4, 0, 4]) { shard(x + dx, y - (dx ? 6 : 0), Math.PI / 2, 16, 1.6, cols); ctx.fillStyle = '#ffffff'; artPath(); artDot(x + dx - 1, y - 16 - (dx ? 6 : 0), 1); artDot(x + dx + 1, y - 16 - (dx ? 6 : 0), 1); ctx.fill(); } break;   // 箭雨：三支一起落下（白色的箭羽）
     case 'star': star5(x, y, 6, G.time * 6, cols); drawStar(x, y - 9, 2, '#ffffff'); break;
     case 'drop': teardrop(x, y, Math.PI / 2, 4, 9, cols); break;
     case 'web': webBall(x, y, 7, G.time * 2, ['#8a8a9a', '#e8e8f4', '#ffffff']); break;

@@ -7,6 +7,7 @@ import { addDungeonSpawns, inDZone, stampEntrances } from './dungeons';
 import { registerDungeonBosses } from './dungeonBoss';
 import { buildLandmarks, GLOW_ZONES } from './landmarks';
 import { connectPockets, despeckle, formations, heights, props, unpinch, vegetation } from './terrain';
+import { ELF_ELITES, ELF_SPAWN, buildElfIsland, buildElfLandmarks, elfFormations } from './elfland';
 export let reachable: Uint8Array = null;                               // 從起點走得到的格子（genWorld 算好）
 
 /* 地圖生成用的小工具（landmarks.ts 也會用） */
@@ -62,6 +63,7 @@ export function genWorld() {
     let sea = (x > coastX(oy) + Math.max(0, 200 - oy) * 3 && y > forestS(x)) || oy > 377 - nB(x, 5) * 6 || (oy >= 196 && x < 3 + nC(4, oy) * 4);
     if (x > bayE(y) && y < swampS(x)) sea = false;                      // 沼澤的陸地
     if (sea) { map[i] = WATER; reg[i] = 0; } }
+  buildElfIsland();                                                     // 精靈王國：海灣裡的島（world/elfland.ts，用自己的亂數）
   /* ---- 地區交界：零星的石頭和樹（地面顏色在 tileArt 裡混色過渡）；有些交界是天然屏障 ---- */
   for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) { const i = I(x, y);
     if (!inb(x, y)) { map[i] = CLIFF; continue; }
@@ -80,7 +82,7 @@ export function genWorld() {
   for (let x = 3; x < 270; x++) { const yc = Math.round(riverY(x)), w = x > 200 ? 2 : 1; for (let d = -w; d <= w; d++) if (inb(x, yc + d)) map[I(x, yc + d)] = WATER; }
   for (let y = 322 + PY; y <= 342 + PY; y++) for (let x = 44; x <= 72; x++) if (inb(x, y) && ((x - 58) / 11) ** 2 + ((y - 332 - PY) / 7) ** 2 < 1 + (nE(x, y) - .5) * .5) map[I(x, y)] = WATER;
   /* ---- 各地區的地形骨架：斷崖、台地、山脈、湖、水道（terrain.ts） ---- */
-  formations(R, nE);
+  formations(R, nE); elfFormations();
   river([[212, 96], [240, 86], [270, 72], [300, 66], [312, 64]], 1, LAVA, i => reg[i] === 3);                         // 熔岩河：流進燼龍火口
   river([[348, 62], [380, 54], [400, 64], [418, 92], [424, 130], [410, 160]], 1, LAVA, i => reg[i] === 3);
   river([[340, 226], [330, 262], [340, 300], [322, 340], [332, 380], [336, 416]], 1, WATER, i => reg[i] === 1 || reg[i] === 3);   // 森林的溪
@@ -89,7 +91,7 @@ export function genWorld() {
   vegetation(R, nE, nD);
   despeckle();
   /* ---- 地標（城堡、火口、祭壇、湖中島……）：landmarks.ts ---- */
-  buildLandmarks(R, nE);
+  buildLandmarks(R, nE); buildElfLandmarks();
   // 區域 boss 的場地：清空一圈
   for (const d of Object.values(RBDEF)) clearDisk(d.tx, d.ty, Math.ceil(d.tr) + 1, false);
   // 道路
@@ -111,7 +113,7 @@ export function genWorld() {
     LAY.forEach(([dx, dy, w, h], k) => { const x0 = cx + dx, y0 = cy + dy;
       for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) if (inb(x, y)) map[I(x, y)] = HOUSE;
       const door = I(x0 + (w >> 1), y0 + h); if (!WALKABLE(map[door])) map[door] = GROUND;   // 門口一定走得到
-      HOUSES.push({ tx: x0, ty: y0, w, h, roof: (k * 3 + (T.snow ? 1 : 0)) % 4, snow: T.snow, smith: k === 4 }); });
+      HOUSES.push({ tx: x0, ty: y0, w, h, roof: (T as any).elf ? 4 + (k % 2) : (k * 3 + (T.snow ? 1 : 0)) % 4, snow: T.snow, smith: k === 4 }); });   // 精靈的城鎮：屋頂 4、5（藍綠 / 銀藍）+ 白牆
     for (const [bx, by] of [[-3, -3], [3, -3], [-3, 4], [3, 4]]) braziers.push({ x: (cx + bx) * TS + 8, y: (cy + by) * TS + 12 });
   }
   // 狼王巢穴：月嚎岩丘上，一圈岩石中間的石砌巢穴
@@ -149,6 +151,9 @@ export function genWorld() {
       if (R() < (dense ? .06 : reg[i] === 1 ? .006 : .003) && !glows.some(t => Math.abs(t.tx - x) + Math.abs(t.ty - y) < (dense ? 2 : 6))) glows.push({ tx:x, ty:y, x:x * TS + 4 + R() * 8, y:y * TS + 6 + R() * 6, ph:R() * 10 });
     }
   }
+  { const RG = mulberry32(8105);                                         // 精靈王國的螢光花（自己的亂數，不影響上面）
+    for (let y = 3; y < MH - 3; y++) for (let x = 3; x < MW - 3; x++) { const i = I(x, y); if (reg[i] !== 8 || map[i] !== GROUND) continue;
+      if (RG() < .012 && !glows.some(t => Math.abs(t.tx - x) + Math.abs(t.ty - y) < 4)) glows.push({ tx:x, ty:y, x:x * TS + 4 + RG() * 8, y:y * TS + 6 + RG() * 6, ph:RG() * 10, elf:true }); } }
   // 可到達範圍（被樹林圍住的空地先接上小路，再算一次）
   const flood = () => { const reach = new Uint8Array(MW * MH), q = [I(CAMPS[0].tx, CAMPS[0].ty + 1)]; reach[q[0]] = 1;
     for (let h = 0; h < q.length; h++) { const i = q[h], x = i % MW, y = (i / MW) | 0;
@@ -196,6 +201,21 @@ export function genWorld() {
     let x = tx, y = ty; for (let k = 0; k < 40 && !WALKABLE(map[I(x, y)]); k++) { x = tx + Math.floor(R2() * 7) - 3; y = ty + Math.floor(R2() * 7) - 3; }
     spawns.push({ tx:x, ty:y, x:x * TS + 8, y:y * TS + 8, kind, lv, elite:true, ename:name, alive:false, timer:0 });
   }
+  /* 精靈王國：放在最後、用自己的亂數 → 其他地區的怪物位置跟以前一模一樣 */
+  const R3 = mulberry32(8106), T = ELF_SPAWN; let n = 0, tries = 0;
+  while (n < T.n && tries++ < 60000) {
+    const tx = T.anchor[0] - 20 + Math.floor(R3() * 140), ty = 404 + Math.floor(R3() * 92);
+    if (reg[I(tx, ty)] !== 8 || !ok(tx, ty) || near(tx, ty, 4)) continue;
+    const d = Math.hypot(tx - T.anchor[0], ty - T.anchor[1]);
+    const lv = clamp(T.lv[0] + Math.round(Math.min(1, d / T.span) * (T.lv[1] - T.lv[0])) + (R3() < .3 ? 2 : 0), T.lv[0], T.lv[1]), kind = T.kinds(R3());
+    put({ tx, ty, x:tx * TS + 8, y:ty * TS + 8, kind, lv, alive:false, timer:0 }); n++;
+    if (R3() < .35) { const ax = tx + Math.floor(R3() * 5) - 2, ay = ty + Math.floor(R3() * 5) - 2;
+      if ((ax !== tx || ay !== ty) && ok(ax, ay)) put({ tx:ax, ty:ay, x:ax * TS + 8, y:ay * TS + 8, kind, lv, alive:false, timer:0 }); }
+  }
+  for (const [kind, lv, tx, ty, name] of ELF_ELITES) {
+    let x = tx, y = ty; for (let k = 0; k < 40 && !WALKABLE(map[I(x, y)]); k++) { x = tx + Math.floor(R3() * 7) - 3; y = ty + Math.floor(R3() * 7) - 3; }
+    spawns.push({ tx:x, ty:y, x:x * TS + 8, y:y * TS + 8, kind, lv, elite:true, ename:name, alive:false, timer:0 });
+  }
 }
 /* 精英怪（有名字、比較強、打倒後要休息才會復活）：[種類, 等級, x, y, 名字] */
 const ELITES = [
@@ -227,6 +247,7 @@ export const RUIN = [
   { fl:'#8a96aa', fl2:'#929eb2', gr:'#5e6a80', hi:'#b4c0d4', wf:'#9aa6bc', wf2:'#8a96ac', mo:'#5a6478', cap:'#e8f0fa', top:'#6a7890', edge:'#7a869c', moss:null },
   { fl:'#3a4236', fl2:'#40483a', gr:'#262c22', hi:'#4e5844', wf:'#4a5440', wf2:'#404a38', mo:'#262c22', cap:'#5e6a52', top:'#161a12', edge:'#343c2e', moss:'#4a6a2e' },
   { fl:'#3a3640', fl2:'#403b48', gr:'#28252e', hi:'#4c4756', wf:'#4a4454', wf2:'#3e3948', mo:'#26222e', cap:'#6a6478', top:'#16131c', edge:'#34303e', moss:'#3e5a34' },
+  { fl:'#a8b2c0', fl2:'#b2bccb', gr:'#7a8496', hi:'#d4dce8', wf:'#c4ccd8', wf2:'#b0b8c6', mo:'#6e788c', cap:'#eef4fa', top:'#4a5468', edge:'#8e98aa', moss:'#4a9a7a' },   // 8 精靈王國：白色大理石
 ];
 export const isWallT = t => t === CLIFF || t === RWALL;
 /* ---------- tiles：以 3 倍細像素烘焙（每格 48×48），跟角色同一個像素密度 ---------- */
@@ -261,6 +282,8 @@ export const SCU = [
     face:UL(['#14161a','#262a30','#3a4048','#505860','#68727a']), lip:UL(['#121810','#232e1c','#344428','#506838']), top:UL(['#0e120a','#12160e','#161c12']), bank:UL(['#1a160e','#262014','#322a1c']) },
   { g:UL(['#1c1a18','#24211e','#2c2824','#35302a','#3f3931','#4a4339']), road:UL(['#2a2622','#36302a','#423a32','#4e453b','#5a5044']),   // 7 地城：深色岩洞
     face:UL(['#16141a','#2a2630','#3e3946','#544e5e','#6c6678']), lip:UL(['#1a2418','#2a3a24','#3e5634','#5a7a48']), top:UL(['#121014','#16131a','#1a1720']), bank:UL(['#141210','#1e1a16','#28221c']) },
+  { g:UL(['#163230','#1e423e','#26544c','#30665a','#3e7a6a','#56967e']), road:UL(['#56606c','#727e8a','#8e9aa6','#aab6c0','#c8d2da']),   // 8 精靈王國：月光下偏藍的草地、白石小徑、白色的岩
+    face:UL(['#3a4250','#566070','#76828f','#9aa6b4','#c4ced8']), lip:UL(['#163230','#26544c','#3e7a6a','#7ac4a4']), top:UL(['#122826','#16302c','#1a3832']), bank:UL(['#16241f','#20332c','#2a4238']) },
 ];
 export const RUINU = RUIN.map(u => { const o: Record<string, number> = {}; for (const k in u) o[k] = u[k] ? hexU(u[k]) : 0; return o; });
 export const WATU = UL(['#1a3664','#22467e','#2c5892','#3566a2','#4a80ba','#7cb0dc','#d4ecff']);

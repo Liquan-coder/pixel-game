@@ -6,7 +6,7 @@ export const mini = $<HTMLCanvasElement>('mini'), mctx = mini.getContext('2d');
 export const miniBase = document.createElement('canvas'); miniBase.width = MW; miniBase.height = MH;
 const mbx = miniBase.getContext('2d');
 const MCOL = { [ROAD]:'#b8956a', [WATER]:'#3b6ea8', [LAVA]:'#e8743b', [RWALL]:'#2a2633', [RFLOOR]:'#7a768a', [BRIDGE]:'#8a6038', [TREE]:null, [ROCK]:'#6b6878', [PILLAR]:'#2a2633', [CRATE]:'#7a5434', [FOG]:'#e8e4ff', [GRAVE]:'#8a8696', [BIGT]:'#2a5a26', [HOUSE]:'#a8503a' };
-const MGROUND = ['#5a9a46', '#2f5a3e', '#9a8a6a', '#3a2b2d', '#3a3444', '#c8d4e2', '#2b3822', '#4a4339'], MTREE = ['#3a7a30', '#1c4635', '#6a5a44', '#2a1e20', '#3a7a30', '#2a4a5c', '#3a3220', '#2a3a24'], MCLIFF = ['#6e685c', '#404c40', '#62533c', '#3a2c2e', '#43303d', '#58647e', '#3a4048', '#16141a'];   // 岩石高地 = 跟遊戲裡崖頂石塊同色
+const MGROUND = ['#5a9a46', '#2f5a3e', '#9a8a6a', '#3a2b2d', '#3a3444', '#c8d4e2', '#2b3822', '#4a4339', '#3e7a6a'], MTREE = ['#3a7a30', '#1c4635', '#6a5a44', '#2a1e20', '#3a7a30', '#2a4a5c', '#3a3220', '#2a3a24', '#266462'], MCLIFF = ['#6e685c', '#404c40', '#62533c', '#3a2c2e', '#43303d', '#58647e', '#3a4048', '#16141a', '#9aa6b4'];   // 8 = 精靈王國   // 岩石高地 = 跟遊戲裡崖頂石塊同色
 const MWATER = { 5: '#8ab4d4', 6: '#22544e' };
 const colOf = i => { const t = map[i], r = reg[i]; return (t === GROUND ? MGROUND[r] : t === TREE ? MTREE[r] : t === CLIFF ? MCLIFF[r] : t === WATER && MWATER[r] ? MWATER[r] : MCOL[t]) || '#000'; };
 export function miniPix(i) { mbx.fillStyle = colOf(i); mbx.fillRect(i % MW, (i / MW) | 0, 1, 1); }

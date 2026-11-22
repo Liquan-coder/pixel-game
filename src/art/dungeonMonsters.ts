@@ -279,6 +279,9 @@ const DEF: Record<string, () => any> = {
   frogT: () => makeHD(hdFrog(pal(['#0a1e20', '#143a3a', '#22584e', '#3a7e68', '#62a888'], ['#7a5a1a', '#c0a040', '#f0e090'], '#ffd04a', ['#a08a3a', '#d0b858', '#f0e090']))),
   wraithT: () => withWalk(ph => hdWraith(pal(['#0a0e2a', '#141c4a', '#22306e', '#3a4a96', '#6070c0'], ['#6a4ad0', '#b49cff', '#ffffff'], '#c8a8ff'), ph), undefined, RANGED_POSES),
   ghoulT: () => withWalk(ph => hdGhoul(pal(['#0e1a14', '#1a3024', '#2a4a38', '#406a50', '#5e8a6a'], ['#142028', '#22384a', '#365470'], '#7affd8'), ph), undefined, BLADE_POSES, 6),
+  // 螢月禁林（精靈王國的地城）：螢火之靈 + 月蛾（墮落的精靈在 art/elfMonsters.ts）
+  wraithE: () => withWalk(ph => hdWraith(pal(['#14281a', '#24442c', '#3a6a40', '#5a9a5a', '#9ad08a'], ['#c8f0a0', '#f0ffc8', '#ffffff'], '#f8ff9a'), ph), undefined, RANGED_POSES),
+  mothE: () => withWalk(ph => hdBat(pal(['#3a3424', '#6a5e40', '#a89670', '#d8caa0', '#f8f0d8'], ['#4a3a6a', '#7a64a8', '#b4a0e0'], '#9ad8ff'), ph), undefined, LUNGE_POSES, 6),
 };
 /* 第一次用到才畫：SPR.spiderM 被讀的那一刻才 sculpt，之後就是一般的屬性 */
 for (const k in DEF) Object.defineProperty(SPR, k, { configurable: true, enumerable: true, get() { const v = DEF[k](); Object.defineProperty(SPR, k, { value: v, writable: true, enumerable: true, configurable: true }); return v; } });

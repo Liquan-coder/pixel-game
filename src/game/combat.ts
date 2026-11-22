@@ -105,7 +105,8 @@ export const WFX = {                                                         // 
   spear: ['#2a8a9a', '#9af0ff', '#ffffff'], staff: ['#6a4ad0', '#b49cff', '#ffffff'], wolfblade: ['#3a2470', '#9a6cff', '#f0e0ff'],
   katana: ['#a8203a', '#ff8aa0', '#ffffff'], hammer: ['#8a5a1a', '#f2c14e', '#fff6d0'], scythe: ['#1e5a46', '#6ae0b0', '#e0fff0'],
   bow: ['#3e7a2a', '#b8e07a', '#ffffff'], greatsword: ['#5a6a8a', '#c8d4ec', '#ffffff'], rapier: ['#c03070', '#ff9ad0', '#ffffff'],
-  crescent: ['#b07a18', '#ffe08a', '#fffbe8'], twinblade: ['#2a6ac0', '#8ad0ff', '#ffffff'], darkmoon: ['#2a2a8a', '#8aa0ff', '#e8f0ff'] };
+  crescent: ['#b07a18', '#ffe08a', '#fffbe8'], twinblade: ['#2a6ac0', '#8ad0ff', '#ffffff'], darkmoon: ['#2a2a8a', '#8aa0ff', '#e8f0ff'],
+  elfbow: ['#1e7a5a', '#9ae0b4', '#ffffff'], elfrapier: ['#1e7a6a', '#a8f0e0', '#ffffff'], elfblades: ['#2a8a4a', '#b8f0a0', '#ffffff'] };   // 精靈武器：葉綠色
 const MOONC = ['#23206e', '#8aa0ff', '#eef4ff'];                         // 暗月大劍的月光（不管有沒有刻印都是這個顏色）
 const SHADOWBLADE = ['#1a1030', '#6a4ad0', '#e0d0ff'];
 export function wcols(pl: Player, type) { const c = WFX[type].slice(), r = pl.weapon.rarity; if (r >= 3) c[0] = RAR[r].c; return c; }
@@ -116,7 +117,7 @@ function lanceFx(pl: Player, a, len, w, cols, d, follow) {
 }
 export function restAng(pl: Player) {                                                   // 架式（Ready）時武器的角度
   const W = WT[pl.weapon.type], dir = pl.flip ? -1 : 1, cf = Math.cos(pl.face), sf = Math.sin(pl.face);
-  if (pl.weapon.type === 'bow') return pl.face + .6 * dir;              // 長弓：朝前、往下垂一點
+  if (pl.weapon.type === 'bow' || pl.weapon.type === 'elfbow') return pl.face + .6 * dir;              // 長弓：朝前、往下垂一點
   return W.ranged ? -Math.PI / 2 + .35 * dir : pl.face - dir * (.9 * Math.abs(cf) + .25 * sf);   // 法杖直立在身旁；近戰武器斜舉在身前
 }
 function newSwing(pl: Player, type, A, fin, st, extra) {                            // 建一段攻擊動作；角度都存成「相對面向」，揮的方向才不會繞錯邊
@@ -127,7 +128,7 @@ function newSwing(pl: Player, type, A, fin, st, extra) {                        
   const wu = A.wu * F * (st === 'slam' ? 1.2 : 1), sw = A.sw * F;
   return Object.assign({ t:0, wu, sw, d:wu + sw + A.hold, back:A.back, f:pl.face, sd, rR, r0, rs, r1, lift, sy:S.sy || HSY, st, ty:type, fin, anim:true }, extra);
 }
-const TH = { sword:9, dagger:6, axe:13, wolfblade:8, katana:7, hammer:14, scythe:11, greatsword:15, crescent:11, twinblade:8, darkmoon:14 };   // 刀光粗細
+const TH = { sword:9, dagger:6, axe:13, wolfblade:8, katana:7, hammer:14, scythe:11, greatsword:15, crescent:11, twinblade:8, darkmoon:14, elfblades:8 };   // 刀光粗細
 const QDAG = Object.assign({}, ANIM.dagger, { wu:.025, sw:.05, hold:.03 });   // 影步連斬用的快速版短刀動作
 const DSEQ = ['diag', 'flat', 'rise', 'flatR'];                        // 斜劈 → 橫掃 → 上撩 → 反橫掃 … 最後一刀重劈
 function swingSmear(pl: Player, s, type, cols, fin) {                               // 跟著角色的刀光（貼在刀身上）
@@ -140,7 +141,7 @@ export function tryAttack(pl: Player) {
   const type = pl.weapon.type, W = WT[type], cols = wcols(pl, type), A = ANIM[type] || ANIM.sword;
   /* 戰鎚、戰斧沒有三連擊：戰鎚每一下都舉高往下砸；戰斧左右來回橫掃，連續砍中越砍越快（最多快 30%），停下來就重來
      雙頭刀是四連擊（第四下整支轉一圈） */
-  const solo = type === 'hammer' || type === 'axe', chain = pl.comboT > 0, N = type === 'twinblade' ? 4 : 3;
+  const solo = type === 'hammer' || type === 'axe', chain = pl.comboT > 0, N = type === 'twinblade' || type === 'elfblades' ? 4 : 3;   // 雙頭刀、精靈雙刀：四連擊
   pl.combo = !solo && chain ? (pl.combo + 1) % N : 0; pl.comboT = type === 'axe' ? 1.1 : .8;
   if (type === 'axe' && !chain) pl.axeN = 0;
   if (type === 'darkmoon' && !chain) pl.moonN = 0;                     // 暗月：連段斷掉，存的月光就散了
@@ -151,6 +152,12 @@ export function tryAttack(pl: Player) {
     autoFace(pl, 210);
     const s = pl.swing = newSwing(pl, type, A, false, null, { ranged:true, fin });
     pl.timers.push({ t:s.wu, fn: () => { shootArrow(pl, pl.face, fin ? 1.15 : 1, fin, cols); sfx.swing(); } });
+    return true;
+  }
+  if (type === 'elfbow') {                                            // 精靈弓：箭比較快、飛比較遠；第三下一次射三支（都會穿透）
+    autoFace(pl, 230);
+    const s = pl.swing = newSwing(pl, type, A, false, null, { ranged:true, fin });
+    pl.timers.push({ t:s.wu, fn: () => { for (const da of fin ? [-.13, 0, .13] : [0]) shootArrow(pl, pl.face + da, fin ? .9 : 1, fin, cols, 500); sfx.swing(); } });
     return true;
   }
   if (W.ranged) {                                                     // 法杖：舉杖聚光 → 往前一推放出 → 杖放低收招
@@ -165,10 +172,17 @@ export function tryAttack(pl: Player) {
     return true;
   }
   autoFace(pl, W.range + 40);
-  if (type === 'rapier') {                                            // 細劍：快速直刺，只刺最前面那一隻；第三下往前踏一步
+  if (type === 'rapier' || type === 'elfrapier') {                    // 細劍：快速直刺，只刺最前面那一隻；第三下往前踏一步。精靈細劍第三下還會刺出一道葉刃（穿透）
     const L = W.range + (fin ? 10 : 0), s = pl.swing = newSwing(pl, type, A, fin, null, {});
     pl.timers.push({ t:s.wu, fn: () => { pl.thrust = .1; if (fin) moveEnt(pl, Math.cos(pl.face) * 10, Math.sin(pl.face) * 10);
-      lanceFx(pl, pl.face, L, fin ? 7 : 5, cols, .16, true); rapierHit(pl, L, fin ? 1.3 : 1, fin); sfx.swing(); } });
+      lanceFx(pl, pl.face, L, fin ? 7 : 5, cols, .16, true); rapierHit(pl, L, fin ? 1.3 : 1, fin); sfx.swing();
+      if (fin && type === 'elfrapier') leafWave(pl, pl.face, .7, 12); } });
+    return true;
+  }
+  if (type === 'elfblades' && fin) {                                  // 精靈雙刀第四下：兩把刀一起轉一圈，捲起一圈葉子
+    pl.timers.push({ t:.05, fn: () => { pl.spin = .3; const a = pl.face;
+      smearFx(pl, a, a + TAU * .95, W.range + 6, 10, .16, cols, .1); smearFx(pl, a + Math.PI, a + Math.PI + TAU * .9, W.range, 8, .16, cols, .1);
+      meleeHit(pl, W.range + 8, 360, 1.4, { heavy:true }); leafBurst(pl.x, pl.y - 6, 18); sfx.swing(); } });
     return true;
   }
   if (type === 'twinblade' && fin) {                                  // 雙頭刀第四下：整支在身邊轉一圈
@@ -230,6 +244,13 @@ function shootArrow(pl: Player, a, mult, pierce, cols, spd = 420, big = false) {
   G.projs.push({ x, y, x0:x, y0:y, vx:Math.cos(a) * spd, vy:Math.sin(a) * spd, r:big ? 5 : 3, life:210 / spd + (big ? .1 : 0), mult, owner:'p', by:pl, kind:'arrow', far:true,
     pierce, hit:pierce ? new Set() : undefined, light:!big, cols, big });
 }
+const LEAFC = ['#1e6a4a', '#9ae0b4', '#f0fff4'];                         // 精靈武器的葉刃 / 葉子
+function leafWave(pl: Player, a, mult, R, spd = 300, life = .32) {             // 精靈細劍的葉刃（穿透，飛一小段）
+  G.projs.push({ x:pl.x + Math.cos(a) * 12, y:pl.y - 7 + Math.sin(a) * 12, vx:Math.cos(a) * spd, vy:Math.sin(a) * spd, r:R * .6, life, mult, owner:'p', by:pl, kind:'wave',
+    pierce:true, hit:new Set(), R, th:Math.round(R * .4), cols:LEAFC, light:true });
+}
+function leafBurst(x, y, n) { for (let i = 0; i < n; i++) { const a = rr(0, TAU), v = rr(40, 120);
+  G.parts.push({ x:x + Math.cos(a) * 6, y:y + Math.sin(a) * 4, vx:Math.cos(a) * v, vy:Math.sin(a) * v * .6 - 20, life:rr(.4, .8), max:.8, col:pick(['#4ab088', '#9ae0b4', '#e8fff0']), s:2, drag:2.5 }); } }
 function throwBoom(pl: Player, a, mult, R, cols, out = .26, spd = 330) {       // 月牙刀的月牙：飛出去 out 秒，再飛回來（來回各打一次）
   G.projs.push({ x:pl.x + Math.cos(a) * 10, y:pl.y - 7 + Math.sin(a) * 10, vx:Math.cos(a) * spd, vy:Math.sin(a) * spd, r:R * .6, life:2, mult, owner:'p', by:pl, kind:'boom', ret:out,
     pierce:true, hit:new Set(), R, th:Math.round(R * .42), cols, light:R < 20 });
@@ -347,6 +368,24 @@ export function releaseCharge(pl: Player, lv) {
       for (const da of lv >= 2 ? [-.14, 0, .14] : [0]) shootArrow(pl, pl.face + da, 2.2 * s, true, cols, 540, true);
       G.fx.push({ k:'warp', x:pl.x + Math.cos(pl.face) * 12, y:pl.y - 7 + Math.sin(pl.face) * 12, r0:2, r1:lv >= 2 ? 16 : 12, th:2, sy:1, t:0, d:.2, col:cols[1] });
       shake(2, .1); break; }
+    case 'elfbow': {                                                  // 精靈弓蓄力：滿月箭，一支很粗的穿透箭，落點炸開一圈葉刃（滿蓄力：五支扇形）
+      autoFace(pl, 240); pl.swing = { t:0, d:.25, ranged:true, ty:'elfbow' };
+      for (const da of lv >= 2 ? [-.24, -.12, 0, .12, .24] : [-.08, 0, .08]) shootArrow(pl, pl.face + da, (lv >= 2 ? 1.6 : 1.8) * s, true, cols, 560, da === 0);
+      leafBurst(pl.x + Math.cos(pl.face) * 12, pl.y - 7, 10); shake(2, .1); break; }
+    case 'elfrapier': {                                               // 精靈細劍蓄力：往前一閃，路上留下三道葉刃（滿蓄力一定暴擊）
+      autoFace(pl, 130); const a = pl.face, L = lv >= 2 ? 90 : 64, x0 = pl.x, y0 = pl.y;
+      pl.skillLock = .22; pl.iframe = Math.max(pl.iframe, .32); pl.thrust = .2;
+      blinkFx(pl, pl.x, pl.y, true); moveEnt(pl, Math.cos(a) * L, Math.sin(a) * L); blinkFx(pl, pl.x, pl.y, false);
+      const D = Math.hypot(pl.x - x0, pl.y - y0);
+      G.fx.push({ k:'lance', follow:null, x:x0, y:y0 - 7, a, len:D + 18, w:6, t:0, d:.28, cols });
+      lineHit(pl, x0, y0, a, D + 18, 8, 2.1 * s, { heavy:true, crit:lv >= 2 });
+      for (const da of [-.35, 0, .35]) leafWave(pl, a + da, .6 * s, 12, 280, .26);
+      sfx.swing(); shake(3, .1); break; }
+    case 'elfblades': {                                               // 精靈雙刀蓄力：落葉旋風，在原地轉三圈（滿蓄力四圈），每圈越轉越大
+      const n = lv >= 2 ? 4 : 3; pl.skillLock = n * .13 + .05; pl.iframe = Math.max(pl.iframe, n * .13);
+      for (let i = 0; i < n; i++) pl.timers.push({ t:i * .13, fn: () => { pl.spin = .3; const a = rr(0, TAU), R = 30 + i * 4;
+        smearFx(pl, a, a + TAU * .95, R, 9, .12, cols, .08); aoeHit(pl, pl.x, pl.y, R + 2, 1.1 * s, i === n - 1 ? { heavy:true } : undefined); leafBurst(pl.x, pl.y - 6, 6); sfx.swing(); } });
+      break; }
     case 'greatsword': {                                              // 巨劍落：跳起來劈下，前方扇形 + 一條地裂（滿蓄力更長）
       autoFace(pl, 90); pl.skillLock = .55; pl.slam = .5; pl.iframe = Math.max(pl.iframe, .3);
       pl.timers.push({ t:.28, fn: () => { const a = pl.face;
@@ -506,6 +545,24 @@ export function trySkill(pl: Player) {
       for (let i = 0; i < 10; i++) { const ra = rr(0, TAU), rd = Math.sqrt(Math.random()) * 32;
         G.projs.push({ x:cx + Math.cos(ra) * rd, y:cy + Math.sin(ra) * rd * .8, vx:0, vy:0, r:0, life:.35 + i * .05, max:.35 + i * .05, mult:.9, owner:'p', by:pl, kind:'rain', cols:wc }); }
       sfx.fire(); break; }
+    case 'leafvolley': {                                              // 千葉齊射：往前方扇形連射十二支葉箭（穿透）
+      autoFace(pl, 220); pl.skillLock = .5; const a0 = pl.face;
+      for (let i = 0; i < 12; i++) pl.timers.push({ t:i * .035, fn: () => { pl.swing = { t:0, d:.1, ranged:true, ty:'elfbow' }; shootArrow(pl, a0 + (i % 2 ? 1 : -1) * (i >> 1) * .06, .8, true, wc, 520); if (i % 3 === 0) sfx.swing(); } });
+      leafBurst(pl.x, pl.y - 8, 12); break; }
+    case 'moonstep': {                                                // 月步：化成月光往前閃三次，每次穿過路上的敵人
+      pl.skillLock = .5; pl.iframe = Math.max(pl.iframe, .55);
+      for (let i = 0; i < 3; i++) pl.timers.push({ t:i * .16, fn: () => { const t = nearestTarget(pl, 120); if (t) pl.face = Math.atan2(t.y - pl.y, t.x - pl.x); updFlip(pl);
+        const a = pl.face, x0 = pl.x, y0 = pl.y; blinkFx(pl, pl.x, pl.y, true); moveEnt(pl, Math.cos(a) * 56, Math.sin(a) * 56); blinkFx(pl, pl.x, pl.y, false);
+        const D = Math.hypot(pl.x - x0, pl.y - y0); G.fx.push({ k:'lance', follow:null, x:x0, y:y0 - 7, a, len:D + 14, w:5, t:0, d:.24, cols:wc });
+        lineHit(pl, x0, y0, a, D + 14, 9, 1.6, i === 2 ? { heavy:true } : undefined); sfx.swing(); } });
+      break; }
+    case 'windwaltz': {                                               // 風之輪舞：旋轉著往前衝，路上一直砍（6 下），衝完再轉一圈
+      autoFace(pl, 140); const a = pl.face, L = 110, T = .36; pl.skillLock = .5; pl.iframe = Math.max(pl.iframe, .45);
+      pl.lunge = { t:T, vx:Math.cos(a) * L / T, vy:Math.sin(a) * L / T };
+      for (let i = 0; i < 6; i++) pl.timers.push({ t:i * .06, fn: () => { pl.spin = .3; const b = rr(0, TAU); smearFx(pl, b, b + TAU * .9, 28, 8, .1, wc, .05);
+        aoeHit(pl, pl.x, pl.y, 30, .7); leafBurst(pl.x, pl.y - 6, 4); if (i % 2 === 0) sfx.swing(); } });
+      pl.timers.push({ t:.4, fn: () => { pl.spin = .3; smearFx(pl, a, a + TAU * .95, 36, 11, .16, wc, .1); meleeHit(pl, 38, 360, 1.2, { heavy:true }); shake(3, .12); } });
+      break; }
     case 'cleave':                                                    // 破山斬：舉劍過頭 → 往前劈，地面裂出一條直線
       autoFace(pl, 130); pl.skillLock = .6; pl.slam = .5; pl.iframe = Math.max(pl.iframe, .25);
       pl.timers.push({ t:.3, fn: () => { const a = pl.face; smearFx(pl, a - 1.8, a + .3, 36, 18, .08, wc, .18);
