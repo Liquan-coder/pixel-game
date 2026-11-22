@@ -13,7 +13,7 @@ import { drawArtSprite } from '../world/chunks';
 import { collides } from '../game/collision';
 import { sfx } from '../core/audio';
 import { drawShadow } from '../render/player';
-import { setMenu, toast } from './hud';
+import { coinChip, setMenu, toast } from './hud';
 import { badge, itemCard, matLine } from './menus';
 import { save } from '../game/save';
 import type { Item } from '../types';
@@ -118,7 +118,7 @@ function renderForge(body: HTMLElement) {
     '</div><button type="button" class="pri fgo" data-forge="' + sel.id + '"' + (lack ? ' disabled' : '') + '>' + why + '</button></div></div>';
 }
 function renderShop() {
-  $('shopGold').textContent = '金幣 ' + G.me.gold;
+  $('shopGold').innerHTML = coinChip(G.me.gold);
   $('forgeTab').hidden = !vendor.smith; if (!vendor.smith && shopTab === 'forge') shopTab = 'buy';
   if (shopTab === 'forge') { for (const b of document.querySelectorAll<HTMLElement>('#shopMenu .tabs button')) b.classList.toggle('on', b.dataset.stab === shopTab); renderForge($('shopBody')); return; }
   for (const b of document.querySelectorAll<HTMLElement>('#shopMenu .tabs button')) b.classList.toggle('on', b.dataset.stab === shopTab);

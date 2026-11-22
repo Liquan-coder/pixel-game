@@ -21,6 +21,10 @@ export const stBarW = (maxSt: number) => Math.round(84 * Math.sqrt(Math.max(80, 
 function setW(id, px) { const k = id + 'W'; if (hudCache[k] !== px) { const grew = hudCache[k] !== undefined && px > (hudCache[k] as number); hudCache[k] = px;
   const bar = $(id).parentElement; bar.style.setProperty('--w', px + 'px');
   if (grew) { bar.classList.remove('grow'); void bar.offsetWidth; bar.classList.add('grow'); } } }   // 變長時閃一下
+/* 喝藥水：血條發綠光、新補的那段慢慢長出來；左上角的藥水數字跳一下 */
+function replay(el: HTMLElement, cls: string) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); el.addEventListener('animationend', () => el.classList.remove(cls), { once: true }); }
+export function flashHp() { replay($('hpBar').parentElement, 'heal'); }
+export function bumpPot() { replay($('potHud'), 'bump'); replay($('bPot'), 'bump'); }
 const HINT: Record<IKind, string> = { pick:'撿起', chest:'打開寶箱', read:'閱讀石碑', door:'進入', shop:'交易', rest:'在營火休息', use:'調查' };   // 沒有 text 時的預設提示
 export function updateHUD() {
   setW('hpBar', hpBarW(G.me.maxHp)); setW('stBar', stBarW(G.me.maxSt));
@@ -68,6 +72,11 @@ function placePickBox(d) {
   const k = x + ',' + y; if (hudCache.pickPos !== k) { hudCache.pickPos = k; box.style.left = x + 'px'; box.style.top = y + 'px'; }
 }
 // loot = 撿到東西的提示（武器、金幣、魂晶）：黑底、字大一點；其他提示只有字
+/* 金幣／魂晶的像素圖示：直接複製畫面上方 HUD 那兩顆 SVG，角色面板、商店的數字前面都用同一套 */
+export const hudIcon = (t: '金幣' | '魂晶') => document.querySelector('.souls span[title="' + t + '"] svg')?.outerHTML ?? '';
+export const coinChip = (n: number) => hudIcon('金幣') + '<b>' + n + '</b>';
+export const soulChip = (n: number) => hudIcon('魂晶') + '<b>' + n + '</b>';
+
 export function toast(msg, col?, loot = false) { const el = document.createElement('div'); el.className = loot ? 'toast loot' : 'toast'; el.textContent = msg; pushToast(el, col); }
 const gains: Record<string, { el: HTMLElement & { _t?: any }, n: number }> = {};
 export function gain(key, label, n, col) {                          // 例：gain('gold', '金幣', 3, '#f2c14e') → 「金幣 +3」，再撿到就變「金幣 +6」
