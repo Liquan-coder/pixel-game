@@ -142,11 +142,24 @@ export function drawSpikes(f, k) {                                            //
     fillArt(ox - W, oy - H, ox + W, oy + 1, (x, y) => { const v = (oy - y) / H; if (v < 0 || v > 1) return 0; const hw = W * (1 - v); const dx = x - ox; if (Math.abs(dx) > hw) return 0; return dx < -hw * .3 ? 3 : dx < hw * .3 ? 2 : 1; }, f.cols || BONEC); }
 }
 export function drawOrb(x, y, r, cols) { fillArt(x - r, y - r, x + r, y + r, (px, py) => { const d = Math.hypot(px - x, py - y) / r; return d > 1 ? 0 : d > .68 ? 1 : d > .36 ? 2 : 3; }, cols); }
-export function drawArrow(x, y, a, len, cols, big) {                       // 箭：木頭箭桿 + 發光的箭頭 + 尾羽（x, y = 箭頭）
-  const c = Math.cos(a), s = Math.sin(a), tx = x - c * len, ty = y - s * len;
-  artPath(); ctx.fillStyle = '#7a5434'; artLine(tx, ty, x - c * 3, y - s * 3, big ? 2 : 1); ctx.fill();
-  artPath(); ctx.fillStyle = cols ? cols[1] : '#ffffff'; artLine(tx - s * 2, ty + c * 2, tx + c * 3, ty + s * 3, 1); artLine(tx + s * 2, ty - c * 2, tx + c * 3, ty + s * 3, 1); ctx.fill();
-  artPath(); ctx.fillStyle = cols ? cols[2] : '#ffffff'; artLine(x - c * 3, y - s * 3, x, y, big ? 3 : 2); ctx.fill();
+// 箭：一律畫成綠色的魔法光劍（精靈弓手、長弓、精靈弓、箭雨都用這個），比木頭箭顯眼很多。x, y = 劍尖
+const ARROWC = ['#0f4a26', '#3fd86a', '#b8ffc8', '#f4fff6'];              // 外框深綠、劍身綠、亮綠、白色劍芯
+export function drawArrow(x, y, a, len, _cols, big) {
+  const c = Math.cos(a), s = Math.sin(a), L = len * (big ? 1.15 : 1.25), tx = x - c * L, ty = y - s * L;
+  const line = (col, al, x0, y0, x1, y1, w) => { ctx.globalAlpha = al; artPath(); ctx.fillStyle = col; artLine(x0, y0, x1, y1, w); ctx.fill(); };
+  const a0 = ctx.globalAlpha, op = ctx.globalCompositeOperation, fl = .8 + Math.sin(G.time * 40 + x * .3) * .2;   // 光暈會微微閃
+  ctx.globalCompositeOperation = 'lighter';                             // 光暈和拖尾用「疊亮」，暗的地方也看得到
+  line(ARROWC[1], .22 * fl, tx, ty, x, y, big ? 9 : 7);                // 外圈光暈
+  for (let i = 0; i < 3; i++) { const u0 = L + i * L * .3, u1 = u0 + L * .3;   // 尾巴後面三段越來越淡、越來越細的拖尾
+    line(ARROWC[2], (.45 - i * .13) * fl, x - c * u0, y - s * u0, x - c * u1, y - s * u1, Math.max(1, (big ? 4 : 3) - i)); }
+  ctx.globalCompositeOperation = op;
+  line(ARROWC[0], 1, tx, ty, x + c, y + s, big ? 5 : 4);                // 劍身：深綠外框
+  line(ARROWC[1], 1, tx, ty, x, y, big ? 3 : 2);                       // 綠色劍身
+  line(ARROWC[3], 1, x - c * L * .65, y - s * L * .65, x, y, 1);         // 白色劍芯（前段）
+  const gx = tx + c * 3, gy = ty + s * 3, g = big ? 4 : 3;                // 靠尾巴的護手：讓它看起來像一把小劍
+  line(ARROWC[0], 1, gx - s * (g + 1), gy + c * (g + 1), gx + s * (g + 1), gy - c * (g + 1), 3);
+  line(ARROWC[2], 1, gx - s * g, gy + c * g, gx + s * g, gy - c * g, 1);
+  ctx.globalAlpha = a0; artPath(); ctx.fillStyle = '#ffffff'; artDot(x, y, big ? 3 : 2); ctx.fill();   // 劍尖亮點
 }
 export function drawWaveP(p) {                                                // 飛行的新月劍氣
   const a = Math.atan2(p.vy, p.vx), R = p.R || 16, T = p.th || 7, cx = p.x - Math.cos(a) * R * .75, cy = p.y - Math.sin(a) * R * .75, half = 1.2;

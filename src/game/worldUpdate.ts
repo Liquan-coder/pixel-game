@@ -42,8 +42,8 @@ function updateProjectiles(dt) {
     if (p.kind === 'ember' && Math.random() < .7) G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:-p.vx * .1, vy:-p.vy * .1 - 10, life:.35, max:.35, col:pick(p.cols ? [p.cols[1], p.cols[2]] : ['#ffb040', '#ff6a2a']), s:1 });
     if (p.kind === 'glob' && Math.random() < .5) G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:0, vy:10, life:.4, max:.4, col:p.cols ? p.cols[1] : '#4fbf5a', s:1, g:60 });
     if (p.kind === 'claw' && Math.random() < .7) G.parts.push({ x:p.x + rr(-3, 3), y:p.y + rr(-3, 3), vx:-p.vx * .1, vy:-p.vy * .1, life:.3, max:.3, col:pick(p.cols ? [p.cols[1], '#ffffff'] : ['#ff5a5a', '#ffd0d0']), star:rr(.6, 1.6), drag:3 });
-    if ((p.kind === 'bolt' && Math.random() < .6) || p.kind === 'orb' || ((p.kind === 'wave' || p.kind === 'boom') && Math.random() < .8) || (p.kind === 'arrow' && Math.random() < .5))
-      G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:-p.vx * .1 + rr(-15, 15), vy:-p.vy * .1 + rr(-15, 15), life:rr(.2, .4), max:.4, col:pick((p.kind === 'wave' || p.kind === 'boom' || p.kind === 'arrow') && p.cols ? [p.cols[1], '#ffffff'] : STARC), star:rr(.6, p.kind === 'orb' ? 2.4 : 1.6), drag:3 });
+    if ((p.kind === 'bolt' && Math.random() < .6) || p.kind === 'orb' || ((p.kind === 'wave' || p.kind === 'boom') && Math.random() < .8) || (p.kind === 'arrow' && Math.random() < .8))
+      G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:-p.vx * .1 + rr(-15, 15), vy:-p.vy * .1 + rr(-15, 15), life:rr(.2, .4), max:.4, col:pick(p.kind === 'arrow' ? ['#3fd86a', '#b8ffc8', '#ffffff'] : (p.kind === 'wave' || p.kind === 'boom') && p.cols ? [p.cols[1], '#ffffff'] : STARC), star:rr(.6, p.kind === 'orb' ? 2.4 : 1.6), drag:3 });
     projTrail(p);                                                      // Boss 專屬子彈的拖尾（world/bossThemes.ts）
     if (p.kind === 'spore' && Math.random() < .3) G.parts.push({ x:p.x, y:p.y, vx:0, vy:-5, life:.4, max:.4, col:'#c46ad8', s:1 });
     if (!dead && p.owner === 'e') {
