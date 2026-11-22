@@ -80,10 +80,12 @@ function frostknight(e, rig: Rig): Pose {
     P.k = 7;
   }
   if (act && act.k === 'sweep' && since < .8) {
+    // 角度一律照「揮的方向」算，不用 lerpA（最近的那一邊）：不然劈下去會從背後繞、收招會順著轉回頭頂 → 看起來轉一整圈
     const sg = f, half = act.half ?? 1.1, a0 = act.aim - sg * (half + 1.1), a1 = act.aim + sg * (half + .35), c = Math.cos(act.aim);
-    if (since < .12) { const k = ease(since / .12); P.wa = lerpA(a0, a1, k); P.arm = lerp(OVER, .5, k); P.ws = 6; P.lean = lerp(-.1, .14, k) * c; P.rot = .05 * sg * k; P.snap = true; return P; }   // 從頭頂劈下來
+    if (since < .12) { const k = ease(since / .12); P.wa = lerp(a0, a1, k); P.arm = lerp(OVER, .5, k); P.ws = 6; P.lean = lerp(-.1, .14, k) * c; P.rot = .05 * sg * k; P.snap = true; return P; }   // 從頭頂經過前面劈下來
     if (since < .42) { P.wa = a1; P.arm = .5; P.ws = 4; P.lean = .1 * c; P.rot = .04 * sg; P.oy = 1; P.snap = true; return P; }                                                   // 劈到底停住
-    P.k = 6;
+    let back = angTo(a1, rest); if (Math.sign(back) === sg) back -= sg * TAU;                                                        // 收招：沿原路倒轉回去（跟揮的方向相反）
+    const k = ease((since - .42) / .38); P.wa = a1 + back * k; P.arm = lerp(.5, 0, k); P.ws = lerp(4, 0, k); P.lean = .1 * c * (1 - k); P.rot = .04 * sg * (1 - k); P.snap = true; return P;
   }
   if (act && act.k === 'chargeEnd' && since < .45) { const u = since / .45; P.wa = act.aim; P.arm = .9 * (1 - u); P.ws = 10 * (1 - u); P.lean = -.08 * Math.cos(act.aim) * (1 - u); P.k = 10;   // 煞車：身體往後仰回來
     if (since < .05 && e._skid !== act.t0) { e._skid = act.t0; dustPuff(e.x + Math.cos(act.aim) * 4, e.y, 7, 46); } return P; }
