@@ -69,7 +69,7 @@ function renderCamp() {
     // 底下三格大字：等級、魂晶（扣完剩多少）、升級需要 → 最重要的資訊放最顯眼，不用自己算
     const S = hudIcon('魂晶'), left = G.me.souls - cost, paid = Math.max(0, n - G.me.freePts), lv0 = level(G.me);   // 用重生水滴洗出來的免費點數不會升級
     const nx1 = nxtCost - cost, tile = (cls: string, lbl: string, val: string, sub = '') => '<div class="kt ' + cls + '"><small>' + lbl + '</small><b>' + val + (sub ? '<s>' + sub + '</s>' : '') + '</b></div>';
-    const tiles = tile('lv', '等級', paid ? lv0 + '<em>→</em><span>' + (lv0 + paid) + '</span>' : String(lv0)) +
+    const tiles = tile('klv', '等級', paid ? lv0 + '<em>→</em><span>' + (lv0 + paid) + '</span>' : String(lv0)) +
       tile('sl', '魂晶', S + left, cost ? '−' + cost : '') +
       (free ? tile('need', '免費點數', String(free), '不花魂晶') : tile('need' + (canAdd ? '' : ' no'), '升級需要', S + nx1, canAdd ? '' : '還差 ' + (nx1 - left)));
     foot.innerHTML = '<div class="lvfoot"><div class="lvk">' + tiles + (d.length ? '<span class="gain">' + d.join('<br>') + '</span>' : '') + '</div></div>' +

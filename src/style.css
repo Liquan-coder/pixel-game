@@ -484,19 +484,20 @@ button.fneed{width:100%;text-align:left;font-family:var(--font)}
 .selcard .req{margin-top:1px;font-size:11px;line-height:1.3}   /* 選中卡直接顯示需求，不用點問號 */   /* 選中卡的按鈕已經寫「能力不夠」 */
 .seleff{margin-top:2px;font-size:12px;line-height:1.35;color:#ffe9a8} .seleff b{font-weight:400}   /* 選中卡的效果：刻印、飾品 / 防具的特殊效果 */
 @media (max-height:500px){.seleff{font-size:11px;line-height:1.3;margin-top:1px}}
-/* 營火底下的三格：等級、魂晶、升級需要（大字，最先看到） */
-.lvk{display:flex;gap:6px;align-items:center}
-.lvk .kt{display:flex;flex-direction:column;justify-content:center;min-width:84px;padding:3px 12px 4px;background:#0006;border:2px solid var(--line);line-height:1.15;text-align:left;align-self:stretch}
-.lvk .kt small{font-size:11px;color:var(--muted)}
-.lvk .kt b{display:flex;align-items:center;gap:4px;font-size:21px;color:var(--text);white-space:nowrap}
-.lvk .kt b .hi{width:16px;height:16px}
-.lvk .kt s{text-decoration:none;font-size:12px;color:#ff9a8a;align-self:flex-end;margin:0 0 3px 2px}
-.lvk .kt em{font-style:normal;font-size:15px;color:var(--muted)}
-.lvk .lv{border-color:#8a6a2a} .lvk .lv b{color:var(--gold)} .lvk .lv b span{color:#ffe08a}
+/* 營火底下的三組大數字：等級、魂晶、升級需要（不加框，只用細分隔線和顏色區分，最先看到） */
+.lvk{display:flex;align-items:center}
+.lvk .kt{display:flex;flex-direction:column;justify-content:center;padding:0 16px;line-height:1.1;text-align:left}
+.lvk .kt:first-child{padding-left:2px}
+.lvk .kt + .kt{border-left:1px solid #ffffff1f}
+.lvk .kt small{font-size:11px;color:var(--muted);letter-spacing:1px}
+.lvk .kt b{display:flex;align-items:baseline;gap:4px;font-size:24px;color:var(--text);white-space:nowrap;text-shadow:2px 2px 0 #0008}
+.lvk .kt b .hi{width:16px;height:16px;align-self:center}
+.lvk .kt s{text-decoration:none;font-size:12px;color:#ff9a8a;text-shadow:none}
+.lvk .kt em{font-style:normal;font-size:16px;color:var(--muted)}
+.lvk .klv b{color:var(--gold)} .lvk .klv b span{color:#ffe08a}
 .lvk .sl b{color:var(--soul)}
-.lvk .need{border-color:#5f9a52;background:#2e4a2a55} .lvk .need b{color:#d8ffd0}
-.lvk .need.no{border-color:#8a3446;background:#3a1d2455} .lvk .need.no b{color:#ff9a8a}
-.lvk .gain{display:block;flex:1;min-width:0;font-size:12px;line-height:1.35;white-space:normal;margin-left:4px}
-@media (max-width:520px){.lvk .kt{min-width:0;flex:1;padding:2px 7px}.lvk .kt b{font-size:17px}}
-@media (max-height:380px){.lvk .kt{padding:1px 10px 2px}.lvk .kt b{font-size:18px}.lvk .kt small{font-size:10px}.lvk .kt s{font-size:11px;margin-bottom:2px}}
+.lvk .need b{color:#8fe07a} .lvk .need.no b{color:#ff8a7a} .lvk .need.no small{color:#ff8a7a}
+.lvk .gain{display:block;flex:1;min-width:0;font-size:12px;line-height:1.35;white-space:normal;padding-left:14px;border-left:1px solid #ffffff1f}
+@media (max-width:520px){.lvk .kt{padding:0 9px}.lvk .kt b{font-size:19px}}
+@media (max-height:380px){.lvk .kt b{font-size:20px}.lvk .kt small{font-size:10px}.lvk .kt s{font-size:11px}}
 @media (max-width:700px){.lvk .gain{display:none}}   /* 窄的時候：每一格已經寫了「下一點」的變化，這行省掉 */
