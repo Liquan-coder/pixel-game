@@ -84,6 +84,7 @@ function boot(data) {
   if (data && data.save && data.started) { if (data.slot >= 0) setSlot(data.slot); applySave(data.save); placeFromSave(data.save); restoreWorld(); G.started = true; $('title').hidden = true; setMenu(null); }
   requestAnimationFrame(frame);
   if (import.meta.env.DEV && new URLSearchParams(location.search).has('lab')) import('./dev/lab').then(m => m.startLab(startGame));   // 開發用：?lab = 刻印測試場（不存檔）
+  if (import.meta.env.DEV) import('./dev/moveDebug').then(m => m.startMoveDebug());   // 開發用：角色連續移動 3 秒以上，畫面上方顯示是什麼在推她（找「自己一直走」的問題）
   if (import.meta.env.DEV && new URLSearchParams(location.search).has('test')) import('./dev/test').then(m => m.startTest(startGame));   // 開發用：?test = 地圖全開 + 全部武器（不存檔）
 }
 try { window.claude && window.claude.hot && window.claude.hot.snapshot && window.claude.hot.snapshot(() => ({ save: G.started ? serialize() : null, started: G.started, slot })); } catch (e) {}

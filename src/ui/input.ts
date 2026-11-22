@@ -19,9 +19,19 @@ window.addEventListener('keydown', e => {
 });
 window.addEventListener('keyup', e => { if (e.key === 'Meta' || e.key === 'Control') releaseAll(); const k = KEYMAP[e.code]; if (k) keys[k] = false; });
 /* 「放開」的事件沒收到就會一直按著（方向卡住、搖桿點不動）：切到別的 App、拉下通知、來電、⌘ 組合鍵… → 全部放開 */
-function releaseAll() { for (const k in keys) keys[k] = false; for (const k in held) held[k] = false; resetJoy(); }
+export function releaseAll() { for (const k in keys) keys[k] = false; for (const k in held) held[k] = false; resetJoy(); for (const b of BTNS) $(b).classList.remove('down'); }
 window.addEventListener('blur', releaseAll); window.addEventListener('pagehide', releaseAll);
+window.addEventListener('contextmenu', releaseAll);                       // 右鍵 / 觸控板雙指點：跳出選單時放開的鍵收不到
 document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
+/* 手機：用「螢幕上現在真的有哪些手指」對帳。每根手指的 target 是它一開始按下去的元素，
+   所以搖桿還以為有人按著、可是沒有任何一根手指是從搖桿區按下去的 → 那根手指早就離開了（放開的事件被吃掉）→ 放開 */
+const BTNS = ['bAtk', 'bSkill', 'bDodge', 'bPot', 'bMount'], BTN_KEY = { bAtk: 'atk', bSkill: 'skill', bDodge: 'dodge', bPot: 'pot', bMount: 'mount' };
+function syncTouches(e: TouchEvent) {
+  const on = (el: HTMLElement) => { for (let i = 0; i < e.touches.length; i++) { const t = e.touches[i].target; if (t instanceof Node && el.contains(t)) return true; } return false; };
+  if (joy.active && !on(joyZone)) resetJoy();
+  for (const id of BTNS) { const k = BTN_KEY[id]; if (held[k] && !on($(id))) { held[k] = false; $(id).classList.remove('down'); } }
+}
+for (const t of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) document.addEventListener(t, syncTouches as EventListener, { capture: true, passive: true });
 const joyZone = $('joyZone'), joyBase = $('joyBase'), joyKnob = $('joyKnob');
 function resetJoy() { joy.active = false; joy.id = null; joy.dx = joy.dy = 0; placeJoyIdle(); }
 // 固定搖桿：底座永遠在左下角（位置寫在 CSS），手指按在左下區域任何地方，方向都從底座中心算
@@ -32,7 +42,7 @@ function joyMove(e: PointerEvent) {
   joy.dx = dx / R; joy.dy = dy / R; joyKnob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
 }
 joyZone.addEventListener('pointerdown', e => {
-  if (joy.active && e.pointerId === joy.id) return; e.preventDefault(); initAudio();   // 搖桿還以為有手指按著（放開沒收到）→ 直接換成這隻手指，不會卡死
+  e.preventDefault(); initAudio();                                       // 搖桿還以為有手指按著（放開沒收到）→ 直接換成這隻手指，不會卡死（手機可能重複用同一個編號，所以編號一樣也要重新接手）
   const r = joyBase.getBoundingClientRect();
   joy.active = true; joy.id = e.pointerId; joy.bx = r.left + r.width / 2; joy.by = r.top + r.height / 2; joyBase.classList.add('on'); joyMove(e);
   try { joyZone.setPointerCapture(e.pointerId); } catch (err) {}
@@ -50,7 +60,9 @@ function bindBtn(id, key) {
 bindBtn('bAtk', 'atk'); bindBtn('bSkill', 'skill'); bindBtn('bDodge', 'dodge'); bindBtn('bPot', 'pot'); bindBtn('bMount', 'mount');
 document.addEventListener('gesturestart', e => e.preventDefault());
 document.addEventListener('touchmove', e => { const t = e.target as HTMLElement; if (!t.closest || !t.closest('.panel')) e.preventDefault(); }, { passive:false });
+let lastMenu = null;
 export function readInput() {
+  if (openMenu !== lastMenu) { lastMenu = openMenu; releaseAll(); }    // 開 / 關選單：全部放開（選單開著的時候放開的鍵、手指，有時候收不到）。還按著的鍵會自動連發，馬上又會算按著
   let mx = (keys.right ? 1 : 0) - (keys.left ? 1 : 0), my = (keys.down ? 1 : 0) - (keys.up ? 1 : 0);
   const jm = Math.hypot(joy.dx, joy.dy); if (jm > .18) { mx += joy.dx; my += joy.dy; }
   const m = Math.hypot(mx, my); if (m > 1) { mx /= m; my /= m; }
