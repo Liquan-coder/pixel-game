@@ -91,11 +91,17 @@ export function updatePlayer(pl: Player, dt) {
   if (pressed.skill && silenced(pl)) { pressed.skill = false; if (pl === G.me && G.time - (pl.silT || -9) > 1.2) { pl.silT = G.time; toast('被封印了，暫時不能用技能', '#c8a8ff'); } }
   if (pressed.mount) toggleMount(pl);
   if (pl.ride && (pressed.atk || pressed.skill || pressed.pot || pressed.dodge)) dismount(pl);   // 騎著按動作鍵：先跳下來，這一下照常做
-  const atkDown = held.atk || keys.atk;                               // 點一下 = 普通攻擊；按住 = 蓄力，放開放招
+  // 點一下 = 普通攻擊；按住 = 蓄力，放開放招。
+  // 按下去的當下先不出手，等「放開」或「按滿 0.22 秒」才決定是哪一種 → 按住蓄力時不會先多揮一刀
+  const atkDown = held.atk || keys.atk;
+  const tap = () => { if (!tryAttack(pl)) pl.atkBuf = .25; };
   if (pl.atkBuf > 0) { pl.atkBuf -= dt; if (tryAttack(pl)) pl.atkBuf = 0; }      // 連點太快時先記住，冷卻一好就出手
-  if (pressed.atk) { if (!tryAttack(pl)) pl.atkBuf = .25; pl.chargeArm = true; pl.chargeHold = 0; pl.charging = false; pl.charge = 0; pl.chargeLv = 0; }
+  if (pressed.atk) { pl.chargeArm = true; pl.chargeHold = 0; pl.charging = false; pl.charge = 0; pl.chargeLv = 0; }
   if (pl.chargeArm) {
-    if (!atkDown || pl.dead) { if (pl.charging && pl.chargeLv > 0) releaseCharge(pl, pl.chargeLv); stopCharge(pl); }
+    if (!atkDown || pl.dead) {                                         // 放開了
+      if (!pl.dead) { if (pl.charging && pl.chargeLv > 0) releaseCharge(pl, pl.chargeLv); else tap(); }   // 蓄到第一段以上 → 放招；很快放開 / 還沒蓄到第一段 → 普通攻擊
+      stopCharge(pl);
+    }
     else if (pl.charging) { if (pl.dodge > 0 || pl.drink > 0 || pl.dash) stopCharge(pl); else updateCharge(pl, dt); }
     else { pl.chargeHold += dt; if (pl.chargeHold > .22 && !busy(pl) && pl.st > 0) { pl.charging = true; pl.charge = 0; pl.chargeLv = 0; } }
   }

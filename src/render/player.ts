@@ -153,7 +153,7 @@ export function drawPlayer(pl: Player) {
     fillArt(pl.x - R - 1, pl.y - R * sy - 1, pl.x + R + 1, pl.y + R * sy + 1, (x, y) => { const dx = x - pl.x, dy = (y - pl.y) / sy, d = Math.sqrt(dx * dx + dy * dy); if (d > R || d < R - 2.4) return 0;
       let v = Math.atan2(dy, dx) + Math.PI / 2; v = (v % TAU + TAU) % TAU; return v / TAU <= prog ? 2 : 1; }, ['rgba(20,10,40,.55)', CHC[Math.min(2, lv + (lv < 2 ? 1 : 0))]]);
   }
-  if (pl.charging && pl.charge > .1) { const lv = pl.chargeLv, sp = frame, img = lv >= 2 ? (flip ? sp.gf : sp.gn) : (flip ? sp.pf : sp.pn);   // 蓄力光：角色周圍一圈發光外框
+  if (pl.charging && pl.charge > .1) { const lv = pl.chargeLv, sp = frame, img = white ? (flip ? sp.wf : sp.wn) : lv >= 2 ? (flip ? sp.gf : sp.gn) : (flip ? sp.pf : sp.pn);   // 蓄力光：角色周圍一圈發光外框（被打到的那一下外框也變白，不然金色外框 + 白色身體看起來像在閃黃光）
     ctx.globalAlpha = fade * (lv === 0 ? .45 : .7 + .3 * Math.sin(G.time * 22)); const o = HK * (lv >= 2 ? 2 : 1);
     for (const [dx, dy] of [[-o, 0], [o, 0], [0, -o], [0, o]]) ctx.drawImage(img, X + dx, Y + dy, sp.w * k, sp.h * k);
     ctx.globalAlpha = fade; }

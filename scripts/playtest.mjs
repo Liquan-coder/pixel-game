@@ -77,7 +77,9 @@ const pageScript = async () => {
     input.mx = 1; pressed.dodge = true; step(25, { god: true }); input.mx = 0;
     G.me.hp = 10; G.me.pot = Math.max(1, G.me.pot); pressed.pot = true; for (let k = 0; k < 60; k++) { G.me.iframe = 1; step(1); }   // 喝藥時不能被怪打死（不然測不到回血）
     if (G.me.hp <= 10) throw new Error('喝藥水沒有回血（hp ' + G.me.hp + '）');
-    step(30); G.me.st = 60; G.me.atkCd = 0; pressed.atk = true; held.atk = true; step(25);       // 按住攻擊：先揮一刀，然後開始蓄力
+    step(30); G.me.st = 60; G.me.atkCd = 0; pressed.atk = true; held.atk = true; step(10);       // 按住攻擊：不揮刀，直接開始蓄力
+    if (G.me.swing || G.me.atkCd > 0) throw new Error('按住攻擊還是先揮了一刀');
+    step(15);
     if (!G.me.charging) throw new Error('按住攻擊沒有開始蓄力');
     const st0 = G.me.st; step(40); const stHold = G.me.st;
     if (stHold > st0 + .5) throw new Error('蓄力時體力還在回（' + st0.toFixed(1) + ' → ' + stHold.toFixed(1) + '）');
