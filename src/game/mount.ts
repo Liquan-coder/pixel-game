@@ -24,7 +24,7 @@ export const RIDE_SPD = 1.7, SUMMON_T = .5, DROP_T = .18;
 export const RIDE_Y = 14;                                                // 騎著時人抬高幾個世界像素（女巫的腰對到狼背）
 const STRIDE = 2.6;                                                      // 全速時每秒跑幾個步伐（render 用 rideRun 挑奔跑的哪一格）
 
-export const hasWolf = () => G.bossDead;                                // 狼王倒下就解鎖（舊存檔打過狼王的也算）
+export const hasWolf = () => G.bossDead || !!G.lab;                     // 狼王倒下就解鎖（舊存檔打過狼王的也算）；開發用的測試場 / 測試版（?lab、?test）直接開
 
 /* 這裡能不能騎？不能的話回傳原因（只寫氛圍，不提等級） */
 export function rideBlock(pl: Player): string | null {
@@ -89,7 +89,7 @@ export function updateMount(pl: Player, dt: number) {
 /* 第一次見到星狼（剛打倒狼王，或舊存檔已經打過）：兩則提示，之後不再出現 */
 let seenAt = -1;
 function intro() {
-  if (!hasWolf() || flags.has('starwolf')) { seenAt = -1; return; }
+  if (!hasWolf() || flags.has('starwolf') || G.lab) { seenAt = -1; return; }   // 測試場不跳劇情提示
   if (seenAt < 0) { seenAt = G.time; return; }
   if (G.time - seenAt < 4) return;                                      // 等「強敵已擊敗」的橫幅先播完
   flags.add('starwolf');
