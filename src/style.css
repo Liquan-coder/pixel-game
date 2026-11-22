@@ -57,7 +57,7 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 #banner{position:absolute;left:0;right:0;top:38%;padding:14px 0;text-align:center;font-size:34px;letter-spacing:.3em;opacity:0;transition:opacity .8s;background:linear-gradient(transparent,#000b 30%,#000b 70%,transparent);text-shadow:3px 3px 0 #000}
 #banner.show{opacity:1}
 #banner small{display:block;font-size:13px;letter-spacing:.15em;color:var(--muted);margin-top:6px}
-#toasts{position:absolute;z-index:5;left:50%;top:calc(52px + env(safe-area-inset-top,0px));transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:1px}
+#toasts{position:absolute;z-index:5;pointer-events:none;left:50%;top:calc(52px + env(safe-area-inset-top,0px));transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:1px}
 .toast{padding:1px 10px;font-size:13px;white-space:nowrap;text-shadow:1px 0 0 #000,-1px 0 0 #000,0 1px 0 #000,0 -1px 0 #000,1px 1px 0 #000;animation:tin .25s steps(3)}
 .toast b{color:#fff;font-weight:400}
 .toast.loot{background:#000c;border:1px solid var(--line);padding:4px 12px;font-size:16px;margin:1px 0}
@@ -152,13 +152,20 @@ body:not(.touch) #controls{display:none}
 .tabs button.on{color:var(--text);border-color:var(--gold);background:#3a2e1c}
 .soulline{display:flex;justify-content:space-between;font-size:14px;padding:8px 10px;background:#0005;border:1px solid var(--line);margin-bottom:8px}
 .soulline b{color:var(--soul);font-weight:400}
-.lvgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}
+/* 營火升級：一整頁放得下，不用捲。分頁放在標題列；六個能力值排成 3 欄 × 2 列的小卡（窄的直式畫面才變 1 欄） */
+#campMenu{width:min(820px,calc(100% - 2 * var(--mx)))}
+#campMenu .ph .tabs{flex:0 1 220px;margin:0 auto 0 0}
+#campMenu .ph .tabs button{padding:4px 6px}
+.lvgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 @media (max-width:560px){.lvgrid{grid-template-columns:1fr}}
-.statrow{display:grid;grid-template-columns:1fr 36px auto 36px;gap:6px;align-items:center;padding:4px 6px;border-bottom:1px dashed #4d416688}
-.statrow .nm small.nx{color:#c9e3ff}
+.statrow{display:grid;grid-template-columns:1fr 34px minmax(30px,auto) 34px;gap:0 5px;align-items:center;align-content:start;padding:6px 8px;background:var(--panel2);border:1px solid #4d416688}
+.statrow .ds,.statrow .nx{grid-column:1/-1;font-size:12px;line-height:1.35}
+.statrow .ds{color:var(--muted);margin-top:3px}
+.statrow .nm small.nx,.statrow .nx{color:#c9e3ff}
+.statrow .val{text-align:center}
 .statrow .val small{font-size:13px;color:var(--r1)}
-.statrow.pend{background:#2e4a2a33}
-.minus{width:36px;height:32px;background:#3a1d24;border:2px solid #8a3446;font-size:20px}
+.statrow.pend{background:#2e4a2a55;border-color:#5f9a5288}
+.minus{width:34px;height:30px;background:#3a1d24;border:2px solid #8a3446;font-size:20px}
 .minus:disabled{opacity:.25;filter:grayscale(1)}
 .lvfoot{flex:1;font-size:13px;line-height:1.5;color:var(--muted);min-width:0}
 .lvfoot b{font-weight:400;color:var(--text);font-variant-numeric:tabular-nums}
@@ -170,8 +177,16 @@ body:not(.touch) #controls{display:none}
 .statrow .nm{font-size:15px}
 .statrow .nm small{display:block;font-size:12px;color:var(--muted)}
 .statrow .val{font-size:18px;color:var(--gold);font-variant-numeric:tabular-nums}
-.plus{width:36px;height:32px;background:#2e4a2a;border:2px solid #5f9a52;font-size:20px}
+.plus{width:34px;height:30px;background:#2e4a2a;border:2px solid #5f9a52;font-size:20px}
 .plus:disabled{opacity:.35;filter:grayscale(1)}
+/* 矮的橫式畫面（手機 Safari 有網址列 / 瀏海 → 只剩 300 多 px 高）：說明那一行收起來，只留「下一點」，按鈕和間距縮小 → 一整頁還是放得下 */
+@media (max-height:380px){
+  #campMenu .ph{margin-bottom:6px} #campMenu .ph h2{font-size:18px} #campMenu .ph .sbtn{padding:4px 10px}
+  .statrow{padding:4px 7px} .statrow .ds{display:none} .statrow .nx{margin-top:1px}
+  .statrow .nm{font-size:14px} .statrow .val{font-size:16px}
+  .lvgrid{gap:5px} .plus,.minus{width:30px;height:26px;font-size:18px}
+  #campMenu .pfoot{margin-top:6px;padding-top:6px} #campMenu .pfoot button{padding-top:5px;padding-bottom:5px}
+}
 .camplist{display:grid;gap:6px}
 .camplist button{display:flex;justify-content:space-between;background:var(--panel2);border:2px solid var(--line);padding:9px 12px;font-size:15px;text-align:left}
 .camplist button:disabled{opacity:.45}
@@ -367,10 +382,6 @@ body:not(.touch) #controls{display:none}
 .memx{padding:6px 8px;margin:3px 0;border:1px dashed #ffffff22;color:var(--muted);font-size:14px}.memx small{margin-left:8px;opacity:.6}
 #journal details summary small{margin-left:8px;color:var(--gold);font-size:12px}
 
-/* 重生水滴（營火升級畫面） */
-.tearrow{display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:8px;border:1px solid #9ae8ff44;background:#9ae8ff0d}
-.tearrow img{width:32px;height:32px;image-rendering:pixelated}
-.tearrow span{flex:1;color:#9ae8ff}.tearrow small{display:block;color:var(--muted);font-size:12px}
 .freep{color:#9ae8ff;margin:0 0 8px}
 
 /* 角色頁：點一下選、再點發亮的格子放進去 */
@@ -385,6 +396,7 @@ body:not(.touch) #controls{display:none}
 .phr{display:flex;align-items:center;gap:6px;min-width:0}
 .chip{font-size:13px;padding:4px 9px;background:#0006;border:2px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums}
 .chip.cg{color:var(--gold)} .chip.cs{color:var(--soul)}
+.chip .hi{margin-right:4px} .chip b{font-weight:inherit}
 .sbtn.salv{font-size:12px;color:#ffb0b8;border-color:#8a3446;background:#2a1820;white-space:nowrap} .sbtn.salv.arm{background:#6a1d2e;color:#fff}
 .cinfo{container-type:inline-size}
 .selcard{flex:none;display:grid;grid-template-columns:40px minmax(0,1fr);gap:6px 8px;align-items:center;padding:6px 8px;margin-bottom:6px;background:#151c34;border:2px solid;box-shadow:0 0 10px #55a8ff22}

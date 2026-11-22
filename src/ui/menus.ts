@@ -14,7 +14,7 @@ import { placeAtCamp, restoreWorld } from '../game/playerUpdate';
 import { burst } from '../game/worldUpdate';
 import { centerMap, clearMapSel, mapPick, mv, onMapPick, renderBigMap, zoomAt, type MapPick } from '../render/map';
 import { fightingRB, rbDead } from '../world/regionBoss';
-import { openMenu, setMenu, toast } from './hud';
+import { coinChip, openMenu, setMenu, soulChip, toast } from './hud';
 import { moveMerchant } from './shop';
 import { restockSmiths } from '../world/towns';
 import { save } from '../game/save';
@@ -28,6 +28,7 @@ export function restAt(c) {
   moveMerchant(); restockSmiths();
   G.lastCamp = c.id; restoreWorld(); save(); sfx.level();
   burst(G.me.x, G.me.y - 6, 14, '#f2c14e', 40); G.curCamp = c; G.campTab = 'lv'; clearPend(); renderCamp(); setMenu('camp');
+  toast('生命和藥水補滿了，野外的怪物也全部復活', '#f2c14e');
 }
 /* 升級：先按 ＋／－ 分配（還沒花魂晶），按「確定」才一次扣掉。離開或切分頁就取消 */
 const pend: Record<string, number> = {};
@@ -54,17 +55,16 @@ function renderCamp() {
       return p.length ? p.join('、') : '目前的武器用不到'; };
     const keepY = body.scrollTop;                                       // 重畫時記住捲到哪裡（按 ＋ 不會跳回最上面）
     const free = Math.max(0, G.me.freePts - pendN());
-    body.innerHTML = (free ? '<p class="freep">還有 <b>' + free + '</b> 點可以免費分配</p>' : '') +
-      '<div class="lvgrid">' + ATTRS.map(a => '<div class="statrow' + (pend[a.k] ? ' pend' : '') + '"><div class="nm">' + a.n + '<small>' + a.d + '</small><small class="nx">下一點：' + gain(a.k) + '</small></div>' +
+    body.innerHTML = '<div class="lvgrid">' + ATTRS.map(a => '<div class="statrow' + (pend[a.k] ? ' pend' : '') + '"><div class="nm">' + a.n + '</div>' +   // 一格：名字＋－數字＋ / 說明 / 下一點
       '<button type="button" class="minus" data-dec="' + a.k + '"' + (pend[a.k] ? '' : ' disabled') + ' aria-label="減少' + a.n + '">−</button>' +
       '<div class="val">' + (G.me[a.k] + pend[a.k]) + (pend[a.k] ? '<small>+' + pend[a.k] + '</small>' : '') + '</div>' +
-      '<button type="button" class="plus" data-stat="' + a.k + '"' + (canAdd ? '' : ' disabled') + ' aria-label="提升' + a.n + '">+</button></div>').join('') + '</div>' +
-      '<p class="hintp">按 ＋／－ 分配，按「確定」才會花掉魂晶。休息時生命和藥水補滿，野外的怪物全部復活。</p>';
+      '<button type="button" class="plus" data-stat="' + a.k + '"' + (canAdd ? '' : ' disabled') + ' aria-label="提升' + a.n + '">+</button>' +
+      '<small class="ds">' + a.d + '</small><small class="nx">下一點：' + gain(a.k) + '</small></div>').join('') + '</div>';
     body.scrollTop = keepY;
     const n = pendN(), cost = pendCost(), base = calcStats(G.me, curEq(G.me)), d = [];
     if (n) { if (now.maxHp !== base.maxHp) d.push('生命 +' + (now.maxHp - base.maxHp)); if (now.maxSt !== base.maxSt) d.push('體力 +' + (now.maxSt - base.maxSt)); if (now.atk !== base.atk) d.push('攻擊 +' + (now.atk - base.atk)); if (now.def !== base.def) d.push('防禦 +' + (now.def - base.def)); }
-    foot.innerHTML = '<div class="lvfoot">魂晶 <b class="soulv">' + (G.me.souls - cost) + '</b>' + (n ? ' <small>(−' + cost + ')</small>' : '') + '<i>|</i>等級 <b class="lvv">' + (level(G.me) + n) + '</b>' + (n ? ' <small>(+' + n + ')</small>' : '') +
-      '<i>|</i>' + (free ? '下一點 <b>免費</b>' : canAdd ? '下一點 <b>' + nxtCost + '</b>' : '下一點要 ' + nxtCost + '，魂晶不夠') + (d.length ? '<span class="gain">' + d.join('、') + '</span>' : '') + '</div>' +
+    foot.innerHTML = ('<div class="lvfoot">魂晶 <b class="soulv">' + (G.me.souls - cost) + '</b>' + (n ? ' <small>(−' + cost + ')</small>' : '') + '<i>|</i>等級 <b class="lvv">' + (level(G.me) + n) + '</b>' + (n ? ' <small>(+' + n + ')</small>' : '') +
+      '<i>|</i>' + (free ? '免費點數 <b>' + free + '</b>' : canAdd ? '下一點 <b>' + nxtCost + '</b>' : '下一點要 ' + nxtCost + '，魂晶不夠') + (d.length ? '<span class="gain">' + d.join('、') + '</span>' : '') + '</div>') +
       '<button type="button" class="sec" data-reset' + (n ? '' : ' disabled') + '>重設</button><button type="button" class="pri" data-confirm' + (n ? '' : ' disabled') + '>確定</button>';
   } else {
     body.innerHTML = '<div class="camplist">' + CAMPS.map(c => '<button type="button" data-tp="' + c.id + '"' + (c.lit && c !== G.curCamp ? '' : ' disabled') + '><span>' + c.name + '<small> · ' + REGIONS[reg[c.ty * MW + c.tx]].name + '</small></span><small>' +
@@ -190,7 +190,7 @@ function selActs(sel) {
   return '<div class="sacts">' + out.join('') + '</div>';
 }
 export function renderInv() {
-  $('invCount').textContent = G.me.inv.length + '/24'; $('invGold').textContent = '金幣 ' + G.me.gold; $('invSouls').textContent = '魂晶 ' + G.me.souls;
+  $('invCount').textContent = G.me.inv.length + '/24'; $('invGold').innerHTML = coinChip(G.me.gold); $('invSouls').innerHTML = soulChip(G.me.souls);
   const eq = curEq(G.me), sel = selected(), bagIt = sel && sel.where === 'bag' ? sel.it : null, nSlots = tSlots();
   // 左欄：上面是選中的物品（有選才出現）＋ 按鈕；下面一直是角色數值（選了背包的東西 → 顯示換上後的變化）
   const info = $('cInfo'), keepY = info.querySelector('.cscroll')?.scrollTop || 0;
