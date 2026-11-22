@@ -3,7 +3,10 @@
    這 4 個東西「你自己砍不壞」，要引 Boss 的招打中它：站在它旁邊，等 Boss 的攻擊落下來的瞬間閃開。
    算「打中」的有：預警範圍（紅色的圈 / 直線 / 扇形 / 甜甜圈）放出來的那一下、從天上掉下來的一擊、
    Boss 的子彈、Boss 衝撞 / 跳躍落地時撞到。大招一下就打壞，子彈要 2 發。
-   4 個都壞了 → 護盾碎掉、Boss 暈眩露出破綻（受到的傷害 ×1.5）。45 秒內沒打完 → 護盾自己消失（沒有破綻）。
+   要冒險：物件被打壞 0.45 秒後會原地炸開（紅圈預警，半徑 48，走路逃不出去，要瞬移），而你為了引招一定站在旁邊 → 要連閃兩次。
+   護盾期間 Boss 動作快 30%。不閃的話，站在物件旁邊解完一輪大概會倒下（5 隻裡 3 隻打得死你）。
+   4 個都壞了 → 護盾碎掉、Boss 暈眩露出破綻（受到的傷害 ×1.5）。
+   35 秒內沒打完 → 護盾消失，剩下的物件把力量灌回 Boss：每剩一個回 5% 血（沒有破綻）。
    有些是「卵 / 孢子囊」：太慢打破就會孵出小怪。
    Boss 全程都在場上照常出招（以前鑽地 / 升空會整隻消失，配上瞬移等於休息時間，所以改掉了）。
    kind 只決定提示文字：burrow = 地脈裂口，sky = 拉住牠的機關，shield = 連著護盾的東西 */
@@ -17,6 +20,10 @@ import { hitSpark, quakeFx, shake } from '../game/worldUpdate';
 import { burst as dust } from './bossThemes';
 import { drawStar } from '../render/fx';
 import { toast } from '../ui/hud';
+import { hurtPlayer } from '../game/combat';
+import { teleCircle } from '../render/enemy';
+import { tier } from '../data/levels';
+import { DG } from '../data/items';
 
 type Kind = 'burrow' | 'sky' | 'shield';
 type ObjK = 'vent' | 'crystal' | 'lantern' | 'root' | 'egg' | 'banner' | 'ballista' | 'totem';
@@ -47,7 +54,9 @@ export const MECH_SPARE: Record<string, MDef> = {
   elfking:     { kind: 'shield', obj: 'banner', col: ['#1e3a5e', '#9ad8ff', '#e0c060'], name: '精靈王旗' },     // 精靈王國
   mothqueen:   { kind: 'sky', obj: 'egg', col: ['#6a5a80', '#e8dcb0', '#ffffff'], name: '蛾繭', hatch: 'mothE' },
 };
-const AT = [.66, .33], HITS = 2, HATCH = 13, LIMIT = 45, NEAR = 56;   // NEAR = 你離物件多近，Boss 的招才算得上打到它
+const AT = [.66, .33], HITS = 2, HATCH = 13, LIMIT = 35, NEAR = 56;   // NEAR = 你離物件多近，Boss 的招才算得上打到它
+export const MECH_SPEED = 1.3;                                           // 護盾期間 Boss 的動作快幾倍
+const BLAST = { delay: .45, r: 48, k: 1.4, heal: .05 };                    // 物件碎掉後的爆炸：幾秒後炸、半徑、傷害倍率；時間到每剩一個物件 Boss 回幾 % 血
 export const mechOf = (e) => MECH[e.def.dg ? String(e.kind).slice(3) : e.def.id];
 
 function start(e, M: MDef) {
@@ -63,16 +72,30 @@ function start(e, M: MDef) {
   toast(d.short + '被護盾包住了……引牠的攻擊' + verb + '四周的' + M.name + (M.hatch ? '（太慢會孵化）' : ''), M.col[2]);
 }
 function finish(e, clean: boolean) {
-  const M: MDef = e.mech.M; e.mech = null; e.immune = false; e.mi = (e.mi || 0) + 1;
+  const M: MDef = e.mech.M, left = e.mech.objs.filter(o => !o.dead); e.mech = null; e.immune = false; e.mi = (e.mi || 0) + 1;
+  if (left.length) { const h = Math.round(e.maxHp * BLAST.heal * left.length); e.hp = Math.min(e.maxHp, e.hp + h);   // 時間到：剩下的物件把力量灌回 Boss
+    for (const o of left) { G.fx.push({ k: 'warp', x: o.x, y: o.y - 8, r0: 20, r1: 2, th: 3, t: 0, d: .4, col: M.col[2] });
+      for (let i = 0; i < 10; i++) { const u = i / 10; G.parts.push({ x: o.x + (e.x - o.x) * u, y: o.y - 10 + (e.y - 14 - o.y + 10) * u, vx: rr(-10, 10), vy: rr(-20, 0), life: .4 + u * .4, max: .8, col: pick(M.col), star: rr(.8, 1.8), drag: 2 }); } }
+    G.nums.push({ x: e.x, y: e.y - 40, txt: '+' + h, col: '#7aff9a', t: 0, d: 1.2 }); }
   dust(e.x, e.y, M.kind === 'burrow' ? 'dust' : 'stars', 34); quakeFx(e.x, e.y, 50); shake(7, .4); sfx.boom();
   for (const dl of [0, .1]) G.fx.push({ k: 'warp', x: e.x, y: e.y, r0: 6, r1: 70, th: 5, delay: dl, t: 0, d: .45 + dl, col: M.col[1] });
   if (clean) { e.state = 'idle'; e.t = .6; e.tele = null; e.mStun = 4; e.hidden = e.mound = false; G.hitStop = Math.max(G.hitStop, .2); toast(e.def.short + '的護盾碎了，露出了破綻！', '#ffe38a'); }   // hidden / mound：鑽地衝出的途中被打破 → 直接冒出來暈眩
-  else { sfx.howl(); toast(e.def.short + '的護盾消失了', '#ff8a6a'); }
+  else { sfx.howl(); toast(left.length ? '剩下的' + M.name + '把力量灌回了' + e.def.short + '……' : e.def.short + '的護盾消失了', '#ff8a6a'); }
 }
 function breakObj(o) {
   o.dead = true; sfx.boom(); shake(3, .15); const C = o.owner.mech?.M.col || ['#888', '#ccc', '#fff'];
   for (let i = 0; i < 18; i++) { const a = rr(0, TAU), s = rr(40, 120); G.parts.push({ x: o.x, y: o.y - 10, vx: Math.cos(a) * s, vy: Math.sin(a) * s * .7 - 30, life: rr(.4, .8), max: .8, col: pick(C), s: 1, g: 260 }); }
   G.fx.push({ k: 'warp', x: o.x, y: o.y - 6, r0: 4, r1: 26, th: 3, t: 0, d: .35, col: C[2] });
+  if (!o.hatched) (o.owner.mblast ||= []).push({ x: o.x, y: o.y, t: BLAST.delay, col: C });   // 0.45 秒後原地炸開
+}
+/* 物件碎掉後的爆炸：放在 Boss 身上（不是 mech 上），最後一個物件碎掉、機制結束了也照樣會炸 */
+function tickBlasts(e, dt: number) {
+  if (!e.mblast || !e.mblast.length) return;
+  e.mblast = e.mblast.filter(b => { b.t -= dt; if (b.t > 0) return true;
+    G.hitCtx = e.hc; for (const pl of G.players) if (!pl.dead && Math.hypot(pl.x - b.x, pl.y - b.y) < BLAST.r - DG && hurtPlayer(pl, Math.round((10 + 3 * tier(e.lv)) * BLAST.k), b.x, b.y)) hitSpark(pl.x, pl.y - 8, true, -Math.PI / 2); G.hitCtx = null;
+    quakeFx(b.x, b.y, BLAST.r); sfx.boom(); shake(5, .25);
+    for (let i = 0; i < 22; i++) { const a = rr(0, TAU), s = rr(60, 160); G.parts.push({ x: b.x, y: b.y - 6, vx: Math.cos(a) * s, vy: Math.sin(a) * s * .6 - 40, life: rr(.4, .8), max: .8, col: pick(b.col), s: 2, g: 300 }); }
+    return false; });
 }
 /* Boss 的攻擊打中物件：n = 扣幾格（大招 2 = 直接打壞，子彈 1） */
 export function bossHitObj(o, n: number) {
@@ -123,6 +146,7 @@ function mechHits(e, m, dt: number) {
 /* 每幀（world/regionBoss.ts 在跑 Boss 的 AI 之前呼叫）。回傳 true = 這一幀由機制接手，不跑原本的 AI（只有暈眩的時候） */
 export function mechTick(e, dt: number): boolean {
   const M = mechOf(e); if (!M) return false;
+  tickBlasts(e, dt);
   if (e.mStun > 0) { e.mStun -= dt; e.state = 'idle'; e.tele = null;   // 破綻：站著不動
     if (e.z > 0) { e.z = Math.max(0, e.z - 420 * dt);   // 跳到一半被打破 → 先摔回地上（不然卡在空中打不到）
       if (e.z === 0) { dust(e.x, e.y, 'dust', 20); quakeFx(e.x, e.y, 40); shake(4, .2); sfx.boom(); } }
@@ -135,7 +159,7 @@ export function mechTick(e, dt: number): boolean {
       for (let k = 0; k < 2; k++) { const w = makeEnemy(M.hatch, Math.max(1, e.lv - 5), o.x + rr(-12, 12), o.y + rr(-8, 8)); w.state = 'chase'; w.rbAdd = d.id; G.enemies.push(w); }
       dust(o.x, o.y, 'web', 16); } }
   if (m.objs.every(o => o.dead)) { finish(e, m.objs.every(o => !o.hatched)); return e.mStun > 0; }
-  if (m.t > LIMIT) { for (const o of m.objs) o.dead = true; finish(e, false); }
+  if (m.t > LIMIT) finish(e, false);                                    // 時間到：finish 會算還剩幾個物件、讓 Boss 回血
   return false;                                                          // 照常出招，只是打不到
 }
 
@@ -181,6 +205,7 @@ export function drawMechs(rbs, vis, list, L, addLight) {
     if (e.mound) { const c = e.def.aura; ctx.fillStyle = c[0]; ctx.globalAlpha = .8; ctx.beginPath(); ctx.ellipse(e.x, e.y, 13, 5.5, 0, 0, TAU); ctx.fill();   // 鑽地突襲：地面隆起的土丘
       ctx.fillStyle = c[1]; ctx.globalAlpha = .45 + .3 * Math.sin(G.time * 14); ctx.beginPath(); ctx.ellipse(e.x, e.y - 1, 7, 2.5, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1; }
     const M = mechOf(e); if (!M) continue; const m = e.mech;
+    for (const b of e.mblast || []) teleCircle(b.x, b.y, BLAST.r, 1 - b.t / BLAST.delay);   // 物件碎掉後的爆炸預警
     if (e.mStun > 0) list.push({ y: e.y + 1, f: () => { for (let k = 0; k < 3; k++) { const a = G.time * 5 + k / 3 * TAU; drawStar(e.x + Math.cos(a) * 12, e.y - 38 - (e.z || 0) + Math.sin(a) * 3, 2.6, '#ffe38a'); } } });   // 破綻：頭上轉星星
     if (!m) continue;
     for (const o of m.objs) { if (vis(o.x, o.y, 40)) drawObj(o, M, list); if (!o.dead) addLight(L, o.x, o.y - 10, 28, 3); }

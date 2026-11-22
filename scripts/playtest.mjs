@@ -520,6 +520,21 @@ const pageScript = async () => {
     if (!(BT.gapDealt(25, 50) < .8 && BT.gapDealt(50, 25) > 1)) throw new Error('打怪的倍率不對');
   });
 
+  run('Boss 機制：時間到沒打完 → 剩幾個物件就回幾 × 5% 血、沒有破綻；物件碎掉會炸', () => {
+    RB.rbDead.delete('lich'); RB.resetRegionBosses(); const e = RB.rbs.find(b => b.id === 'lich'); if (!e) throw new Error('找不到 lich');
+    tp(e.def.x, e.def.y + 40); step(200, { god: true });
+    const b = RB.rbs.find(b => b.id === 'lich'); b.mi = 0; b.hp = b.maxHp * .6; let k = 0; while (!b.mech && k++ < 600) step(1, { god: true }); if (!b.mech) throw new Error('機制沒發動');
+    const o = b.mech.objs[0], MC = await0.mech; MC.bossHitObj(o, 2); if (!o.dead || !(b.mblast || []).length) throw new Error('物件碎掉沒有排爆炸');
+    tp(o.x, o.y); G.me.iframe = 0; let hurt = false;
+    for (let i = 0; i < 40; i++) { const h = G.me.hp; step(1); if (G.me.hp < h) hurt = true; G.me.dead = false; G.me.hp = G.me.maxHp; }   // 每一格補滿血（不然被打死會回營火、Boss 重置）
+    if (!hurt) throw new Error('站在碎掉的物件上沒被炸到'); if (!b.mech) throw new Error('Boss 被重置了');
+    tp(b.def.x, b.def.y + 40);
+    const hp0 = b.hp; b.mech.t = 1e9; step(1, { god: true }); if (b.mech) throw new Error('時間到機制沒結束');
+    const want = Math.round(b.maxHp * .05 * 3); if (Math.abs(b.hp - hp0 - want) > 2) throw new Error('回血不對：' + Math.round(b.hp - hp0) + '（應該 ' + want + '）');
+    if (b.mStun > 0) throw new Error('時間到還給了破綻');
+    b.mi = 9; b.hp = 1; b.immune = false; damageEnemy(G.me, b, 5, b.x, b.y + 20); step(120, { god: true });
+  });
+
   run('Boss 新招：吸引 / 甜甜圈 / 十字光束 / 追蹤彈（地城 Boss 和主線 Boss 都能用）', () => {
     const A3 = await0.ai3; setMenu(null);
     for (const id of ['dg_' + imp0.dg.DUNGEONS[0].id, 'yeti']) {

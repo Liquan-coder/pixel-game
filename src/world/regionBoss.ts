@@ -1,4 +1,4 @@
-import { mechAfter, mechTick } from './bossMech';
+import { MECH_SPEED, mechAfter, mechTick } from './bossMech';
 import { G } from '../core/state';
 import { $, TAU, clamp, pick, rr } from '../core/util';
 import { HK, ctx } from '../core/canvas';
@@ -108,8 +108,9 @@ export function updateRegionBosses(dt) {
     G.dmgMul = d.dmgMul || 1;
     const xs = REXTRA[d.id];                                           // 主線 / 區域 Boss 二階段：偶爾插一招新招（吸引、甜甜圈、十字光束、追蹤彈）
     if (xs && !e.mech && e.phase === 2 && e.state === 'idle' && !(e.z > 0) && (e.xT = (e.xT ?? 3) - dt) <= 0) { const [m, , mo] = pick(xs); startExtra(e, m, mo, dx, dy); e.xT = rr(6, 9); }
-    if (EXTRA_STATES.has(e.state)) { G.dmgMul = 1; extraStates(e, dt); }  // 新招的傷害本來就照等級算，不要再乘一次
-    else AI[d.ai](e, dt, dist2, dx, dy);
+    const adt = e.mech ? dt * MECH_SPEED : dt;                         // 護盾期間 Boss 動作變快（world/bossMech.ts）
+    if (EXTRA_STATES.has(e.state)) { G.dmgMul = 1; extraStates(e, adt); }  // 新招的傷害本來就照等級算，不要再乘一次
+    else AI[d.ai](e, adt, dist2, dx, dy);
     tagProjs(n0); G.hitCtx = null;
     mechAfter(e, dt);                                                  // 機制中：這一招有沒有打到裂口 / 水晶 / 卵……（world/bossMech.ts）
     recolorNew(e, f0, p0, n0);                                         // 區域 Boss：沿用來的特效換成自己的顏色（world/bossThemes.ts）
