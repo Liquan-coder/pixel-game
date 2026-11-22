@@ -33,7 +33,7 @@ export function renderMini() {
   if (G.lost) { mctx.fillStyle = '#b49cff'; mctx.fillRect(Math.floor(G.lost.x / TS) - ox - 1, Math.floor(G.lost.y / TS) - oy - 1, 3, 3); }
   drawRumors(mctx, 1, ox, oy);
   if (navT && !dg) navMini(navT.x / TS - ox, navT.y / TS - oy, px - ox, py - oy);
-  mctx.fillStyle = Math.floor(G.time * 4) % 2 ? '#ffffff' : '#7fdcff'; mctx.fillRect(px - ox - 1, py - oy - 1, 3, 3);
+  mctx.fillStyle = Math.floor(G.uiTime * 4) % 2 ? '#ffffff' : '#7fdcff'; mctx.fillRect(px - ox - 1, py - oy - 1, 3, 3);
 }
 /* 小地圖上的導航目標：在範圍內 = 閃爍的金色菱形；在範圍外 = 邊緣一個指過去的小箭頭 */
 const navOn = () => Math.floor(performance.now() / 300) % 2 === 0;

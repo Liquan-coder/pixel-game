@@ -65,10 +65,12 @@ function frame(ts) {
   requestAnimationFrame(frame);
   // 省電：120Hz / 90Hz 的手機也只畫每秒 60 格（多畫的那些格眼睛幾乎看不出來，但會讓手機發燙）
   if (ECO) { ecoAcc += ts - lastTs; lastTs = ts; if (ecoAcc < 1000 / 60 - 4) return; ecoAcc = Math.min(1000 / 60, Math.max(0, ecoAcc - 1000 / 60)); }
-  const t = ts / 1000; const dt = Math.min(.05, Math.max(0, t - lastT)); lastT = t; camDt = dt;
+  const t = ts / 1000; const dt = Math.min(.05, Math.max(0, t - lastT)); lastT = t;
   readInput();
-  if (!G.paused) { if (G.hitStop > 0) { G.hitStop -= dt; G.time += dt * .2; } else update(G.slowT > 0 ? (G.slowT -= dt, dt * .3) : dt); } else G.time += dt;   // 重擊時停頓一下（hit-stop）
-  updateMotes(dt);
+  const frozen = G.started && !!openMenu;                               // 選單開著（角色、背包、營火、商店、地圖、暫停）：整個世界停在這一格，連動畫時鐘、飄浮的光點、鏡頭都不動
+  camDt = frozen ? 0 : dt; G.uiTime += dt;
+  if (!G.paused) { if (G.hitStop > 0) { G.hitStop -= dt; G.time += dt * .2; } else update(G.slowT > 0 ? (G.slowT -= dt, dt * .3) : dt); } else if (!frozen) G.time += dt;   // 重擊時停頓一下（hit-stop）；標題畫面的背景照常動
+  if (!frozen) updateMotes(dt);
   // 選單開著時（營火、背包、商店、地圖、暫停）遊戲停住，後面的畫面幾乎不會變 → 每秒只重畫 5 次（換裝備還是看得到），手機可以休息
   if (G.started && openMenu) { menuDrawT -= dt; if (menuDrawT <= 0) { render(); menuDrawT = .2; } } else { render(); menuDrawT = 0; }
   updateHUD();

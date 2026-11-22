@@ -29,6 +29,7 @@ export const G = {
   paused: true,
   started: false,
   time: 0,
+  uiTime: 0,                    // 選單開著也一直走的時鐘（G.time 會停住）：地圖上閃爍的標記用
   shakeT: 0,
   shakeMag: 0,
   hitStop: 0,

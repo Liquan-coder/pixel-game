@@ -81,7 +81,7 @@ export function drawQuestArrow() {
 /* 地圖上的傳聞：一個模糊的虛線圈（不給精確位置）。s = 每格幾個像素，ox/oy = 地圖偏移 */
 export function drawRumors(g, s, ox = 0, oy = 0) {
   for (const r of rumorsOpen()) { const x = (r.tx - ox) * s, y = (r.ty - oy) * s, R = r.r * s;
-    g.save(); g.setLineDash([Math.max(2, s * 2), Math.max(2, s * 2)]); g.lineDashOffset = -G.time * 6; g.lineWidth = Math.max(1, s * .5);
+    g.save(); g.setLineDash([Math.max(2, s * 2), Math.max(2, s * 2)]); g.lineDashOffset = -G.uiTime * 6; g.lineWidth = Math.max(1, s * .5);
     g.strokeStyle = 'rgba(232,216,176,.75)'; g.beginPath(); g.arc(x, y, R, 0, Math.PI * 2); g.stroke(); g.restore();
     g.fillStyle = 'rgba(232,216,176,.08)'; g.beginPath(); g.arc(x, y, R, 0, Math.PI * 2); g.fill();
     if (s >= 2) { g.font = Math.round(Math.min(16, 6 + s * 2)) + 'px "DotGothic16", sans-serif'; g.textAlign = 'center'; g.fillStyle = '#e8d8b0'; g.fillText('?', x, y + 5); } }
