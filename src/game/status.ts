@@ -22,14 +22,15 @@ import { rageFrac } from './builds';
 import { BUILD_DECAY, BUILD_HOLD } from '../data/ailments';
 
 export interface FX { frost?: number; bleed?: number; poison?: number; burn?: number; stun?: number; slow?: number; root?: number; silence?: number; blind?: number }
-export interface Status { iceAt?: number; iceOn?: boolean; frost: number; bleed: number; frozen: number; stun: number; stunImm: number; rootImm: number; slow: number; poison: number; burn: number; root: number; silence: number; blind: number; hold: number; dot: number; dotT: number }
+export interface Status { iceAt?: number; iceOn?: boolean; mx?: Record<string, number>; frost: number; bleed: number; frozen: number; stun: number; stunImm: number; rootImm: number; slow: number; poison: number; burn: number; root: number; silence: number; blind: number; hold: number; dot: number; dotT: number }
 const fresh = (): Status => ({ frost: 0, bleed: 0, frozen: 0, stun: 0, stunImm: 0, rootImm: 0, slow: 0, poison: 0, burn: 0, root: 0, silence: 0, blind: 0, hold: 0, dot: 0, dotT: 0 });
 export const sx = (pl: Player): Status => pl.sx || (pl.sx = fresh());
 export function clearStatus(pl: Player) { pl.sx = fresh(); }
 
 /* 名字和顏色：HUD 的狀態列、中狀態時的提示都用這個 */
 export const SNAME: Record<string, [string, string]> = {
-  frozen: ['冰凍', '#a8dcff'], frost: ['凍傷', '#a8dcff'], bleed: ['出血', '#ff5a5a'], poison: ['中毒', '#8ae05a'], burn: ['燃燒', '#ff9a3a'],
+  frozen: ['冰凍', '#a8dcff'], frost: ['凍傷', '#a8dcff'], bleed: ['出血', '#ff5a5a'], poison: ['中毒', '#4a8a3a'],   // 墨綠：亮綠色會被當成回血
+  burn: ['燃燒', '#ff9a3a'],
   stun: ['暈眩', '#ffe38a'], slow: ['緩速', '#7ab8e8'], root: ['纏繞', '#a8c870'], silence: ['封印', '#c8a8ff'], blind: ['目盲', '#b8a888'] };
 function announce(pl: Player, k: string) { if (pl !== G.me) return; const [n, c] = SNAME[k]; toast(n + '！', c); }
 
@@ -43,10 +44,11 @@ export function applyFx(pl: Player, f: FX | undefined) {
     if (S.bleed >= 100) { S.bleed = 0; const v = Math.max(1, Math.round(pl.maxHp * .15)); pl.hp -= v; announce(pl, 'bleed');
       G.nums.push({ x: pl.x, y: pl.y - 34, txt: String(v), col: '#ff3a4a', t: 0, d: .9, big: true });
       for (let i = 0; i < 22; i++) { const a = rr(-Math.PI, 0), s = rr(40, 130); G.parts.push({ x: pl.x, y: pl.y - 10, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rr(.3, .7), max: .7, col: pick(['#c01020', '#ff3a4a', '#7a0810']), s: 1, g: 300 }); } } }
-  const timed = (k: 'poison' | 'burn' | 'slow' | 'silence' | 'blind') => { const v = f[k]; if (!v) return; if (S[k] <= 0) announce(pl, k); S[k] = Math.max(S[k], v); };
+  const mx = S.mx || (S.mx = {});                                      // mx：這次中的狀態總共幾秒（頭上的圖示照「還剩多少」變暗）
+  const timed = (k: 'poison' | 'burn' | 'slow' | 'silence' | 'blind') => { const v = f[k]; if (!v) return; if (S[k] <= 0) announce(pl, k); if (v >= S[k]) mx[k] = v; S[k] = Math.max(S[k], v); };
   timed('poison'); timed('burn'); timed('slow'); timed('silence'); timed('blind');
   if (f.stun && S.stunImm <= 0 && S.frozen <= 0) { S.stun = f.stun; S.stunImm = f.stun + 1.5; announce(pl, 'stun'); }
-  if (f.root && S.rootImm <= 0) { S.root = f.root; S.rootImm = f.root + 2; announce(pl, 'root'); }
+  if (f.root && S.rootImm <= 0) { S.root = f.root; S.rootImm = f.root + 2; mx.root = f.root; announce(pl, 'root'); }
   if (pl.hp <= 0) pl.hp = 0;
 }
 
@@ -58,10 +60,10 @@ export function tickStatus(pl: Player, dt: number): boolean {
   const rate = (S.poison > 0 ? .012 : 0) + (S.burn > 0 ? .03 : 0);
   if (rate > 0) { S.dot += pl.maxHp * rate * dt; S.dotT += dt;
     if (S.dotT >= .5) { S.dotT = 0; const v = Math.floor(S.dot); if (v >= 1) { S.dot -= v; pl.hp -= v;
-      G.nums.push({ x: pl.x + rr(-4, 4), y: pl.y - 26, txt: String(v), col: S.burn > 0 ? '#ff9a3a' : '#8ae05a', t: 0, d: .7 }); } } }
+      G.nums.push({ x: pl.x + rr(-4, 4), y: pl.y - 26, txt: String(v), col: S.burn > 0 ? '#ff9a3a' : '#4a8a3a', t: 0, d: .7 }); } } }   // 中毒的數字是墨綠色（不是回血的亮綠）
   else { S.dot = 0; S.dotT = 0; }
   if (S.burn > 0 && Math.random() < .5) G.parts.push({ x: pl.x + rr(-5, 5), y: pl.y - rr(2, 16), vx: rr(-6, 6), vy: -rr(20, 45), life: rr(.25, .5), max: .5, col: pick(['#ffe38a', '#ff9a3a', '#e8432b']), s: 1 });
-  if (S.poison > 0 && Math.random() < .2) G.parts.push({ x: pl.x + rr(-5, 5), y: pl.y - rr(4, 14), vx: 0, vy: -rr(8, 16), life: .6, max: .6, col: pick(['#8ae05a', '#4fbf5a', '#c8ffc0']), s: 1 });
+  if (S.poison > 0 && Math.random() < .2) G.parts.push({ x: pl.x + rr(-5, 5), y: pl.y - rr(4, 14), vx: 0, vy: -rr(8, 16), life: .6, max: .6, col: pick(['#4a8a3a', '#2a5a2a', '#6a4a7a']), s: 1 });   // 中毒：墨綠色的毒泡，夾一點暗紫
   return pl.hp <= 0 && !pl.dead;
 }
 
@@ -92,6 +94,7 @@ export function drawStatus(pl: Player) {
   // 累積圖示：頭上一個血滴（出血）/ 雪花（凍傷），從下往上變亮，亮到頂就發作。快滿時外框會閃
   const icons: [string, number, number?][] = []; if (S.bleed > 0) icons.push(['bleed', S.bleed / 100]); if (S.frost > 0) icons.push(['frost', S.frost / 100]);
   if (pl.rage > 0) icons.push(['rage', rageFrac(pl), 2]);              // 反傷流的怒氣
+  for (const k of ['poison', 'burn', 'slow', 'root', 'silence', 'blind'] as const) if (S[k] > 0) icons.push([k, Math.min(1, S[k] / ((S.mx && S.mx[k]) || S[k])), 2]);   // 持續型：還剩多少時間
   buildRow(icons, x, y - 29);
 }
 /* 累積圖示的形狀（x = 有顏色的格子，外框自動加）和顏色：亮 / 反光 / 暗（還沒累積的部分）
@@ -104,6 +107,17 @@ export const BUILD: Record<string, { rows: string[]; lit: string; hi: string; da
   // 怒氣（反傷流，game/builds.ts）：漫畫的生氣符號（四個角的青筋），怒氣越多越滿
   rage: { lit: '#ff4a3a', hi: '#ffd0a0', dark: '#5a1a14', hx: 1, hy: 1, rows: [
     '.xx..xx.', 'xxx..xxx', 'xx....xx', '........', '........', 'xx....xx', 'xxx..xxx', '.xx..xx.'] },
+  /* 持續型狀態（頭上的圖示，亮的部分 = 還剩多少時間）：暈眩、冰凍有自己的大特效（星星、冰晶），不另外畫 */
+  poison: { lit: '#4a8a3a', hi: '#a8d08a', dark: '#1a3020', hx: 1, hy: 1, rows: [   // 骷髏（眼睛、鼻子、牙縫是黑的）
+    '.xxxxx.', 'xxxxxxx', 'x.xxx.x', 'x.xxx.x', 'xxx.xxx', '.xxxxx.', '.x.x.x.'] },
+  slow: { lit: '#7ab8e8', hi: '#ffffff', dark: '#24405a', hx: 3, hy: 1, rows: [      // 沙漏
+    'xxxxxxx', '.xxxxx.', '..xxx..', '...x...', '..xxx..', '.xxxxx.', 'xxxxxxx'] },
+  root: { lit: '#a8c870', hi: '#e8f8c0', dark: '#34441e', hx: 4, hy: 1, rows: [      // 藤蔓上的葉子
+    '....xx.', '...xxxx', '..xxxx.', '..x....', '.x.xx..', '.xxxxx.', 'x.xx...'] },
+  silence: { lit: '#c8a8ff', hi: '#ffffff', dark: '#3a2a5a', hx: 0, hy: 0, rows: [   // 封印的 ✕
+    'xx...xx', 'xxx.xxx', '.xxxxx.', '..xxx..', '.xxxxx.', 'xxx.xxx', 'xx...xx'] },
+  blind: { lit: '#d8c898', hi: '#ffffff', dark: '#4a4030', hx: 4, hy: 2, rows: [     // 眼睛
+    '..xxxxx..', '.xx.x.xx.', 'xx.xxx.xx', '.xx.x.xx.', '..xxxxx..'] },
   // 雷鳴：閃電
   shock: { lit: '#ffe85a', hi: '#ffffff', dark: '#5a4a14', hx: 3, hy: 3, rows: [
     '....xxx', '...xxx.', '..xxx..', '.xxxxxx', '....xx.', '...xx..', '..xx...', '.xx....', '.x.....'] },

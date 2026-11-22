@@ -524,8 +524,8 @@ const pageScript = async () => {
     step(80); if (G.me.sx.frozen > 0) throw new Error('冰凍沒有解除');
     G.me.iframe = 0; hurtPlayer(G.me, 1, G.me.x + 5, G.me.y, { stun: .5 }); if (!ST.locked(G.me)) throw new Error('沒有暈眩');
     step(40); G.me.iframe = 0; hurtPlayer(G.me, 1, G.me.x + 5, G.me.y, { stun: .5 }); if (ST.locked(G.me)) throw new Error('剛暈完又被暈（應該有一段時間不會再暈）');
-    G.me.hp = G.me.maxHp; G.me.iframe = 0; hurtPlayer(G.me, 1, G.me.x + 5, G.me.y, { poison: 3 }); const h0 = G.me.hp; step(120);
-    if (!(G.me.hp < h0 - 1)) throw new Error('中毒沒有扣血');
+    G.me.hp = G.me.maxHp; G.me.iframe = 0; hurtPlayer(G.me, 1, G.me.x + 5, G.me.y, { poison: 3 }); const h0 = G.me.hp; step(150);   // 1 級（生命 100）中毒每秒只扣 1.2，每 0.5 秒結算一次：2.5 秒會扣到 2～3
+    if (!(G.me.hp < h0)) throw new Error('中毒沒有扣血（' + h0 + ' → ' + G.me.hp + '）');
     G.me.hp = G.me.maxHp; G.me.iframe = 0; const h1 = G.me.hp; hurtPlayer(G.me, 1, G.me.x + 5, G.me.y, { bleed: 100 }); if (!(G.me.hp < h1 - G.me.maxHp * .1)) throw new Error('出血沒有爆發');
     G.me.iframe = 0; hurtPlayer(G.me, 1, G.me.x + 5, G.me.y, { silence: 2, blind: 2, root: 1, slow: 2 });
     step(2); if (document.getElementById('statusRow').hidden) throw new Error('HUD 沒有顯示異常狀態');
