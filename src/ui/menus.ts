@@ -200,7 +200,7 @@ export function renderInv() {
   if (!sel || sel.it.id !== lastSelId) infoMode = false;                  // 換選別件 → 回到數值
   const R = sel ? RAR[sel.it.rarity] : null, U = sel && sel.it.uq;
   const head = sel ? '<div class="selcard" style="border-color:' + R.c + '"><button type="button" class="sico' + (infoMode ? ' on' : '') + '" data-act="info" aria-label="說明"><img alt="" src="' + ICON_URL[sel.it.type] + '"><i>' + (infoMode ? '↩' : '?') + '</i></button><div class="selmid"><div class="selname"><b style="color:' + R.c + '">' + itemName(sel.it) + '</b><i>' + (U ? '獨特' : SLOTN[sl]) + '</i></div>' +
-    '<div class="selsum">' + selSummary(sel, now, pv) + '</div></div>' + selActs(sel) + '</div>' : '';
+    '<div class="selsum">' + selSummary(sel, now, pv) + '</div>' + (infoMode ? '' : reqLine(sel.it)) + '</div>' + selActs(sel) + '</div>' : '';
   info.innerHTML = head + '<div class="cscroll">' + (sel && infoMode ? itemCard(sel.it, null, 'det') :   // 「說明」：這件的刻印、技能、需求、背景故事（取代下面的數值，不用往下捲）
     '<div class="keystats">' + keyTile('hp', '生命', 'maxHp', now, pv) + keyTile('atk', '攻擊', 'atk', now, pv) + keyTile('df', '防禦', 'def', now, pv) + '</div>' +
     '<div class="cbox"><div class="lbl">詳細屬性</div><div class="stattbl">' + statRows(now, pv) + '</div></div>' +
