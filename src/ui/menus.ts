@@ -63,7 +63,7 @@ function renderCamp() {
     const nx1 = nxtCost - cost, tile = (cls: string, lbl: string, val: string, sub = '') => '<div class="kt ' + cls + '"><small>' + lbl + '</small><b>' + val + (sub ? '<s>' + sub + '</s>' : '') + '</b></div>';
     const tiles = tile('klv', '等級', paid ? lv0 + '<em>→</em><span>' + (lv0 + paid) + '</span>' : String(lv0)) +
       tile('sl', '魂晶', S + left, cost ? '−' + cost : '') +
-      (free ? tile('need', '免費點數', String(free), '不花魂晶') : tile('need' + (canAdd ? '' : ' no'), '升級需要', S + nx1, canAdd ? '' : '還差 ' + (nx1 - left)));
+      (free ? tile('need', '免費點數', String(free), '不花魂晶') : tile('need' + (canAdd ? '' : ' no'), '升級需要', S + nx1));
     foot.innerHTML = '<div class="lvfoot"><div class="lvk">' + tiles + (d.length ? '<span class="gain">' + d.join('<br>') + '</span>' : '') + '</div></div>' +
       '<button type="button" class="sec" data-reset' + (n ? '' : ' disabled') + '>重設</button><button type="button" class="pri" data-confirm' + (n ? '' : ' disabled') + '>確定</button>';
   } else {
