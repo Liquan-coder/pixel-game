@@ -55,14 +55,14 @@ function renderCamp() {
       if (k === 'luk') {                                              // 幸運：暴擊顯示到小數（整數會四捨五入成 0）＋ 掉素材的機率（enemies.ts：.8% × soft）
         const ds = soft(after.luk + 1) - soft(after.luk), dc = Math.min(12, .4 * soft(after.luk + 1)) - Math.min(12, .4 * soft(after.luk));
         return (dc > 1e-6 ? '暴擊 +' + dc.toFixed(1) + '%、' : '') + '掉素材 +' + (.8 * ds).toFixed(1) + '%'; }
-      return p.length ? p.join('、') : '目前的武器用不到'; };
+      return p.join('、'); };                                    // 這把武器用不到 → 空字串，那一行就不畫（上面的說明已經寫了它管什麼）
     const keepY = body.scrollTop;                                       // 重畫時記住捲到哪裡（按 ＋ 不會跳回最上面）
     const free = Math.max(0, G.me.freePts - pendN());
-    body.innerHTML = '<div class="lvgrid">' + ATTRS.map(a => '<div class="statrow' + (pend[a.k] ? ' pend' : '') + '"><div class="nm">' + a.n + '</div>' +   // 一格：名字＋－數字＋ / 說明 / 下一點
+    body.innerHTML = '<div class="lvgrid">' + ATTRS.map(a => '<div class="statrow' + (pend[a.k] ? ' pend' : '') + (gain(a.k) ? '' : ' nog') + '"><div class="nm">' + a.n + '</div>' +   // 一格：名字＋－數字＋ / 說明 / 下一點
       '<button type="button" class="minus" data-dec="' + a.k + '"' + (pend[a.k] ? '' : ' disabled') + ' aria-label="減少' + a.n + '">−</button>' +
       '<div class="val">' + (G.me[a.k] + pend[a.k]) + (pend[a.k] ? '<small>+' + pend[a.k] + '</small>' : '') + '</div>' +
       '<button type="button" class="plus" data-stat="' + a.k + '"' + (canAdd ? '' : ' disabled') + ' aria-label="提升' + a.n + '">+</button>' +
-      '<small class="ds">' + a.d + '</small><small class="nx">下一點：' + gain(a.k) + '</small></div>').join('') + '</div>';
+      '<small class="ds">' + a.d + '</small>' + ((g => g ? '<small class="nx">下一點：' + g + '</small>' : '')(gain(a.k))) + '</div>').join('') + '</div>';
     body.scrollTop = keepY;
     const n = pendN(), cost = pendCost(), base = calcStats(G.me, curEq(G.me)), d = [];
     if (n) { if (now.maxHp !== base.maxHp) d.push('生命 +' + (now.maxHp - base.maxHp)); if (now.maxSt !== base.maxSt) d.push('體力 +' + (now.maxSt - base.maxSt)); if (now.atk !== base.atk) d.push('攻擊 +' + (now.atk - base.atk)); if (now.def !== base.def) d.push('防禦 +' + (now.def - base.def)); }

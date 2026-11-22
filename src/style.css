@@ -164,7 +164,13 @@ body:not(.touch) #controls{display:none}
 #campMenu .ph .tabs{flex:0 1 220px;margin:0 auto 0 0}
 #campMenu .ph .tabs button{padding:4px 6px}
 .lvgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-@media (max-width:560px){.lvgrid{grid-template-columns:1fr}}
+@media (max-width:560px){   /* 直式手機：2 欄 × 3 列，不用捲；名字自己一行（不然會被擠成一個字一行），底下的大數字和按鈕分兩行 */
+  .lvgrid{grid-template-columns:repeat(2,minmax(0,1fr))} .statrow{min-width:0}
+  .statrow{grid-template-columns:30px 1fr 30px;gap:2px 4px;padding:5px 7px}
+  .statrow .nm{grid-column:1/-1;white-space:nowrap}
+  .statrow .plus,.statrow .minus{width:30px;height:28px}
+  #campFoot{flex-wrap:wrap} #campFoot .lvfoot{flex:1 1 100%} #campFoot button{flex:1}
+}
 .statrow{display:grid;grid-template-columns:1fr 34px minmax(30px,auto) 34px;gap:0 5px;align-items:center;align-content:start;padding:6px 8px;background:var(--panel2);border:1px solid #4d416688}
 .statrow .ds,.statrow .nx{grid-column:1/-1;font-size:12px;line-height:1.35}
 .statrow .ds{color:var(--muted);margin-top:3px}
@@ -189,7 +195,7 @@ body:not(.touch) #controls{display:none}
 /* 矮的橫式畫面（手機 Safari 有網址列 / 瀏海 → 只剩 300 多 px 高）：說明那一行收起來，只留「下一點」，按鈕和間距縮小 → 一整頁還是放得下 */
 @media (max-height:380px){
   #campMenu .ph{margin-bottom:6px} #campMenu .ph h2{font-size:18px} #campMenu .ph .sbtn{padding:4px 10px}
-  .statrow{padding:4px 7px} .statrow .ds{display:none} .statrow .nx{margin-top:1px}
+  .statrow{padding:4px 7px} .statrow .ds{display:none} .statrow.nog .ds{display:block} .statrow .nx{margin-top:1px}
   .statrow .nm{font-size:14px} .statrow .val{font-size:16px}
   .lvgrid{gap:5px} .plus,.minus{width:30px;height:26px;font-size:18px}
   #campMenu .pfoot{margin-top:6px;padding-top:6px} #campMenu .pfoot button{padding-top:5px;padding-bottom:5px}
