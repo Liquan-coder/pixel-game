@@ -9,6 +9,7 @@ import { STATUES, statueKnown, statueLit, ZONE_NAME, zoneOfReg } from '../world/
 import { DUNGEONS, OLDZ, dungeonAt } from '../world/dungeons';
 import { POIS } from '../data/poi';
 import { MAP_ICONS, MAP_ICON_SCALE } from '../art/mapIcons';
+import { CHESTS } from '../world/chests';
 
 /* 一座地城佔的範圍（格）：左上角 x0 / y0、寬 w、高 h（world/dungeons.ts 排區塊時算好） */
 const BOX = new Map();
@@ -72,6 +73,7 @@ export function renderBigMap() {
     const b = dungeonBox(dg), [sx, sy] = toScr(b.x0, b.y0), bw = b.x1 - b.x0, bh = b.y1 - b.y0;
     g.drawImage(miniBase, b.x0, b.y0, bw, bh, sx, sy, bw * mv.z, bh * mv.z);
     label(dg.name, mv.w / 2, 22, '#f1e7d0', 16);
+    { const cs = CHESTS.filter(c => dungeonAt(c.x, c.y) === dg); label('找到的寶箱 ' + cs.filter(c => c.opened).length + ' / ' + cs.length, mv.w / 2, 40, '#c9bfa8', 11); }   // 這座地城開過幾個寶箱（想把它翻遍）
     if (G.lost && dungeonAt(G.lost.x, G.lost.y) === dg) icon('lost', { kind: 'lost', id: 'lost', name: '掉落的魂晶', desc: '上次倒下時掉的 ' + G.lost.amount + ' 魂晶' + (G.lost.gold ? '、' + G.lost.gold + ' 金幣' : '') + ' · 走過去就能撿回來（再死一次就沒了）', tx: G.lost.x / TS - .5, ty: G.lost.y / TS - .5 });
     const [x, y] = toScr(G.me.x / TS, G.me.y / TS), k = .5 + .5 * Math.sin(performance.now() / 160);
     g.strokeStyle = `rgba(127,220,255,${.35 + .45 * k})`; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 13 + 2 * k, 0, Math.PI * 2); g.stroke();

@@ -6,6 +6,7 @@
 //   為什麼不用你開著的 npm run dev？跑很久的伺服器在檔案改過後，會在網址加 ?t=時間戳，
 //   測試 import 的模組就跟遊戲用的不是同一份，會出現「找不到 queen」這種假失敗。
 //   也可以指定網址：npm run playtest -- http://localhost:5173/
+//   只跑幾個：ONLY='地城|機關' npm run playtest
 import { spawn } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -72,7 +73,8 @@ const pageScript = async () => {
     }
     renderMini();
   };
-  const run = (name, fn) => { if (G.me && G.me.dead) { log.push('  （' + name + ' 開始前角色是倒下的 → 先扶起來）'); G.me.dead = false; } if (G.me) { G.me.hp = G.me.maxHp; G.me.iframe = 0; }
+  const only = window.__ONLY;                                         // ONLY=關鍵字|關鍵字 npm run playtest：只跑名字有這些字的測試（開始新遊戲一定跑）
+  const run = (name, fn) => { if (only && !name.startsWith('開始新遊戲') && !only.split('|').some(k => name.includes(k))) return; if (G.me && G.me.dead) { log.push('  （' + name + ' 開始前角色是倒下的 → 先扶起來）'); G.me.dead = false; } if (G.me) { G.me.hp = G.me.maxHp; G.me.iframe = 0; }
     try { fn(); log.push('✓ ' + name); } catch (e) { fails.push(`✗ ${name}: ${e.stack.split('\n').slice(0, 4).join(' | ')}`); } };
   const tp = (x, y) => { G.me.x = x; G.me.y = y; };
 
@@ -245,7 +247,7 @@ const pageScript = async () => {
     RB.rbDead.delete('queen'); RB.resetRegionBosses();
   });
 
-  run('更多機關：符文踏板（苔石洞窟）、轉動雕像（樹根地穴）、崩塌石橋（熔岩隧道）', () => {
+  run('更多機關：符文踏板（苔石洞窟）、轉動雕像（樹根地穴）、崩塌石橋（苔石洞窟）', () => {
     const PU = await0.puz, Q = await0.quest, P = (id, k) => PU.PUZZLES.find(p => p.d.id === id && p.kind === k);
     const enter = d => { tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2); G.enemies = []; };
     const leave = d => { G.enemies = []; tp(d.exX, d.exY); step(1); imp0.input.enterDoor(); step(2); };
@@ -266,9 +268,9 @@ const pageScript = async () => {
     const moves = solve(); if (!moves) throw new Error('雕像謎題解不開：' + so.off);
     for (const i of moves) { const s2 = so.stats[i]; tp(s2.x + (s2.want === 1 || s2.want === 3 ? 18 : 0), s2.y + (s2.want === 0 || s2.want === 2 ? 18 : 0)); step(1); it = imp0.input.interactTarget(); if (!it || it.btn !== '轉動') throw new Error('雕像旁邊沒有「轉動」'); it.run(); if (++guard > 20) break; }
     if (!Q.flags.has('puz:roots:fire')) throw new Error('雕像都對準了門沒開'); leave(so.d);
-    const cb = P('lavatube', 'crumble'); enter(cb.d);
+    const cb = P('moss', 'crumble'); enter(cb.d);
     // 崩塌石橋：站在會碎的石頭上 → 裂開 → 掉下去 → 回到起點
-    if (!cb.crumb.length) throw new Error('熔岩隧道沒有崩塌石橋');
+    if (!cb.crumb.length) throw new Error('苔石洞窟沒有崩塌石橋');
     const c = cb.crumb[Math.floor(cb.crumb.length / 2)]; tp(c.x, c.y + 2); G.me.hp = G.me.maxHp; const h0 = G.me.hp; step(80);
     if (!(G.me.hp < h0) || Math.hypot(G.me.x - cb.start.x, G.me.y - cb.start.y) > 4) throw new Error('站在石橋上沒有掉下去 / 沒回到起點');
     G.me.dead = false; leave(cb.d);
@@ -703,11 +705,12 @@ const pageScript = async () => {
     log.push('  ' + out.join('、'));
   });
 
-  run('每一個有門的解謎區都解得開（火盆、符文踏板、雕像、推石、鏡子、寒氣火盆、巨網、潛行、熔爐、月光花）', () => {
+  run('每一個有門的解謎區都解得開（火盆、符文踏板、雕像、推石、鏡子、寒氣火盆、巨網、潛行、熔爐、月光花、牆中之眼、鑰匙、試煉、記憶石板、幽火、燈陣、冰磚）', () => {
     const PU = await0.puz, Q = await0.quest, out = {};
     const enter = d => { tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2); G.enemies = []; G.me.hp = G.me.maxHp; await0.status.clearStatus(G.me); };
     const leave = d => { G.enemies = []; G.me.dead = false; tp(d.exX, d.exY); step(1); imp0.input.enterDoor(); step(2); await0.status.clearStatus(G.me); };
-    const use = (x, y, btn) => { for (const [ox, oy] of [[0, 16], [0, -16], [16, 0], [-16, 0], [0, 12], [12, 12], [-12, 12]]) { if (await0.coll.collides(x + ox, y + oy, 5)) continue; tp(x + ox, y + oy); step(1); const it = imp0.input.interactTarget(); if (it && it.btn === btn) { it.run(); return true; } } throw new Error('找不到「' + btn + '」'); };
+    const it0 = f => f();
+    const use = (x, y, btn) => { for (const [ox, oy] of [[0, 16], [0, -16], [16, 0], [-16, 0], [0, 12], [12, 12], [-12, 12], [0, 28], [0, 22]]) { if (await0.coll.collides(x + ox, y + oy, 5)) continue; tp(x + ox, y + oy); step(1); const it = imp0.input.interactTarget(); if (it && it.btn === btn) { it.run(); return true; } } throw new Error('找不到「' + btn + '」'); };
     for (const p of PU.PUZZLES) { if (!p.fkey) continue; const d = p.d, name = d.name + '的' + p.kind + '（' + p.at + '）';
       Q.flags.delete(p.fkey); step(2); for (const k in p.m) PU.MECHS[k].reset?.(p, p.m[k]); enter(d); G.me.iframe = 99;
       if (p.kind === 'braziers') { for (const b of p.braz) b.lit = false; p.got = 0; for (const s2 of p.order) { const b = p.braz.find(x => x.sym === s2); use(b.x, b.y, '點燃'); G.enemies = []; } }
@@ -723,11 +726,64 @@ const pageScript = async () => {
         use(st.lever.x, st.lever.y, '拉下'); st.gs.forEach((q, i) => { q.x = keep[i].x; q.y = keep[i].y; q.pts = keep[i].pts; }); }
       else if (p.kind === 'forge') use(p.m.forge.lever.x, p.m.forge.lever.y, '拉下');
       else if (p.kind === 'moonflowers') { for (const f of p.m.moonflowers.fl) use(f.x, f.y, '敲'); step(2); }
+      else if (p.kind === 'eyes') { const st = p.m.eyes; if (st.eyes.length !== 3) throw new Error(name + '：牆裡的眼睛不是 3 隻（' + st.eyes.length + '）');
+        for (const e of st.eyes) Q.flags.delete('puz:' + d.id + ':eye' + e.i); step(2); if (p.gateOpen) throw new Error(name + '：眼睛都還睜著門就開了');
+        for (const e of st.eyes) { tp(e.x, e.y + 26); if (await0.coll.collides(G.me.x, G.me.y, 5)) throw new Error(name + '：眼睛下面站不了人'); G.me.face = Math.atan2(e.y + 8 - G.me.y, e.x - G.me.x); G.me.atkCd = 0; pressed.atk = true; step(20); if (!Q.flags.has('puz:' + d.id + ':eye' + e.i)) throw new Error(name + '：砍了眼睛沒閉上 swing=' + !!G.me.swing + ' face=' + G.me.face.toFixed(2) + ' it=' + (imp0.input.interactTarget()?.text)); }
+        step(2); }
+      else if (p.kind === 'key') { const st = p.m.key; Q.flags.delete('puz:' + d.id + ':key'); st.drop = null; it0(() => use(st.lock.x, st.lock.y, '查看'));
+        tp(st.home.x, st.home.y + 60); step(3); if (!st.e || !st.e.elite) throw new Error(name + '：走近了沒有持鑰的守衛'); const e = st.e; e.hp = 1; damageEnemy(G.me, e, 99, e.x, e.y); step(10);
+        if (!st.drop) throw new Error(name + '：守衛倒下沒有掉鑰匙'); tp(st.drop.x, st.drop.y); step(2); if (!Q.flags.has('puz:' + d.id + ':key')) throw new Error(name + '：撿不到鑰匙');
+        use(st.lock.x, st.lock.y, '開鎖'); }
+      else if (p.kind === 'trial') { const st = p.m.trial; tp(p.room.x * 16 + 8, p.room.y * 16 + 8); step(3); if (!st.on || !st.bar.every(b => b.r > 0)) throw new Error(name + '：走進去試煉沒開始 / 入口沒封住');
+        for (let k = 0; k < 40 && !Q.flags.has(p.fkey); k++) { for (const e of st.foes) if (e.hp > 0) { e.hp = 1; damageEnemy(G.me, e, 99, e.x, e.y); } step(90, { god: true }); tp(p.room.x * 16 + 8, p.room.y * 16 + 8); }
+        if (st.bar.some(b => b.r > 0)) throw new Error(name + '：試煉結束了入口還封著'); }
+      else if (p.kind === 'pairs') { const st = p.m.pairs, off = () => { tp(p.room.x * 16 + 8, (p.room.y - p.room.ry) * 16 + 10); step(2); };
+        off(); const a0 = st.slabs.findIndex(q => q.sym === st.slabs[0].sym), b0 = st.slabs.findIndex(q => q.sym !== st.slabs[0].sym);
+        tp(st.slabs[a0].x, st.slabs[a0].y + 2); step(2); off(); tp(st.slabs[b0].x, st.slabs[b0].y + 2); step(2); off(); if (st.slabs.some(q => q.done)) throw new Error(name + '：配錯了還亮著'); step(70);
+        for (const sym of ['moon', 'sun', 'star', 'eye']) for (const q of st.slabs.filter(q => q.sym === sym)) { tp(q.x, q.y + 2); step(2); off(); } }
+      else if (p.kind === 'wisp') { const st = p.m.wisp; use(st.altar.x, st.altar.y, '點亮'); if (!st.w) throw new Error(name + '：點亮祭壇沒有幽火');
+        for (let k = 0; k < 900 && st.w; k++) { tp(st.w.x, st.w.y + 12); step(1); } }
+      else if (p.kind === 'lightsout') { const st = p.m.lightsout; let sol = -1;
+        for (let m = 0; m < 32 && sol < 0; m++) { const on = [...st.on]; for (let i = 0; i < 5; i++) if (m >> i & 1) for (const j of [i - 1, i, i + 1]) if (j >= 0 && j < 5) on[j] ^= 1; if (on.every(v => v)) sol = m; }
+        if (sol < 0) throw new Error(name + '：燈陣解不開'); for (let i = 0; i < 5; i++) if (sol >> i & 1) use(st.lev[i].x, st.lev[i].y, '拉'); }
+      else if (p.kind === 'iceblock') { const st = p.m.iceblock, b = st.b, r = p.room, M = await0.map, free = (x, y) => Math.abs(x - r.x) <= r.rx && Math.abs(y - r.y) <= r.ry && M.WALKABLE(M.map[y * M.MW + x]) && !st.blocked.has(y * M.MW + x);
+        const D4 = [[1, 0], [0, 1], [-1, 0], [0, -1]], k0 = b.tx + ',' + b.ty, prev = new Map([[k0, null]]), q = [[b.tx, b.ty]];
+        while (q.length) { const [x, y] = q.shift(); for (const [dx, dy] of D4) { if (!free(x - dx, y - dy)) continue; let nx = x, ny = y; while (free(nx + dx, ny + dy)) { nx += dx; ny += dy; } const k = nx + ',' + ny; if ((nx !== x || ny !== y) && !prev.has(k)) { prev.set(k, [x, y, dx, dy]); q.push([nx, ny]); } } }
+        const moves = []; let k = st.goal.tx + ',' + st.goal.ty; if (!prev.has(k)) throw new Error(name + '：冰磚推不到冰紋上'); while (prev.get(k)) { const [x, y, dx, dy] = prev.get(k); moves.unshift([dx, dy]); k = x + ',' + y; }
+        for (const [dx, dy] of moves) { tp(b.x - dx * 15, b.y - dy * 15 + 2); input.mx = dx; input.my = dy; step(20); input.mx = input.my = 0; for (let t = 0; t < 200 && (b.vx || b.vy); t++) step(1); step(2); } }
       else throw new Error(name + '：測試不知道怎麼解');
       if (!Q.flags.has(p.fkey)) throw new Error(name + '：照正確的方法做了，門沒開'); step(90);
       if (p.gate.some(g => await0.coll.collides(g.x, g.y, 5))) throw new Error(name + '：門開了還擋路');
       out[p.kind] = (out[p.kind] || 0) + 1; G.me.iframe = 0; leave(d); }
     log.push('  ' + Object.entries(out).map(([k, n]) => k + '×' + n).join('、'));
+  });
+
+  run('新的陷阱房：火輪、滾石、凝視石像、落石、交替石板、幽靈之橋、箭陣（每座地城的陷阱房都不一樣）', () => {
+    const PU = await0.puz, D = imp0.dg, P = (id, k) => PU.PUZZLES.find(p => p.d.id === id && p.kind === k), out = [];
+    const traps = D.DUNGEONS.map(d => D.PUZ[d.id].trap); if (new Set(traps).size !== traps.length) throw new Error('有兩座地城的陷阱房一樣：' + traps.join(','));
+    const enter = d => { tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2); G.enemies = []; G.me.hp = G.me.maxHp; await0.status.clearStatus(G.me); };
+    const leave = d => { G.enemies = []; G.me.dead = false; G.me.hp = G.me.maxHp; tp(d.exX, d.exY); step(1); imp0.input.enterDoor(); step(2); await0.status.clearStatus(G.me); };
+    const hurts = (n, put) => { G.me.hp = G.me.maxHp; G.me.iframe = 0; const h = G.me.hp; for (let i = 0; i < n && G.me.hp >= h; i++) { put(); step(1); } const ok = G.me.hp < h; G.me.dead = false; G.me.hp = G.me.maxHp; return ok; };
+    const atStart = p => Math.hypot(G.me.x - (p.inD.x * 16 + 8), G.me.y - (p.inD.y * 16 + 8)) < 6;
+    { const p = P('lavatube', 'firebar'), q = p.m.firebar.piv[0]; enter(p.d); if (!hurts(400, () => { if (!(G.me.iframe > 0)) tp(q.x + 34, q.y); })) throw new Error('站在火輪旁邊沒被燒到'); leave(p.d); out.push('火輪'); }
+    { const p = P('sandtemple', 'rollstone'), st = p.m.rollstone; enter(p.d); const r = st.r; if (!hurts(900, () => { if (st.cur) tp(r.x * 16 + 8, st.cur.y + 4); else tp(r.x * 16 + 8, r.y * 16 + 8); })) throw new Error('站在溝上沒被滾石撞到'); leave(p.d); out.push('滾石'); }
+    { const p = P('undercroft', 'gaze'), st = p.m.gaze; enter(p.d); const r = st.r; let hit = false;
+      for (const [ox, oy] of [[0, 0], [-4, 2], [4, -2], [2, 3], [-3, -3], [5, 3]]) { const x = (r.x + ox) * 16 + 8, y = (r.y + oy) * 16 + 8; if (await0.coll.collides(x, y, 5)) continue;
+        G.time = Math.ceil(G.time / 5.4) * 5.4 + 3.6; tp(x, y); input.mx = .8; step(3); input.mx = 0; if (atStart(p)) { hit = true; break; } }
+      input.mx = 0; if (!hit) throw new Error('石像看著的時候亂動沒被打回入口');
+      G.time = Math.ceil(G.time / 5.4) * 5.4 + 1; tp(r.x * 16 + 8, r.y * 16 + 8); input.mx = .8; step(3); input.mx = 0; if (atStart(p)) throw new Error('石像背對著也被打回入口'); leave(p.d); out.push('凝視石像'); }
+    { const p = P('roots', 'rockfall'), r = p.room; enter(p.d); if (!hurts(400, () => tp(r.x * 16 + 8, r.y * 16 + 8))) throw new Error('落石迴廊站著不動沒被砸到'); leave(p.d); out.push('落石'); }
+    { const p = P('forgeruin', 'alternate'), st = p.m.alternate; enter(p.d); const t = [...st.tiles.values()].find(t => t.set === 0); if (!t) throw new Error('交替石板沒有會沉的石板');
+      G.time = Math.ceil(G.time / 4.4) * 4.4 + 1; tp(t.tx * 16 + 8, t.ty * 16 + 10); step(2); if (atStart(p)) throw new Error('石板浮著的時候站上去就掉下去了');
+      G.time = Math.ceil(G.time / 4.4) * 4.4 + 3; step(2); if (!atStart(p)) throw new Error('石板沉下去了還站得住'); leave(p.d); out.push('交替石板'); }
+    { const p = P('temple', 'ghostbridge'), st = p.m.ghostbridge, r = p.room, M = await0.map; enter(p.d);
+      let off = null; for (let ty = r.y - r.ry; ty <= r.y + r.ry && !off; ty++) for (let tx = r.x - r.rx; tx <= r.x + r.rx; tx++) if (!st.path.has(ty * M.MW + tx) && M.WALKABLE(M.map[ty * M.MW + tx]) && !await0.coll.collides(tx * 16 + 8, ty * 16 + 10, 5)) { off = [tx, ty]; break; }
+      tp(off[0] * 16 + 8, off[1] * 16 + 10); step(2); if (!atStart(p)) throw new Error('踩到橋外面沒有掉下去');
+      const [cx, cy] = st.cells[4]; tp(cx * 16 + 8, cy * 16 + 10); step(2); if (atStart(p)) throw new Error('站在看不見的橋上也掉下去了');
+      const s0 = st.stones[0]; tp(s0.x, s0.y + 2); step(1); const it = imp0.input.interactTarget(); if (!it || it.btn !== '觸摸') throw new Error('發光的石頭摸不到'); it.run(); if (!(st.lit > 0)) throw new Error('摸了石頭橋沒亮'); leave(p.d); out.push('幽靈之橋'); }
+    { const p = P('mothwood', 'arrows'), st = p.m.arrows; enter(p.d); const q = [...st.plates.values()][0]; if (!q) throw new Error('箭陣沒有壓力板');
+      if (!hurts(120, () => { if (!st.arrows.length) { tp(q.tx * 16 + 8, (q.ty - 1) * 16 + 10); step(1); tp(q.tx * 16 + 8, q.ty * 16 + 10); } })) throw new Error('踩到壓力板沒被箭射到'); leave(p.d); out.push('箭陣'); }
+    log.push('  ' + out.join('、'));
   });
 
   run('重生水滴：找修女洗點 → 能力值回到 5 → 點數到營火重新分配', () => {
@@ -780,6 +836,7 @@ const pageScript = async () => {
   return { log, fails };
 };
 
+await send('Runtime.evaluate', { expression: 'window.__ONLY = ' + JSON.stringify(process.env.ONLY || '') });
 const r = await send('Runtime.evaluate', { expression: `(${pageScript})()`, awaitPromise: true, returnByValue: true });
 if (r.result.exceptionDetails) console.log('TEST CRASH', r.result.exceptionDetails.exception?.description);
 const { log = [], fails = [] } = r.result.result?.value || {};

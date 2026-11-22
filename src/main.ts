@@ -26,7 +26,7 @@ import { respawnAll } from './game/enemies';
 import { resetBoss } from './game/boss';
 import { dressEntrances } from './world/dungeons';
 import { setupPuzzles } from './world/puzzles';
-import './world/puz2'; import './world/puz3';                        // 各地城的招牌機關（要在 setupPuzzles 之前登記好）
+import './world/puz2'; import './world/puz3'; import './world/puz4'; import './world/puz5';                        // 各地城的招牌機關（要在 setupPuzzles 之前登記好）
 import { placeStatues } from './world/statues';
 import { hurtPlayer } from './game/combat';
 import { placeAtCamp, restoreWorld } from './game/playerUpdate';

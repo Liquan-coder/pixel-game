@@ -88,30 +88,33 @@ export const DUNGEONS: Dungeon[] = [
     desc: '螢火林岩壁上的洞口。精靈說，裡面的月亮從來不會落下',
     lore: { title: '禁林入口的告示', text: '「王命：任何人不得進入。」底下用小刀刻了一行字：「月蛾吃掉了我們的光。王知道，但王不說。」' } },
 ];
-/* 每座地城的三個解謎區（機關在 world/puzzles.ts、puz2.ts、puz3.ts）：
-   trap  = 主路上的陷阱房，走過去就好（尖刺、崩塌石橋、潮汐、蛛網、強風、冰面、寒氣、冷卻熔岩、彈跳蘑菇、黑暗迷宮）
-   vault = 岔路上的謎題房，解開 → 鐵柵門升起，後面的寶物房有金箱（火盆、符文踏板、雕像、推石、鏡子……）
+/* 每座地城的三個解謎區（機關在 world/puzzles.ts、puz2.ts ～ puz5.ts）：
+   trap  = 主路上的陷阱房，走過去就好。十七座地城，十七種陷阱，每種只出現一次：
+           崩塌石橋、尖刺、潮汐、蛛網、落石迴廊、強風、滾石、火輪、冷卻熔岩、冰面、寒氣、彈跳蘑菇、黑暗迷宮、凝視石像、交替石板、幽靈之橋、箭陣
+   vault = 岔路上的謎題房，解開 → 鐵柵門升起，後面的寶物房有金箱
    boss  = Boss 大廳前的謎題房，解開 → 通往 Boss 大廳的鐵柵門升起
-   secret = 某條死路的牆後面藏著金箱（砍一下就碎）；pit = 崩塌石橋下面是水還是熔岩；seq = 符文踏板要記幾步 */
+           （謎題：符文踏板、雕像、火盆、鏡子、推石、牆中之眼、持鑰的守衛、試煉、記憶石板、引路幽火、燈陣拉桿、滑冰石塊，加上各地城自己的巨網、寒氣火盆、潛行、熔爐、月光花）
+           牆中之眼、持鑰的守衛要走遍整座地城才解得開
+   secret = 某條死路的牆後面藏著金箱（砍一下就碎）；pit = 崩塌石橋 / 交替石板下面是水還是熔岩；seq = 符文踏板要記幾步 */
 export interface PuzCfg { trap: string; vault: string; boss: string; secret?: boolean; pit?: 'water' | 'lava'; seq?: number }
 export const PUZ: Record<string, PuzCfg> = {
-  moss:       { trap: 'crumble', vault: 'statues', boss: 'simon', secret: true, seq: 4, pit: 'water' },
-  barrow:     { trap: 'spikes', vault: 'simon', boss: 'braziers', secret: true },
-  grotto:     { trap: 'tide', vault: 'mirrors', boss: 'boulders' },
-  nest:       { trap: 'webs', vault: 'braziers', boss: 'webs3' },
-  roots:      { trap: 'crumble', vault: 'simon', boss: 'statues', secret: true, pit: 'water' },
-  windcave:   { trap: 'wind', vault: 'boulders', boss: 'simon' },
-  sandtemple: { trap: 'spikes', vault: 'mirrors', boss: 'boulders' },
-  lavatube:   { trap: 'crumble', vault: 'statues', boss: 'braziers', pit: 'lava' },
-  obsidian:   { trap: 'cool', vault: 'simon', boss: 'boulders' },
-  icecave:    { trap: 'ice', vault: 'mirrors', boss: 'simon', secret: true },
-  frostcrypt: { trap: 'cold', vault: 'statues', boss: 'cold3' },
-  rotcave:    { trap: 'jump', vault: 'braziers', boss: 'boulders' },
-  sunkgrotto: { trap: 'maze', vault: 'statues', boss: 'mirrors', secret: true },
-  undercroft: { trap: 'spikes', vault: 'braziers', boss: 'stealth', secret: true },
-  forgeruin:  { trap: 'crumble', vault: 'simon', boss: 'forge', pit: 'lava' },
-  temple:     { trap: 'tide', vault: 'statues', boss: 'mirrors' },
-  mothwood:   { trap: 'maze', vault: 'simon', boss: 'moonflowers' },
+  moss:       { trap: 'crumble', vault: 'eyes', boss: 'simon', secret: true, seq: 4, pit: 'water' },
+  barrow:     { trap: 'spikes', vault: 'wisp', boss: 'braziers', secret: true },
+  grotto:     { trap: 'tide', vault: 'pairs', boss: 'mirrors' },
+  nest:       { trap: 'webs', vault: 'trial', boss: 'webs3' },
+  roots:      { trap: 'rockfall', vault: 'key', boss: 'statues', secret: true },
+  windcave:   { trap: 'wind', vault: 'boulders', boss: 'eyes' },
+  sandtemple: { trap: 'rollstone', vault: 'braziers', boss: 'boulders' },
+  lavatube:   { trap: 'firebar', vault: 'statues', boss: 'lightsout' },
+  obsidian:   { trap: 'cool', vault: 'key', boss: 'mirrors' },
+  icecave:    { trap: 'ice', vault: 'iceblock', boss: 'simon', secret: true },
+  frostcrypt: { trap: 'cold', vault: 'key', boss: 'cold3' },
+  rotcave:    { trap: 'jump', vault: 'trial', boss: 'wisp' },
+  sunkgrotto: { trap: 'maze', vault: 'pairs', boss: 'statues', secret: true },
+  undercroft: { trap: 'gaze', vault: 'lightsout', boss: 'stealth', secret: true },
+  forgeruin:  { trap: 'alternate', vault: 'braziers', boss: 'forge', pit: 'lava' },
+  temple:     { trap: 'ghostbridge', vault: 'eyes', boss: 'mirrors' },
+  mothwood:   { trap: 'arrows', vault: 'pairs', boss: 'moonflowers' },
 };
 const VERT_TRAPS = new Set(['cool', 'jump']);                            // 這兩種陷阱房要「從下面進來、從上面出去」
 /* 區塊：照順序一排一排排在地城區裡（一排排滿就換下一排），大小看格子數（world/dungeonLayout.ts 的 slotSize） */

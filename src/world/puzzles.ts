@@ -3,12 +3,12 @@
    trap（主路上的陷阱房，走過去就好）
      spikes  尖刺陷阱：整片尖刺一排一排升起，像浪一樣往前推 → 看準空檔走，或用瞬移（無敵）穿過去
      crumble 崩塌石橋：整間房變成地底湖 / 熔岩池，只剩一條彎彎曲曲的石頭路；站太久石頭就會裂開掉下去 → 一直走，或瞬移跳過缺口。掉下去：扣血、回到起點
-     （其他：潮汐、蛛網、強風、冰面、寒氣、冷卻熔岩、彈跳蘑菇、黑暗迷宮 → puz2.ts / puz3.ts）
+     （其他：潮汐、蛛網、強風、冰面、寒氣、冷卻熔岩、彈跳蘑菇、黑暗迷宮 → puz2.ts / puz3.ts；火輪、滾石、凝視石像、落石、交替石板、幽靈之橋、箭陣 → puz4.ts）
    vault（岔路上的謎題房：解開 → 鐵柵門升起，後面的寶物房有金箱）、boss（Boss 大廳前的謎題房：解開 → 通往 Boss 大廳的鐵柵門升起）
      braziers 火盆：牆上壁畫刻著四個符號的順序，照順序點燃四個火盆。點錯 → 火焰暴走 + 叫出守衛
      simon    符文踏板：碰一下記憶石，地上的四塊符文會依序亮起；照同樣的順序踩上去。踩錯 → 被電一下、重來
      statues  轉動雕像：四座雕像圍著祭壇，目光（光線）要全部聚在祭壇上。相鄰的雕像連在一起：轉一座，下一座也會跟著轉
-     （其他：巨網、推石、寒氣火盆、潛行、熔爐、鏡子、月光花 → puz2.ts / puz3.ts）
+     （其他：巨網、推石、寒氣火盆、潛行、熔爐、鏡子、月光花 → puz2.ts / puz3.ts；牆中之眼、持鑰的守衛、試煉、記憶石板、引路幽火、燈陣拉桿、滑冰石塊 → puz5.ts）
    secret（有的地城有）：某條死路的牆有裂痕，砍一下就碎，後面藏著金箱（像艾爾登法環的幻影牆）
    一個解謎區 = PUZZLES 裡的一筆（Puz）。解開的狀態存在 quest 的 flags（Boss 前 'puz:地城:fire'、寶庫 'puz:地城:vault'、牆 'puz:地城:wall'），
    每幀對一次，讀檔 / 開新遊戲時門和牆自動變成對的樣子。 */
@@ -72,6 +72,18 @@ export const floorAt = (tx: number, ty: number) => isFloor(map[ty * MW + tx]);
 export const tileOf = (x: number, y: number) => [Math.floor(x / TS), Math.floor(y / TS)];
 /** 這座地城的 Boss 大廳（舊的 roomsOf 只剩這個還有人用） */
 export function roomsOf(d: Dungeon) { return { hall: d.lay.hall }; }
+/** 一條彎彎曲曲的路（只有直線段的折點）：入口 → 往前 3 格 → 往旁邊 → 往前過了房間中間 → 拐回來 → 出口。崩塌石橋、交替石板、幽靈之橋、引路幽火都用 */
+export function route(p: Puz, R: () => number): number[][] {
+  const r = p.room, iD = p.inD, oD = p.outD, F = [-[1, 0, -1, 0][iD.side], -[0, 1, 0, -1][iD.side]], Lt = [F[1], -F[0]], sg = R() < .5 ? 1 : -1;
+  const dc = iD.side % 2 ? r.ry + 1 : r.rx + 1, lm = Math.min(4, (iD.side % 2 ? r.rx : r.ry) - 1);
+  const P = (a: number, b: number) => [iD.x + F[0] * b + Lt[0] * a * sg, iD.y + F[1] * b + Lt[1] * a * sg];
+  const pts = [P(0, 0), P(0, 3), P(-lm, 3), P(-lm, dc + 2), P(Math.min(2, lm), dc + 2), P(Math.min(2, lm), dc)];
+  const cur = pts[pts.length - 1]; pts.push(oD.side % 2 ? [oD.x, cur[1]] : [cur[0], oD.y], [oD.x, oD.y]);
+  return pts;
+}
+/** 把折點展開成一格一格（照走的順序） */
+export function walk(pts: number[][]) { const out: number[][] = []; for (let j = 1; j < pts.length; j++) { const [x0, y0] = pts[j - 1], [x1, y1] = pts[j], n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+  for (let q = j === 1 ? 0 : 1; q <= n; q++) out.push([x0 + Math.sign(x1 - x0) * q, y0 + Math.sign(y1 - y0) * q]); } return out; }
 /** 門往房間裡面走一格 */
 export const inner = (D: LDoor, k = 1): [number, number] => [D.x - [1, 0, -1, 0][D.side] * k, D.y - [0, 1, 0, -1][D.side] * k];
 export function setTile(tx: number, ty: number, t: number) { const i = ty * MW + tx; if (map[i] === t) return; map[i] = t; invalidate(tx, ty); if (explored[i]) miniPix(i); }
@@ -104,12 +116,7 @@ export function setupPuzzles() {
       if (at !== 'trap') for (let tx = S.outD.x - 1; tx <= S.outD.x + 1; tx++) if (floor(tx, S.outD.y)) { const prop = { x: tx * TS + 8, y: S.outD.y * TS + 8, r: 9 }; PROPS.push(prop); p.gate.push({ x: prop.x, y: prop.y, prop }); }
       if (kind === 'spikes') for (let ty = r.y - r.ry; ty <= r.y + r.ry; ty++) for (let tx = r.x - r.rx; tx <= r.x + r.rx; tx++) if (floor(tx, ty)) p.spikes.push({ x: tx * TS + 8, y: ty * TS + 8, row: r.y + r.ry - ty });
       if (kind === 'crumble') {                                          // 只留一條彎路（入口 → 繞兩個彎 → 房間中間 → 出口），其他地板變成水 / 熔岩
-        const iD = S.inD, oD = S.outD, F = [-[1, 0, -1, 0][iD.side], -[0, 1, 0, -1][iD.side]], Lt = [F[1], -F[0]], sg = R() < .5 ? 1 : -1;
-        const dc = iD.side % 2 ? r.ry + 1 : r.rx + 1, lm = Math.min(4, (iD.side % 2 ? r.rx : r.ry) - 1);
-        const P = (a: number, b: number) => [iD.x + F[0] * b + Lt[0] * a * sg, iD.y + F[1] * b + Lt[1] * a * sg];
-        const pts = [P(0, 0), P(0, 3), P(-lm, 3), P(-lm, dc + 2), P(Math.min(2, lm), dc + 2), P(Math.min(2, lm), dc)];
-        const cur = pts[pts.length - 1]; pts.push(oD.side % 2 ? [oD.x, cur[1]] : [cur[0], oD.y], [oD.x, oD.y]);
-        const path = new Set<number>(), seg = (x0: number, y0: number, x1: number, y1: number) => { for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) path.add(I(x, y)); };
+        const pts = route(p, R), path = new Set<number>(), seg = (x0: number, y0: number, x1: number, y1: number) => { for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) path.add(I(x, y)); };
         for (let k = 1; k < pts.length; k++) seg(pts[k - 1][0], pts[k - 1][1], pts[k][0], pts[k][1]);
         const pit = cfg.pit === 'lava' ? LAVA : WATER;
         for (let ty = r.y - r.ry; ty <= r.y + r.ry; ty++) for (let tx = r.x - r.rx; tx <= r.x + r.rx; tx++) if (floor(tx, ty) && !path.has(I(tx, ty))) map[I(tx, ty)] = pit;
@@ -118,7 +125,7 @@ export function setupPuzzles() {
         let k = 0; for (let j = 1; j < pts.length; j++) { const [x0, y0] = pts[j - 1], [x1, y1] = pts[j], n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));   // 照走的順序排，頭尾三格不會碎
           for (let q = j === 1 ? 0 : 1; q <= n; q++) { const tx = x0 + Math.sign(x1 - x0) * q, ty = y0 + Math.sign(y1 - y0) * q; k++;
             if (k > 3 && !(j === pts.length - 1 && q > n - 3) && inRoom({ x: r.x, y: r.y, rx: r.rx - 1, ry: r.ry - 1 }, tx, ty)) p.crumb.push({ x: tx * TS + 8, y: ty * TS + 8, tx, ty, on: 0, crack: 0, gone: 0 }); } }
-        p.start = { x: iD.x * TS + 8, y: iD.y * TS + 8 };
+        p.start = { x: S.inD.x * TS + 8, y: S.inD.y * TS + 8 };
       }
       if (kind === 'braziers') {
         p.order = id === 'barrow' ? ['moon', 'sun', 'star', 'eye'] : shuf(SYMS);
@@ -172,7 +179,7 @@ function setWall(p: Puz, open: boolean) {
   for (const { tx, ty } of p.wall) { const i = ty * MW + tx; map[i] = open ? fl : p.wallT; invalidate(tx, ty); if (explored[i]) miniPix(i); }
 }
 export function openGate(p: Puz) { if (!p.fkey) return; flags.add(p.fkey); p.gateOpen = true; p.gateT = 0; sfx.level(); shake(4, .5); showBanner('遠處傳來鐵柵門升起的聲音', '', 2400); save(); }
-const swingFace = (pl: Player, x: number, y: number) => Math.abs(((Math.atan2(y - pl.y, x - pl.x) - pl.face) % TAU + TAU * 1.5) % TAU - Math.PI) < 1.2;
+export const swingFace = (pl: Player, x: number, y: number) => Math.abs(((Math.atan2(y - pl.y, x - pl.x) - pl.face) % TAU + TAU * 1.5) % TAU - Math.PI) < 1.2;
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 const statDir = (p: Puz, i: number) => (p.stats[i].want + p.off[i]) % 4;
 
@@ -327,6 +334,10 @@ export function drawPuzzles(vis, list, L, addLight) {
           ctx.fillStyle = '#4a4558'; ctx.fillRect(snapF(s.x - 4), snapF(s.y - 22), 8, 14); ctx.fillStyle = '#6a6478'; ctx.fillRect(snapF(s.x - 3), snapF(s.y - 26), 6, 6);   // 身體 + 頭
           ctx.fillStyle = hit ? '#ffe38a' : '#c8a8ff'; ctx.fillRect(snapF(s.x - 1 + dx * 2), snapF(s.y - 24 + dy), 2, 2); } }); });   // 眼睛朝向 = 目光的方向
     }
+    // 寶庫的門還關著：門縫裡透出金光、飄出金色的光點（讓人想知道後面有什麼）
+    if (p.at === 'vault' && !p.gateOpen && p.gate.length && vis(p.gate[0].x, p.gate[0].y, 80)) { const g = p.gate[1] || p.gate[0], sy = p.outD.side === 3 ? -1 : 1;
+      addLight(L, g.x, g.y + sy * 10, 40 + Math.sin(G.time * 2) * 4, 4);
+      if (Math.random() < .12) G.parts.push({ x: g.x + rr(-18, 18), y: g.y + sy * rr(4, 16), vx: rr(-4, 4), vy: -sy * rr(4, 12), life: 1.2, max: 1.2, col: pick(['#ffe38a', '#f2c14e']), star: rr(.6, 1.2), drag: 1 }); }
     // 鐵柵門：一排鐵條，打開時往上收
     if (p.gate.length && p.kind !== 'webs3' && vis(p.gate[0].x, p.gate[0].y, 60)) { const g0 = p.gate[0], g1 = p.gate[p.gate.length - 1], lift = p.gateOpen ? p.gateT * 20 : 0;
       list.push({ y: g0.y + 7, f: () => { const L0 = g0.x - 8, W = g1.x - g0.x + 16, top = g0.y - 22, H = 30 - lift;
