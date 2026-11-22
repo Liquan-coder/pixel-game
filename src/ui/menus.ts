@@ -171,7 +171,11 @@ function statDiff(now, nx) {                                            // 換�
 }
 function selSummary(sel, now, pv) {
   const it = sel.it, sl = slotOf(it), r = reqOf(it), bad = sl === 'weapon' || sl === 'armor' ? unmet(G.me, it) : [];
-  if (bad.length) return bad.map(k => '<span class="down">' + ATTR_NAME[k] + '還差 ' + (r[k] - (G.me[k] ?? ATTR_BASE)) + ' 點</span>').join('，') + '才能裝備';   // 裝不上 → 不做換裝預覽，直接說差多少
+  if (bad.length) {                                                     // 裝不上 → 不做換裝預覽：秀能力夠了之後的數值（跟身上那件比），再說差多少
+    const d = (a: number, b: number) => a > b ? ' <span class="up">▲' + (a - b) + '</span>' : a < b ? ' <span class="down">▼' + (b - a) + '</span>' : '';
+    const head = sl === 'weapon' ? (A => '攻擊 ' + A.total + d(A.total, atkSplit(G.me, G.me.weapon).total))(atkSplit(G.me, it)) : (A => '防禦 ' + A.def + d(A.def, armorStats(G.me.armor)?.def || 0))(armorStats(it));
+    return head + ' · ' + bad.map(k => '<span class="down">' + ATTR_NAME[k] + '還差 ' + (r[k] - (G.me[k] ?? ATTR_BASE)) + ' 點</span>').join('，');
+  }
   if (pv) return statDiff(now, pv);
   if (sl === 'weapon') { const A = atkSplit(G.me, it), fx = fxOf(it); return '攻擊 ' + A.total + (fx ? ' · <b style="color:' + WFXD[fx].c + '">' + WFXD[fx].n + '</b>' : '') + ' · ' + WT[it.type].trait; }
   if (sl === 'armor') { const A = armorStats(it); return '防禦 ' + A.def + ' · 生命 +' + A.hp; }
