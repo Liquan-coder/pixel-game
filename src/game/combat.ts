@@ -16,6 +16,7 @@ import { burst, hitSpark, quakeFx, shake } from './worldUpdate';
 import { STARC } from '../render/fx';
 import { bumpPot, showBanner, toast } from '../ui/hud';
 import type { Enemy } from '../types';
+import { dismount } from './mount';
 import { SEALC, bindFx, fxOf, onHit, onKill } from './weaponFx';
 import './bossTuning';                                                   // Boss 的傷害倍率和獎勵（平衡用）
 import type { Player } from '../types';
@@ -633,6 +634,7 @@ export function hurtPlayer(pl: Player, v, sx, sy, extra?: FX) {
   const armor = !!(pl.swing && pl.swing.armor);                          // 大劍 / 暗月大劍揮劍中 = 霸體：受傷 ×0.6、不會被擊退
   v = Math.max(1, Math.round(v * (G.dmgMul || 1) * gapTaken(C ? C.lv : 0, level(pl)) * (1 - (pl.defRed || 0)) * (1 - res) * (1 - guard) * (armor ? .6 : 1)));   // 等級差、防禦
   pl.hp -= v; pl.hurt = .3; pl.iframe = .4;
+  if (pl.ride || pl.rideT > 0) dismount(pl, true);                       // 騎著被打中：從星狼背上摔下來
   if (T.counter) pl.counterT = G.time + 2;                               // 反擊之誓：接下來 2 秒的下一擊必定暴擊
   const a = Math.atan2(pl.y - sy, pl.x - sx), kb = pl.acls === 'heavy' || armor ? 0 : 120; pl.kx = Math.cos(a) * kb; pl.ky = Math.sin(a) * kb;   // 重甲：不會被擊退
   G.nums.push({ x:pl.x, y:pl.y - 28, txt:String(v), col:'#ff5a5a', t:0, d:.8 });
@@ -647,7 +649,7 @@ export function hurtPlayer(pl: Player, v, sx, sy, extra?: FX) {
   return true;
 }
 export function downPlayer(pl: Player) {                                 // 倒下（被打死、被毒 / 火燒死）
-  pl.hp = 0; pl.dead = true; pl.deathT = 0; stopCharge(pl); pl.lunge = null;
+  pl.hp = 0; pl.dead = true; pl.deathT = 0; stopCharge(pl); pl.lunge = null; pl.ride = false; pl.rideT = 0;
   if (pl === G.me) { sfx.death(); showBanner('力竭倒下', pl.souls > 0 || pl.gold > 0 ? '八成的魂晶和金幣掉了，回去撿就能拿回來' : '', 2400); }
 }
 

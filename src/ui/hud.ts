@@ -9,6 +9,7 @@ import { interactTarget, type IKind } from './interact';
 import { SCALE } from '../core/canvas';
 import { view } from '../render/render';
 import { SNAME } from '../game/status';
+import { mountHud } from '../game/mount';
 
 /* ================= HUD / UI ================= */
 const hudCache: Record<string, unknown> = {};
@@ -57,6 +58,7 @@ export function updateHUD() {
   const bk = fb ? (frb ? frb.def.name : '狼王・灰鬃') : '';
   if (hudCache.boss !== bk) { hudCache.boss = bk; $('bossBar').hidden = !fb; if (fb) $('bossBar').querySelector('.bname').textContent = bk; }
   if (fb) setScale('bossHp', fb.hp / fb.maxHp);
+  mountHud(G.me);                                                       // 手機的狼頭按鈕（game/mount.ts）
 }
 /* ---- 畫面上方的播報：最多疊 5 行，每行 2 秒後消失；金幣、魂晶短時間內連續撿到會合併成一行一直往上加 ---- */
 const TOAST_MAX = 5, TOAST_MS = 2000;

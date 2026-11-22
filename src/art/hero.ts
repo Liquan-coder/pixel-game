@@ -301,6 +301,7 @@ export const STYLE = {
 export const HERO = {
   walk: [heroLegs(0, 0), heroLegs(-2, 1), heroLegs(0, 0), heroLegs(1, -2)],
   hand: makeSprite(HERO_HAND.map(r => r.padEnd(HERO_W, '.')), HERO_PAL),
+  ride: makeSprite(heroLegRows(0, 0).map((r, y) => y < 60 ? r : r.slice(0, 21) + '.....' + r.slice(26)), HERO_PAL),   // 騎在星狼上：只剩前面那條腿垂在狼的身側（後面那條被狼擋住）
 };
 for (const t in ANIM) for (const k in ANIM[t].P) heroPose(...(ANIM[t].P[k] as Parameters<typeof heroPose>));
 for (const t in STYLE) for (const k in (STYLE[t].P || {})) heroPose(...(STYLE[t].P[k] as Parameters<typeof heroPose>));

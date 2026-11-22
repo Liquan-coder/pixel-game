@@ -68,6 +68,13 @@ export interface Player {
   wheelT?: number;                    // 雙頭刀風車轉到什麼時候（G.time）
   safeX?: number; safeY?: number;     // 最後一次站在 Boss 區外面的位置（死在 Boss 區時，掉的那包放這裡）
 
+  // 星狼（坐騎，game/mount.ts）
+  ride?: boolean;                     // 正騎著
+  rideT?: number;                     // 呼喚中：還剩幾秒騎上去
+  rideIn?: number;                    // 剛騎上：星狼從白光裡浮現還剩幾秒
+  rideDrop?: number;                  // 剛跳下來：人從狼背落到地上還剩幾秒
+  rideRun?: number;                   // 奔跑步伐進度 0～1（挑奔跑動畫的哪一格）
+
   // 速度
   kx: number; ky: number;         // 被擊退
   dvx: number; dvy: number;       // 瞬移

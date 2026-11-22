@@ -10,7 +10,7 @@ import { openPause } from './pause';
 
 /* ================= INPUT ================= */
 const KEYMAP = { KeyW:'up', ArrowUp:'up', KeyS:'down', ArrowDown:'down', KeyA:'left', ArrowLeft:'left', KeyD:'right', ArrowRight:'right',
-  KeyJ:'atk', Space:'atk', KeyK:'dodge', ShiftLeft:'dodge', ShiftRight:'dodge', KeyL:'skill', KeyH:'pot', KeyI:'inv', KeyC:'inv', Tab:'inv', KeyM:'map', KeyP:'pause', Escape:'esc', Enter:'enter' };
+  KeyJ:'atk', Space:'atk', KeyK:'dodge', ShiftLeft:'dodge', ShiftRight:'dodge', KeyL:'skill', KeyH:'pot', KeyI:'inv', KeyC:'inv', Tab:'inv', KeyM:'map', KeyR:'mount', KeyP:'pause', Escape:'esc', Enter:'enter' };
 window.addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey) return;                                    // ⌘ / Ctrl 快捷鍵不算按鍵（Mac 按著 ⌘ 時放開別的鍵不會有 keyup → 會卡住）
   const k = KEYMAP[e.code]; if (!k) return;
@@ -47,7 +47,7 @@ function bindBtn(id, key) {
   el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
   el.addEventListener('contextmenu', e => e.preventDefault());
 }
-bindBtn('bAtk', 'atk'); bindBtn('bSkill', 'skill'); bindBtn('bDodge', 'dodge'); bindBtn('bPot', 'pot');
+bindBtn('bAtk', 'atk'); bindBtn('bSkill', 'skill'); bindBtn('bDodge', 'dodge'); bindBtn('bPot', 'pot'); bindBtn('bMount', 'mount');
 document.addEventListener('gesturestart', e => e.preventDefault());
 document.addEventListener('touchmove', e => { const t = e.target as HTMLElement; if (!t.closest || !t.closest('.panel')) e.preventDefault(); }, { passive:false });
 export function readInput() {

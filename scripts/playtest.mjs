@@ -48,7 +48,7 @@ const pageScript = async () => {
   const shop = await imp('ui/shop');
   const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies'), status: await imp('game/status'), bt: await imp('game/bossTuning'), ai3: await imp('world/bossAI3'), puz2: await imp('world/puz2'), coll: await imp('game/collision'), pause: await imp('ui/pause'), puz: await imp('world/puzzles'), mech: await imp('world/bossMech'), statues: await imp('world/statues'), sight: await imp('world/sight'), ending: await imp('world/ending'), secrets: await imp('world/secrets'), cb: await imp('game/combat'), dboss: await imp('world/dungeonBoss') };
 
-  const imp0 = { pu: await imp('game/playerUpdate'), save: await imp('game/save'), map: await imp('render/map'), dg: await imp('world/dungeons'), input: await imp('ui/interact'), inp: await imp('ui/input'), hud: await imp('ui/hud'), title: await imp('ui/title') };
+  const imp0 = { pu: await imp('game/playerUpdate'), save: await imp('game/save'), map: await imp('render/map'), dg: await imp('world/dungeons'), mount: await imp('game/mount'), input: await imp('ui/interact'), inp: await imp('ui/input'), hud: await imp('ui/hud'), title: await imp('ui/title') };
   const step = (n, opts = {}) => {
     for (let i = 0; i < n; i++) {
       if (opts.god && G.me) { G.me.hp = G.me.maxHp; G.me.st = G.me.maxSt; }
@@ -663,6 +663,31 @@ const pageScript = async () => {
     const n0 = G.nums.length; damageEnemy(G.me, e, 1, G.me.x, G.me.y);
     if (G.me.counterT !== 0) throw new Error('守光騎士的誓言：被打後的下一擊沒有觸發');
     G.me.tfx = {}; recalc(G.me); G.me.hp = G.me.maxHp; G.enemies = [];
+  });
+
+  run('星狼（坐騎）：打倒狼王才叫得出來、跑得比較快、按攻擊跳下來、被打摔下來、城鎮 / 地城騎不進去', () => {
+    const MT = imp0.mount, Q = await0.quest, M = await0.map, keep = G.bossDead; setMenu(null); G.enemies = [];
+    const camp = CAMPS.find(c => c.id === 'start'); tp(camp.x, camp.y + 16); G.me.ride = false; G.me.rideT = 0; step(2);
+    G.bossDead = false; pressed.mount = true; step(40); if (G.me.ride) throw new Error('還沒打倒狼王就叫得出星狼');
+    G.bossDead = true; Q.flags.delete('starwolf'); pressed.mount = true; step(40); if (!G.me.ride) throw new Error('打倒狼王後按 R 沒有騎上星狼');
+    step(250); if (!Q.flags.has('starwolf')) throw new Error('第一次見到星狼的提示沒有出現');
+    // 速度：找一個 140 px 內沒有障礙的方向，走路 vs 騎狼各跑 30 格
+    const dirs = [[1, 0], [-1, 0], [0, -1], [0, 1]], free = d => { for (let t = 0; t <= 140; t += 4) if (await0.coll.collides(camp.x + d[0] * t, camp.y + 16 + d[1] * t, G.me.r + 2)) return false; return true; };
+    const d = dirs.find(free); if (!d) throw new Error('營火四周找不到空地測速度');
+    const go = () => { tp(camp.x, camp.y + 16); G.me.kx = G.me.ky = 0; input.mx = d[0]; input.my = d[1]; step(30); input.mx = input.my = 0; return Math.hypot(G.me.x - camp.x, G.me.y - camp.y - 16); };
+    const dR = go(); MT.dismount(G.me); step(15); const dW = go();
+    if (!(dR > dW * 1.5)) throw new Error('騎星狼沒有比較快：騎 ' + dR.toFixed(1) + ' / 走 ' + dW.toFixed(1));
+    // 按攻擊 → 先跳下來，這一下照常揮
+    tp(camp.x, camp.y + 16); pressed.mount = true; step(40); if (!G.me.ride) throw new Error('第二次呼喚沒騎上去');
+    G.me.atkCd = 0; pressed.atk = true; step(1); if (G.me.ride || !(G.me.swing || G.me.atkCd > 0)) throw new Error('騎著按攻擊：應該跳下來並且揮刀');
+    // 被打中摔下來；呼喚到一半被打也會中斷
+    step(30); pressed.mount = true; step(40); G.me.iframe = 0; hurtPlayer(G.me, 1, G.me.x + 10, G.me.y); if (G.me.ride) throw new Error('被打中沒有摔下來');
+    step(30); G.me.iframe = 0; pressed.mount = true; step(5); hurtPlayer(G.me, 1, G.me.x + 10, G.me.y); step(40); if (G.me.ride) throw new Error('呼喚到一半被打，還是騎上去了');
+    // 騎進城鎮 → 自動下來；城鎮 / 地城裡叫不出來
+    G.me.hp = G.me.maxHp; tp(camp.x, camp.y + 16); pressed.mount = true; step(40); const T = M.TOWNS[0]; tp(T.tx * 16 + 8, T.ty * 16 + 8); step(2);
+    if (G.me.ride) throw new Error('騎進城鎮沒有自動下來'); pressed.mount = true; step(40); if (G.me.ride) throw new Error('城鎮裡叫得出星狼');
+    const D = imp0.dg.DUNGEONS[0]; tp((D.x0 + D.w / 2) * 16, (D.y0 + D.h / 2) * 16); pressed.mount = true; step(40); if (G.me.ride) throw new Error('地城裡叫得出星狼');
+    G.bossDead = keep; G.me.ride = false; tp(camp.x, camp.y + 16); step(2);
   });
 
   run('精靈王城：城門鎖著 → 從東牆破口繞進去（不經過精靈王）→ 拉桿開城門 → 砍牆找到密室', () => {
