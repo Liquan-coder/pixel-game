@@ -2,7 +2,7 @@ import { G } from '../core/state';
 import { $, TAU, angDiff, clamp, dist, pick, rr } from '../core/util';
 import { DG, bossWeapon } from '../data/items';
 import { bossMul } from './bossTuning';
-import { ARENA, DOOR, MW, RFLOOR, TS, explored, map } from '../world/map';
+import { ARENA, DOOR, FOG, MW, RFLOOR, TS, explored, map } from '../world/map';
 import { invalidate } from '../world/chunks';
 import { miniPix } from '../world/minimap';
 import { collides, inArena, moveEnt, stepToward } from './collision';
@@ -144,6 +144,13 @@ function updateBoss0(dt) {
 export function openDoor() {
   for (const x of DOOR) { map[ARENA.y1 * MW + x] = RFLOOR; const i = ARENA.y1 * MW + x; if (explored[i]) miniPix(i); }
   invalidate(DOOR[1], ARENA.y1);
+}
+/* 開發用（?lab「去 Boss 前」）：狼王復活。打倒時門口的霧被換成地板（openDoor），要換回霧 */
+export function reviveWolf() {
+  if (G.bossDead) { G.bossDead = false;
+    for (const x of DOOR) { const i = ARENA.y1 * MW + x; map[i] = FOG; if (explored[i]) miniPix(i); }
+    invalidate(DOOR[1], ARENA.y1); }
+  resetBoss();                                                          // 血補滿、回去睡
 }
 export function bossDie(by) {                                          // by = 打死狼王的玩家
   G.bossDead = true; G.fogLocked = false; $('bossBar').hidden = true;

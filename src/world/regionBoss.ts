@@ -74,6 +74,13 @@ export function resetRegionBosses() {
   G.enemies = G.enemies.filter(e => !e.rbAdd);
   rbs = Object.values(RBDEF).filter(d => !rbDead.has(d.id) && !(d.dg && flags.has('dgn:' + d.dg))).map(makeRB);   // 地城 Boss：打倒過（舊存檔的守護者也算）就不再出現
 }
+/* 開發用（?lab「去 Boss 前」）：這隻 Boss 重新出現，血補滿、回去睡。打倒過的也會回來
+   （地城的「已打倒」旗標不動：最深處的金箱照樣是開的，方便測試） */
+export function reviveRB(id: string) {
+  const d = Object.values(RBDEF).find(d => d.id === id); if (!d) return;
+  rbDead.delete(id); G.enemies = G.enemies.filter(x => x.rbAdd !== id);   // 牠叫出來的小怪一起清掉
+  const e = makeRB(d), i = rbs.findIndex(x => x.def === d); if (i >= 0) rbs[i] = e; else rbs.push(e);
+}
 export const fightingRB = () => rbs.find(e => !e.dead && e.state !== 'sleep');
 export function nearZone() { if (G.me.dead || fightingRB()) return null;                  // 給 HUD 用：「我」是否站在結界邊
   for (const e of rbs) { if (e.dead || e.state !== 'sleep') continue; const d = e.def, k = Math.hypot(G.me.x - d.x, G.me.y - d.y); if (k < d.R + 44 && k > d.R - 16) return d; } return null; }

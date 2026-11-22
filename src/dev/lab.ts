@@ -2,7 +2,7 @@
    打開 http://localhost:5173/?lab 就直接進遊戲，不用從頭玩：
    · 主角打不死、體力 / 藥水無限
    · 跟 ?test 一樣全開：地圖、地名、營火（可以傳送）、背包有全部武器、星狼、4 格飾品欄
-   · 畫面上方一排按鈕：換刻印、換武器、叫怪（一群小怪 / 精英 / 打不死的沙包 / 會打人的沙包）、傳送到任一隻 Boss 的結界外面、換流派飾品
+   · 畫面上方一排按鈕：換刻印、換武器、叫怪（一群小怪 / 精英 / 打不死的沙包 / 會打人的沙包）、傳送到任一隻 Boss 的結界外面（那隻 Boss 會復活、血補滿）、換流派飾品
    · **不會存檔**（G.lab = true 時 game/save.ts 的 save / clearSave 什麼都不做），你的存檔格完全不動
    只有開發模式（npm run dev）才會載入這個檔案（main.ts 用 import.meta.env.DEV 判斷），上線的版本裡沒有它。 */
 import { G } from '../core/state';
@@ -11,7 +11,8 @@ import { WT, makeWeapon } from '../data/items';
 import { WFXD, fxOf } from '../game/weaponFx';
 import { makeEnemy } from '../game/enemies';
 import { recalc } from '../game/player';
-import { RBDEF, rbs } from '../world/regionBoss';
+import { RBDEF, rbs, reviveRB } from '../world/regionBoss';
+import { resetBoss, reviveWolf } from '../game/boss';
 import { makeUniqueGear } from '../data/items';
 import { UG } from '../data/uniques';
 import { effLines } from '../data/gear';
@@ -60,7 +61,7 @@ function setBuild(k: string) { G.me.trinkets[0] = k && UG[k] ? makeUniqueGear(k)
 function brute() { const [x, y] = near(50); const e = add('skel', x, y); e.maxHp = e.hp = 300; e.dmg = 6; bags.add(e); }
 function sandbag() { const [x, y] = near(55); const e = add('golem', x, y); e.maxHp = e.hp = 300; e.dmg = 1; bags.add(e); }   // 血量正常（出血爆的 15% 才是真的大小），每一幀補滿
 function clearFoes() { G.enemies = []; }                              // 全部清掉（野外的怪走遠再回來會自己長回來）
-/* ---- 去 Boss 前：選一隻 Boss → 傳送到牠的結界外面（不會直接開打） ----
+/* ---- 去 Boss 前：選一隻 Boss → 牠復活（打倒過也會回來、血補滿）→ 傳送到牠的結界外面（不會直接開打） ----
    從 Boss 站的位置沿著能走的地板往外找（廣度優先），第一個走出結界的位置就是落點
    → 一定跟 Boss 是連通的（地城 Boss = 停在 Boss 房的門外），不會掉進牆裡或隔壁房間 */
 type BossPick = { id: string; name: string; lv: number; group: string; x: number; y: number; inside: (x: number, y: number) => boolean };
@@ -84,9 +85,10 @@ function outsideOf(b: BossPick): [number, number] | null {
 function toBoss(id: string) {
   const b = bossList().find(b => b.id === id); if (!b) return;
   const at = outsideOf(b); if (!at) { toast('找不到 ' + b.name + ' 外面能站的地方', '#ff8a8a'); return; }
+  if (id === 'wolf') reviveWolf(); else { reviveRB(id); if (G.B && !G.bossDead && G.B.state !== 'sleep') resetBoss(); }   // 狼王打到一半就跑去別隻：狼王也回去睡
   const pl = G.me; pl.x = at[0]; pl.y = at[1]; pl.kx = pl.ky = 0; pl.face = Math.atan2(b.y - pl.y, b.x - pl.x); pl.flip = b.x < pl.x;
   G.enemies = G.enemies.filter(e => e.rb || e.boss);                    // 原本身邊叫出來的怪清掉
-  toast('到了' + b.name + '的結界外面，往前走就會開打', '#c8a8ff');
+  toast(b.name + '復活了，你在結界外面，往前走就會開打', '#c8a8ff');
 }
 
 let bar: HTMLDivElement;
