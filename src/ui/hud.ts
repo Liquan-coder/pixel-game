@@ -1,4 +1,5 @@
 import { G } from '../core/state';
+import { actIconSvg } from '../art/actIcons';
 import { $, clamp } from '../core/util';
 import { WT, slotOf } from '../data/items';
 import { fightingRB, nearZone } from '../world/regionBoss';
@@ -42,7 +43,8 @@ export function updateHUD() {
   const it = interactTarget(), ik = it ? it.kind + ':' + (it.text || '') : '';             // 攻擊鍵現在會做什麼：撿起 / 休息 / 打開…
   if (hudCache.act !== ik) { hudCache.act = ik;
     $('actHint').hidden = !it; if (it) { $('actTxt').textContent = it.text || HINT[it.kind]; $('actHint').dataset.k = it.kind; }   // 畫面下方一行小提示，不是按鈕
-    $('bAtkTxt').textContent = it ? it.btn : '攻擊'; $('bAtk').classList.toggle('act', !!it); }
+    $('bAtkTxt').textContent = it ? it.btn : '攻擊'; const ab = $('bAtk'), was = ab.classList.contains('act'); ab.classList.toggle('act', !!it);
+    if (it) { $('bAtkAct').innerHTML = actIconSvg(it.kind); if (!was) replay(ab, 'pop'); } }   // 能互動：劍換成「要做的事」的圖示（手、寶箱、營火……），剛出現時彈一下
   setText('goldTxt', String(G.me.gold));
   const S = G.me.sx, sk = S && !G.me.dead ? (['frozen', 'stun', 'root', 'poison', 'burn', 'slow', 'silence', 'blind'] as const).filter(k => S[k] > 0).map(k => k + ':' + Math.ceil(S[k])).join(',') : '';
   if (hudCache.sx !== sk) { hudCache.sx = sk; $('statusRow').hidden = !sk;                      // 身上的異常狀態 + 剩幾秒（game/status.ts）
