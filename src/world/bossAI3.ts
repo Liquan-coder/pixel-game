@@ -1,7 +1,10 @@
 /* ---- 地城 Boss 的通用 AI：一套招式庫，每隻 Boss 用 world/dungeonBoss.ts 的 moves 挑自己的招式 ----
    每一招都是「預警（紅色範圍，越來越滿）→ 出招 → 收招」三段，預警時間二階段會變短。
    招式：
-   charge 衝撞（直線預警 → 往前衝，撞到就受傷；trail = 身後留下一灘）  combo 連續三次衝撞
+   charge 衝撞（直線預警 → 往前衝，撞到就受傷；trail = 身後留下一灘；wind = 預警秒數倍率；minD = 太近不衝）  combo 連續三次衝撞
+   thrust 刺（拿長兵器的：往後收 → 往前刺一條短直線，身體往前踏 step）
+   chain  連段：seq 裡的招一招接一招，後面的預警縮短（例：刺、刺、橫掃）。比 combo 合理：拿武器的就該用武器連段
+   ※ 每一招打出去的瞬間會記 e.act = { k, t0, aim }，render/bossAnim.ts 用它畫「出招後的收招動作」
    slam   砸地（自己周圍一圈）        leap  跳到你頭上砸下來（落點一圈；pool = 落地留一灘）
    sweep  橫掃（面前扇形）            lash  鞭打 / 吐舌 / 光束（面前一條長直線，瞬間打中；trail = 線上留一排火）
    fan    扇射（往你的方向射一排彈）  nova  環射（往四面八方射一圈）
@@ -51,15 +54,20 @@ function strike(m) {                                                    // 落�
 }
 function pickMove(e, d): Move {
   const B = e.def.boss, list: Move[] = e.phase === 2 ? B.moves.concat(B.p2) : B.moves;
-  const ok = list.filter(([m, , o]) => !(m === 'summon' && (e.sumT || 0) > 0) && !((m === 'sweep' || m === 'slam') && d > 90) && !(m === 'charge' && d < 40) && !(m === 'pull' && d > (o?.r || 50) * 2.4));
+  const fits = (m: string, o, d: number) => !(m === 'summon' && (e.sumT || 0) > 0) && !((m === 'sweep' || m === 'slam') && d > 90) && !(m === 'charge' && d < (o?.minD || 40)) && !(m === 'pull' && d > (o?.r || 50) * 2.4)
+    && !(m === 'thrust' && d > (o?.L || 80) + 16);                     // 刺：要走到刺得到的距離才出手
+  const ok = list.filter(([m, , o]) => m === 'chain' ? fits(o.seq[0][0], o.seq[0][1], d) : fits(m, o, d));
   let r = Math.random() * ok.reduce((s, m) => s + m[1], 0); for (const m of ok) if ((r -= m[1]) < 0) return m; return ok[0] || list[0];
 }
 const laneTele = (e, o) => [{ k: 'lane', a: e.aim, L: o.L, W: o.W }];
 const crossTele = (e, o) => [0, 1, 2, 3].map(i => ({ k: 'lane', a: e.aim + i * Math.PI / 2, L: o.L, W: o.W }));
-function beam(e, a, o) {                                                   // 一道光束：直線上的人受傷 + 光束特效
+function laneHit(e, a, o) {                                                // 一條直線（長 o.L、半寬 o.W）上的人受傷
   const c = Math.cos(a), s = Math.sin(a);
   for (const pl of G.players) { const rx = pl.x - e.x, ry = pl.y - e.y, along = rx * c + ry * s, side = Math.abs(-rx * s + ry * c);
     if (along > 0 && along < o.L && side < o.W + pl.r - DG && hurtPlayer(pl, dmgOf(e, o), e.x, e.y)) hitSpark(pl.x, pl.y - 8, true, a); }
+}
+function beam(e, a, o) {                                                   // 一道光束：直線上的人受傷 + 光束特效
+  laneHit(e, a, o);
   G.fx.push({ k: 'lash', style: TH(e).lash, x: e.x, y: e.y - 8, a, L: o.L, W: o.W, cols: colsOf(e), t: 0, d: .42 });
 }
 function pool(e, x, y, r, t, dmg, cols) { addPool(e, x, y, r, t, dmg, cols); e.pools[e.pools.length - 1].style = TH(e).pool; }   // 地上的一灘 + 這隻 Boss 的花紋
@@ -99,7 +107,7 @@ export function extraStates(e, dt): boolean {
         for (const pl of G.players) { const pd = Math.hypot(pl.x - e.x, pl.y - e.y); if (pd > o.r0 + DG && pd < o.r && hurtPlayer(pl, dmgOf(e, o), e.x, e.y)) hitSpark(pl.x, pl.y - 8, true, Math.atan2(pl.y - e.y, pl.x - e.x)); }
         for (const dl of [0, .1]) G.fx.push({ k: 'warp', x: e.x, y: e.y, r0: o.r0, r1: o.r, th: 8, delay: dl, t: 0, d: .45 + dl, col: dl ? colsOf(e)[2] : D.aura[0] });
         for (let i = 0; i < 14; i++) { const a = i / 14 * TAU, r = (o.r0 + o.r) / 2 + rr(-10, 10); burst(e.x + Math.cos(a) * r, e.y + Math.sin(a) * r * .8, TH(e).impact, 3); }
-        sfx.boom(); shake(6, .3); e.state = 'idle'; e.t = rr(.8, 1.1) * wk; }
+        sfx.boom(); shake(6, .3); e.act = { k: 'plant', t0: G.time, aim: e.aim }; e.state = 'idle'; e.t = rr(.8, 1.1) * wk; }
       break;
     case 'crossWind':                                                    // 十字光束（二階段：轉 45 度再打一次）
       e.t -= dt; if (e.t <= 0) { e.tele = null; for (let i = 0; i < 4; i++) beam(e, e.aim + i * Math.PI / 2, o);
@@ -116,6 +124,36 @@ export function extraStates(e, dt): boolean {
   }
   return true;
 }
+/* 開始一招（idle 挑到的、或連段的下一招）：設定預警，進入「xxxWind」狀態 */
+export function startMove(e, m: string, mo, dx: number, dy: number) {
+  const D = e.def, p2 = e.phase === 2, wk = p2 ? .78 : 1; e.mo = mo; e.aim = Math.atan2(dy, dx);
+  if (m === 'chain') { e.chain = mo.seq.slice(1); const [m1, o1] = mo.seq[0]; startMove(e, m1, o1, dx, dy); }   // 連段：一招接一招（例：刺、刺、橫掃）
+  else if (m === 'thrust') rbWind(e, 'thrustWind', (mo.wind || .65) * wk, laneTele(e, mo));
+  else if (m === 'charge' || m === 'combo') { e.combo = m === 'combo' ? 3 : 1; rbWind(e, 'chargeWind', (mo.wind || .6) * wk, laneTele(e, mo)); }
+  else if (m === 'slam') rbWind(e, 'slamWind', .75 * wk, [{ k: 'circle', r: mo.r }]);
+  else if (m === 'leap') { rbWind(e, 'jumpWind', .7 * wk); e.tx = e.tgt.x; e.ty = e.tgt.y; }
+  else if (m === 'sweep') rbWind(e, 'sweepWind', .55 * wk, [{ k: 'sector', r: mo.r, a: e.aim, half: mo.half }]);
+  else if (m === 'lash') rbWind(e, 'lashWind', .6 * wk, laneTele(e, mo));
+  else if (m === 'fan') { const n = mo.n + (p2 ? 2 : 0); e.shots = []; for (let i = 0; i < n; i++) e.shots.push(n === 1 ? e.aim : e.aim - mo.spread / 2 + mo.spread * i / (n - 1));
+    rbWind(e, 'fanWind', .55 * wk, e.shots.map(a => ({ k: 'lane', a, L: 110, W: 12 }))); }
+  else if (m === 'nova') { e.shots = []; const n = mo.n, a0 = rr(0, TAU); for (let i = 0; i < n; i++) e.shots.push(a0 + i / n * TAU);
+    rbWind(e, 'novaWind', .7 * wk, [{ k: 'circle', r: 36 }]); }
+  else if (m === 'rain') { const pts = []; for (let i = 0; i < mo.n + (p2 ? 2 : 0); i++) { const q = i === 0 ? { x: e.tgt.x, y: e.tgt.y } : { x: e.tgt.x + rr(-80, 80), y: e.tgt.y + rr(-60, 60) }; keepIn(q, D, 18); pts.push(q); }
+    const T = TH(e); for (const [i, q] of pts.entries()) e.pend.push({ x: q.x, y: q.y, r: mo.r, t: .9 * wk + i * .08, T: .9 * wk + i * .08, dmg: dmgOf(e, mo), fall: T.rain, impact: T.impact,
+      cols: T.rainCols || mo.cols || colsOf(e), warm: T.rain === 'pillar' && T.impact === 'lava' ? 1 : 2 });
+    rbWind(e, 'castWind', .5); }
+  else if (m === 'pools') { const pts = [{ x: e.tgt.x, y: e.tgt.y }]; for (let i = 1; i < mo.n + (p2 ? 1 : 0); i++) { const q = { x: e.tgt.x + rr(-70, 70), y: e.tgt.y + rr(-50, 50) }; keepIn(q, D, 24); pts.push(q); }
+    e.cpts = pts; rbWind(e, 'poolWind', .8 * wk, pts.map(q => ({ k: 'circle', x: q.x, y: q.y, r: mo.r }))); }
+  else if (m === 'spiral') { e.sa = e.aim; rbWind(e, 'spiralWind', .5 * wk, [{ k: 'circle', r: 30 }]); }
+  else if (m === 'summon') { e.sumT = 14; rbWind(e, 'summonWind', .7, [{ k: 'circle', r: 30 }]); }
+  else if (m === 'pull' || m === 'donut' || m === 'cross' || m === 'homing') startExtra(e, m, mo, dx, dy);
+  else if (m === 'erupt') { e.hidden = e.immune = e.mound = true; rbWind(e, 'sinkWind', .45); burst(e.x, e.y, TH(e).impact, 22); quakeFx(e.x, e.y, 30); sfx.boom(); }
+}
+/* 一招打完：連段還有下一招 → 直接接（預警縮短成 6 成）；沒有 → 站著喘一下 rest 秒 */
+function done(e, rest: number, dx: number, dy: number) {
+  if (e.chain?.length) { const [m, mo] = e.chain.shift(); startMove(e, m, mo, dx, dy); e.t *= .6; e.wt = e.t; return; }
+  e.chain = null; e.state = 'idle'; e.t = rest;
+}
 AI.dgn = (e, dt, d, dx, dy) => {
   const B = e.def.boss, D = e.def, p2 = e.phase === 2, wk = p2 ? .78 : 1;
   tickPools(e, dt); if (e.sumT > 0) e.sumT -= dt;
@@ -128,26 +166,7 @@ AI.dgn = (e, dt, d, dx, dy) => {
       e.t -= dt; e.flip = dx < 0;
       if (d > 40) stepToward(e, e.tgt.x, e.tgt.y, B.spd * (p2 ? 1.2 : 1), dt);
       if (e.t > 0) break;
-      const [m, , mo = {}] = pickMove(e, d); e.mo = mo; e.aim = Math.atan2(dy, dx);
-      if (m === 'charge' || m === 'combo') { e.combo = m === 'combo' ? 3 : 1; rbWind(e, 'chargeWind', .6 * wk, laneTele(e, mo)); }
-      else if (m === 'slam') rbWind(e, 'slamWind', .75 * wk, [{ k: 'circle', r: mo.r }]);
-      else if (m === 'leap') { rbWind(e, 'jumpWind', .7 * wk); e.tx = e.tgt.x; e.ty = e.tgt.y; }
-      else if (m === 'sweep') rbWind(e, 'sweepWind', .55 * wk, [{ k: 'sector', r: mo.r, a: e.aim, half: mo.half }]);
-      else if (m === 'lash') rbWind(e, 'lashWind', .6 * wk, laneTele(e, mo));
-      else if (m === 'fan') { const n = mo.n + (p2 ? 2 : 0); e.shots = []; for (let i = 0; i < n; i++) e.shots.push(n === 1 ? e.aim : e.aim - mo.spread / 2 + mo.spread * i / (n - 1));
-        rbWind(e, 'fanWind', .55 * wk, e.shots.map(a => ({ k: 'lane', a, L: 110, W: 12 }))); }
-      else if (m === 'nova') { e.shots = []; const n = mo.n, a0 = rr(0, TAU); for (let i = 0; i < n; i++) e.shots.push(a0 + i / n * TAU);
-        rbWind(e, 'novaWind', .7 * wk, [{ k: 'circle', r: 36 }]); }
-      else if (m === 'rain') { const pts = []; for (let i = 0; i < mo.n + (p2 ? 2 : 0); i++) { const q = i === 0 ? { x: e.tgt.x, y: e.tgt.y } : { x: e.tgt.x + rr(-80, 80), y: e.tgt.y + rr(-60, 60) }; keepIn(q, D, 18); pts.push(q); }
-        const T = TH(e); for (const [i, q] of pts.entries()) e.pend.push({ x: q.x, y: q.y, r: mo.r, t: .9 * wk + i * .08, T: .9 * wk + i * .08, dmg: dmgOf(e, mo), fall: T.rain, impact: T.impact,
-          cols: T.rainCols || mo.cols || colsOf(e), warm: T.rain === 'pillar' && T.impact === 'lava' ? 1 : 2 });
-        rbWind(e, 'castWind', .5); }
-      else if (m === 'pools') { const pts = [{ x: e.tgt.x, y: e.tgt.y }]; for (let i = 1; i < mo.n + (p2 ? 1 : 0); i++) { const q = { x: e.tgt.x + rr(-70, 70), y: e.tgt.y + rr(-50, 50) }; keepIn(q, D, 24); pts.push(q); }
-        e.cpts = pts; rbWind(e, 'poolWind', .8 * wk, pts.map(q => ({ k: 'circle', x: q.x, y: q.y, r: mo.r }))); }
-      else if (m === 'spiral') { e.sa = e.aim; rbWind(e, 'spiralWind', .5 * wk, [{ k: 'circle', r: 30 }]); }
-      else if (m === 'summon') { e.sumT = 14; rbWind(e, 'summonWind', .7, [{ k: 'circle', r: 30 }]); }
-      else if (m === 'pull' || m === 'donut' || m === 'cross' || m === 'homing') startExtra(e, m, mo, dx, dy);
-      else if (m === 'erupt') { e.hidden = e.immune = e.mound = true; rbWind(e, 'sinkWind', .45); burst(e.x, e.y, TH(e).impact, 22); quakeFx(e.x, e.y, 30); sfx.boom(); }
+      const [m, , mo = {}] = pickMove(e, d); e.chain = null; startMove(e, m, mo, dx, dy);
       break; }
     case 'chargeWind':
       e.t -= dt; if (e.t > .2) { e.aim = Math.atan2(dy, dx); e.flip = dx < 0; e.tele = laneTele(e, o); }
@@ -159,20 +178,33 @@ AI.dgn = (e, dt, d, dx, dy) => {
       trail(e.x, e.y, TH(e).trail);
       if (o.trail && (e.trT = (e.trT || 0) + dt) > .09) { e.trT = 0; pool(e, e.x, e.y, 16, 2.5, Math.round(base(e) * .3), o.trail); }
       if (!e.hitDone) for (const pl of G.players) if (Math.hypot(pl.x - e.x, pl.y - e.y) < e.r + pl.r + 4 && hurtPlayer(pl, dmgOf(e, o), e.x, e.y, { stun: .35 })) { e.hitDone = true; hitSpark(pl.x, pl.y - 8, true, e.aim); shake(4, .15); }
-      if (e.t <= 0) { if (--e.combo > 0) { e.aim = Math.atan2(dy, dx); rbWind(e, 'chargeWind', .32 * wk, laneTele(e, o)); } else { e.state = 'idle'; e.t = rr(.6, .9) * wk; } }
+      if (e.t <= 0) { if (--e.combo > 0) { e.aim = Math.atan2(dy, dx); rbWind(e, 'chargeWind', .32 * wk, laneTele(e, o)); } else { e.act = { k: 'chargeEnd', t0: G.time, aim: e.aim }; done(e, rr(.6, .9) * wk, dx, dy); } }
       break;
     case 'slamWind':
       e.t -= dt; if (e.t <= 0) { e.tele = null;
         for (const pl of G.players) if (Math.hypot(pl.x - e.x, pl.y - e.y) < o.r - DG && hurtPlayer(pl, dmgOf(e, o), e.x, e.y, { stun: .55 })) hitSpark(pl.x, pl.y - 8, true, Math.atan2(pl.y - e.y, pl.x - e.x));
         for (const dl of [0, .08]) G.fx.push({ k: 'warp', x: e.x, y: e.y, r0: 6, r1: o.r + 8, th: 6, delay: dl, t: 0, d: .4 + dl, col: D.aura[0] });
-        quakeFx(e.x, e.y, o.r); burst(e.x, e.y, TH(e).impact, 26); sfx.boom(); shake(6, .3); G.hitStop = Math.max(G.hitStop, .07); e.state = 'idle'; e.t = rr(.8, 1.1) * wk; }
+        quakeFx(e.x, e.y, o.r); burst(e.x, e.y, TH(e).impact, 26); sfx.boom(); shake(6, .3); G.hitStop = Math.max(G.hitStop, .07); e.act = { k: 'slam', t0: G.time, aim: e.aim }; done(e, rr(.8, 1.1) * wk, dx, dy); }
       break;
     case 'sweepWind':
       e.t -= dt; if (e.t > .2) { e.aim = Math.atan2(dy, dx); e.flip = dx < 0; e.tele = [{ k: 'sector', r: o.r, a: e.aim, half: o.half }]; }
       if (e.t <= 0) { e.tele = null;
         for (const pl of G.players) { const pd = Math.hypot(pl.x - e.x, pl.y - e.y); if (pd < o.r - DG && angDiff(Math.atan2(pl.y - e.y, pl.x - e.x), e.aim) < o.half - DG / Math.max(pd, 20) && hurtPlayer(pl, dmgOf(e, o), e.x, e.y)) hitSpark(pl.x, pl.y - 8, true, e.aim); }
-        sweepFx(e, o);
-        sfx.swing(); shake(3, .12); e.state = 'idle'; e.t = rr(.6, .9) * wk; }
+        sweepFx(e, o); e.act = { k: 'sweep', t0: G.time, aim: e.aim, half: o.half };
+        if (o.wave && p2) for (let i = 0; i < o.wave; i++) shoot(e, e.aim + (i - (o.wave - 1) / 2) * .4, o.wspd || 150, dmgOf(e, { k: o.wk || .8 }));   // 二階段：橫掃順勢甩出寒氣
+        sfx.swing(); shake(3, .12); done(e, rr(.6, .9) * wk, dx, dy); }
+      break;
+    case 'thrustWind':                                                   // 刺：往後收 → 往前刺（直線，比 lash 短），身體跟著往前踏一步
+      e.t -= dt; if (e.t > .22) { e.aim = Math.atan2(dy, dx); e.flip = dx < 0; e.tele = laneTele(e, o); }
+      if (e.t <= 0) { e.tele = null; laneHit(e, e.aim, o);
+        G.fx.push({ k: 'lash', style: TH(e).lash, x: e.x, y: e.y - 8, a: e.aim, L: o.L, W: o.W * .6, cols: colsOf(e), t: 0, d: .26 });
+        burst(e.x + Math.cos(e.aim) * o.L, e.y - 8 + Math.sin(e.aim) * o.L, TH(e).impact, 8);
+        const v = (o.step || 12) / .14; e.lvx = Math.cos(e.aim) * v; e.lvy = Math.sin(e.aim) * v;
+        e.act = { k: 'thrust', t0: G.time, aim: e.aim }; e.state = 'thrust'; e.t = .14; sfx.swing(); shake(3, .12); }
+      break;
+    case 'thrust':
+      e.t -= dt; moveEnt(e, e.lvx * dt, e.lvy * dt); keepIn(e, D, e.r);
+      if (e.t <= 0) done(e, rr(.7, .95) * wk, dx, dy);
       break;
     case 'lashWind':
       e.t -= dt; if (e.t > .22) { e.aim = Math.atan2(dy, dx); e.flip = dx < 0; e.tele = laneTele(e, o); }
@@ -182,7 +214,7 @@ AI.dgn = (e, dt, d, dx, dy) => {
         G.fx.push({ k: 'lash', style: TH(e).lash, x: e.x, y: e.y - 8, a: e.aim, L: o.L, W: o.W, cols: colsOf(e), t: 0, d: .42 });
         for (let k = 12; k < o.L; k += 10) G.parts.push({ x: e.x + c * k + rr(-3, 3), y: e.y - 8 + s * k + rr(-3, 3), vx: c * 40, vy: s * 40, life: .3, max: .3, col: pick(colsOf(e)), s: 2 });
         if (o.trail) for (let k = 24; k < o.L; k += 26) pool(e, e.x + c * k, e.y + s * k, 14, 2.5, Math.round(base(e) * .3), o.trail);
-        sfx.swing(); shake(3, .12); e.state = 'idle'; e.t = rr(.6, .9) * wk; }
+        e.act = { k: 'lash', t0: G.time, aim: e.aim }; sfx.swing(); shake(3, .12); done(e, rr(.6, .9) * wk, dx, dy); }
       break;
     case 'fanWind':
       e.t -= dt; if (e.t <= 0) { e.tele = null; for (const a of e.shots) shoot(e, a, o.spd, dmgOf(e, o));
@@ -193,7 +225,7 @@ AI.dgn = (e, dt, d, dx, dy) => {
         for (const dl of [0, .1]) G.fx.push({ k: 'warp', x: e.x, y: e.y - 8, r0: 6, r1: 50, th: 4, delay: dl, t: 0, d: .35 + dl, col: colsOf(e)[1] }); burst(e.x, e.y - 8, TH(e).impact, 14); sfx.skill(); e.state = 'idle'; e.t = rr(.7, 1) * wk; }
       break;
     case 'castWind':
-      e.t -= dt; if (e.t <= 0) { e.state = 'idle'; e.t = rr(.5, .8) * wk; }
+      e.t -= dt; if (e.t <= 0) { e.act = { k: 'plant', t0: G.time, aim: e.aim }; e.state = 'idle'; e.t = rr(.5, .8) * wk; }
       break;
     case 'poolWind':
       e.t -= dt; if (e.t <= 0) { e.tele = null; for (const q of e.cpts) pool(e, q.x, q.y, o.r, o.t + (p2 ? 1 : 0), Math.round(base(e) * o.k), o.cols || colsOf(e)); sfx.skill(); e.state = 'idle'; e.t = rr(.6, .9) * wk; }
@@ -220,7 +252,7 @@ AI.dgn = (e, dt, d, dx, dy) => {
       if (e.t <= 0) { e.state = 'idle'; e.t = rr(.5, .8) * wk; }
       break;
     case 'summonWind':
-      e.t -= dt; if (e.t <= 0) { e.tele = null; summon(e, pick(D.adds), o.n || 2, o.max || 3, 3); sfx.howl(); e.state = 'idle'; e.t = .8; }
+      e.t -= dt; if (e.t <= 0) { e.tele = null; summon(e, pick(D.adds), o.n || 2, o.max || 3, 3); sfx.howl(); e.act = { k: 'plant', t0: G.time, aim: e.aim }; e.state = 'idle'; e.t = .8; }
       break;
   }
   void fan; void clamp;

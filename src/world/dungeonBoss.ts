@@ -48,9 +48,11 @@ export const DBOSS: Record<string, DBossDef> = {
   icequeen: { name: '冰晶女王・霙', sub: '洞窟裡響起一首很老的歌', lv: 60, hp: 4400, spd: 44, ring: ['#a8dcff', '#ffffff'], aura: ['#7ab8e8', '#dcecff', '#ffffff'], cols: ICE, proj: 'claw',
     moves: [['fan', 3, { n: 5, spread: .8, spd: 170, k: .9 }], ['rain', 2, { n: 7, r: 22, k: 1.1, cols: ICE }], ['nova', 2, { n: 10, spd: 140, k: .8 }]],
     p2: [['summon', 1, { n: 2, max: 3 }], ['charge', 2, { L: 170, W: 24, spd: 340, k: 1.2 }]] },
+  // 霜墓騎士：全身重甲 + 長戟 → 招式都從「戟」和「重」來：刺（短直線）、橫掃、戟插地（冰劍落下 / 外圈冰爆）、距離遠才放平長戟衝一次（不會連衝三次）。
+  // 二階段：刺、刺、橫掃的連段，橫掃順勢甩出寒氣；舉戟叫醒墓裡的屍鬼。動作在 render/bossAnim.ts
   frostknight: { name: '霜墓騎士', sub: '冰封的騎士，抬起了頭', lv: 62, hp: 4800, spd: 46, ring: ['#a8dcff', '#ffffff'], aura: ['#4a6e94', '#a8dcff', '#ffffff'], cols: ICE, proj: 'claw',
-    moves: [['combo', 3, { L: 120, W: 24, spd: 340, k: 1.1 }], ['sweep', 2, { r: 66, half: 1.2, k: 1.4 }], ['rain', 1, { n: 5, r: 22, k: 1.1, cols: ICE }]],
-    p2: [['fan', 2, { n: 5, spread: .9, spd: 170, k: .9 }], ['summon', 1, { n: 2, max: 3 }]] },
+    moves: [['thrust', 3, { L: 78, W: 14, k: 1.3, step: 14 }], ['sweep', 3, { r: 62, half: 1.15, k: 1.4, wave: 3 }], ['charge', 1, { L: 140, W: 24, spd: 250, k: 1.3, wind: 1.4, minD: 90 }], ['rain', 1, { n: 5, r: 22, k: 1.1, cols: ICE }]],
+    p2: [['chain', 3, { seq: [['thrust', { L: 78, W: 14, k: 1.2, step: 12 }], ['thrust', { L: 84, W: 14, k: 1.2, step: 14 }], ['sweep', { r: 64, half: 1.25, k: 1.4, wave: 3 }]] }], ['summon', 1, { n: 2, max: 3 }]] },
   toadking: { name: '腐沼蛙王', sub: '整片水面鼓了起來', lv: 72, hp: 6000, spd: 30, ring: ['#9aff6a', '#ffffff'], aura: ['#3ac83a', '#9aff6a', '#eaffd0'], cols: P, proj: 'glob',
     moves: [['leap', 3, { r: 56, k: 1.4, pool: P }], ['lash', 3, { L: 150, W: 16, k: 1.4 }], ['fan', 2, { n: 5, spread: .8, spd: 150, k: .8 }]],
     p2: [['summon', 2, { n: 3, max: 4 }], ['rain', 1, { n: 7, r: 22, k: 1.1, cols: P }]] },
@@ -86,7 +88,7 @@ const EXTRA: Record<string, [Move[], Move[]]> = {
   snail: [[], [DONUT(40, 110)]],            warden: [[HOMING(3)], [CROSS()]],          tidecrab: [[DONUT()], [PULL()]],
   broodmother: [[HOMING(4, .8)], [PULL(50)]], rootheart: [[PULL(58)], [HOMING(4)]],     scorpion: [[], [DONUT(42, 118)]],
   sandking: [[PULL(56)], [CROSS(), HOMING(4)]], salamander: [[], [DONUT()]],          magmaworm: [[PULL(56)], [DONUT()]],
-  icequeen: [[HOMING(3)], [DONUT(), CROSS()]], frostknight: [[DONUT(46, 120)], [CROSS()]], toadking: [[PULL(56, 1.4)], [HOMING(4)]],
+  icequeen: [[HOMING(3)], [DONUT(), CROSS()]], frostknight: [[DONUT(46, 120)], []], toadking: [[PULL(56, 1.4)], [HOMING(4)]],
   drowned: [[PULL(58)], [HOMING(4), DONUT()]], captain: [[CROSS(160, 1.3)], [DONUT()]],  forgeguard: [[DONUT(48, 128, 1.4)], [CROSS(), PULL(60)]],
   starwarden: [[CROSS(190), HOMING(4)], [PULL(60), DONUT(46, 130)]],
   mothqueen: [[DONUT(44, 120)], [HOMING(4, .8)]],

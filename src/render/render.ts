@@ -18,6 +18,7 @@ import { drawBlind, drawStatus } from '../game/status';
 import { SET } from '../ui/pause';
 import { artLine, artPath, asn, drawArrow, drawCrescent, drawLance, drawOrb, drawQuake, drawRibbon, drawRune, drawSmear, drawSpikes, drawStar, drawWarp, drawWaveP, fxCols } from './fx';
 import { addLight, drawCamp, drawDrop, drawEnemy, drawTelegraph } from './enemy';
+import { rigOf } from '../art/bossRig';
 import { drawMerchant, merchant } from '../ui/shop';
 import { drawChests } from '../world/chests';
 import { drawNPCs } from '../world/towns';
@@ -145,7 +146,7 @@ export function render() {
     else if (f.k === 'spike') drawSpikes(f, k);
     else if (f.k === 'meteor') { const u = k * k, mx = f.x + 50 * (1 - u), my = f.y - 170 * (1 - u); drawOrb(mx, my, 6, f.cols || ['#5a1408', '#f07a32', '#ffe38a']);
       G.parts.push({ x:mx + rr(-3, 3), y:my + rr(-3, 3), vx:rr(10, 30), vy:-rr(20, 60), life:.3, max:.3, col:pick(f.cols ? [f.cols[1], f.cols[2], '#5a5054'] : ['#ffb040', '#ff6a2a', '#5a5054']), s:2 }); addLight(L, mx, my, 40, 1); }
-    else if (f.k === 'rghost') { const sp = SPR[f.kind], w = sp.w, h = sp.h; ctx.globalAlpha = .45 * (1 - k); ctx.drawImage(f.flip ? sp.rf : sp.rn, snapF(f.x - w / 2), snapF(f.y + 2 - h), w, h); }
+    else if (f.k === 'rghost') { const rg = rigOf(f.kind), sp = rg ? rg.body : SPR[f.kind], w = sp.w, h = sp.h, fl = rg?.spec.mirror ? !f.flip : f.flip; /* 有骨架的 Boss：殘影只畫身體 */ ctx.globalAlpha = .45 * (1 - k); ctx.drawImage(fl ? sp.rf : sp.rn, snapF(f.x - w / 2), snapF(f.y + 2 - h), w, h); }
     else if (f.k === 'bghost') { const sp = SPR.boss, w = sp.w, h = sp.h; ctx.globalAlpha = .5 * (1 - k); ctx.drawImage(f.flip ? sp.rf : sp.rn, snapF(f.x - w / 2), snapF(f.y + 2 - h), w, h); }
     else if (f.k === 'flash') { ctx.globalAlpha = f.a * (1 - k); ctx.fillStyle = f.col; ctx.fillRect(cx, cy, LW, LH); }
     else if (f.k === 'arc') drawSmear({ x:f.x, y:f.y, a0:f.a - f.arc / 2, a1:f.a + f.arc / 2, r:f.r, w:Math.min(12, f.r * .3), sw:f.d * .35, hold:f.d * .65, t:f.t, cols:fxCols(f.col), sy:.8 });

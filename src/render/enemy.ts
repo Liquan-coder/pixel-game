@@ -11,11 +11,13 @@ import { buildRow } from '../game/status';
 import { drawIceCrystal, iceShatter, iceTop } from '../art/iceCrystal';
 import { sfx } from '../core/audio';
 import { artLine, artPath, asn, enemyJuice, fillSpans, shEll, shLane, shSector } from './fx';
+import { drawRigged } from './bossAnim';
 
 export function drawEnemy(e) {
   const sp = SPR[e.kind];
   const tele = e.state === 'windup' || (e.boss && /Wind$/.test(e.state));
   const white = e.flash > 0 || (tele && Math.floor(G.time * 16) % 2 === 0);
+  if (e.rb && drawRigged(e, white)) { if (e.hp > 0) sealIcons(e, e.y - sp.h - 3); return; }   // 有骨架的 Boss：身體和武器分開畫、出招會動（render/bossAnim.ts）
   const J = enemyJuice(e, sp), bob = !(e.boss || e.rb) ? 0 : e.beh === 'slime' ? Math.round(Math.abs(Math.sin(e.anim * 5)) * 2) : (e.state === 'chase' || e.state === 'idle') ? Math.floor(e.anim * 6) % 2 : 0;
   drawShadow(e.x, e.y + 1, sp.w * .7 * Math.max(.55, 1 - J.lift * .04));   // 跳起來時影子變小
   if (e.stun > 0) { ctx.fillStyle = '#f2c14e'; const a = G.time * 8; ctx.fillRect(Math.round(e.x + Math.cos(a) * 6), Math.round(e.y - sp.h - 3), 2, 2); ctx.fillRect(Math.round(e.x - Math.cos(a) * 6), Math.round(e.y - sp.h - 3), 2, 2); }

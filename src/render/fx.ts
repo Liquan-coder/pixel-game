@@ -168,7 +168,7 @@ export function drawWaveP(p) {                                                //
     const th = T * Math.cos(v / half * Math.PI / 2), rel = (R - d) / (th || 1); if (rel > 1) return 0; return rel < .25 ? 3 : rel < .55 ? 2 : 1; }, p.cols || WFX.sword, [.85, 1, 1]);
 }
 /* 怪物動態：用「壓扁 / 拉長 / 傾斜 / 跳起」讓同一張圖動起來，每種怪個性不同 */
-function dustPuff(x, y, n, sp) { for (let i = 0; i < n; i++) { const sg = i % 2 ? 1 : -1; G.parts.push({ x:x + sg * rr(1, 4), y:y + rr(-1, 1), vx:sg * rr(sp * .4, sp), vy:-rr(4, 16), life:rr(.22, .4), max:.4, col:pick(['#b8a888', '#8a7a64', '#d8ccb0']), s:1, g:40, drag:3 }); } }
+export function dustPuff(x, y, n, sp) { for (let i = 0; i < n; i++) { const sg = i % 2 ? 1 : -1; G.parts.push({ x:x + sg * rr(1, 4), y:y + rr(-1, 1), vx:sg * rr(sp * .4, sp), vy:-rr(4, 16), life:rr(.22, .4), max:.4, col:pick(['#b8a888', '#8a7a64', '#d8ccb0']), s:1, g:40, drag:3 }); } }
 /* 走路第幾格：用累加的步伐（速度變了只改快慢，不會跳格）；停下來後再多走完 0.2 秒，不會一停一走地閃。不在走路 → -1 */
 function walkFrame(e, dt, moving, rel, n, rate) {
   if (moving) e._mvT = .2; else if ((e._mvT || 0) > 0) e._mvT -= dt; else return -1;

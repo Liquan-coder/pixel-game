@@ -48,7 +48,7 @@ const pageScript = async () => {
   const shop = await imp('ui/shop');
   const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies'), status: await imp('game/status'), bt: await imp('game/bossTuning'), ai3: await imp('world/bossAI3'), puz2: await imp('world/puz2'), coll: await imp('game/collision'), pause: await imp('ui/pause'), puz: await imp('world/puzzles'), mech: await imp('world/bossMech'), statues: await imp('world/statues'), sight: await imp('world/sight'), ending: await imp('world/ending'), secrets: await imp('world/secrets'), cb: await imp('game/combat'), dboss: await imp('world/dungeonBoss') };
 
-  const imp0 = { pu: await imp('game/playerUpdate'), save: await imp('game/save'), map: await imp('render/map'), dg: await imp('world/dungeons'), mount: await imp('game/mount'), input: await imp('ui/interact'), inp: await imp('ui/input'), hud: await imp('ui/hud'), title: await imp('ui/title') };
+  const imp0 = { pu: await imp('game/playerUpdate'), dgb: await imp('world/dungeonBoss'), rig: await imp('art/bossRig'), save: await imp('game/save'), map: await imp('render/map'), dg: await imp('world/dungeons'), mount: await imp('game/mount'), input: await imp('ui/interact'), inp: await imp('ui/input'), hud: await imp('ui/hud'), title: await imp('ui/title') };
   const step = (n, opts = {}) => {
     for (let i = 0; i < n; i++) {
       if (opts.god && G.me) { G.me.hp = G.me.maxHp; G.me.st = G.me.maxSt; }
@@ -565,6 +565,27 @@ const pageScript = async () => {
       log.push('  ' + b.def.name + '：四招都放得出來');
       G.projs = []; menus.restAt(CAMPS[0]); setMenu(null); step(2, { god: true });
     }
+  });
+
+  run('有骨架的 Boss（霜墓騎士）：招式合理（刺 / 橫掃 / 單次衝鋒 / 插地 / 刺刺掃連段）、出招會記 e.act 給動畫、畫得出來', () => {
+    const A3 = await0.ai3, Q = await0.quest, D = imp0.dg.DUNGEONS.find(d => d.boss === 'frostknight'), id = 'dg_' + D.id; setMenu(null);
+    const B = imp0.dgb.DBOSS.frostknight, all = B.moves.concat(B.p2).map(m => m[0]);
+    for (const bad of ['combo', 'fan', 'cross']) if (all.includes(bad)) throw new Error('霜墓騎士又出現了不合理的招：' + bad);
+    RB.rbDead.delete(id); Q.flags.delete('dgn:' + D.id); RB.resetRegionBosses(); const b = RB.rbs.find(e => e.id === id); if (!b) throw new Error('找不到霜墓騎士');
+    tp(D.ent[0] * 16 + 8, (D.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2);
+    tp(b.def.x, b.def.y + 40); step(100, { god: true }); if (b.state === 'sleep') throw new Error('騎士沒醒');
+    const runMove = (m, mo, want) => { b.state = 'idle'; b.act = null; const acts = []; A3.startMove(b, m, mo, 10, 0);
+      let left = 400; while (b.state !== 'idle' && left-- > 0) { G.me.iframe = 0; const a = b.act; step(1, { god: true }); b.hp = b.maxHp; if (b.act && b.act !== a) acts.push(b.act.k); }
+      if (b.state !== 'idle') throw new Error(m + ' 一直沒結束（' + b.state + '）');
+      if (acts.join() !== want) throw new Error(m + ' 的出招紀錄不對：' + acts.join() + '，應該是 ' + want); };
+    const mv = Object.fromEntries(B.moves.concat(B.p2).map(m => [m[0], m[2]]));
+    b.phase = 1; runMove('thrust', mv.thrust, 'thrust'); runMove('sweep', mv.sweep, 'sweep'); runMove('charge', mv.charge, 'chargeEnd'); runMove('rain', mv.rain, 'plant');
+    b.phase = 2; const p0 = G.projs.length; runMove('chain', mv.chain, 'thrust,thrust,sweep');
+    if (!G.projs.slice(p0).some(p => p.owner === 'e')) throw new Error('二階段橫掃沒有甩出寒氣');
+    const rig = imp0.rig.rigOf(b.kind); if (!rig || !rig.wrows.length) throw new Error('騎士的骨架沒拆出來');
+    for (const st of ['idle', 'thrustWind', 'thrust', 'sweepWind', 'chargeWind', 'dash', 'castWind', 'summonWind', 'intro']) { b.state = st; b.wt = 1; b.t = .3; step(1, { god: true }); }
+    log.push('  霜墓騎士：刺、橫掃、衝鋒、插地、刺刺掃連段都放得出來');
+    G.projs = []; menus.restAt(CAMPS[0]); setMenu(null); step(2, { god: true });
   });
 
   run('Boss 招牌招：每隻都放得出自己的招，只有史萊姆女王會跳', () => {
