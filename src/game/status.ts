@@ -18,6 +18,7 @@ import { sfx } from '../core/audio';
 import { toast } from '../ui/hud';
 import type { Player } from '../types';
 import { drawIceCrystal, iceShatter } from '../art/iceCrystal';
+import { rageFrac } from './builds';
 
 export interface FX { frost?: number; bleed?: number; poison?: number; burn?: number; stun?: number; slow?: number; root?: number; silence?: number; blind?: number }
 export interface Status { iceAt?: number; iceOn?: boolean; frost: number; bleed: number; frozen: number; stun: number; stunImm: number; rootImm: number; slow: number; poison: number; burn: number; root: number; silence: number; blind: number; hold: number; dot: number; dotT: number }
@@ -88,7 +89,8 @@ export function drawStatus(pl: Player) {
   if (S.silence > 0) { const py = y - 32 + Math.sin(t * 3); ctx.fillStyle = '#c8a8ff';                 // 頭上一個紫色的封印「×」
     for (let k = -2; k <= 2; k++) { ctx.fillRect(snapF(x + k * HK * 2 - HK), snapF(py + k * HK * 2 - HK), HK * 2, HK * 2); ctx.fillRect(snapF(x - k * HK * 2 - HK), snapF(py + k * HK * 2 - HK), HK * 2, HK * 2); } }
   // 累積圖示：頭上一個血滴（出血）/ 雪花（凍傷），從下往上變亮，亮到頂就發作。快滿時外框會閃
-  const icons: [string, number][] = []; if (S.bleed > 0) icons.push(['bleed', S.bleed / 100]); if (S.frost > 0) icons.push(['frost', S.frost / 100]);
+  const icons: [string, number, number?][] = []; if (S.bleed > 0) icons.push(['bleed', S.bleed / 100]); if (S.frost > 0) icons.push(['frost', S.frost / 100]);
+  if (pl.rage > 0) icons.push(['rage', rageFrac(pl), 2]);              // 反傷流的怒氣
   buildRow(icons, x, y - 29);
 }
 /* 累積圖示的形狀（x = 有顏色的格子，外框自動加）和顏色：亮 / 反光 / 暗（還沒累積的部分）
@@ -98,6 +100,9 @@ export const BUILD: Record<string, { rows: string[]; lit: string; hi: string; da
   burn: { lit: '', hi: '', dark: '', hx: -1, hy: -1, rows: [
     '...r....', '..rr....', '..rrr.r.', '.rorr.rr', '.rooorrr', 'rroyyoor', 'royywyor', 'roywwwyr', '.oywwyo.', '..oyyo..'],
     pal: { r: '#e0562a', o: '#f0883a', y: '#f4b648', w: '#fff0a8' }, dk: { r: '#4a2016', o: '#5a2e1c', y: '#644020', w: '#6e5a34' } },
+  // 怒氣（反傷流，game/builds.ts）：漫畫的生氣符號（四個角的青筋），怒氣越多越滿
+  rage: { lit: '#ff4a3a', hi: '#ffd0a0', dark: '#5a1a14', hx: 1, hy: 1, rows: [
+    '.xx..xx.', 'xxx..xxx', 'xx....xx', '........', '........', 'xx....xx', 'xxx..xxx', '.xx..xx.'] },
   // 雷鳴：閃電
   shock: { lit: '#ffe85a', hi: '#ffffff', dark: '#5a4a14', hx: 3, hy: 3, rows: [
     '....xxx', '...xxx.', '..xxx..', '.xxxxxx', '....xx.', '...xx..', '..xx...', '.xx....', '.x.....'] },

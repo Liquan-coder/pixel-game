@@ -67,7 +67,7 @@ function frame(ts) {
   if (ECO) { ecoAcc += ts - lastTs; lastTs = ts; if (ecoAcc < 1000 / 60 - 4) return; ecoAcc = Math.min(1000 / 60, Math.max(0, ecoAcc - 1000 / 60)); }
   const t = ts / 1000; const dt = Math.min(.05, Math.max(0, t - lastT)); lastT = t; camDt = dt;
   readInput();
-  if (!G.paused) { if (G.hitStop > 0) { G.hitStop -= dt; G.time += dt * .2; } else update(dt); } else G.time += dt;   // 重擊時停頓一下（hit-stop）
+  if (!G.paused) { if (G.hitStop > 0) { G.hitStop -= dt; G.time += dt * .2; } else update(G.slowT > 0 ? (G.slowT -= dt, dt * .3) : dt); } else G.time += dt;   // 重擊時停頓一下（hit-stop）
   updateMotes(dt);
   // 選單開著時（營火、背包、商店、地圖、暫停）遊戲停住，後面的畫面幾乎不會變 → 每秒只重畫 5 次（換裝備還是看得到），手機可以休息
   if (G.started && openMenu) { menuDrawT -= dt; if (menuDrawT <= 0) { render(); menuDrawT = .2; } } else { render(); menuDrawT = 0; }

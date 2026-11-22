@@ -54,6 +54,12 @@ export interface Player {
   acls?: string;                  // 身上防具的類型：'light' | 'medium' | 'heavy'
   dodgeAtkT?: number;             // 「瞬移後下一擊加傷」到什麼時候（G.time）
   counterT?: number;              // 反擊之誓：被打中後「下一擊必定暴擊」到什麼時候（G.time）
+  // 流派（game/builds.ts）
+  dodgeReady?: number; dodgeBuf?: number;          // 下一次能瞬移的時間、後搖中按的瞬移（記到什麼時候）
+  dodgeAt?: number; dodgeX?: number; dodgeY?: number; dodgeCost?: number; pdDone?: boolean;   // 這次瞬移：開始時間、起點、花了多少體力、完美閃避觸發過了沒
+  critNext?: number;              // 完美閃避後「下一擊必定暴擊」到什麼時候
+  rage?: number; rageT?: number;  // 反傷流：累積的怒氣、到什麼時候消失
+  thirstAcc?: number; thirstT?: number; ccT?: number;   // 吸血流的回血數字（合在一起顯示）、暴擊流上一次減冷卻的時間
   cutSet?: Set<any> | null;       // 月影之鈴：這次瞬移已經砍過的敵人
   healT0?: number; healN?: number; // 鐮刀收割：這一次技能已經回了幾次血
 

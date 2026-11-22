@@ -16,6 +16,7 @@ import { streamSpawns, updateEnemy } from './enemies';
 import { updateBoss } from './boss';
 import { aoeHit, damageEnemy, hurtPlayer, targets } from './combat';
 import { tickWeaponFx } from './weaponFx';
+import { tickBuilds } from './builds';
 import { updatePlayer } from './playerUpdate';
 import { STARC, asn } from '../render/fx';
 import { gain, toast } from '../ui/hud';
@@ -223,6 +224,7 @@ export function update(dt) {
     const n0 = G.projs.length; G.hitCtx = e.hc || null; updateEnemy(e, dt); tagProjs(n0); }   // hitCtx = 等級差 + 異常狀態（game/combat.ts 的 hurtPlayer）
   G.hitCtx = null;
   tickWeaponFx(dt, targets(G.me));
+  tickBuilds(dt);                                                        // 流派：殘影爆炸、怒氣、後搖中按的瞬移（game/builds.ts）
   updatePuzzles(dt);                                                     // 地城的機關（world/puzzles.ts）
   updateSecrets(dt);                                                     // 精靈王城的城門、密室（world/secrets.ts）
   updateNPCs(); updateQuest(); updateBoss(dt); updateRegionBosses(dt); separate(); updateProjectiles(dt); updateDrops(dt); updateSpawns(dt);

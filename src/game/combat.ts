@@ -18,6 +18,7 @@ import { bumpPot, showBanner, toast } from '../ui/hud';
 import type { Enemy } from '../types';
 import { dismount } from './mount';
 import { SEALC, bindFx, fxOf, onHit, onKill } from './weaponFx';
+import { bindBuilds, buildHit, canDodge, dodgeStarted, forcedCrit, fullCharge, iframeHit, playerHurt } from './builds';
 import './bossTuning';                                                   // Boss 的傷害倍率和獎勵（平衡用）
 import type { Player } from '../types';
 
@@ -36,7 +37,7 @@ function calcDmg(pl: Player, mult, cb = 0) {                                   /
   if (T.lowHp && pl.hp < pl.maxHp * .35) v *= 1 + T.lowHp / 100;            // 飾品：低血量時加攻
   if (T.dodgeAtk && G.time < (pl.dodgeAtkT || 0)) { v *= 1 + T.dodgeAtk / 100; pl.dodgeAtkT = 0; }   // 飾品：瞬移後的下一擊
   const ctr = T.counter && G.time < (pl.counterT || 0); if (ctr) { v *= 1 + T.counter / 100; pl.counterT = 0; }   // 反擊之誓：被打中後的下一擊
-  const crit = ctr || Math.random() * 100 < pl.crit + cb; if (crit) v *= 1.8;
+  const crit = ctr || forcedCrit(pl) || Math.random() * 100 < pl.crit + cb; if (crit) v *= 1.8;   // forcedCrit：完美閃避後的下一擊（game/builds.ts）
   return { v: Math.max(1, Math.round(v)), crit };
 }
 export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: number, opts: { heavy?: boolean; stun?: number; crit?: boolean; heal?: number; proc?: boolean; cb?: number; kb?: number } = {}) {
@@ -49,6 +50,7 @@ export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: 
   if (opts.crit && !crit) { crit = true; v = Math.round(v * 1.8); }      // 居合：一定暴擊
   if (opts.heal) { if (G.time - (pl.healT0 || -9) > .6) { pl.healT0 = G.time; pl.healN = 0; }   // 鐮刀收割：打中一隻回一點血，一次技能最多算 3 隻
     if (pl.healN < 3) { pl.healN++; pl.hp = Math.min(pl.maxHp, pl.hp + Math.round(pl.maxHp * opts.heal * (e.boss ? .5 : 1))); } }
+  v = buildHit(pl, e, v, crit, !!opts.proc);                           // 流派：怒氣、吸血、暴擊減冷卻（game/builds.ts）
   e.hp -= v; e.flash = .1; e.hitT = .32; e.hitDir = Math.sign(e.x - sx) || 1;
   G.nums.push({ x:e.x + rr(-3, 3), y:e.y - (e.boss ? 26 : 16), txt:String(v), col: crit ? '#ffd84a' : '#ffffff', t:0, d:.7, big:crit });
   const a = Math.atan2(e.y - sy, e.x - sx);
@@ -75,6 +77,7 @@ export function rawHit(pl: Player, e: Enemy, v: number, col: string) {
   finish(pl, e);
 }
 bindFx(rawHit, targets, shake);
+bindBuilds({ aoe: aoeHit, shake, quakeFx, dodge: tryDodge });
 function meleeHit(pl: Player, range, arcDeg, mult, opts?, fa = pl.face) {   // 回傳打中幾個（戰斧要知道有沒有砍到東西）；fa = 往哪個方向砍（雙頭刀的後半截往背後）
   const half = arcDeg / 2 * Math.PI / 180; let n = 0;
   for (const e of targets(pl)) {
@@ -297,6 +300,7 @@ export function releaseCharge(pl: Player, lv) {
   if (pl.st <= 0) return;
   const type = pl.weapon.type, cols = wcols(pl, type), s = lv >= 2 ? 1.45 : 1;
   spendSt(pl, lv >= 2 ? 26 : 18); pl.atkCd = .35; pl.combo = 0; pl.comboT = 0; sfx.release(lv);
+  if (lv >= 2) fullCharge(pl);                                           // 重擊流：蓄滿放出震波（game/builds.ts）
   switch (type) {
     case 'sword': {                                                   // 月輪斬：一圈刀光 + 往前飛的新月劍氣
       autoFace(pl, 160); const a = pl.face; pl.spin = .3;
@@ -609,9 +613,10 @@ export function trySkill(pl: Player) {
 }
 function trail(x0, y0, x1, y1) { for (let i = 0; i <= 10; i++) { const k = i / 10; G.parts.push({ x:x0 + (x1 - x0) * k, y:y0 - 6 + (y1 - y0) * k, vx:rr(-8, 8), vy:rr(-8, 8), life:.35, max:.35, col: i % 2 ? '#b49cff' : '#e8e2ff', s:2 }); } }
 export function tryDodge(pl: Player) {                                                // 瞬移：消失、極快地移動一小段、在落點閃現
-  if (pl.dodge > 0 || pl.drink > 0 || pl.dash || pl.dead || pl.st <= 0) return;
-  const C = ACLS[pl.acls] || ACLS.medium;                                // 防具類型：輕甲省體力、閃得遠；重甲相反
-  stopCharge(pl); spendSt(pl, 20 + C.dodgeSt); const m = Math.hypot(input.mx, input.my);
+  if (pl.dodge > 0 || pl.drink > 0 || pl.dash || pl.dead) return;
+  const C = ACLS[pl.acls] || ACLS.medium, cost = 20 + C.dodgeSt;        // 防具類型：輕甲省體力、閃得遠；重甲相反
+  if (!canDodge(pl, cost)) return;                                       // 體力要付得起、閃完 0.32 秒內不能再閃（game/builds.ts）
+  stopCharge(pl); spendSt(pl, cost); dodgeStarted(pl, cost); const m = Math.hypot(input.mx, input.my);
   const a = m > .2 ? Math.atan2(input.my, input.mx) : pl.face, sp = 520 * C.dodgeMul;
   pl.dodge = .14; pl.cutSet = null; pl.iframe = Math.max(pl.iframe, .3); pl.dvx = Math.cos(a) * sp; pl.dvy = Math.sin(a) * sp;
   if (pl.tfx && pl.tfx.dodgeAtk) pl.dodgeAtkT = G.time + 1.5; pl.skillLock = 0; pl.timers = []; pl.lunge = null; pl.wheelT = 0;
@@ -625,15 +630,16 @@ export function tryPot(pl: Player) {
 /* 這一下是誰打的：怪 / Boss 更新時設定 G.hitCtx = { lv: 等級, fx: 這隻怪的異常狀態 }（子彈射出去時也記著），
    extra = 這一招額外的狀態（例如 Boss 砸地 = 暈眩） */
 export function hurtPlayer(pl: Player, v, sx, sy, extra?: FX) {
-  if (pl.iframe > 0 || pl.dead) return false;
+  if (pl.dead) return false;
   if (!canSee(sx, sy - 6, pl.x, pl.y - 6)) return false;                 // 隔著牆打不到你
+  if (pl.iframe > 0) { iframeHit(pl); return false; }                   // 無敵中：剛瞬移的話 = 完美閃避（game/builds.ts）
   const T0 = pl.tfx || {};
   if (T0.evade && Math.random() * 100 < Math.min(40, T0.evade)) {         // 閃避流：有機率完全閃開（最多 40%），閃開後 0.25 秒不會再被打
     pl.iframe = .25; G.nums.push({ x:pl.x, y:pl.y - 28, txt:'MISS', col:'#c8e8ff', t:0, d:.7 }); G.ghosts.push({ x:pl.x + Math.sign(pl.x - sx || 1) * 5, y:pl.y, flip:pl.flip, life:.25, max:.25 }); sfx.dodge(); return false; }
   const C = G.hitCtx, T = pl.tfx || {}, res = (T['res_' + G.region] || 0) / 100, guard = (T.guard || 0) / 100;   // 地區抗性、飾品減傷
   const armor = !!(pl.swing && pl.swing.armor);                          // 大劍 / 暗月大劍揮劍中 = 霸體：受傷 ×0.6、不會被擊退
   v = Math.max(1, Math.round(v * (G.dmgMul || 1) * gapTaken(C ? C.lv : 0, level(pl)) * (1 - (pl.defRed || 0)) * (1 - res) * (1 - guard) * (armor ? .6 : 1)));   // 等級差、防禦
-  pl.hp -= v; pl.hurt = .3; pl.iframe = .4;
+  pl.hp -= v; pl.hurt = .3; pl.iframe = .4; playerHurt(pl, v);       // playerHurt：反傷流的怒氣
   if (pl.ride || pl.rideT > 0) dismount(pl, true);                       // 騎著被打中：從星狼背上摔下來
   if (T.counter) pl.counterT = G.time + 2;                               // 反擊之誓：接下來 2 秒的下一擊必定暴擊
   const a = Math.atan2(pl.y - sy, pl.x - sx), kb = pl.acls === 'heavy' || armor ? 0 : 120; pl.kx = Math.cos(a) * kb; pl.ky = Math.sin(a) * kb;   // 重甲：不會被擊退

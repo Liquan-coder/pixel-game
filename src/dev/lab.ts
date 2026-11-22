@@ -1,7 +1,7 @@
 /* ================= 開發用：刻印測試場 =================
    打開 http://localhost:5173/?lab 就直接進遊戲，不用從頭玩：
    · 主角打不死、體力 / 藥水無限
-   · 畫面上方一排按鈕：換刻印、換武器、叫怪（一群小怪 / 精英 / 打不死的沙包）、傳送到 Boss 前
+   · 畫面上方一排按鈕：換刻印、換武器、叫怪（一群小怪 / 精英 / 打不死的沙包 / 會打人的沙包）、傳送到 Boss 前、換流派飾品
    · **不會存檔**（G.lab = true 時 game/save.ts 的 save / clearSave 什麼都不做），你的存檔格完全不動
    只有開發模式（npm run dev）才會載入這個檔案（main.ts 用 import.meta.env.DEV 判斷），上線的版本裡沒有它。 */
 import { G } from '../core/state';
@@ -11,6 +11,9 @@ import { WFXD, fxOf } from '../game/weaponFx';
 import { makeEnemy } from '../game/enemies';
 import { recalc } from '../game/player';
 import { RBDEF, rbs } from '../world/regionBoss';
+import { makeUniqueGear } from '../data/items';
+import { UG } from '../data/uniques';
+import { effLines } from '../data/gear';
 import { toast } from '../ui/hud';
 
 const SEALS: [string, string][] = [['bleed', '出血'], ['burn', '燃燒'], ['frost', '寒霜'], ['shock', '雷鳴'], ['soul', '噬魂'], ['', '無']];
@@ -43,6 +46,12 @@ function pack() { const [cx, cy] = near(70); for (let i = 0; i < 5; i++) add(i %
 function elite() { const [x, y] = near(70); add('skel', x, y, { ...FOE, elite: true } as any); }
 /* 沙包：打不死（每一幀補滿血），用來看累積圖示慢慢變滿、爆發、凍成冰塊、身上一直燒 */
 const bags = new Set<any>();
+/* 流派：戴到第一格飾品（沒有就拿掉）。核心六件 + 原本就有的三件流派飾品 */
+const BUILDS: [string, string][] = [['', '流派：無'], ['ghostveil', '閃避・殘影之紗'], ['ragethorn', '反傷・怒棘之心'], ['thirstfang', '吸血・渴血之牙'], ['plaguevial', '異常・瘟疫之瓶'],
+  ['hawkplume', '暴擊・鷹隼之羽'], ['giantheart', '重擊・巨人的心臟'], ['shadowbell', '月影之鈴'], ['bloodpact', '血契之戒'], ['knightoath', '守光騎士的誓言']];
+function setBuild(k: string) { G.me.trinkets[0] = k && UG[k] ? makeUniqueGear(k) : null; recalc(G.me); if (k) toast(UG[k].name + '：' + effLines(UG[k].eff).join('；'), '#c8a8ff', true); }
+/* 會打人的沙包：練完美閃避（攻擊打到前一瞬間瞬移）、存怒氣 */
+function brute() { const [x, y] = near(50); const e = add('skel', x, y); e.maxHp = e.hp = 300; e.dmg = 6; bags.add(e); }
 function sandbag() { const [x, y] = near(55); const e = add('golem', x, y); e.maxHp = e.hp = 300; e.dmg = 1; bags.add(e); }   // 血量正常（出血爆的 15% 才是真的大小），每一幀補滿
 function clearFoes() { G.enemies = []; }                              // 全部清掉（野外的怪走遠再回來會自己長回來）
 /* 傳送到等級最低的野外 Boss 前面：看 Boss 身上的累積圖示 */
@@ -56,7 +65,7 @@ let bar: HTMLDivElement;
 function refresh() {
   if (!bar) return; const fx = fxOf(G.me.weapon) || '';
   bar.querySelectorAll<HTMLButtonElement>('[data-fx]').forEach(b => b.classList.toggle('on', b.dataset.fx === fx));
-  const sel = bar.querySelector<HTMLSelectElement>('select'); if (sel) sel.value = G.me.weapon.type;
+  const sel = bar.querySelector<HTMLSelectElement>('select.w'); if (sel) sel.value = G.me.weapon.type;
 }
 function panel() {
   bar = document.createElement('div'); bar.id = 'labBar';
@@ -71,12 +80,15 @@ function panel() {
   <b class="keep" style="color:#c8a8ff">刻印</b>
   ${SEALS.map(([k, n]) => `<button type="button" tabindex="-1" data-fx="${k}" style="${k ? 'color:' + WFXD[k].c : ''}">${n}</button>`).join('')}
   <span class="sep"></span>
-  <select tabindex="-1">${Object.keys(WT).map(k => `<option value="${k}">${WT[k].name}</option>`).join('')}</select>
+  <select class="w" tabindex="-1">${Object.keys(WT).map(k => `<option value="${k}">${WT[k].name}</option>`).join('')}</select>
   <span class="sep"></span>
   <button type="button" tabindex="-1" data-a="pack">一群小怪</button>
   <button type="button" tabindex="-1" data-a="elite">精英</button>
   <button type="button" tabindex="-1" data-a="bag">沙包</button>
+  <button type="button" tabindex="-1" data-a="brute">會打人的沙包</button>
   <button type="button" tabindex="-1" data-a="clear">清掉怪</button>
+  <span class="sep"></span>
+  <select class="b" tabindex="-1">${BUILDS.map(([k, n]) => `<option value="${k}">${n}</option>`).join('')}</select>
   <button type="button" tabindex="-1" data-a="boss">去 Boss 前</button>
   <button type="button" tabindex="-1" data-a="min" class="keep">－</button>`;
   document.body.appendChild(bar);
@@ -86,9 +98,10 @@ function panel() {
     const b = (ev.target as HTMLElement).closest('button'); if (!b) return; b.blur();
     if (b.dataset.fx !== undefined) setWeapon(G.me.weapon.type, b.dataset.fx);
     const a = b.dataset.a;
-    if (a === 'pack') pack(); else if (a === 'elite') elite(); else if (a === 'bag') sandbag(); else if (a === 'clear') clearFoes(); else if (a === 'boss') toBoss();
+    if (a === 'pack') pack(); else if (a === 'elite') elite(); else if (a === 'bag') sandbag(); else if (a === 'brute') brute(); else if (a === 'clear') clearFoes(); else if (a === 'boss') toBoss();
     else if (a === 'min') { bar.classList.toggle('min'); b.textContent = bar.classList.contains('min') ? '＋' : '－'; }
   });
-  const sel = bar.querySelector('select'); sel.addEventListener('change', () => { setWeapon(sel.value, fxOf(G.me.weapon) || ''); sel.blur(); });
+  const sel = bar.querySelector<HTMLSelectElement>('select.w'); sel.addEventListener('change', () => { setWeapon(sel.value, fxOf(G.me.weapon) || ''); sel.blur(); });
+  const bs = bar.querySelector<HTMLSelectElement>('select.b'); bs.addEventListener('change', () => { setBuild(bs.value); bs.blur(); });
   refresh();
 }

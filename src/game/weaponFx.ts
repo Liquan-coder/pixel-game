@@ -99,15 +99,31 @@ export const SPD_REF = .34;
 export function onHit(pl: Player, e: Enemy, v: number, crit: boolean) {
   const fx = fxOf(pl.weapon); if (!fx || e.hp <= 0) return;
   const pow = pl.atkPow || pl.weapon.atk || 10, B = (1 + ((pl.tfx && pl.tfx.fxBuild) || 0) / 100) * (WT[pl.weapon.type]?.cd || SPD_REF) / SPD_REF;   // 飾品「刻印效果加強」× 武器速度
-  if (fx === 'bleed') { e.bleedB = (e.bleedB || 0) + (22 + (crit ? 15 : 0)) * B; e.fxT = G.time;   // fxT：最後一次累積的時間（頭上的圖示要不要畫）
-    if (e.bleedB >= 100) { e.bleedB = 0; const d = Math.round(Math.max(pow * .6, e.maxHp * (e.boss ? .05 : .15)));
-      num(e, '出血 ' + d, WFXD.bleed.c); bleedPop(e); rawHit(pl, e, d, WFXD.bleed.c); } }
-  else if (fx === 'frost') { e.frostB = (e.frostB || 0) + 25 * B; e.fxT = G.time;
-    if (e.frostB >= 100) { e.frostB = 0; const d = Math.round(pow * 1.5); if (!e.boss) e.stun = Math.max(e.stun || 0, ICE_SECS(e));
-      num(e, '凍傷 ' + d, WFXD.frost.c); freezePop(e); rawHit(pl, e, d, WFXD.frost.c); } }
-  else if (fx === 'burn') { if (Math.random() < .3 * B) { if (!(e.burnT > 0)) ignitePop(e); e.burnT = 3; e.burnD = Math.max(1, Math.round(pow * .2)); e.burnBy = pl; } }
-  else if (fx === 'shock') { e.shockB = (e.shockB || 0) + 25 * B; e.fxT = G.time;
-    if (e.shockB >= 100) { e.shockB = 0; thunder(pl, e, pow); } }
+  if (fx === 'burn') { if (Math.random() < .3 * B) { const fresh = !(e.burnT > 0); ignite(pl, e, pow); if (fresh) spread(pl, e, fx, pow); } return; }
+  const inc = fx === 'bleed' ? (22 + (crit ? 15 : 0)) * B : fx === 'frost' || fx === 'shock' ? 25 * B : 0; if (!inc) return;
+  build(pl, e, fx, inc, pow, true);
+}
+/* 累積 → 滿 100 發作。canSpread：自己打出來的發作才會傳染（被傳染而發作的不會再往外傳，避免一路連鎖下去） */
+const BK: Record<string, string> = { bleed: 'bleedB', frost: 'frostB', shock: 'shockB' };
+function build(pl: Player, e: Enemy, fx: string, inc: number, pow: number, canSpread: boolean) {
+  const k = BK[fx]; e[k] = (e[k] || 0) + inc; e.fxT = G.time;             // fxT：最後一次累積的時間（頭上的圖示要不要畫）
+  if (e[k] < 100) return; e[k] = 0; pop(pl, e, fx, pow); if (canSpread) spread(pl, e, fx, pow);
+}
+function pop(pl: Player, e: Enemy, fx: string, pow: number) {
+  if (fx === 'bleed') { const d = Math.round(Math.max(pow * .6, e.maxHp * (e.boss ? .05 : .15))); num(e, '出血 ' + d, WFXD.bleed.c); bleedPop(e); rawHit(pl, e, d, WFXD.bleed.c); }
+  else if (fx === 'frost') { const d = Math.round(pow * 1.5); if (!e.boss) e.stun = Math.max(e.stun || 0, ICE_SECS(e)); num(e, '凍傷 ' + d, WFXD.frost.c); freezePop(e); rawHit(pl, e, d, WFXD.frost.c); }
+  else if (fx === 'shock') thunder(pl, e, pow);
+}
+function ignite(pl: Player, e: Enemy, pow: number) { if (!(e.burnT > 0)) ignitePop(e); e.burnT = 3; e.burnD = Math.max(1, Math.round(pow * .2)); e.burnBy = pl; }
+/* 異常流（瘟疫之瓶，飾品 spread）：發作的那隻把同一種刻印傳給附近最多 4 隻 —— 一道刻印顏色的細線連過去 */
+function spread(pl: Player, e: Enemy, fx: string, pow: number) {
+  const v = pl.tfx && pl.tfx.spread; if (!v) return;
+  const near = targetsOf(pl).filter(o => o !== e && o.hp > 0 && Math.hypot(o.x - e.x, o.y - e.y) < 64).sort((a, b) => Math.hypot(a.x - e.x, a.y - e.y) - Math.hypot(b.x - e.x, b.y - e.y)).slice(0, 4);
+  for (const o of near) {
+    G.fx.push({ k: 'zap', pts: jag(e.x, e.y - 8, o.x, o.y - 8, 3, 3), t: 0, d: .3, col: SEALC[fx][1], thin: true });
+    sparks(o, SEALC[fx][1], 6);
+    if (fx === 'burn') ignite(pl, o, pow); else build(pl, o, fx, v, pow, false);
+  }
 }
 /** 擊殺（回傳魂晶倍率） */
 export function onKill(pl: Player, e: Enemy) {

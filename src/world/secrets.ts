@@ -5,7 +5,7 @@
       （一路都在精靈王的範圍外面；城牆外有弓手、破口有守衛）
    3. 城門內側有一根拉桿：拉起 → 城門打開 = 捷徑。之後死了，從營火直接走進去打王
    4. 王座右後方的城牆有裂痕：砍一下就碎 → 後面的密室有黃金寶箱（月影之鈴）
-   野外另外兩個寶箱：黑曜石林（血契之戒）、骸骨墓地（守光騎士的誓言）。
+   野外另外的寶箱：黑曜石林（血契之戒）、骸骨墓地（守光騎士的誓言），還有六個流派核心（見 FIELD）。
    旗標：'elf:gate'（城門開了）、'elf:wall'（密室的牆碎了）。打倒過精靈王的舊存檔：城門直接算開著。
    setupSecrets() 在 world/statues.ts 的 placeStatues() 最後呼叫（地圖烘焙之前）；updateSecrets() 每幀（game/worldUpdate.ts）。 */
 import { G } from '../core/state';
@@ -29,7 +29,9 @@ export const BREACH = { x: 381, y0: 428, y1: 430 };                      // 東�
 export const CRACK = { tx: 371, ty: 424 };                               // 密室的牆（北牆，王座右後方）
 const VAULT = { x0: 370, x1: 372, y0: 420, y1: 423 };                    // 密室（城牆外面另外砌的小房間）
 /* 寶箱：[ug, 地標中心 tx, ty, 等級] */
-const FIELD: [string, number, number, number][] = [['bloodpact', 304, 168, 45], ['knightoath', 38, 48, 32]];
+const FIELD: [string, number, number, number][] = [['bloodpact', 304, 168, 45], ['knightoath', 38, 48, 32],
+  // 流派核心（game/builds.ts）：每個流派一件，放在不同地區、沒有 Boss 的小地標旁
+  ['hawkplume', 88, 366, 6], ['ghostveil', 366, 378, 18], ['plaguevial', 282, 346, 20], ['ragethorn', 170, 172, 35], ['giantheart', 252, 108, 48], ['thirstfang', 455, 355, 68]];
 
 const S = { gate: false, gateT: 1, props: [] as { x: number; y: number; r: number }[], lever: { x: 0, y: 0 }, last: null as any, ready: false };
 const gateWanted = () => flags.has('elf:gate') || rbDead.has('elfking');

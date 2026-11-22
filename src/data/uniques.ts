@@ -88,6 +88,13 @@ export const UG: Record<string, UniqueGearDef> = {
   lastcrown:   { type: 'amulet', name: '最後的王冠', eff: { atkPct: 10, lowHp: 15 }, lore: '王都最後一位王的王冠，被壓成了一枚墜子。王冠上本來鑲著一顆星星。', from: '骸骨荒地・王城地下墓所' },
   forgeplate:  { type: 'mail', name: '爐心護甲', eff: { guard: 8, stam: 15 }, lore: '熔爐的守護者用自己的爐心鍛成的鎧甲。胸口那一塊，摸起來是溫的。', from: '熔岩高地・熔爐地底遺跡' },
   wardenveil:  { type: 'robe', name: '看守者的面紗', eff: { cdr: 12, fxBuild: 30, hpPct: 6 }, lore: '看守星星的人戴的面紗。透過它看出去，夜空裡的每一顆星星都有名字。', from: '幽影沼澤・沉沒神殿地底' },
+  /* 流派核心（world/secrets.ts 的 FIELD：野外地標旁的金色寶箱）：每個流派一件，改變打法的那一條規則 */
+  hawkplume:   { type: 'ring', name: '鷹隼之羽', eff: { critCdr: .4, crit: 4 }, lore: '從不失手的獵鷹掉下來的一根羽毛。牠每一次撲擊，都比上一次更快。', from: '翠風平原・殘破村落' },
+  ghostveil:   { type: 'amulet', name: '殘影之紗', eff: { afterimage: 150 }, lore: '古樹下撿到的一片薄紗。風吹過去的時候，好像有另一個你留在原地。', from: '迷霧森林・古樹空地' },
+  plaguevial:  { type: 'amulet', name: '瘟疫之瓶', eff: { spread: 50, fxBuild: 15 }, lore: '獵人小屋裡一只封得很緊的小瓶。獵人說過：別打開，裡面的東西會自己找下一個。', from: '迷霧森林・獵人小屋' },
+  ragethorn:   { type: 'ring', name: '怒棘之心', eff: { rage: 150 }, lore: '紅岩上長出的一圈荊棘，纏成了戒指。被刺得越深，它長得越旺。', from: '骸骨荒地・紅岩石台' },
+  giantheart:  { type: 'amulet', name: '巨人的心臟', eff: { quake: 120, charge: 15 }, lore: '熔渣裡挖出來的一顆石頭心臟，比拳頭還大。偶爾還會跳一下，整片地都跟著震。', from: '熔岩高地・熔渣池' },
+  thirstfang:  { type: 'ring', name: '渴血之牙', eff: { thirst: 30 }, lore: '沉木林裡一隻不知名野獸的牙。主人越虛弱，它喝得越急。', from: '幽影沼澤・沉木林' },
   // 主線 / 區域 Boss 的獎勵（world/regionBoss.ts 的 reward）
   queenheart:  { type: 'amulet', name: '翠凝之心', eff: { regen: .5, hpPct: 10 }, lore: '鏡湖的水凝成的心，摸起來還在輕輕跳。', from: '翠風平原・鏡湖' },
   rustplate:   { type: 'mail', name: '朽鋼胸甲', eff: { guard: 8 }, lore: '將軍守城守到盔甲都生鏽了，也沒有讓任何人過去。', from: '骸骨荒地・古王城' },

@@ -667,6 +667,48 @@ const pageScript = async () => {
     G.me.tfx = {}; recalc(G.me); G.me.hp = G.me.maxHp; G.enemies = [];
   });
 
+  run('流派核心：瞬移後搖 / 體力、完美閃避、殘影、怒氣、渴血、暴擊減冷卻、震波、瘟疫傳染', () => {
+    const E = await0.enemies, C = await0.cb, FX = await0.fx; G.enemies = []; setMenu(null);
+    { const camp = CAMPS.find(c => c.id === 'start'), open = (x, y) => [-50, -25, 0, 25, 50].every(dx => [-15, 0, 15].every(dy => !await0.coll.collides(x + dx, y + dy, G.me.r + 2)));   // 找一塊空地（前面的測試可能把人留在牆邊：隔著牆會打不到）
+      let p = null; for (let r = 60; r < 400 && !p; r += 20) for (let a = 0; a < 6.28 && !p; a += .5) { const x = camp.x + Math.cos(a) * r, y = camp.y + Math.sin(a) * r; if (open(x, y)) p = [x, y]; }
+      if (!p) throw new Error('營火附近找不到空地'); tp(p[0], p[1]); G.me.dead = false; G.me.iframe = 0; G.me.ride = false; step(2); }
+    for (const k of ['ghostveil', 'ragethorn', 'thirstfang', 'plaguevial', 'hawkplume', 'giantheart']) { if (!await0.uq.UG[k]) throw new Error('沒有 ' + k);
+      if (!await0.chests.CHESTS.some(c => c.ug === k)) throw new Error(k + ' 沒有放進野外的寶箱'); }
+    const mk = (kind, dx, dy) => { const e = E.makeEnemy(kind, 1, G.me.x + dx, G.me.y + dy, { alive: true, timer: 0 }); e.hp = e.maxHp = 99999; e.stun = 99; G.enemies.push(e); return e; };
+    const e = mk('skel', 24, 0); G.me.tfx = {}; G.me.weapon = await0.items.makeWeapon('sword', 0); recalc(G.me); G.me.tfx = {};
+    // 瞬移：體力不夠閃不出去；閃完 0.32 秒內不能再閃，但按了會記住，時間到自動閃
+    G.me.dodgeReady = 0; G.me.st = 5; C.tryDodge(G.me); if (G.me.dodge > 0) throw new Error('體力 5 還瞬移得出去');
+    G.me.st = G.me.maxSt; C.tryDodge(G.me); if (!(G.me.dodge > 0)) throw new Error('體力滿的時候瞬移不出去');
+    step(10); const st1 = G.me.st; C.tryDodge(G.me); if (G.me.st !== st1) throw new Error('後搖中又瞬移了一次');
+    step(15); if (!(G.me.st < st1)) throw new Error('後搖中按的瞬移，時間到沒有自動閃');
+    step(30);
+    // 完美閃避：瞬移後 0.2 秒內被打 → 沒受傷、體力退回、下一擊必定暴擊
+    G.me.st = G.me.maxSt; G.me.iframe = 0; C.tryDodge(G.me); const st2 = G.me.st, hp2 = G.me.hp; G.hitCtx = e.hc; hurtPlayer(G.me, 10, e.x, e.y); G.hitCtx = null;
+    if (G.me.hp !== hp2 || G.me.st <= st2 || !(G.me.critNext > G.time)) throw new Error('完美閃避沒有觸發');
+    G.me.crit = 0; const n0 = G.nums.length; damageEnemy(G.me, e, 1, G.me.x, G.me.y); if (!G.nums.slice(n0).some(n => n.big) || G.me.critNext) throw new Error('完美閃避後的下一擊沒有暴擊');
+    step(40, { god: true });
+    // 殘影之紗：完美閃避 → 0.5 秒後原地爆炸
+    G.me.tfx = { afterimage: 150 }; G.me.st = G.me.maxSt; G.me.iframe = 0; G.me.x = e.x - 20; C.tryDodge(G.me); G.hitCtx = e.hc; hurtPlayer(G.me, 10, e.x, e.y); G.hitCtx = null;
+    const h3 = e.hp; step(40, { god: true }); if (!(e.hp < h3)) throw new Error('殘影之紗：殘影沒有爆炸');
+    // 怒棘之心：被打中存怒氣 → 下一擊多打
+    G.me.tfx = { rage: 150 }; G.me.iframe = 0; G.me.hp = G.me.maxHp; G.hitCtx = e.hc; hurtPlayer(G.me, 40, e.x, e.y); G.hitCtx = null;
+    if (!(G.me.rage > 0)) throw new Error('怒棘之心：被打中沒有存怒氣'); const rg = G.me.rage, h4 = e.hp; G.me.crit = 0; damageEnemy(G.me, e, .01, G.me.x, G.me.y);
+    if (!(h4 - e.hp >= rg * 1.5 - 2) || G.me.rage) throw new Error('怒棘之心：怒氣沒有打回去：' + (h4 - e.hp) + ' / ' + rg);
+    // 渴血之牙：滿血不吸、血少吸很多
+    G.me.tfx = { thirst: 30 }; G.me.ls = 0; G.me.hp = G.me.maxHp; damageEnemy(G.me, e, 1, G.me.x, G.me.y); if (G.me.hp !== G.me.maxHp) throw new Error('渴血之牙：滿血也在吸');
+    G.me.hp = Math.round(G.me.maxHp * .2); const h5 = G.me.hp; damageEnemy(G.me, e, 3, G.me.x, G.me.y); if (!(G.me.hp > h5)) throw new Error('渴血之牙：血少的時候沒有吸血');
+    // 鷹隼之羽：暴擊 → 技能冷卻減少
+    G.me.tfx = { critCdr: .4 }; G.me.skillCd = 5; G.me.ccT = 0; G.me.critNext = G.time + 1; damageEnemy(G.me, e, 1, G.me.x, G.me.y);
+    if (!(Math.abs(G.me.skillCd - 4.6) < .01)) throw new Error('鷹隼之羽：暴擊沒有減技能冷卻：' + G.me.skillCd);
+    // 巨人的心臟：蓄滿的一擊 → 震波打到周圍、暈眩
+    G.me.tfx = { quake: 120 }; const f = mk('slime', -30, 0); f.stun = 0; const h6 = f.hp; G.me.st = G.me.maxSt; C.releaseCharge(G.me, 2); step(20, { god: true });
+    if (!(f.hp < h6) || !(f.stun > 0)) throw new Error('巨人的心臟：蓄滿沒有放出震波');
+    // 瘟疫之瓶：寒霜發作 → 旁邊的怪也累積凍傷
+    G.enemies = []; const a = mk('slime', 20, 0), b = mk('slime', 40, 0); G.me.weapon.fx = 'frost'; G.me.tfx = { spread: 50 }; a.frostB = 99; b.frostB = 0;
+    damageEnemy(G.me, a, 1, G.me.x, G.me.y); if (!(b.frostB >= 50)) throw new Error('瘟疫之瓶：寒霜沒有傳染給旁邊的怪：' + b.frostB);
+    G.me.weapon.fx = null; G.me.tfx = {}; recalc(G.me); G.me.hp = G.me.maxHp; G.me.rage = 0; G.enemies = [];
+  });
+
   run('星狼（坐騎）：打倒狼王才叫得出來、跑得比較快、按攻擊跳下來、被打摔下來、城鎮 / 地城騎不進去', () => {
     const MT = imp0.mount, Q = await0.quest, M = await0.map, keep = G.bossDead; setMenu(null); G.enemies = [];
     const camp = CAMPS.find(c => c.id === 'start'); tp(camp.x, camp.y + 16); G.me.ride = false; G.me.rideT = 0; step(2);
