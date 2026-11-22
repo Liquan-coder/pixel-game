@@ -4,7 +4,7 @@ import { G } from '../core/state';
 import { $, mulberry32, pick, rr } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
 import { SH, sculpt } from '../art/monsters';
-import { makeUnique, randomLoot } from '../data/items';
+import { makeUnique, randomLoot, makeUniqueGear } from '../data/items';
 import { DUNGEONS } from './dungeons';
 import { flags } from '../game/quest';
 import { ARENA, CAMPS, GROUND, MH, MW, WH, RFLOOR, ROAD, TOWNS, TS, WALKABLE, map, reg } from './map';
@@ -20,7 +20,7 @@ import { save } from '../game/save';
 import type { Player } from '../types';
 
 export interface Chest { id: string; tx: number; ty: number; x: number; y: number; tier: number; lv: number; mimic: boolean; opened: boolean; t: number; foe?: any;
-  uq?: string; need?: string; poof?: boolean; wild?: boolean }         // wild = 野外隨機寶箱（東西最高到藍色）                        // poof = 打開後消失的特效已經放過了                                           // uq = 固定的獨特武器；need = 要先達成的旗標（地城守護者倒下）
+  uq?: string; ug?: string; need?: string; poof?: boolean; wild?: boolean }         // wild = 野外隨機寶箱（東西最高到藍色）                        // poof = 打開後消失的特效已經放過了                                           // uq = 固定的獨特武器；need = 要先達成的旗標（地城守護者倒下）
 export const CHESTS: Chest[] = [];
 const TIER = [{ n:'木製寶箱', col:'#c8a070' }, { n:'白銀寶箱', col:'#9ad0ff' }, { n:'黃金寶箱', col:'#f2c14e' }];
 const REG_LV = [8, 20, 32, 45, 20, 58, 70, 10, 48];                           // 每個地區野外寶箱的等級（8 = 精靈王國）
@@ -84,6 +84,7 @@ function giveLoot(c: Chest, pl: Player) {
   dropGold(c.x, c.y, Math.round([20 + t * 4, 40 + t * 8, 80 + t * 15][T] * rr(.85, 1.15)));
   dropSouls(c.x, c.y, Math.round([t * 5, t * 10, t * 20][T]), pl);
   dropMat(c.x, c.y, oreForLevel(lv), c.wild ? 1 : 2 + T, pl); if (T === 2) dropMat(c.x, c.y, oreForLevel(lv + 12), 1, pl);   // 野外寶箱只給一顆   // 黃金寶箱多一顆下一級的素材（一個地區差不多 12 級 = tier +5）
+  if (c.ug) { const it = makeUniqueGear(c.ug); dropItem(it, c.x, c.y); showBanner('獲得', it.name, 2600); sfx.epic(); return; }   // 密室：固定的流派飾品（world/secrets.ts）
   if (c.uq) { const it = makeUnique(c.uq); dropItem(it, c.x, c.y); showBanner('獲得傳說武器', it.name, 2600); sfx.epic(); return; }   // 地城最深處：固定的獨特武器
   const q = Math.random(), cap = c.wild ? WILD_CAP : 4;
   if (T === 0) { if (q < .65) dropItem(randomLoot(lv, q < .2 ? 2 : 1, undefined, cap), c.x, c.y); }

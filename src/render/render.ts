@@ -26,6 +26,7 @@ import { drawDoors } from '../world/dungeonArt';
 import { drawPuzzles, puzzleDark } from '../world/puzzles';
 import { drawStatues } from '../world/statues';
 import { drawAltar } from '../world/ending';
+import { drawSecrets } from '../world/secrets';
 import { camDt } from '../main';
 import { drawPfx } from './pfx';
 import { drawLost, drawLostBeam } from './lostMark';
@@ -92,7 +93,7 @@ export function render() {
   for (const c of CAMPS) if (vis(c.x, c.y)) list.push({ y:c.y, f:() => drawCamp(c) });
   for (const d of G.drops) if (vis(d.x, d.y)) { list.push({ y:d.y - 1, f:() => drawDrop(d) }); addLight(L, d.x, d.y - 8, 16 + d.item.rarity * 7, 3); }
   for (const c of G.coins) if (vis(c.x, c.y)) list.push({ y:c.y, f:() => drawCoin(c) });
-  drawChests(L, vis, addLight, list); drawNPCs(vis, list); drawTablets(vis, list, L, addLight); drawDoors(vis, list, L, addLight); drawPuzzles(vis, list, L, addLight); drawStatues(vis, list, L, addLight); drawAltar(vis, list, L, addLight);
+  drawChests(L, vis, addLight, list); drawNPCs(vis, list); drawTablets(vis, list, L, addLight); drawDoors(vis, list, L, addLight); drawPuzzles(vis, list, L, addLight); drawStatues(vis, list, L, addLight); drawAltar(vis, list, L, addLight); drawSecrets(vis, list, L, addLight);
   if (merchant && vis(merchant.x, merchant.y, 60)) { list.push({ y:merchant.y, f:drawMerchant }); addLight(L, merchant.x - 5, merchant.y - 10, 46 + Math.sin(G.time * 6) * 2, 1); }
   // 殘影：衝刺是紫色剪影（最新的疊白光），翻滾是會跟著轉的淡白剪影
   for (const g of G.ghosts) { const k = g.life / g.max, sp = HERO.walk[0], w = sp.w * HK, h = sp.h * HK;

@@ -19,6 +19,7 @@ import { save } from '../game/save';
 import { drawShadow } from '../render/player';
 import type { Player } from '../types';
 import { placeAltar } from './ending';
+import { setupSecrets } from './secrets';
 
 /* 地區 → 第幾塊地圖（0 = 一開始就亮的平原；4 = 狼王巢穴跟森林一起；7 = 地城，不算） */
 const ZONE_OF_REG = [0, 1, 2, 3, 1, 4, 5, -1, 6];                 // 8 = 精靈王國 → 第 6 塊
@@ -52,6 +53,7 @@ export function placeStatues() {
     if (!best) continue; const [tx, ty] = best, x = tx * TS + 8, y = ty * TS + 12, prop = { x, y, r: 7 };
     PROPS.push(prop); STATUES.push({ k: D.k, x, y, tx, ty, frag: D.frag, prop }); }
   placeAltar();                                                          // 觀星台的觀星儀（結局，world/ending.ts）
+  setupSecrets();                                                        // 精靈王城的捷徑門、密室、流派飾品的寶箱（world/secrets.ts）
 }
 
 /* ---- 點亮一塊地圖：那一塊的每一格都算「看過了」→ 小地圖 / 大地圖都會畫出來 ---- */

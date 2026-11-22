@@ -53,6 +53,8 @@ export interface Player {
   tfx?: Record<string, number>;   // 防具 + 飾品的效果加總（data/gear.ts 的 EFF）
   acls?: string;                  // 身上防具的類型：'light' | 'medium' | 'heavy'
   dodgeAtkT?: number;             // 「瞬移後下一擊加傷」到什麼時候（G.time）
+  counterT?: number;              // 反擊之誓：被打中後「下一擊必定暴擊」到什麼時候（G.time）
+  cutSet?: Set<any> | null;       // 月影之鈴：這次瞬移已經砍過的敵人
   healT0?: number; healN?: number; // 鐮刀收割：這一次技能已經回了幾次血
 
   // 倒數計時（秒），大於 0 代表還在冷卻/持續中

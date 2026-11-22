@@ -34,7 +34,8 @@ function calcDmg(pl: Player, mult, cb = 0) {                                   /
   const T = pl.tfx || {};
   if (T.lowHp && pl.hp < pl.maxHp * .35) v *= 1 + T.lowHp / 100;            // 飾品：低血量時加攻
   if (T.dodgeAtk && G.time < (pl.dodgeAtkT || 0)) { v *= 1 + T.dodgeAtk / 100; pl.dodgeAtkT = 0; }   // 飾品：瞬移後的下一擊
-  const crit = Math.random() * 100 < pl.crit + cb; if (crit) v *= 1.8;
+  const ctr = T.counter && G.time < (pl.counterT || 0); if (ctr) { v *= 1 + T.counter / 100; pl.counterT = 0; }   // 反擊之誓：被打中後的下一擊
+  const crit = ctr || Math.random() * 100 < pl.crit + cb; if (crit) v *= 1.8;
   return { v: Math.max(1, Math.round(v)), crit };
 }
 export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: number, opts: { heavy?: boolean; stun?: number; crit?: boolean; heal?: number; proc?: boolean; cb?: number; kb?: number } = {}) {
@@ -436,9 +437,12 @@ export function blinkFx(pl: Player, x, y, out) {
   }
 }
 export function trySkill(pl: Player) {
-  if (pl.skillCd > 0 || busy(pl)) return;
-  const W = WT[pl.weapon.type];
-  pl.skillCd = W.scd * (1 - pl.cdr); sfx.skill();
+  if (busy(pl)) return;
+  const W = WT[pl.weapon.type], BS = pl.tfx && pl.tfx.bloodSkill;
+  if (pl.skillCd > 0) {                                                  // 冷卻中：血契之戒 → 花生命放技能（冷卻不重算）
+    const cost = Math.round(pl.maxHp * (BS || 0) / 100); if (!BS || pl.hp <= cost + 1) return;
+    pl.hp -= cost; G.nums.push({ x:pl.x, y:pl.y - 28, txt:'-' + cost, col:'#d8434e', t:0, d:.7 }); burst(pl.x, pl.y - 8, 10, '#a01a2a', 70); sfx.skill();
+  } else { pl.skillCd = W.scd * (1 - pl.cdr); sfx.skill(); }
   const col = RAR[pl.weapon.rarity].c, wc = wcols(pl, pl.weapon.type);
   switch (W.skill) {
     case 'spin':
@@ -606,7 +610,7 @@ export function tryDodge(pl: Player) {                                          
   const C = ACLS[pl.acls] || ACLS.medium;                                // 防具類型：輕甲省體力、閃得遠；重甲相反
   stopCharge(pl); spendSt(pl, 20 + C.dodgeSt); const m = Math.hypot(input.mx, input.my);
   const a = m > .2 ? Math.atan2(input.my, input.mx) : pl.face, sp = 520 * C.dodgeMul;
-  pl.dodge = .14; pl.iframe = Math.max(pl.iframe, .3); pl.dvx = Math.cos(a) * sp; pl.dvy = Math.sin(a) * sp;
+  pl.dodge = .14; pl.cutSet = null; pl.iframe = Math.max(pl.iframe, .3); pl.dvx = Math.cos(a) * sp; pl.dvy = Math.sin(a) * sp;
   if (pl.tfx && pl.tfx.dodgeAtk) pl.dodgeAtkT = G.time + 1.5; pl.skillLock = 0; pl.timers = []; pl.lunge = null; pl.wheelT = 0;
   if (pl.swing && pl.swing.anim && pl.swing.t < pl.swing.wu) { pl.swing = null; for (let i = G.fx.length - 1; i >= 0; i--) if (G.fx[i].k === 'smear' && G.fx[i].follow === pl && G.fx[i].t < (G.fx[i].delay || 0)) G.fx.splice(i, 1); }   // 預備中翻滾 = 取消這一刀
   blinkFx(pl, pl.x, pl.y, true); sfx.blink();
@@ -627,6 +631,7 @@ export function hurtPlayer(pl: Player, v, sx, sy, extra?: FX) {
   const armor = !!(pl.swing && pl.swing.armor);                          // 大劍 / 暗月大劍揮劍中 = 霸體：受傷 ×0.6、不會被擊退
   v = Math.max(1, Math.round(v * (G.dmgMul || 1) * gapTaken(C ? C.lv : 0, level(pl)) * (1 - (pl.defRed || 0)) * (1 - res) * (1 - guard) * (armor ? .6 : 1)));   // 等級差、防禦
   pl.hp -= v; pl.hurt = .3; pl.iframe = .4;
+  if (T.counter) pl.counterT = G.time + 2;                               // 反擊之誓：接下來 2 秒的下一擊必定暴擊
   const a = Math.atan2(pl.y - sy, pl.x - sx), kb = pl.acls === 'heavy' || armor ? 0 : 120; pl.kx = Math.cos(a) * kb; pl.ky = Math.sin(a) * kb;   // 重甲：不會被擊退
   G.nums.push({ x:pl.x, y:pl.y - 28, txt:String(v), col:'#ff5a5a', t:0, d:.8 });
   if (pl === G.me) { shake(3, .2); sfx.hurt(); }                       // 震動、音效只給自己（隊友受傷不震你的畫面）
@@ -644,3 +649,12 @@ export function downPlayer(pl: Player) {                                 // 倒�
   if (pl === G.me) { sfx.death(); showBanner('力竭倒下', pl.souls > 0 || pl.gold > 0 ? '八成的魂晶和金幣掉了，回去撿就能拿回來' : '', 2400); }
 }
 
+
+/* 月影之鈴：瞬移的時候，穿過的敵人各被砍一刀（每次瞬移每隻最多一次）。game/playerUpdate.ts 在瞬移移動中每幀呼叫 */
+export function dodgeCut(pl: Player) {
+  const v = pl.tfx && pl.tfx.dodgeCut; if (!v) return;
+  const hit: Set<any> = pl.cutSet || (pl.cutSet = new Set());
+  for (const e of targets(pl)) { if (hit.has(e) || e.hp <= 0 || Math.hypot(e.x - pl.x, e.y - pl.y) > 14 + (e.r || 6)) continue;
+    hit.add(e); damageEnemy(pl, e, v / 100, pl.x, pl.y, { proc: true });
+    G.fx.push({ k:'aline', x:e.x - 10, y:e.y - 10, a:Math.atan2(pl.dvy, pl.dvx), len:22, t:0, d:.18, col:'#e8dcff' }); }
+}

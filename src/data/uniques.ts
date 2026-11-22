@@ -68,6 +68,10 @@ for (const k of ['royalguard', 'forgehammer', 'deepstaff', 'silktwin', 'sandcres
    存檔只記 ug = 編號，數值改這裡就會套用到舊存檔。 */
 export interface UniqueGearDef { type: 'robe' | 'leather' | 'mail' | 'ring' | 'amulet'; name: string; eff: Record<string, number>; lore: string; from: string }
 export const UG: Record<string, UniqueGearDef> = {
+  /* 流派飾品（world/secrets.ts 的寶箱）：改變打法，不是加數字 */
+  shadowbell:  { type: 'amulet', name: '月影之鈴', eff: { dodgeCut: 120 }, lore: '精靈王的刺客戴的鈴鐺。搖起來沒有聲音——聽見的人，已經被穿過去了。', from: '精靈王國・王座後面的密室' },
+  bloodpact:   { type: 'ring', name: '血契之戒', eff: { bloodSkill: 10 }, lore: '熔岩裡撈出來的一枚黑戒。戴上它，力氣就不用等，只要付得起。', from: '熔岩高地・黑曜石林' },
+  knightoath:  { type: 'amulet', name: '守光騎士的誓言', eff: { counter: 60 }, lore: '刻著一行字：「先挨一劍的人，第二劍不會落空。」', from: '骸骨荒地・骸骨墓地' },
   mosscloak:   { type: 'robe', name: '苔綠斗篷', eff: { regen: .6, hpPct: 8 }, lore: '苔蝸王把它披在殼上睡了很多年。上面的苔蘚到現在還活著，會慢慢把傷口補起來。', from: '翠風平原・苔石洞窟' },
   barrowlamp:  { type: 'amulet', name: '守墓人的燈', eff: { killHeal: 4 }, lore: '一盞永遠不能熄的燈，縮成了項鍊那麼小。火光裡偶爾會映出一個陌生人的笑臉。', from: '翠風平原・無名古墓' },
   tideshell:   { type: 'ring', name: '潮音貝殼', eff: { cdr: 15, aspd: 6 }, lore: '貼在耳邊能聽見搖籃曲。唱歌的人好像就在海的另一邊。', from: '翠風平原・潮音石窟' },

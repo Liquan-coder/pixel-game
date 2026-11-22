@@ -22,6 +22,7 @@ import { gain, toast } from '../ui/hud';
 import { nearestPlayer } from './player';
 import { SET } from '../ui/pause';
 import { updatePuzzles } from '../world/puzzles';
+import { updateSecrets } from '../world/secrets';
 
 /* ================= WORLD UPDATE ================= */
 /* 剛射出去的子彈記住是誰射的（G.hitCtx），打中人的時候才算得出等級差和異常狀態 */
@@ -223,6 +224,7 @@ export function update(dt) {
   G.hitCtx = null;
   tickWeaponFx(dt, targets(G.me));
   updatePuzzles(dt);                                                     // 地城的機關（world/puzzles.ts）
+  updateSecrets(dt);                                                     // 精靈王城的城門、密室（world/secrets.ts）
   updateNPCs(); updateQuest(); updateBoss(dt); updateRegionBosses(dt); separate(); updateProjectiles(dt); updateDrops(dt); updateSpawns(dt);
   for (let i = G.fx.length - 1; i >= 0; i--) { G.fx[i].t += dt; if (G.fx[i].t >= G.fx[i].d) G.fx.splice(i, 1); }
   for (let i = G.ghosts.length - 1; i >= 0; i--) { G.ghosts[i].life -= dt; if (G.ghosts[i].life <= 0) G.ghosts.splice(i, 1); }

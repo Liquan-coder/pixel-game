@@ -11,7 +11,7 @@ import { resetBoss } from './boss';
 import { puzzleMove } from '../world/puzzles';
 import { dungeonAt } from '../world/dungeons';
 import { clearStatus, locked, moveMul, rollOut, rooted, silenced, struggle, tickStatus } from './status';
-import { blinkFx, busy, damageEnemy, downPlayer, releaseCharge, stopCharge, targets, tryAttack, tryDodge, tryPot, trySkill, updFlip, updateCharge } from './combat';
+import { blinkFx, busy, damageEnemy, dodgeCut, downPlayer, releaseCharge, stopCharge, targets, tryAttack, tryDodge, tryPot, trySkill, updFlip, updateCharge } from './combat';
 import { burst, shake } from './worldUpdate';
 import { STARC } from '../render/fx';
 import { flashHp, hideBanner, showArea, toast } from '../ui/hud';
@@ -68,9 +68,10 @@ export function updatePlayer(pl: Player, dt) {
     }
   } else if (pl.dodge > 0) {
     pl.dodge -= dt; const ox = pl.x, oy = pl.y; moveEnt(pl, pl.dvx * dt, pl.dvy * dt);   // 隱身移動，只留下一道細光和星屑
+    dodgeCut(pl);                                                       // 月影之鈴：穿過的敵人被砍一刀
     G.fx.push({ k:'aline', x:ox, y:oy - 8 + rr(-5, 5), a:Math.atan2(pl.y - oy, pl.x - ox), len:Math.hypot(pl.x - ox, pl.y - oy) + 4, t:0, d:.16, col:'#d8c8ff' });
     if (Math.random() < .7) G.parts.push({ x:pl.x + rr(-4, 4), y:pl.y - rr(2, 16), vx:rr(-15, 15), vy:rr(-20, 0), life:rr(.25, .45), max:.45, col:pick(STARC), star:rr(.6, 1.8), drag:3 });
-    if (pl.dodge <= 0) { blinkFx(pl, pl.x, pl.y, false); sfx.blinkIn(); }
+    if (pl.dodge <= 0) { pl.dodge = 0; blinkFx(pl, pl.x, pl.y, false); sfx.blinkIn(); }   // 歸零：停在負數的話 !pl.dodge 會一直是 false → pl.moving 永遠 false（凝視石像抓不到人、受傷不閃爍）
   } else if (puzzleMove(pl, dt)) {                                      // 機關接手移動：冰面滑行、被蘑菇彈飛（world/puzzles.ts）
   } else if (m > .05 && !locked(pl) && !rooted(pl)) {
     const spd = 84 * moveMul(pl) * (pl.drink > 0 ? .45 : 1) * (pl.skillLock > 0 ? .25 : 1) * (pl.swing ? .6 : 1) * (pl.charging ? .45 : 1) * (map[(pl.y / TS | 0) * MW + (pl.x / TS | 0)] === ROAD ? 1.12 : 1);

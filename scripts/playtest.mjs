@@ -60,7 +60,7 @@ const pageScript = async () => {
   const { startGame } = await imp('main');
   const menus = await imp('ui/menus');
   const shop = await imp('ui/shop');
-  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies'), status: await imp('game/status'), bt: await imp('game/bossTuning'), ai3: await imp('world/bossAI3'), puz2: await imp('world/puz2'), coll: await imp('game/collision'), pause: await imp('ui/pause'), puz: await imp('world/puzzles'), mech: await imp('world/bossMech'), statues: await imp('world/statues'), sight: await imp('world/sight'), ending: await imp('world/ending') };
+  const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies'), status: await imp('game/status'), bt: await imp('game/bossTuning'), ai3: await imp('world/bossAI3'), puz2: await imp('world/puz2'), coll: await imp('game/collision'), pause: await imp('ui/pause'), puz: await imp('world/puzzles'), mech: await imp('world/bossMech'), statues: await imp('world/statues'), sight: await imp('world/sight'), ending: await imp('world/ending'), secrets: await imp('world/secrets'), cb: await imp('game/combat'), dboss: await imp('world/dungeonBoss') };
 
   const imp0 = { pu: await imp('game/playerUpdate'), save: await imp('game/save'), map: await imp('render/map'), dg: await imp('world/dungeons'), input: await imp('ui/interact'), inp: await imp('ui/input'), hud: await imp('ui/hud'), title: await imp('ui/title') };
   const step = (n, opts = {}) => {
@@ -256,14 +256,14 @@ const pageScript = async () => {
     for (const f of ['dgn:temple', 'cores:all', 'end:home', 'end:watch', 'end:wake', 'rumor:warden', 'rumor:star']) Q.flags.delete(f); RB.rbDead.clear(); G.bossDead = false; step(1);   // 前面的地城測試可能已經打倒看守者
     if (!E.ALTAR.placed) throw new Error('觀星儀沒有放');
     if (await0.coll.collides(E.ALTAR.x, E.ALTAR.y + 18, 5)) throw new Error('觀星儀前面走不到');
-    for (const e of G.enemies) e.state = 'idle';
+    G.enemies = [];
     tp(E.ALTAR.x, E.ALTAR.y + 18); step(2); let it = imp0.input.interactTarget(); if (!it || it.btn !== '調查') throw new Error('觀星儀旁邊沒有「調查」：' + (it && it.btn));
     if (Q.regionLook(0).amb !== M.REGIONS[0].amb) throw new Error('史萊姆女王還活著，平原就變亮了');
     for (const id of ['general', 'mushking', 'yeti', 'queen', 'dragon', 'lich']) RB.rbDead.add(id); G.bossDead = true; step(2);
     if (!Q.flags.has('cores:all')) throw new Error('七顆星核都拿到了，沒有記下 cores:all');
     if (E.endingReady()) throw new Error('最後的看守者還沒倒下就可以選結局');
     if (!Q.rumorsKnown().some(r => r.id === 'warden')) throw new Error('拿齊星核後沒有「最後的看守者」的傳聞');
-    Q.flags.add('dgn:temple'); step(2);
+    Q.flags.add('dgn:temple'); G.enemies = []; step(2);
     if (!E.endingReady() || !Q.rumorsKnown().some(r => r.id === 'star')) throw new Error('看守者倒下後觀星儀沒有醒來 / 沒有觀星台的傳聞');
     it = imp0.input.interactTarget(); if (!it || it.btn !== '仰望') throw new Error('觀星儀旁邊沒有「仰望」：' + (it && it.btn)); it.run(); step(1);
     const sc = document.getElementById('endScreen'), n = sc.querySelectorAll('[data-end]').length, want = await0.quest.loreRead.has('t7') ? 3 : 2;
@@ -624,6 +624,50 @@ const pageScript = async () => {
     G.me.tfx = { evade: 100 }; let miss = 0; for (let i = 0; i < 60; i++) { G.me.iframe = 0; G.me.hp = G.me.maxHp; if (!hurtPlayer(G.me, 1, e.x, e.y)) miss++; }
     if (miss < 10 || miss > 40) throw new Error('閃避最多 40%：60 下應該閃掉 10~40 下，結果 ' + miss);
     G.me.tfx = {}; recalc(G.me); G.enemies = [];
+  });
+
+  run('流派飾品：月影之鈴（瞬移砍人）、血契之戒（冷卻中花血放技能）、守光騎士的誓言（被打後必暴擊）', () => {
+    const E = await0.enemies, C = await0.cb; G.enemies = []; setMenu(null);
+    for (const k of ['shadowbell', 'bloodpact', 'knightoath']) if (!await0.uq.UG[k]) throw new Error('沒有 ' + k);
+    // 月影之鈴：朝敵人瞬移，穿過去 → 牠被砍一刀
+    const e = E.makeEnemy('skel', 1, G.me.x + 30, G.me.y, { alive: true, timer: 0 }); e.hp = e.maxHp = 99999; G.enemies.push(e);
+    G.me.tfx = { dodgeCut: 120 }; G.me.st = G.me.maxSt; G.me.face = 0; input.mx = 1; input.my = 0; C.tryDodge(G.me); const h = e.hp; step(12, { god: true }); input.mx = 0;
+    if (!(e.hp < h)) throw new Error('月影之鈴：瞬移穿過敵人沒有砍到');
+    // 血契之戒：冷卻中 → 花 10% 生命放技能；沒戴 → 放不出來
+    G.me.tfx = {}; G.me.hp = G.me.maxHp; G.me.skillCd = 5; G.me.skillLock = 0; C.trySkill(G.me); if (G.me.hp !== G.me.maxHp) throw new Error('沒戴血契之戒，冷卻中也花了血');
+    step(40, { god: true }); G.me.tfx = { bloodSkill: 10 }; G.me.skillCd = 5; G.me.hp = G.me.maxHp; C.trySkill(G.me);
+    if (G.me.hp !== G.me.maxHp - Math.round(G.me.maxHp * .1)) throw new Error('血契之戒：冷卻中放技能沒有花 10% 生命：' + G.me.hp + '/' + G.me.maxHp);
+    step(40, { god: true }); G.me.hp = 5; G.me.skillCd = 5; C.trySkill(G.me); if (G.me.hp !== 5) throw new Error('血契之戒：血不夠還是扣了');
+    // 守光騎士的誓言：被打中 → 下一擊必定暴擊
+    G.me.hp = G.me.maxHp; G.me.tfx = { counter: 60 }; G.me.crit = 0; G.me.iframe = 0; G.hitCtx = e.hc; hurtPlayer(G.me, 1, e.x, e.y); G.hitCtx = null;
+    const n0 = G.nums.length; damageEnemy(G.me, e, 1, G.me.x, G.me.y);
+    if (G.me.counterT !== 0) throw new Error('守光騎士的誓言：被打後的下一擊沒有觸發');
+    G.me.tfx = {}; recalc(G.me); G.me.hp = G.me.maxHp; G.enemies = [];
+  });
+
+  run('精靈王城：城門鎖著 → 從東牆破口繞進去（不經過精靈王）→ 拉桿開城門 → 砍牆找到密室', () => {
+    const SC = await0.secrets, Q = await0.quest, M = await0.map, D = await0.dboss; setMenu(null); G.enemies = [];
+    const keepRb = RB.rbDead.has('elfking'); RB.rbDead.delete('elfking'); Q.flags.delete('elf:gate'); Q.flags.delete('elf:wall'); step(2);
+    const gx = (SC.GATE.x0 + 1) * 16 + 8, gy = SC.GATE.y * 16 + 8;
+    if (!await0.coll.collides(gx, gy, 5)) throw new Error('城門沒有擋路');
+    // 從營火走得到拉桿：只走地板、不穿過城門、不進精靈王的範圍
+    const A = D.ELFKING_AT, camp = CAMPS.find(c => c.id === 'elfcourt'), W = M.MW, ok = (x, y) => M.WALKABLE(M.map[y * W + x]) && !(y === SC.GATE.y && x >= SC.GATE.x0 && x <= SC.GATE.x1) && Math.hypot(x - A.tx, y - A.ty) > A.tr + 1;
+    const seen = new Set([camp.ty * W + camp.tx]), q = [[camp.tx, camp.ty]]; let found = false;
+    while (q.length && !found) { const [x, y] = q.shift(); if (Math.abs(x - SC.LEVER.tx) + Math.abs(y - SC.LEVER.ty) <= 1) { found = true; break; }
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const X = x + dx, Y = y + dy, k = Y * W + X; if (!seen.has(k) && Math.abs(X - camp.tx) < 60 && Math.abs(Y - camp.ty) < 60 && ok(X, Y)) { seen.add(k); q.push([X, Y]); } } }
+    if (!found) throw new Error('從王城門前營火走不到城門內側的拉桿（繞路斷了）');
+    tp(gx, gy + 22); step(1); let it = imp0.input.interactTarget(); if (!it || it.btn !== '調查') throw new Error('城門外面沒有「調查」：' + (it && it.btn));
+    tp(SC.LEVER.tx * 16 + 8, SC.LEVER.ty * 16 + 30); step(1); it = imp0.input.interactTarget(); if (!it || it.btn !== '拉起') throw new Error('拉桿旁邊沒有「拉起」：' + (it && it.btn));
+    it.run(); step(90, { god: true }); if (await0.coll.collides(gx, gy, 5)) throw new Error('拉了拉桿城門還是擋路');
+    // 密室：面向裂痕砍一刀
+    const wx = SC.CRACK.tx * 16 + 8, wy = SC.CRACK.ty * 16 + 8; G.enemies = []; G.me.dead = false; tp(wx, wy + 22); G.me.face = -Math.PI / 2; G.me.iframe = 9; G.me.atkCd = 0; pressed.atk = true; step(20, { god: true });
+    if (!Q.flags.has('elf:wall') || M.map[SC.CRACK.ty * W + SC.CRACK.tx] !== M.RFLOOR) throw new Error('砍了密室的牆沒碎');
+    for (const id of ['ug_shadowbell', 'ug_bloodpact', 'ug_knightoath']) if (!await0.chests.CHESTS.some(c => c.id === id)) throw new Error('沒有寶箱 ' + id);
+    // 舊存檔：打倒過精靈王 → 城門算開著；旗標拿掉 → 門關、牆回來
+    Q.flags.delete('elf:gate'); Q.flags.delete('elf:wall'); step(2);
+    if (!await0.coll.collides(gx, gy, 5) || M.map[SC.CRACK.ty * W + SC.CRACK.tx] !== M.RWALL) throw new Error('旗標拿掉後城門 / 牆沒有恢復');
+    RB.rbDead.add('elfking'); step(2); if (await0.coll.collides(gx, gy, 5)) throw new Error('打倒過精靈王，城門應該是開的');
+    if (!keepRb) RB.rbDead.delete('elfking'); RB.resetRegionBosses(); tp(camp.x, camp.y + 16); step(2);
   });
 
   run('無名古墓的機關：尖刺、火盆謎題、鐵柵門、隱藏的牆', () => {

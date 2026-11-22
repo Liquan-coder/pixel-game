@@ -29,6 +29,10 @@ export const EFF: Record<string, (v: number) => string> = {
   lifesteal: v => '吸血 ' + v + '%（每一下最多回 1% 生命，打 Boss 減半）',
   thorns: v => '反傷：被打中時，把 ' + v + '% 的傷害還給打你的人',
   evade: v => v + '% 機率完全閃開一次攻擊',
+  /* 流派飾品：不是加數字，是改變打法（只有獨特版，藏在野外 / 王城的密室） */
+  dodgeCut: v => '瞬移穿過敵人時，順手砍他一刀（攻擊力 ' + v + '%）',
+  bloodSkill: v => '技能冷卻中也能放：改花 ' + v + '% 生命（不會因此倒下）',
+  counter: v => '被打中後 2 秒內，下一擊必定暴擊、傷害 +' + v + '%',
   res_plains: v => '在' + REGION_N.plains + '受到的傷害 -' + v + '%', res_forest: v => '在' + REGION_N.forest + '受到的傷害 -' + v + '%',
   res_wastes: v => '在' + REGION_N.wastes + '受到的傷害 -' + v + '%', res_lava: v => '在' + REGION_N.lava + '受到的傷害 -' + v + '%',
   res_snow: v => '在' + REGION_N.snow + '受到的傷害 -' + v + '%', res_swamp: v => '在' + REGION_N.swamp + '受到的傷害 -' + v + '%',

@@ -86,4 +86,5 @@ export const ELF_SPAWN = { n: 150, lv: [40, 55] as [number, number], anchor: [28
 /* 精英怪：[種類, 等級, x, y, 名字] */
 export const ELF_ELITES: [string, number, number, number, string][] = [
   ['elfBlade', 52, 340, 443, '月泉的劍聖'], ['elfTreant', 52, 300, 441, '白樹的守衛'], ['elfArcher', 50, 360, 470, '王城弓兵長'], ['elfHound', 46, 294, 466, '銀月獵犬'],
+  ['elfArcher', 52, 385, 437, '城牆外的弓手'], ['elfBlade', 53, 379, 433, '破口的守衛'],   // 王城的繞路（world/secrets.ts）
 ];
