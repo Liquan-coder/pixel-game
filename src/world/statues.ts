@@ -9,9 +9,9 @@ import { G } from '../core/state';
 import { TAU, pick, rr } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
 import { sfx } from '../core/audio';
-import { SH, sculpt } from '../art/monsters';
 import { MH, MW, PROPS, REGIONS, ROAD, TS, WALKABLE, explored, map, reg } from './map';
 import { drawArtSprite } from './chunks';
+import { STATUE_H, STATUE_ORB, STATUE_SEAL, STATUE_W, starStatue } from '../art/stoneArt';
 import { redrawMini } from './minimap';
 import { flags, setNav } from '../game/quest';
 import { showBanner, toast } from '../ui/hud';
@@ -98,25 +98,22 @@ export function cartoTarget(pl: Player, npc: { name: string; x: number; y: numbe
     save(); } };
 }
 
-/* ---- 畫：石座上的女神像，雙手捧著一顆星。祈禱過 = 星星發光、頭上一道淡淡的光柱 ---- */
-const STONE = ['#2e2a36', '#4a4558', '#6a6478', '#8e88a0', '#b8b2c8'];
-const ART = sculpt(54, 140, [{ sh: SH.box(27, 128, 24, 11, 4), ramp: STONE, tex: .3, grp: 1 }, { sh: SH.box(27, 114, 26, 4, 6), ramp: STONE, bias: .15, grp: 2 },
-  { sh: SH.poly([[12, 112], [42, 112], [35, 56], [19, 56]]), ramp: STONE, tex: .25, grp: 3 }, { sh: SH.ell(27, 56, 11, 7), ramp: STONE, grp: 4 },
-  { sh: SH.ell(27, 42, 8, 10), ramp: STONE, grp: 5 }, { sh: SH.poly([[17, 40], [27, 18], [37, 40]]), ramp: STONE, tex: .2, grp: 6 },   // 頭 + 尖帽
-  { sh: SH.cap(18, 60, 27, 32, 3, 3), ramp: STONE, grp: 7 }, { sh: SH.cap(36, 60, 27, 32, 3, 3), ramp: STONE, grp: 7 }], a => {
-  for (let k = 0; k < 30; k++) { const x = 8 + ((k * 37) % 40), y = 40 + ((k * 53) % 96); if (a.get(x, y)) a.set(x, y, k % 3 ? STONE[0] : '#3e5a3a'); }
-  a.rect(23, 44, 8, 2, '#1e1a24'); });
+/* ---- 畫：石座上的女神像，右手把星星舉過頭。祈禱過 = 星星發光、頭上一道淡淡的光柱 ---- */
+const ART = starStatue();                                           // 鑿刻風格的石像（art/stoneArt.ts）
 export function drawStatues(vis, list, L, addLight) {
-  for (const s of STATUES) { if (!vis(s.x, s.y, 240)) continue; const lit = statueLit(s), orbY = s.y + 2 - 140 * HK + 29 * HK;
+  for (const s of STATUES) { if (!vis(s.x, s.y, 240)) continue; const lit = statueLit(s), orbX = s.x + (STATUE_ORB[0] - STATUE_W / 2) * HK, orbY = s.y + 2 - (STATUE_H - STATUE_ORB[1]) * HK;   // 舉起來的那顆星星
     if (!flags.has('seen:s' + s.k) && vis(s.x, s.y, -20)) flags.add('seen:s' + s.k);                     // 在畫面上看到了 → 地圖上記下來
     list.push({ y: s.y, f: () => { drawShadow(s.x, s.y + 1, 22); drawArtSprite(ART, s.x, s.y + 2);
       const p = .6 + .4 * Math.sin(G.time * 3 + s.k);
       ctx.globalAlpha = lit ? 1 : .35 + .25 * p; ctx.fillStyle = lit ? '#ffe38a' : '#8a84a0';                       // 捧著的星星
-      for (const [dx, dy, w, h] of [[-1, -3, 2, 6], [-3, -1, 6, 2], [-.5, -.5, 1, 1]]) ctx.fillRect(snapF(s.x + dx), snapF(orbY + dy), w, h);
+      for (const [dx, dy, w, h] of [[-1, -3, 2, 6], [-3, -1, 6, 2], [-.5, -.5, 1, 1]]) ctx.fillRect(snapF(orbX + dx), snapF(orbY + dy), w, h);
+      if (lit) { const X = s.x + (STATUE_SEAL[0] - STATUE_W / 2) * HK, Y = s.y + 2 - (STATUE_H - STATUE_SEAL[1]) * HK;   // 祈禱過：石座上的星形刻紋也亮起來
+        ctx.globalAlpha = .55 + .35 * p; ctx.fillStyle = '#ffe38a';                                    // 刻紋是 11×11 美術像素的十字
+        ctx.fillRect(snapF(X - 5 * HK), snapF(Y), 11 * HK, HK); ctx.fillRect(snapF(X), snapF(Y - 5 * HK), HK, 11 * HK); }
       ctx.globalAlpha = 1;
       const H = lit ? 80 : 220, g = ctx.createLinearGradient(0, orbY - H, 0, orbY);   // 光柱：點亮 = 金色短柱；還沒祈禱 = 很高的紫柱（遠遠就看得到）
       g.addColorStop(0, lit ? 'rgba(255,226,140,0)' : 'rgba(200,168,255,0)'); g.addColorStop(1, lit ? 'rgba(255,236,170,' + (.22 * p) + ')' : 'rgba(200,168,255,' + (.18 + .12 * p) + ')');
-      ctx.fillStyle = g; ctx.fillRect(snapF(s.x - (lit ? 3 : 4)), snapF(orbY - H), lit ? 6 : 8, H); } });
-    addLight(L, s.x, orbY, lit ? 54 : 26, lit ? 4 : 3);
-    if (!lit && Math.random() < .08) G.parts.push({ x: s.x + rr(-4, 4), y: orbY, vx: rr(-3, 3), vy: -rr(6, 14), life: 1.2, max: 1.2, col: '#c8a8ff', star: rr(.5, 1.1), drag: 1 }); }
+      ctx.fillStyle = g; ctx.fillRect(snapF(orbX - (lit ? 3 : 4)), snapF(orbY - H), lit ? 6 : 8, H); } });
+    addLight(L, orbX, orbY, lit ? 54 : 26, lit ? 4 : 3);
+    if (!lit && Math.random() < .08) G.parts.push({ x: orbX + rr(-4, 4), y: orbY, vx: rr(-3, 3), vy: -rr(6, 14), life: 1.2, max: 1.2, col: '#c8a8ff', star: rr(.5, 1.1), drag: 1 }); }
 }
