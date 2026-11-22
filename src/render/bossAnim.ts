@@ -40,6 +40,9 @@ function frostknight(e, rig: Rig): Pose {
   const P: Pose = { ox: 0, oy: 0, lift: 0, lean: 0, rot: 0, wa: rest, ws: 0, arm: 0 };
   const aim = e.aim ?? 0, cx = Math.cos(aim), cy = Math.sin(aim);
   const act = e.act, since = act ? G.time - act.t0 : 99;
+  const mir = rig.spec.mirror ? !e.flip : e.flip, sh = rig.spec.shoulder, B = Math.atan2(rig.spec.grip[1] - sh[1], rig.spec.grip[0] - sh[0]);   // B = 手臂垂下來時，肩膀 → 手的方向（美術格）
+  const armDir = (th: number) => mir ? Math.PI - (B + th) : B + th;      // 手臂轉了 th 以後，在世界上指向哪裡
+  const swing = (th: number, wrist: number) => armDir(th) - wrist * f;   // 揮砍：長戟跟手臂連成一根，一起繞肩膀轉（wrist = 握法的小角度，正 = 戟尖往後倒）
   const shiver = (from: number) => q > from ? Math.sin(G.time * 70) * .5 * (q - from) / (1 - from) : 0;   // 蓄力最後一段：抖（快出手了）
   switch (st) {
     case 'intro': {                                                      // 開場：把長戟舉過頭 → 往地上一插（冰封的騎士醒了）
@@ -56,7 +59,7 @@ function frostknight(e, rig: Rig): Pose {
       P.wa = aim; P.arm = 1; P.ws = 22; P.lean = .13 * cx; P.snap = true; return P;
     case 'sweepWind': {                                                  // 橫掃・蓄力：手舉過頭頂，戟尖甩到腦後，身體往後仰
       const sg = f, k = ease(q / .55);
-      P.wa = aim - sg * ((e.mo?.half ?? 1.1) + 1.1); P.arm = OVER * k; P.ws = 2; P.lean = -.1 * cx * k; P.rot = -.06 * sg * k; P.lift = k; P.ox = -2 * cx * k + shiver(.75);
+      P.arm = (OVER + .3) * k; P.wa = swing(OVER + .3, .3); P.ws = 2; P.lean = -.1 * cx * k; P.rot = -.06 * sg * k; P.lift = k; P.ox = -2 * cx * k + shiver(.75);
       return P; }
     case 'chargeWind':                                                   // 衝鋒・蓄力：手往前伸，把戟放平當長槍，壓低身體
       P.wa = aim; P.arm = .8; P.ws = -5 * ease(q / .5); P.lean = .1 * cx * ease(q / .5); P.ox = -2 * cx * ease(q / .5) + shiver(.7); P.oy = 1;
@@ -80,12 +83,14 @@ function frostknight(e, rig: Rig): Pose {
     P.k = 7;
   }
   if (act && act.k === 'sweep' && since < .8) {
-    // 角度一律照「揮的方向」算，不用 lerpA（最近的那一邊）：不然劈下去會從背後繞、收招會順著轉回頭頂 → 看起來轉一整圈
-    const sg = f, half = act.half ?? 1.1, a0 = act.aim - sg * (half + 1.1), a1 = act.aim + sg * (half + .35), c = Math.cos(act.aim);
-    if (since < .12) { const k = ease(since / .12); P.wa = lerp(a0, a1, k); P.arm = lerp(OVER, .5, k); P.ws = 6; P.lean = lerp(-.1, .14, k) * c; P.rot = .05 * sg * k; P.snap = true; return P; }   // 從頭頂經過前面劈下來
-    if (since < .42) { P.wa = a1; P.arm = .5; P.ws = 4; P.lean = .1 * c; P.rot = .04 * sg; P.oy = 1; P.snap = true; return P; }                                                   // 劈到底停住
-    let back = angTo(a1, rest); if (Math.sign(back) === sg) back -= sg * TAU;                                                        // 收招：沿原路倒轉回去（跟揮的方向相反）
-    const k = ease((since - .42) / .38); P.wa = a1 + back * k; P.arm = lerp(.5, 0, k); P.ws = lerp(4, 0, k); P.lean = .1 * c * (1 - k); P.rot = .04 * sg * (1 - k); P.snap = true; return P;
+    // 整隻手臂揮：手臂從頭頂後面（OVER + .3）一路劈到前下方（−.3），長戟跟著手臂一起轉 → 戟尖畫一個以肩膀為中心的大弧
+    // 角度一律照揮的方向算，不用 lerpA（最近的那一邊）：不然會從背後繞、收招順著轉回頭頂 → 轉一整圈
+    const sg = f, c = Math.cos(act.aim), T0 = OVER + .3, T1 = -.3, a1 = swing(T1, -.1);
+    if (since < .13) { const k = ease(since / .13), th = lerp(T0, T1, k); P.arm = th; P.wa = swing(th, lerp(.3, -.1, k)); P.ws = 6; P.lean = lerp(-.1, .16, k) * c; P.rot = .06 * sg * k; P.lift = 1 - k; P.snap = true; return P; }   // 劈下來
+    if (since < .42) { P.arm = T1; P.wa = a1; P.ws = 4; P.lean = .12 * c; P.rot = .05 * sg; P.oy = 1; P.snap = true; return P; }                                                                          // 劈到底停住
+    const dir = mir ? 1 : -1;                                                                                                          // 手臂往下劈時長戟轉的方向（翻面就反過來）
+    let back = angTo(a1, rest); if (Math.sign(back) === dir) back -= dir * TAU;                                                      // 收招：沿原路倒轉回去（跟揮的方向相反）
+    const k = ease((since - .42) / .38); P.wa = a1 + back * k; P.arm = lerp(T1, 0, k) + 1.2 * Math.sin(k * Math.PI); P.ws = lerp(4, 0, k); P.lean = .12 * c * (1 - k); P.rot = .05 * sg * (1 - k); P.snap = true; return P;   // 手臂順勢抬一下把戟收回直立
   }
   if (act && act.k === 'chargeEnd' && since < .45) { const u = since / .45; P.wa = act.aim; P.arm = .9 * (1 - u); P.ws = 10 * (1 - u); P.lean = -.08 * Math.cos(act.aim) * (1 - u); P.k = 10;   // 煞車：身體往後仰回來
     if (since < .05 && e._skid !== act.t0) { e._skid = act.t0; dustPuff(e.x + Math.cos(act.aim) * 4, e.y, 7, 46); } return P; }
