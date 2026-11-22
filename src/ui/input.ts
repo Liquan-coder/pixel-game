@@ -12,13 +12,18 @@ import { openPause } from './pause';
 const KEYMAP = { KeyW:'up', ArrowUp:'up', KeyS:'down', ArrowDown:'down', KeyA:'left', ArrowLeft:'left', KeyD:'right', ArrowRight:'right',
   KeyJ:'atk', Space:'atk', KeyK:'dodge', ShiftLeft:'dodge', ShiftRight:'dodge', KeyL:'skill', KeyH:'pot', KeyI:'inv', KeyC:'inv', Tab:'inv', KeyM:'map', KeyP:'pause', Escape:'esc', Enter:'enter' };
 window.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey) return;                                    // ⌘ / Ctrl 快捷鍵不算按鍵（Mac 按著 ⌘ 時放開別的鍵不會有 keyup → 會卡住）
   const k = KEYMAP[e.code]; if (!k) return;
   if (e.target instanceof HTMLElement && e.target.tagName === 'BUTTON' && (k === 'atk' || k === 'enter')) return;
   e.preventDefault(); if (!keys[k]) pressed[k] = true; keys[k] = true;
 });
-window.addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) keys[k] = false; });
-window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; for (const k in held) held[k] = false; });
+window.addEventListener('keyup', e => { if (e.key === 'Meta' || e.key === 'Control') releaseAll(); const k = KEYMAP[e.code]; if (k) keys[k] = false; });
+/* 「放開」的事件沒收到就會一直按著（方向卡住、搖桿點不動）：切到別的 App、拉下通知、來電、⌘ 組合鍵… → 全部放開 */
+function releaseAll() { for (const k in keys) keys[k] = false; for (const k in held) held[k] = false; resetJoy(); }
+window.addEventListener('blur', releaseAll); window.addEventListener('pagehide', releaseAll);
+document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
 const joyZone = $('joyZone'), joyBase = $('joyBase'), joyKnob = $('joyKnob');
+function resetJoy() { joy.active = false; joy.id = null; joy.dx = joy.dy = 0; placeJoyIdle(); }
 // 固定搖桿：底座永遠在左下角（位置寫在 CSS），手指按在左下區域任何地方，方向都從底座中心算
 export function placeJoyIdle() { if (joy.active) return; joyBase.classList.remove('on'); joyKnob.style.transform = ''; }
 function joyMove(e: PointerEvent) {
@@ -27,14 +32,14 @@ function joyMove(e: PointerEvent) {
   joy.dx = dx / R; joy.dy = dy / R; joyKnob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
 }
 joyZone.addEventListener('pointerdown', e => {
-  if (joy.active) return; e.preventDefault(); initAudio();
+  if (joy.active && e.pointerId === joy.id) return; e.preventDefault(); initAudio();   // 搖桿還以為有手指按著（放開沒收到）→ 直接換成這隻手指，不會卡死
   const r = joyBase.getBoundingClientRect();
   joy.active = true; joy.id = e.pointerId; joy.bx = r.left + r.width / 2; joy.by = r.top + r.height / 2; joyBase.classList.add('on'); joyMove(e);
   try { joyZone.setPointerCapture(e.pointerId); } catch (err) {}
 });
 joyZone.addEventListener('pointermove', e => { if (!joy.active || e.pointerId !== joy.id) return; e.preventDefault(); joyMove(e); });
-const joyEnd = e => { if (e.pointerId !== joy.id) return; joy.active = false; joy.id = null; joy.dx = joy.dy = 0; placeJoyIdle(); };
-joyZone.addEventListener('pointerup', joyEnd); joyZone.addEventListener('pointercancel', joyEnd);
+const joyEnd = e => { if (e.pointerId === joy.id) resetJoy(); };
+joyZone.addEventListener('pointerup', joyEnd); joyZone.addEventListener('pointercancel', joyEnd); joyZone.addEventListener('lostpointercapture', joyEnd);
 function bindBtn(id, key) {
   const el = $(id);
   el.addEventListener('pointerdown', e => { e.preventDefault(); initAudio(); held[key] = true; pressed[key] = true; el.classList.add('down'); try { el.setPointerCapture(e.pointerId); } catch (err) {} });
