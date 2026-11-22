@@ -39,13 +39,12 @@ export function drawEnemy(e) {
   if (e.hp > 0) sealIcons(e, top - (hpBar ? 6 : 3));
 }
 /* 刻印累積：跟主角被打中時頭上的圖示一樣（game/status.ts 的 buildIcon）——血滴 = 出血、雪花 = 凍傷、閃電 = 雷鳴，從下往上亮，快滿會閃；
-   火焰 = 燃燒還剩幾秒。4 秒沒有再累積就先不畫（累積值還在，再砍一下就會出現） */
+   火焰 = 燃燒還剩幾秒。累積跟主角一樣會隨時間退：2 秒沒再累積就開始掉，掉到 0 就不見 */
 function sealIcons(e, bottom: number) {
   const icons: [string, number, number?][] = [];
-  const fresh = G.time - (e.fxT || -99) < 4;
-  if (fresh && e.bleedB > 0) icons.push(['bleed', e.bleedB / 100]);
-  if (fresh && e.frostB > 0) icons.push(['frost', e.frostB / 100]);
-  if (fresh && e.shockB > 0) icons.push(['shock', e.shockB / 100]);
+  if (e.bleedB > 0) icons.push(['bleed', e.bleedB / 100]);            // 累積會慢慢退（game/weaponFx.ts 的 decayBuild），退到 0 圖示就不見
+  if (e.frostB > 0) icons.push(['frost', e.frostB / 100]);
+  if (e.shockB > 0) icons.push(['shock', e.shockB / 100]);
   if (e.burnT > 0) icons.push(['burn', e.burnT / 3, 2]);
   buildRow(icons, e.x, bottom);
 }

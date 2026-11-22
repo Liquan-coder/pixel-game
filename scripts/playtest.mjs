@@ -401,6 +401,9 @@ const pageScript = async () => {
       out.push(fx);
     }
     log.push('  觸發：' + out.join(', '));
+    { const m = await0.enemies.makeEnemy('golem', 3, G.me.x + 40, G.me.y, { alive: true, timer: 0 }); m.hp = m.maxHp = 1e6; m.stun = 99; G.enemies.push(m);   // 怪物身上的累積跟主角一樣會退
+      m.bleedB = 80; m.fxT = G.time; step(60, { god: true }); if (m.bleedB !== 80) throw new Error('怪物的出血累積 2 秒內就開始退了');
+      step(120, { god: true }); if (!(m.bleedB < 80 && m.bleedB > 0)) throw new Error('怪物的出血累積沒有隨時間退：' + m.bleedB); G.enemies = G.enemies.filter(o => o !== m); }
     const old = { id: 997, type: 'wolfblade', ilvl: 9, rarity: 4, atk: 40, aff: {}, name: '狼牙雙刃' }; await0.forge.migrateWeapon(old); items.fixWeapon(old);
     if (old.uq !== 'wolfblade' || FX.fxOf(old) !== 'bleed') throw new Error('舊狼牙雙刃沒有變成獨特武器：' + JSON.stringify(old));
     for (const k of Object.keys(await0.uq.UQ)) { const u = items.makeUnique(k); if (!u.atk || u.rarity !== 4 || !FX.fxOf(u)) throw new Error('獨特武器 ' + k + ' 不完整'); }

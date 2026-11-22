@@ -7,6 +7,7 @@ import { sfx } from '../core/audio';
 import type { Enemy, Item, Player } from '../types';
 import { UQ } from '../data/uniques';
 import { WT } from '../data/items';
+import { BUILD_DECAY, BUILD_HOLD } from '../data/ailments';
 
 export const WFXD: Record<string, { n: string; c: string; d: string; pre: string }> = {
   bleed: { n: '出血', c: '#ff5a64', pre: '血棘', d: '連續命中會累積出血，滿了爆發「最大生命 15%」的傷害（Boss 5%）' },
@@ -134,9 +135,17 @@ export function onKill(pl: Player, e: Enemy) {
     G.nums.push({ x: pl.x, y: pl.y - 28, txt: '+' + h, col: '#c8a8ff', t: 0, d: .7 }); }
   return (soul ? 1.25 : 1) * (1 + (T.souls || 0) / 100);                 // 魂晶倍率
 }
-/** 每幀：燃燒每 0.5 秒扣一次；噬魂的魂往主角飛 */
+/* 出血 / 凍傷 / 雷鳴的累積：最後一次累積後 BUILD_HOLD 秒不動，之後每秒掉 BUILD_DECAY（game/status.ts，主角也是這套） */
+function decayBuild(e: Enemy, dt: number) {
+  if (e.decF === G.time || !(e.bleedB > 0 || e.frostB > 0 || e.shockB > 0)) return; e.decF = G.time;   // decF：這一幀退過了（同一隻不會退兩次）
+  if (G.time - (e.fxT || 0) < BUILD_HOLD) return; const d = BUILD_DECAY * dt;
+  if (e.bleedB > 0) e.bleedB = Math.max(0, e.bleedB - d); if (e.frostB > 0) e.frostB = Math.max(0, e.frostB - d); if (e.shockB > 0) e.shockB = Math.max(0, e.shockB - d);
+}
+/** 每幀：燃燒每 0.5 秒扣一次；噬魂的魂往主角飛；刻印累積慢慢退 */
 export function tickWeaponFx(dt: number, list: Enemy[]) {
   if (orbs.length) tickOrbs(dt);
+  for (const e of G.enemies) decayBuild(e, dt);                         // 刻印累積慢慢退（跟主角身上的出血 / 凍傷一樣）；離得遠的怪也會退
+  for (const e of list) decayBuild(e, dt);                              // Boss 不在 G.enemies 裡
   for (const e of list) { if (!(e.burnT > 0) || e.hp <= 0) continue;
     e.burnT -= dt; e.burnAcc = (e.burnAcc || 0) + dt;
     if (Math.random() < dt * 30) G.parts.push({ x: e.x + rr(-5, 5), y: e.y - rr(0, 12), vx: rr(-6, 6), vy: -rr(25, 50), life: rr(.3, .5), max: .5, col: pick(['#ff9a3a', '#ffd27a', '#e8402a', '#ffffff']), star: rr(.8, 1.6), drag: 1 });   // 身上一直冒火

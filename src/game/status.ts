@@ -19,6 +19,7 @@ import { toast } from '../ui/hud';
 import type { Player } from '../types';
 import { drawIceCrystal, iceShatter } from '../art/iceCrystal';
 import { rageFrac } from './builds';
+import { BUILD_DECAY, BUILD_HOLD } from '../data/ailments';
 
 export interface FX { frost?: number; bleed?: number; poison?: number; burn?: number; stun?: number; slow?: number; root?: number; silence?: number; blind?: number }
 export interface Status { iceAt?: number; iceOn?: boolean; frost: number; bleed: number; frozen: number; stun: number; stunImm: number; rootImm: number; slow: number; poison: number; burn: number; root: number; silence: number; blind: number; hold: number; dot: number; dotT: number }
@@ -35,10 +36,10 @@ function announce(pl: Player, k: string) { if (pl !== G.me) return; const [n, c]
 /* 被打中時呼叫（hurtPlayer 裡面）。dmgDone = 這一下實際扣的血 */
 export function applyFx(pl: Player, f: FX | undefined) {
   if (!f || pl.dead) return; const S = sx(pl);
-  if (f.frost && S.frozen <= 0) { S.frost += f.frost; S.hold = 2;
+  if (f.frost && S.frozen <= 0) { S.frost += f.frost; S.hold = BUILD_HOLD;
     if (S.frost >= 100) { S.frost = 0; S.frozen = 1.1; S.iceAt = G.time; pl.hp -= Math.max(1, Math.round(pl.maxHp * .08)); announce(pl, 'frozen'); sfx.hurt();
       for (let i = 0; i < 16; i++) { const a = rr(0, TAU), v = rr(30, 90); G.parts.push({ x: pl.x, y: pl.y - 8, vx: Math.cos(a) * v, vy: Math.sin(a) * v * .6 - 20, life: rr(.4, .8), max: .8, col: pick(['#ffffff', '#d8f0ff', '#a8dcff']), star: rr(.6, 1.6), drag: 3 }); } } }
-  if (f.bleed) { S.bleed += f.bleed; S.hold = 2;
+  if (f.bleed) { S.bleed += f.bleed; S.hold = BUILD_HOLD;
     if (S.bleed >= 100) { S.bleed = 0; const v = Math.max(1, Math.round(pl.maxHp * .15)); pl.hp -= v; announce(pl, 'bleed');
       G.nums.push({ x: pl.x, y: pl.y - 34, txt: String(v), col: '#ff3a4a', t: 0, d: .9, big: true });
       for (let i = 0; i < 22; i++) { const a = rr(-Math.PI, 0), s = rr(40, 130); G.parts.push({ x: pl.x, y: pl.y - 10, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rr(.3, .7), max: .7, col: pick(['#c01020', '#ff3a4a', '#7a0810']), s: 1, g: 300 }); } } }
@@ -53,7 +54,7 @@ export function applyFx(pl: Player, f: FX | undefined) {
 export function tickStatus(pl: Player, dt: number): boolean {
   const S = pl.sx; if (!S) return false;
   for (const k of ['frozen', 'stun', 'stunImm', 'rootImm', 'slow', 'poison', 'burn', 'root', 'silence', 'blind'] as const) if (S[k] > 0) S[k] = Math.max(0, S[k] - dt);
-  if (S.hold > 0) S.hold -= dt; else { S.frost = Math.max(0, S.frost - 18 * dt); S.bleed = Math.max(0, S.bleed - 18 * dt); }
+  if (S.hold > 0) S.hold -= dt; else { S.frost = Math.max(0, S.frost - BUILD_DECAY * dt); S.bleed = Math.max(0, S.bleed - BUILD_DECAY * dt); }
   const rate = (S.poison > 0 ? .012 : 0) + (S.burn > 0 ? .03 : 0);
   if (rate > 0) { S.dot += pl.maxHp * rate * dt; S.dotT += dt;
     if (S.dotT >= .5) { S.dotT = 0; const v = Math.floor(S.dot); if (v >= 1) { S.dot -= v; pl.hp -= v;

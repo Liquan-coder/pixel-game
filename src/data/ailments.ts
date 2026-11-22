@@ -4,6 +4,10 @@
    Boss 照主題；另外 Boss 的重擊（砸地、跳壓、衝撞）會暈眩，寫在招式裡（world/bossAI3.ts、bossAI2.ts 的 landHit）。 */
 import type { FX } from '../game/status';
 
+/* 累積型（出血、凍傷，還有怪物身上的刻印累積）怎麼退：最後一次累積後 BUILD_HOLD 秒不動，之後每秒掉 BUILD_DECAY。
+   主角（game/status.ts）和怪物（game/weaponFx.ts）共用。放在這裡是因為這個檔案不 import 任何東西（不會打亂模組載入順序） */
+export const BUILD_HOLD = 2, BUILD_DECAY = 18;
+
 const ICE: FX = { frost: 22 }, FIRE: FX = { burn: 2.5 }, TOX: FX = { poison: 4 }, CUT: FX = { bleed: 20 }, WET: FX = { slow: 2 }, SAND: FX = { blind: 2.5 }, WEB: FX = { root: .9 }, HEAVY: FX = { stun: .45 };
 export const MOB_FX: Record<string, FX> = {
   slimeI: ICE, wolfS: ICE, golemI: { frost: 30, stun: .45 }, spiderI: ICE, batI: ICE, ghoulI: ICE, wraithI: ICE,
