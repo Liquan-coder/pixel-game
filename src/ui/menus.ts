@@ -137,7 +137,7 @@ function drawDoll() {                                                   // 中�
   const hs = HERO.hand; g.drawImage(hs.n, 39, 38, 5, 6, hx - 2.5 * S, hy - 2.5 * S, 5 * S, 6 * S);
 }
 /** 飾品欄開放幾格：一開始 2 格，打倒 2 隻主線 Boss（含狼王）→ 3 格，4 隻 → 4 格 */
-export function tSlots() { const n = MAIN_BOSSES.filter(id => rbDead.has(id)).length + (G.bossDead ? 1 : 0); return Math.min(T_SLOTS_MAX, 2 + (n >= 2 ? 1 : 0) + (n >= 4 ? 1 : 0)); }
+export function tSlots() { if (G.lab) return T_SLOTS_MAX; const n = MAIN_BOSSES.filter(id => rbDead.has(id)).length + (G.bossDead ? 1 : 0); return Math.min(T_SLOTS_MAX, 2 + (n >= 2 ? 1 : 0) + (n >= 4 ? 1 : 0)); }
 type Sel = { where: 'bag' | 'eq'; it: Item; slot?: string; ti?: number } | null;
 function selected(): Sel {
   const id = G.selItem; if (id == null) return null;

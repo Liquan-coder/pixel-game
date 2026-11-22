@@ -1,6 +1,7 @@
 /* ================= 開發用：刻印測試場 =================
    打開 http://localhost:5173/?lab 就直接進遊戲，不用從頭玩：
    · 主角打不死、體力 / 藥水無限
+   · 跟 ?test 一樣全開：地圖、地名、營火（可以傳送）、背包有全部武器、星狼、4 格飾品欄
    · 畫面上方一排按鈕：換刻印、換武器、叫怪（一群小怪 / 精英 / 打不死的沙包 / 會打人的沙包）、傳送到 Boss 前、換流派飾品
    · **不會存檔**（G.lab = true 時 game/save.ts 的 save / clearSave 什麼都不做），你的存檔格完全不動
    只有開發模式（npm run dev）才會載入這個檔案（main.ts 用 import.meta.env.DEV 判斷），上線的版本裡沒有它。 */
@@ -15,6 +16,7 @@ import { makeUniqueGear } from '../data/items';
 import { UG } from '../data/uniques';
 import { effLines } from '../data/gear';
 import { toast } from '../ui/hud';
+import { openAll } from './test';
 
 const SEALS: [string, string][] = [['bleed', '出血'], ['burn', '燃燒'], ['frost', '寒霜'], ['shock', '雷鳴'], ['soul', '噬魂'], ['', '無']];
 const FOE = { alive: true, timer: 0 };                                  // 假的生怪點：死了不會在這裡重生
@@ -24,8 +26,9 @@ export function startLab(startGame: (cont: boolean) => void) {
   startGame(false);
   G.me.x -= 150; G.me.y += 10;                                         // 離開營火（站在營火旁按攻擊會變成「休息」）
   setWeapon('sword', 'frost');
+  openAll();                                                            // 地圖、營火、全部武器全開（跟 ?test 一樣）
   god();
-  setTimeout(() => { pack(); sandbag(); toast('刻印測試場：不會存檔，主角打不死', '#c8a8ff'); }, 300);
+  setTimeout(() => { pack(); sandbag(); toast('刻印測試場：地圖和武器全開、不會存檔、主角打不死', '#c8a8ff'); }, 300);
   panel();
 }
 
