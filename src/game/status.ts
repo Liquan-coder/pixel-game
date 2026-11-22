@@ -17,9 +17,10 @@ import { HK, ctx, snapF } from '../core/canvas';
 import { sfx } from '../core/audio';
 import { toast } from '../ui/hud';
 import type { Player } from '../types';
+import { drawIceCrystal, iceShatter } from '../art/iceCrystal';
 
 export interface FX { frost?: number; bleed?: number; poison?: number; burn?: number; stun?: number; slow?: number; root?: number; silence?: number; blind?: number }
-export interface Status { frost: number; bleed: number; frozen: number; stun: number; stunImm: number; rootImm: number; slow: number; poison: number; burn: number; root: number; silence: number; blind: number; hold: number; dot: number; dotT: number }
+export interface Status { iceAt?: number; iceOn?: boolean; frost: number; bleed: number; frozen: number; stun: number; stunImm: number; rootImm: number; slow: number; poison: number; burn: number; root: number; silence: number; blind: number; hold: number; dot: number; dotT: number }
 const fresh = (): Status => ({ frost: 0, bleed: 0, frozen: 0, stun: 0, stunImm: 0, rootImm: 0, slow: 0, poison: 0, burn: 0, root: 0, silence: 0, blind: 0, hold: 0, dot: 0, dotT: 0 });
 export const sx = (pl: Player): Status => pl.sx || (pl.sx = fresh());
 export function clearStatus(pl: Player) { pl.sx = fresh(); }
@@ -34,7 +35,7 @@ function announce(pl: Player, k: string) { if (pl !== G.me) return; const [n, c]
 export function applyFx(pl: Player, f: FX | undefined) {
   if (!f || pl.dead) return; const S = sx(pl);
   if (f.frost && S.frozen <= 0) { S.frost += f.frost; S.hold = 2;
-    if (S.frost >= 100) { S.frost = 0; S.frozen = 1.1; pl.hp -= Math.max(1, Math.round(pl.maxHp * .08)); announce(pl, 'frozen'); sfx.hurt();
+    if (S.frost >= 100) { S.frost = 0; S.frozen = 1.1; S.iceAt = G.time; pl.hp -= Math.max(1, Math.round(pl.maxHp * .08)); announce(pl, 'frozen'); sfx.hurt();
       for (let i = 0; i < 16; i++) { const a = rr(0, TAU), v = rr(30, 90); G.parts.push({ x: pl.x, y: pl.y - 8, vx: Math.cos(a) * v, vy: Math.sin(a) * v * .6 - 20, life: rr(.4, .8), max: .8, col: pick(['#ffffff', '#d8f0ff', '#a8dcff']), star: rr(.6, 1.6), drag: 3 }); } } }
   if (f.bleed) { S.bleed += f.bleed; S.hold = 2;
     if (S.bleed >= 100) { S.bleed = 0; const v = Math.max(1, Math.round(pl.maxHp * .15)); pl.hp -= v; announce(pl, 'bleed');
@@ -80,18 +81,15 @@ export function drawStatus(pl: Player) {
   if (S.root > 0) { ctx.fillStyle = '#4a6a2a'; for (let k = 0; k < 5; k++) { const a = k / 5 * TAU + t * .5, px = x + Math.cos(a) * 6, py = y - 1 + Math.sin(a) * 2;   // 腳邊纏上來的藤蔓
       ctx.fillRect(snapF(px - HK), snapF(py - 6), HK * 2, 7); ctx.fillStyle = k % 2 ? '#a8c870' : '#4a6a2a'; ctx.fillRect(snapF(px - HK * 2), snapF(py - 6 + Math.sin(t * 3 + k) * 1.5), HK * 2, HK * 2); } }
   if (S.slow > 0 && S.frozen <= 0) { ctx.globalAlpha = .35; ctx.fillStyle = '#7ab8e8'; ctx.beginPath(); ctx.ellipse(snapF(x), snapF(y), 9, 3, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1; }   // 腳下一圈冷光
-  if (S.frozen > 0) {                                                    // 冰塊：半透明的藍色方塊 + 亮邊 + 幾道反光
-    const w = 18, h = 24, L = x - w / 2, T = y - h + 2; ctx.globalAlpha = .55; ctx.fillStyle = '#a8dcff'; ctx.fillRect(snapF(L), snapF(T), w, h);
-    ctx.globalAlpha = .9; ctx.fillStyle = '#ffffff'; ctx.fillRect(snapF(L), snapF(T), w, HK * 2); ctx.fillRect(snapF(L), snapF(T), HK * 2, h);
-    ctx.fillStyle = '#5e86ba'; ctx.fillRect(snapF(L), snapF(T + h - HK * 2), w, HK * 2); ctx.fillRect(snapF(L + w - HK * 2), snapF(T), HK * 2, h);
-    ctx.fillStyle = '#ffffff'; ctx.globalAlpha = .7; for (let k = 0; k < 3; k++) ctx.fillRect(snapF(L + 4 + k * 4), snapF(T + 5 + k * 3), HK * 2, 6 - k); ctx.globalAlpha = 1; }
+  if (S.frozen > 0) { drawIceCrystal(x, y + 2, G.time - (S.iceAt || 0), S.frozen); S.iceOn = true; }   // 冰晶（art/iceCrystal.ts）
+  else if (S.iceOn) { S.iceOn = false; iceShatter(x, y + 2); sfx.iceBreak(); }                                  // 解凍：碎掉
   if (S.stun > 0) for (let k = 0; k < 3; k++) { const a = t * 6 + k / 3 * TAU, px = x + Math.cos(a) * 8, py = y - 30 + Math.sin(a) * 2.5;   // 頭上轉圈的星星
     ctx.fillStyle = '#ffe38a'; ctx.fillRect(snapF(px - HK), snapF(py - HK * 3), HK * 2, HK * 6); ctx.fillRect(snapF(px - HK * 3), snapF(py - HK), HK * 6, HK * 2); ctx.fillStyle = '#ffffff'; ctx.fillRect(snapF(px - HK), snapF(py - HK), HK * 2, HK * 2); }
   if (S.silence > 0) { const py = y - 32 + Math.sin(t * 3); ctx.fillStyle = '#c8a8ff';                 // 頭上一個紫色的封印「×」
     for (let k = -2; k <= 2; k++) { ctx.fillRect(snapF(x + k * HK * 2 - HK), snapF(py + k * HK * 2 - HK), HK * 2, HK * 2); ctx.fillRect(snapF(x - k * HK * 2 - HK), snapF(py + k * HK * 2 - HK), HK * 2, HK * 2); } }
   // 累積圖示：頭上一個血滴（出血）/ 雪花（凍傷），從下往上變亮，亮到頂就發作。快滿時外框會閃
-  const icons = ([['bleed', S.bleed], ['frost', S.frost]] as [string, number][]).filter(([, v]) => v > 0);
-  icons.forEach(([k, v], i) => buildIcon(BUILD[k], x + (i - (icons.length - 1) / 2) * 12, y - 32, v / 100, t));
+  const icons: [string, number][] = []; if (S.bleed > 0) icons.push(['bleed', S.bleed / 100]); if (S.frost > 0) icons.push(['frost', S.frost / 100]);
+  buildRow(icons, x, y - 29);
 }
 /* 累積圖示的形狀（x = 有顏色的格子，外框自動加）和顏色：亮 / 反光 / 暗（還沒累積的部分）
    怪物身上的刻印累積也用同一套（render/enemy.ts）：burn = 燃燒還剩幾秒 */
@@ -103,13 +101,20 @@ export const BUILD: Record<string, { rows: string[]; lit: string; hi: string; da
   frost: { lit: '#a8dcff', hi: '#ffffff', dark: '#34506e', hx: 4, hy: 4, rows: [
     '....x....', '.x..x..x.', '..x.x.x..', '...xxx...', 'xxxxxxxxx', '...xxx...', '..x.x.x..', '.x..x..x.', '....x....'] },
 };
+const IP = () => HK * 2, IGAP = () => HK * 2;                         // 圖示 1 格 = 2 美術像素；圖示之間空 2 美術像素（HK 會變，每次算）
 export function buildIcon(B, cx: number, bottom: number, f: number, t: number, warnAt = .75) {   // warnAt：累積到多少開始閃（燃燒不閃 → 傳 2）
-  const P = HK * 3, H = B.rows.length, W = B.rows[0].length, X = snapF(cx - W * P / 2), Y = snapF(bottom - H * P);
+  const P = IP(), H = B.rows.length, W = B.rows[0].length, X = snapF(cx - W * P / 2), Y = snapF(bottom - H * P);
   const litFrom = H - Math.round(H * Math.min(1, f)), warn = f >= warnAt && Math.sin(t * 18) > 0;   // 第幾列以下是亮的
-  ctx.fillStyle = warn ? '#ffffff' : '#0e0b14';                                                    // 外框：每一格往四周多畫一圈
-  B.rows.forEach((r, ry) => { for (let rx = 0; rx < W; rx++) if (r[rx] === 'x') ctx.fillRect(X + (rx - 1) * P, Y + (ry - 1) * P, P * 3, P * 3); });
+  ctx.fillStyle = warn ? '#ffffff' : '#0e0b14';                                                    // 外框：每一格往四周多 1 美術像素
+  B.rows.forEach((r, ry) => { for (let rx = 0; rx < W; rx++) if (r[rx] === 'x') ctx.fillRect(X + rx * P - HK, Y + ry * P - HK, P + HK * 2, P + HK * 2); });
   B.rows.forEach((r, ry) => { for (let rx = 0; rx < W; rx++) if (r[rx] === 'x') {
     ctx.fillStyle = ry < litFrom ? B.dark : rx === B.hx && ry === B.hy ? B.hi : B.lit; ctx.fillRect(X + rx * P, Y + ry * P, P, P); } });
+}
+/* 一排圖示，置中在 cx：[種類, 進度 0~1, 幾成開始閃]。之後狀態變多也是排成一排（主角和怪物共用） */
+export function buildRow(list: [string, number, number?][], cx: number, bottom: number) {
+  const ws = list.map(([k]) => BUILD[k].rows[0].length * IP()), total = ws.reduce((a, w) => a + w, 0) + IGAP() * (list.length - 1);
+  let x = cx - total / 2;
+  list.forEach(([k, f, w], i) => { buildIcon(BUILD[k], x + ws[i] / 2, bottom, f, G.time, w ?? .75); x += ws[i] + IGAP(); });
 }
 /* 目盲：畫面周圍變暗，只剩身邊一圈看得到（畫在最上層，螢幕座標） */
 export function drawBlind(cx: number, cy: number, W: number, H: number) {

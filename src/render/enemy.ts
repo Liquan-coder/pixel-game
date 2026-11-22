@@ -7,7 +7,9 @@ import { ICON, RAR } from '../data/items';
 import { CAMP_SP, drawArtSprite, flame } from '../world/chunks';
 import { drawNum, drawShadow } from './player';
 import { bladeArc, slamSpot } from '../game/enemies';
-import { BUILD, buildIcon } from '../game/status';
+import { buildRow } from '../game/status';
+import { drawIceCrystal, iceShatter, iceTop } from '../art/iceCrystal';
+import { sfx } from '../core/audio';
 import { artLine, artPath, asn, enemyJuice, fillSpans, shEll, shLane, shSector } from './fx';
 
 export function drawEnemy(e) {
@@ -24,30 +26,25 @@ export function drawEnemy(e) {
   if (e.boss && G.B && G.B.phase === 2 && sp.eye) { const X = snapF(-sp.w / 2), Y = snapF(-sp.h), ex = (e.flip ? sp.aw - sp.eye[0] - 3 : sp.eye[0]) * HK;
     ctx.fillStyle = '#ff3b3b'; ctx.globalAlpha = .5 + .5 * Math.sin(G.time * 12); ctx.fillRect(X + ex - HK, Y + (sp.eye[1] - 1) * HK, HK * 5, HK * 3); ctx.globalAlpha = 1; }
   ctx.restore();
-  if (e.iceT > G.time && e.hp > 0) iceBlock(e.x, e.y + 2, Math.min(40, sp.w + 4), Math.min(40, sp.h + 3));   // 寒霜刻印凍住了
-  const hpBar = !e.boss && (e.hp < e.maxHp || e.elite);
+  if (e.iceT) { if (e.iceT > G.time && e.hp > 0) drawIceCrystal(e.x, e.y + 2, G.time - (e.iceT0 || 0), e.iceT - G.time);   // 寒霜刻印凍住了（art/iceCrystal.ts）
+    else { e.iceT = 0; iceShatter(e.x, e.y + 2); sfx.iceBreak(); } }                                           // 時間到 / 被打死：冰晶碎掉
+  const hpBar = !e.boss && (e.hp < e.maxHp || e.elite), top = e.iceT > G.time ? Math.min(e.y - sp.h, e.y + 1 - iceTop()) : e.y - sp.h;   // 被凍住：血條、圖示移到冰晶上面
   if (hpBar) {
-    const w = e.elite ? 22 : 14, y = Math.round(e.y - sp.h - 3);
+    const w = e.elite ? 22 : 14, y = Math.round(top - 3);
     ctx.fillStyle = OL; ctx.fillRect(Math.round(e.x - w / 2 - 1), y - 1, w + 2, 3);
     ctx.fillStyle = e.elite ? '#f2c14e' : '#d8434e'; ctx.fillRect(Math.round(e.x - w / 2), y, Math.max(1, Math.round(w * e.hp / e.maxHp)), 1);
   }
-  if (e.hp > 0) sealIcons(e, e.y - sp.h - (hpBar ? 6 : 3));
+  if (e.hp > 0) sealIcons(e, top - (hpBar ? 6 : 3));
 }
 /* 刻印累積：跟主角被打中時頭上的圖示一樣（game/status.ts 的 buildIcon）——血滴 = 出血、雪花 = 凍傷，從下往上亮，快滿會閃；
    火焰 = 燃燒還剩幾秒。4 秒沒有再累積就先不畫（累積值還在，再砍一下就會出現） */
 function sealIcons(e, bottom: number) {
-  const icons: [string, number, number][] = [];
+  const icons: [string, number, number?][] = [];
   const fresh = G.time - (e.fxT || -99) < 4;
-  if (fresh && e.bleedB > 0) icons.push(['bleed', e.bleedB / 100, .75]);
-  if (fresh && e.frostB > 0) icons.push(['frost', e.frostB / 100, .75]);
+  if (fresh && e.bleedB > 0) icons.push(['bleed', e.bleedB / 100]);
+  if (fresh && e.frostB > 0) icons.push(['frost', e.frostB / 100]);
   if (e.burnT > 0) icons.push(['burn', e.burnT / 3, 2]);
-  icons.forEach(([k, f, w], i) => buildIcon(BUILD[k], e.x + (i - (icons.length - 1) / 2) * 12, bottom, f, G.time, w));
-}
-function iceBlock(x: number, y: number, w: number, h: number) {       // 半透明的冰塊 + 亮邊 + 反光（跟主角被冰凍的樣子一樣）
-  const L = x - w / 2, T = y - h; ctx.globalAlpha = .55; ctx.fillStyle = '#a8dcff'; ctx.fillRect(snapF(L), snapF(T), w, h);
-  ctx.globalAlpha = .9; ctx.fillStyle = '#ffffff'; ctx.fillRect(snapF(L), snapF(T), w, HK * 2); ctx.fillRect(snapF(L), snapF(T), HK * 2, h);
-  ctx.fillStyle = '#5e86ba'; ctx.fillRect(snapF(L), snapF(T + h - HK * 2), w, HK * 2); ctx.fillRect(snapF(L + w - HK * 2), snapF(T), HK * 2, h);
-  ctx.fillStyle = '#ffffff'; ctx.globalAlpha = .7; for (let k = 0; k < 3; k++) ctx.fillRect(snapF(L + 4 + k * 4), snapF(T + 5 + k * 3), HK * 2, Math.max(2, h / 4 - k)); ctx.globalAlpha = 1;
+  buildRow(icons, e.x, bottom);
 }
 const TELE = ['#ff3b3b', '#ff3b3b', '#ffd0d0'];
 function teleDraw(y0, y1, sh, prog, inner, extra?) {                    // 預警：淡紅區域 + 依進度填滿的深紅 + 亮邊

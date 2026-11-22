@@ -41,7 +41,7 @@ function bleedPop(e: Enemy) {                                          // 出血
 function freezePop(e: Enemy) {                                         // 寒霜：冰屑四散 + 冰藍圈；小怪被包進冰塊（render/enemy.ts 畫）
   for (let i = 0; i < 20; i++) { const a = rr(0, TAU), v = rr(40, 120); G.parts.push({ x: e.x, y: e.y - 8, vx: Math.cos(a) * v, vy: Math.sin(a) * v * .6 - 20, life: rr(.4, .8), max: .8, col: pick(['#ffffff', '#d8f0ff', '#9ae0ff']), star: rr(.6, 1.8), drag: 3 }); }
   G.fx.push({ k: 'ring', x: e.x, y: e.y - 4, r0: 4, r1: 28, t: 0, d: .35, col: '#9ae0ff' });
-  if (!e.boss) e.iceT = G.time + ICE_SECS(e);
+  if (!e.boss) { if (!(e.iceT > G.time)) e.iceT0 = G.time; e.iceT = G.time + ICE_SECS(e); }   // iceT0：冰晶從什麼時候開始長（已經凍著就不重長）
   popJuice(e, .06, 2); sfx.freeze();
 }
 function ignitePop(e: Enemy) {                                         // 燃燒：剛點著的時候「呼」一下竄出火
