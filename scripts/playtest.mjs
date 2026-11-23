@@ -349,6 +349,27 @@ const pageScript = async () => {
     G.me.weapon = makeItem('sword', 0, 0); recalc(G.me);
   });
 
+  run('分解：點一件 → 右上角分解；按住 1 秒 → 批量分解', () => {
+    const I = ITEMS, sb = () => document.querySelector('#salvAll'); setMenu(null);
+    G.me.inv = [I.makeWeapon('axe'), I.makeWeapon('sword', 2), I.makeArmor('chain'), I.makeSeal('bleed')]; G.me.souls = 0;
+    menus.toggleInv();
+    if (!sb().hidden) throw new Error('沒選東西時，右上角的分解應該是空的');
+    G.selItem = G.me.inv[0].id; menus.renderInv();
+    if (document.querySelector('#cInfo .sacts')) throw new Error('選中卡還有按鈕（裝備 / 分解 / 取消）');
+    if (sb().hidden || !sb().textContent.includes('分解')) throw new Error('選了背包的武器，右上角沒有出現分解');
+    sb().click(); if (G.me.inv.length !== 3 || !(G.me.souls > 0)) throw new Error('一般武器按一下沒有分解');
+    G.selItem = G.me.inv[0].id; menus.renderInv(); sb().click(); if (G.me.inv.length !== 3) throw new Error('強化過的武器按一下就分解了（要再確認一次）');
+    sb().click(); if (G.me.inv.length !== 2) throw new Error('強化過的武器確認後沒有分解');
+    const cell = document.querySelector('#bagGrid .slot[data-i="0"]'); cell.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    if (!cell.classList.contains('hold')) throw new Error('按住格子沒有開始計時'); cell.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    menus.startBatch(G.me.inv[0].id); document.querySelector('#bagGrid .slot[data-i="1"]').click();   // 按滿 1 秒 = startBatch；再點一件勾起來
+    if (document.querySelectorAll('#bagGrid .slot.pick').length !== 2) throw new Error('批量模式沒有勾起 2 件');
+    const s0 = G.me.souls; sb().click(); if (G.me.inv.length !== 2) throw new Error('批量按一次就分解了（要再確認一次）');
+    sb().click(); if (G.me.inv.length || !(G.me.souls > s0)) throw new Error('批量分解沒有生效：剩 ' + G.me.inv.length + ' 件');
+    if (!sb().hidden) throw new Error('分解完右上角應該變回空的');
+    setMenu(null);
+  });
+
   run('裝備新制：刻印（鐵匠敲上去、拆不下來）、飾品欄、防具強化、效果、舊存檔換算', () => {
     const I = ITEMS, F = await0.forge, P = PLAYER; setMenu(null);
     // 刻印：背包裡不能自己裝；鐵匠花星砂敲上去（按兩次）→ 武器有效果、改名；之後拆不下來、也不能換

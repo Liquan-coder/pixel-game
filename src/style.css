@@ -122,7 +122,7 @@ body.menu .toast{background:#000d;border:1px solid var(--line);padding:3px 12px}
 #bSkill .cd{position:absolute;inset:0;background:conic-gradient(#000b calc(var(--cd,0)*360deg),transparent 0);pointer-events:none}
 #bSkill span{position:relative;font-size:10px;line-height:1.1;text-align:center;padding:0 6px}
 #bPot b{position:absolute;right:8px;bottom:4px;font-size:11px;color:var(--gold);font-weight:400}
-#keyHint{position:absolute;left:calc(10px + env(safe-area-inset-left,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));font-size:12px;color:var(--muted);text-shadow:1px 1px 0 #000;pointer-events:none;z-index:1}
+#keyHint{position:absolute;left:calc(10px + env(safe-area-inset-left,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));font-size:12px;color:var(--muted);text-shadow:1px 1px 0 #000;pointer-events:none}
 .touch #keyHint{display:none}
 /* 電腦版技能欄：右下角，冷卻時顯示倒數，好了會閃一下 */
 #skillHud{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));width:76px;height:76px;background:#2e2650e6;border:3px solid #7563b0;box-shadow:inset -3px -4px 0 #0006,0 0 0 2px var(--ink);display:grid;place-items:center;overflow:hidden;pointer-events:none;text-shadow:1px 1px 0 #000}
