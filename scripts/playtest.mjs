@@ -361,7 +361,7 @@ const pageScript = async () => {
     setMenu(null); G.me.inv = []; G.drops = [];
   });
 
-  run('分解：點一件 → 右上角分解；按住 1 秒 → 批量分解', () => {
+  run('分解：點一件 → 右上角分解；按住 1 秒 → 批量分解；點身上的裝備 → 脫下', () => {
     const I = ITEMS, sb = () => document.querySelector('#salvAll'); setMenu(null);
     G.me.inv = [I.makeWeapon('axe'), I.makeWeapon('sword', 2), I.makeArmor('chain'), I.makeSeal('bleed')]; G.me.souls = 0;
     menus.toggleInv();
@@ -379,6 +379,12 @@ const pageScript = async () => {
     const s0 = G.me.souls; sb().click(); if (G.me.inv.length !== 2) throw new Error('批量按一次就分解了（要再確認一次）');
     sb().click(); if (G.me.inv.length || !(G.me.souls > s0)) throw new Error('批量分解沒有生效：剩 ' + G.me.inv.length + ' 件');
     if (!sb().hidden) throw new Error('分解完右上角應該變回空的');
+    // 點身上的裝備：防具 / 飾品 → 右上角變「脫下」；武器 → 不出現（不能空手）
+    const arm = I.makeArmor('chain'); G.me.armor = arm; recalc(G.me); menus.renderInv();
+    document.querySelector('#invMenu [data-eq="armor"]').click();
+    if (sb().hidden || sb().textContent !== '脫下') throw new Error('點身上的防具，右上角沒有變「脫下」：' + sb().textContent);
+    sb().click(); if (G.me.armor || !G.me.inv.includes(arm)) throw new Error('按「脫下」沒有把防具放回背包');
+    document.querySelector('#invMenu [data-eq="weapon"]').click(); if (!sb().hidden) throw new Error('點武器不應該出現脫下 / 分解');
     setMenu(null);
   });
 

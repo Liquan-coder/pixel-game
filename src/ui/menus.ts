@@ -228,11 +228,12 @@ export function renderInv() {
     [0, 1, 2, 3].map(i => slotBtn(eq.trinkets[i], 't' + i, '飾品 ' + (i + 1), i >= nSlots)).join('');
   // 右邊：背包（或素材清單）
   for (const b of document.querySelectorAll<HTMLElement>('#bagTabs button')) b.classList.toggle('on', b.dataset.f === bagFilter);
-  // 右上角的分解：平常是空的；點了背包裡的東西 → 分解這一件；批量模式 → 分解勾起來的全部
-  const sb = $('salvAll') as HTMLButtonElement, B = batchItems(), bs = B.reduce((a, it) => a + salvValue(it), 0);
-  sb.hidden = !batch && !bagIt; sb.disabled = !!batch && !B.length; sb.classList.toggle('arm', batch ? batchArm : !!bagIt && salvArm === bagIt.id);
+  // 右上角的按鈕：平常是空的；點了背包裡的東西 → 分解這一件；點了身上的防具 / 飾品 → 脫下；批量模式 → 分解勾起來的全部（武器不能空手，點武器不出現）
+  const sb = $('salvAll') as HTMLButtonElement, B = batchItems(), bs = B.reduce((a, it) => a + salvValue(it), 0), off = !batch && sel && sel.where === 'eq' && sel.slot !== 'weapon';
+  sb.hidden = !batch && !bagIt && !off; sb.disabled = batch ? !B.length : !!off && !canUnequip(sel); sb.classList.toggle('salv', !off);
+  sb.classList.toggle('arm', batch ? batchArm : !!bagIt && salvArm === bagIt.id);
   sb.textContent = batch ? (!B.length ? '勾選要分解的' : batchArm ? '確定分解 ' + B.length + ' 件？' : '分解 ' + B.length + ' 件 +' + bs)
-    : bagIt ? (salvArm === bagIt.id ? '確定分解？' : '分解 +' + salvValue(bagIt)) : '';
+    : off ? (canUnequip(sel) ? '脫下' : '背包滿了') : bagIt ? (salvArm === bagIt.id ? '確定分解？' : '分解 +' + salvValue(bagIt)) : '';
   if (bagFilter === 'mat') { $('bagGrid').innerHTML = '<div class="matlist">' + MAT_KEYS.map(k => '<div class="matrow"><img alt="" src="' + ORE_URL[k] + '"><span style="color:' + MATS[k].c + '">' + MATS[k].n + '<small>' + MATS[k].d + '</small></span><b>' + (G.me.mats[k] || 0) + '</b></div>').join('') + '</div>'; return; }
   const list = G.me.inv.map((it, i) => ({ it, i })).filter(o => bagFilter === 'all' || slotOf(o.it) === bagFilter);
   const cells = list.map(({ it, i }) => '<button type="button" class="slot' + (G.selItem === it.id ? ' sel' : '') + (batch && batch.has(it.id) ? ' pick' : '') + (unmet(G.me, it).length ? ' bad' : '') + (sealOn(it) ? ' sl' : '') + '" data-i="' + i + '" style="border-color:' + RAR[it.rarity].c + '" aria-label="' + it.name + '"><img alt="" src="' + ICON_URL[it.type] + '">' + sealBadge(it) + '<i style="color:' + RAR[it.rarity].c + '">' + badge(it) + '</i></button>');
@@ -295,6 +296,8 @@ $('invMenu').addEventListener('click', e => {
     const it = k === 'weapon' ? G.me.weapon : k === 'armor' ? G.me.armor : G.me.trinkets[+k.slice(1)];
     G.selItem = it && G.selItem !== it.id ? it.id : null; salvArm = 0; renderInv(); return; }
   if (t.dataset.drop && canUnequip(sel)) {                                            // 選著身上的防具 / 飾品 → 點背包空格 = 卸下
+    if (sel.slot === 'armor') G.me.armor = null; else G.me.trinkets[sel.ti] = null; G.me.inv.push(sel.it); return done(); }
+  if (t.id === 'salvAll' && !batch && canUnequip(sel)) {                            // 右上角的「脫下」：身上的防具 / 飾品放回背包
     if (sel.slot === 'armor') G.me.armor = null; else G.me.trinkets[sel.ti] = null; G.me.inv.push(sel.it); return done(); }
   if (t.id === 'salvAll') {                                                           // 右上角的分解
     const gone = batch ? batchItems() : sel && sel.where === 'bag' ? [sel.it] : []; if (!gone.length) return;
