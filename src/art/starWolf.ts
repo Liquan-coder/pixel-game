@@ -19,7 +19,7 @@ export const RUN_N = 10, IDLE_N = 4;
 
 /* ---- 身體：把描圖裡的腿切掉（後腿從大腿下緣、前腿從胸口下緣），切口補上外框；腿接上去的地方不補（腿會從那裡長出來） ---- */
 const CUT: [number, number, number][] = [[12, 26, 46], [36, 58, 42]];  // [x 從, x 到, 從第幾列開始切掉]
-const ATTACH_X: [number, number][] = [[14, 21], [38, 46]];             // 近側兩條腿接身體的欄（切口不補外框）
+const ATTACH_X: [number, number][] = [[11, 24], [36, 49]];             // 近側兩條腿接身體的欄（切口不補外框）
 function bodyGrid() {
   const g = WOLF_ROWS.map(r => [...r.padEnd(BW, '.')]);
   for (const [x0, x1, cy] of CUT) for (let x = x0; x < x1; x++) {
@@ -33,8 +33,8 @@ function bodyGrid() {
 type Seg = { L: number; w0: number; w1: number };
 type LegDef = { ax: number; ay: number; segs: [Seg, Seg]; stand: [number, number] };
 // 角度：0 = 往正下方，正 = 腳往前（狼頭那邊）。ay 會自動調整成「站著時腳剛好踩到地」
-const FRONT: LegDef = { ax: 42, ay: 40, segs: [{ L: 11, w0: 4.4, w1: 3.2 }, { L: 6, w0: 3.1, w1: 2.8 }], stand: [.04, .1] };
-const HIND: LegDef = { ax: 17, ay: 45, segs: [{ L: 7.5, w0: 5.2, w1: 3.4 }, { L: 6.5, w0: 3.2, w1: 2.8 }], stand: [-.48, .2] };
+const FRONT: LegDef = { ax: 42, ay: 40, segs: [{ L: 11, w0: 6.8, w1: 4.6 }, { L: 6, w0: 4.6, w1: 4.2 }], stand: [.04, .1] };   // 腿要粗：上段跟身體描圖裡原本的腿一樣寬（約 7 格），往下慢慢變細
+const HIND: LegDef = { ax: 17, ay: 45, segs: [{ L: 7.5, w0: 7.6, w1: 4.8 }, { L: 6.5, w0: 4.4, w1: 4 }], stand: [-.48, .2] };
 for (const D of [FRONT, HIND]) { const [a1, a2] = D.stand; D.ay = BH - 1 - 1.4 - D.segs[0].L * Math.cos(a1) - D.segs[1].L * Math.cos(a2); }
 // 一個步伐的關鍵姿勢 [t, 小腿角度, 腳掌骨角度]，中間用平滑曲線補
 const FRONT_K = [[0, .95, .8], [.14, .5, .42], [.28, 0, -.05], [.4, -.62, -.78], [.52, -.5, -1.95], [.72, .3, -1.35], [.88, 1.0, .35]];
@@ -46,15 +46,15 @@ function gaitAt(K: number[][], t: number): [number, number] {           // 週�
     return .5 * (2 * b + (-a + c) * u + (2 * a - 5 * b + 4 * c - d) * u * u + (-a + 3 * b - 3 * c + d) * u * u * u); };
   return [cr(1), cr(2)];
 }
-// 顏色：亮 / 中 / 暗 / 腳掌（近側跟身體一樣的灰紫；遠側暗很多）
-const NEAR = ['#9a98c0', '#6e7092', '#4a4a6a', '#b8b6d8'], FAR = ['#5a5878', '#44445e', '#30304a', '#6a6888'];
+// 顏色（照參考圖：前緣一條亮邊、中間灰紫、後緣暗；腳掌比腿亮、腳趾縫是深色）：亮邊 / 亮 / 中 / 暗 / 腳掌 / 腳趾縫。近側跟身體一樣的灰紫；遠側暗很多
+const NEAR = ['#c4c2e2', '#9a9abe', '#74769a', '#4e4e72', '#c8c6e4', '#3a3a58'], FAR = ['#6e6c8e', '#5a5a7a', '#48486a', '#34344e', '#6e6c8c', '#26263a'];
 const PAL: Record<string, string> = { ...WOLF_PAL };
-const LC = ['̀', '́', '̂', '̃', '̄', '̅', '̆', '̇'];   // 腿用的調色盤字元（不跟描圖的字母撞）
+const LC = Array.from({ length: 12 }, (_, i) => String.fromCharCode(0x300 + i));   // 腿用的調色盤字元（不跟描圖的字母撞）
 [...NEAR, ...FAR].forEach((c, i) => { PAL[LC[i]] = c; });
 
 /* 把一條腿畫進格子：兩段粗細漸變的「骨頭」+ 關節 + 腳掌，前緣亮、後緣暗，最後補一圈外框 */
 function leg(out: string[][], D: LegDef, a: [number, number], dx: number, dy: number, far: boolean) {
-  const ch = far ? LC.slice(4) : LC.slice(0, 4), lay = new Map<number, string>(), K = (x: number, y: number) => y * 1000 + x;
+  const ch = far ? LC.slice(6) : LC.slice(0, 6), lay = new Map<number, string>(), K = (x: number, y: number) => y * 1000 + x;
   const [s1, s2] = D.segs, x0 = D.ax + PX + dx + .5, y0 = D.ay + PT + dy + .5;
   const x1 = x0 + s1.L * Math.sin(a[0]), y1 = y0 + s1.L * Math.cos(a[0]), x2 = x1 + s2.L * Math.sin(a[1]), y2 = y1 + s2.L * Math.cos(a[1]);
   const bone = (ax: number, ay: number, bx: number, by: number, w0: number, w1: number) => {
@@ -62,13 +62,15 @@ function leg(out: string[][], D: LegDef, a: [number, number], dx: number, dy: nu
     for (let Y = Math.floor(Math.min(ay, by) - 3); Y <= Math.max(ay, by) + 3; Y++) for (let X = Math.floor(Math.min(ax, bx) - 3); X <= Math.max(ax, bx) + 3; X++) {
       const px = X + .5 - ax, py = Y + .5 - ay, u = Math.max(0, Math.min(1, (px * vx + py * vy) / L2)), hw = (w0 + (w1 - w0) * u) / 2;
       const qx = px - vx * u, qy = py - vy * u; if (qx * qx + qy * qy > hw * hw) continue;
-      const s = (qx * nx + qy * ny) / hw; lay.set(K(X, Y), s > .3 ? ch[0] : s < -.4 ? ch[2] : ch[1]); }
+      const s = (qx * nx + qy * ny) / hw; lay.set(K(X, Y), s > .72 ? ch[0] : s > 0 ? ch[1] : s > -.55 ? ch[2] : ch[3]); }
   };
   bone(x0, y0, x1, y1, s1.w0, s1.w1); bone(x1, y1, x2, y2, s2.w0, s2.w1);
-  const pa = a[1] - .15, cx = x2 + 1.1 * Math.cos(pa), cy = y2 - 1.1 * Math.sin(pa) + .3;   // 腳掌：橢圓，跟著腳掌骨轉
-  for (let Y = Math.floor(cy - 3); Y <= cy + 3; Y++) for (let X = Math.floor(cx - 4); X <= cx + 4; X++) {
+  const pa = a[1] - .15, cx = x2 + 1.9 * Math.cos(pa), cy = y2 - 1.9 * Math.sin(pa);   // 腳掌：又大又圓的橢圓，跟著腳掌骨轉；前半有兩道腳趾縫
+  for (let Y = Math.floor(cy - 4); Y <= cy + 4; Y++) for (let X = Math.floor(cx - 5); X <= cx + 5; X++) {
     const px = X + .5 - cx, py = Y + .5 - cy, u = px * Math.cos(pa) - py * Math.sin(pa), v = px * Math.sin(pa) + py * Math.cos(pa);
-    if ((u / 2.9) ** 2 + (v / 1.5) ** 2 <= 1) lay.set(K(X, Y), v > .5 ? ch[2] : ch[3]); }
+    if ((u / 4.3) ** 2 + (v / 2.4) ** 2 > 1) continue;
+    const toe = u > .3 && v > -.6 && (Math.abs(u - 1.3) < .45 || Math.abs(u - 2.9) < .45);
+    lay.set(K(X, Y), toe ? ch[5] : v > 1 ? ch[3] : v < -.8 ? ch[1] : ch[4]); }
   for (const k of [...lay.keys()]) { const X = k % 1000, Y = (k / 1000) | 0;   // 外框
     for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (!lay.has(K(X + ox, Y + oy))) lay.set(K(X + ox, Y + oy), 'o'); }
   for (const [k, c] of lay) { const X = k % 1000, Y = (k / 1000) | 0; if (Y >= 0 && Y < H && X >= 0 && X < W) out[Y][X] = c; }   // 外框也蓋過後面那條腿：兩條腿重疊時分得出來
@@ -77,17 +79,24 @@ function leg(out: string[][], D: LegDef, a: [number, number], dx: number, dy: nu
 
 /* 身體貼上去：pitch = 前半身抬高幾格（負 = 壓低），dy = 整隻往下幾格，sway = 尾巴擺幾格 */
 const shearAt = (x: number, pitch: number) => -Math.round(pitch * (x - WOLF_CX) / WOLF_CX);
-function pasteBody(out: string[][], body: string[][], pitch: number, dy: number, sway: number) {
-  for (let x = 0; x < BW; x++) { const t = x < 13 ? Math.round(sway * Math.pow((13 - x) / 13, 1.4)) : 0, off = dy + shearAt(x, pitch) + t;
-    for (let y = 0; y < BH; y++) { const c = body[y][x], Y = y + PT + off; if (c !== '.' && Y >= 0 && Y < H) out[Y][x + PX] = c; } }
+/* stretch = 身體拉長幾格：前半身往前、後半身往後各挪 stretch 格，中間的縫用中間那一欄補（負 = 縮短，前後半身疊在一起） */
+const MID = 30;                                                          // 從這一欄分成前後半身（肋骨中間，騎的人坐的位置附近）
+const halfShift = (x: number, stretch: number) => x >= MID ? stretch : -stretch;
+function pasteBody(out: string[][], body: string[][], pitch: number, dy: number, sway: number, stretch = 0) {
+  const col = (x: number, tx: number) => { const t = x < 13 ? Math.round(sway * Math.pow((13 - x) / 13, 1.4)) : 0, off = dy + shearAt(x, pitch) + t;
+    for (let y = 0; y < BH; y++) { const c = body[y][x], Y = y + PT + off; if (c !== '.' && Y >= 0 && Y < H && tx >= 0 && tx < W) out[Y][tx] = c; } };
+  for (let x = 0; x < MID; x++) col(x, x + PX - stretch);                // 後半身
+  for (let g = -stretch; g < stretch; g++) col(MID, MID + PX + g);       // 拉長時中間的縫
+  for (let x = MID; x < BW; x++) col(x, x + PX + stretch);               // 前半身（縮短時蓋在後半身上面）
 }
 
-type Pose = { f: [number, number]; ff: [number, number]; h: [number, number]; hf: [number, number]; pitch: number; dy: number; sway: number };
+type Pose = { f: [number, number]; ff: [number, number]; h: [number, number]; hf: [number, number]; pitch: number; dy: number; sway: number; stretch: number };
 function pose(t: number | 'stand' | 'leap'): Pose {
-  if (t === 'stand') return { f: FRONT.stand, ff: [-.12, 0], h: HIND.stand, hf: [-.22, .16], pitch: 0, dy: 0, sway: 0 };
-  if (t === 'leap') return { f: [1.25, 1.1], ff: [1.05, .7], h: [-1.25, -.75], hf: [-1.05, -1.2], pitch: 1, dy: -4, sway: -3 };   // 衝刺：前腳往前伸到底、後腳往後蹬到底
+  if (t === 'stand') return { f: FRONT.stand, ff: [-.12, 0], h: HIND.stand, hf: [-.22, .16], pitch: 0, dy: 0, sway: 0, stretch: 0 };
+  if (t === 'leap') return { f: [1.25, 1.1], ff: [1.05, .7], h: [-1.25, -.75], hf: [-1.05, -1.2], pitch: 1, dy: -4, sway: -3, stretch: 2 };   // 衝刺：前腳往前伸到底、後腳往後蹬到底
   const P: Pose = { f: gaitAt(FRONT_K, t), ff: gaitAt(FRONT_K, t - .08), h: gaitAt(HIND_K, t), hf: gaitAt(HIND_K, t - .08),
-    pitch: 2.2 * Math.cos(2 * Math.PI * (t - .45)), dy: 0, sway: Math.round(-2 + 2 * Math.sin(2 * Math.PI * t)) };
+    pitch: 2.2 * Math.cos(2 * Math.PI * (t - .45)), dy: 0, sway: Math.round(-2 + 2 * Math.sin(2 * Math.PI * t)),
+    stretch: Math.round(2 * Math.cos(2 * Math.PI * t)) };   // 前後腳張開（t = 0）時身體拉長，收到肚子下面（t = 0.5）時縮短
   // 腳比較長（快要伸直往下）的那一下把身體撐高，四條腳都收起來時就騰空
   const reach = (D: LegDef, a: [number, number]) => D.ay + D.segs[0].L * Math.cos(a[0]) + D.segs[1].L * Math.cos(a[1]) + 1.4 - (BH - 1);
   const low = Math.max(reach(FRONT, P.f), reach(HIND, P.h), reach(FRONT, P.ff) - 1, reach(HIND, P.hf) - 1);
@@ -99,12 +108,12 @@ let BODY: string[][] | null = null;
 type Frame = ReturnType<typeof makeSprite> & { seat: number };
 function compose(t: number | 'stand' | 'leap', sway?: number): Frame {
   const body = BODY || (BODY = bodyGrid()), P = pose(t), out = Array.from({ length: H }, () => Array(W).fill('.'));
-  const at = (D: LegDef) => P.dy + shearAt(D.ax, P.pitch);
-  leg(out, HIND, P.hf, 4, at(HIND) - 1, true);                          // 遠側後腿
-  leg(out, FRONT, P.ff, 4, at(FRONT) - 1, true);                        // 遠側前腿
-  leg(out, HIND, P.h, 0, at(HIND), false);                              // 近側後腿
-  leg(out, FRONT, P.f, 0, at(FRONT), false);                            // 近側前腿
-  pasteBody(out, body, P.pitch, P.dy, sway ?? P.sway);
+  const at = (D: LegDef) => P.dy + shearAt(D.ax, P.pitch), sx = (D: LegDef) => halfShift(D.ax, P.stretch);   // 腿跟著那半邊身體前後挪
+  leg(out, HIND, P.hf, 4 + sx(HIND), at(HIND) - 1, true);               // 遠側後腿
+  leg(out, FRONT, P.ff, 4 + sx(FRONT), at(FRONT) - 1, true);            // 遠側前腿
+  leg(out, HIND, P.h, sx(HIND), at(HIND), false);                       // 近側後腿
+  leg(out, FRONT, P.f, sx(FRONT), at(FRONT), false);                    // 近側前腿
+  pasteBody(out, body, P.pitch, P.dy, sway ?? P.sway, P.stretch);
   const sp = makeSprite(out.map(r => r.join('')), PAL) as Frame; sp.seat = P.dy + shearAt(SEAT_X, P.pitch);   // seat = 背上那一格這一幀往下移了幾格（騎的人跟著動）
   return sp;
 }

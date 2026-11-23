@@ -794,13 +794,14 @@ const pageScript = async () => {
     G.me.weapon = keep; G.me.str = G.me.dex = G.me.int = 5; recalc(G.me); G.enemies = []; G.projs = []; G.me.sigShield = 0; G.me.hp = G.me.maxHp;
   });
 
-  run('星狼（坐騎）：打倒狼王才叫得出來、按住瞬移 2 秒呼喚、跑得比較快、騎著瞬移 = 往前撲、按攻擊跳下來、被打摔下來、城鎮 / 地城騎不進去', () => {
+  run('星狼（坐騎）：打倒狼王才叫得出來、按住瞬移 0.5 秒呼喚、跑得比較快、騎著瞬移 = 往前撲、按攻擊跳下來、被打摔下來、城鎮 / 地城騎不進去', () => {
     const MT = imp0.mount, Q = await0.quest, M = await0.map, keep = G.bossDead, keepLab = G.lab; setMenu(null); G.enemies = []; G.lab = false;
     const camp = CAMPS.find(c => c.id === 'start'); tp(camp.x, camp.y + 16); G.me.ride = false; G.me.rideT = 0; step(2);
     const hold = n => { held.dodge = true; step(n); held.dodge = false; step(1); };
     G.bossDead = false; hold(140); if (G.me.ride) throw new Error('還沒打倒狼王就叫得出星狼');
-    G.bossDead = true; Q.flags.delete('starwolf'); hold(60); if (G.me.ride) throw new Error('只按住 1 秒就叫出來了（要 2 秒）');
-    hold(130); if (!G.me.ride) throw new Error('按住瞬移鍵 2 秒沒有叫出星狼');
+    G.bossDead = true; Q.flags.delete('starwolf'); hold(15); if (G.me.ride) throw new Error('只按住 0.25 秒就叫出來了（要 0.5 秒）');
+    hold(35); if (!G.me.ride) throw new Error('按住瞬移鍵 0.5 秒沒有叫出星狼');
+    hold(35); if (!G.me.ride) throw new Error('騎著按住 0.5 秒就下來了（要 1 秒）'); hold(70); if (G.me.ride) throw new Error('騎著按住 1 秒沒有讓星狼回去'); hold(35);
     step(250); if (!Q.flags.has('starwolf')) throw new Error('第一次見到星狼的提示沒有出現');
     // 速度：找一個 140 px 內沒有障礙的方向，走路 vs 騎狼各跑 30 格
     const dirs = [[1, 0], [-1, 0], [0, -1], [0, 1]], free = d => { for (let t = 0; t <= 140; t += 4) if (await0.coll.collides(camp.x + d[0] * t, camp.y + 16 + d[1] * t, G.me.r + 2)) return false; return true; };
@@ -816,7 +817,7 @@ const pageScript = async () => {
     G.me.atkCd = 0; pressed.atk = true; step(1); if (G.me.ride || !(G.me.swing || G.me.atkCd > 0)) throw new Error('騎著按攻擊：應該跳下來並且揮刀');
     // 被打中摔下來；按住呼喚到一半被打也會中斷（要放開重按）
     step(30); pressed.mount = true; step(2); G.me.iframe = 0; hurtPlayer(G.me, 1, G.me.x + 10, G.me.y); if (G.me.ride) throw new Error('被打中沒有摔下來');
-    step(30); G.me.iframe = 0; held.dodge = true; step(60); hurtPlayer(G.me, 1, G.me.x + 10, G.me.y); step(100); const got = G.me.ride; held.dodge = false; step(1);
+    step(30); G.me.iframe = 0; held.dodge = true; step(15); hurtPlayer(G.me, 1, G.me.x + 10, G.me.y); step(60); const got = G.me.ride; held.dodge = false; step(1);
     if (got) throw new Error('按住呼喚到一半被打，還是叫出來了');
     // 騎進城鎮 → 自動下來；城鎮 / 地城裡叫不出來
     G.me.hp = G.me.maxHp; tp(camp.x, camp.y + 16); pressed.mount = true; step(2); const T = M.TOWNS[0]; tp(T.tx * 16 + 8, T.ty * 16 + 8); step(2);

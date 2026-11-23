@@ -15,13 +15,13 @@ import type { Player } from '../types';
 
 /* ================= 星狼（坐騎） =================
    打倒狼王之後，巢穴裡的一匹星狼會載你（石碑：狼群曾經是看守森林的騎士）。測試場（?lab、?test）直接開。
-   · 按住瞬移鍵 2 秒呼喚（腳下的圈慢慢畫滿；按下去的那一下照常瞬移）；騎著時再按住 2 秒 = 讓星狼回去。電腦也可以按 R
+   · 按住瞬移鍵 0.5 秒呼喚（腳下的圈畫滿；按下去的那一下照常瞬移）；騎著時按住 1 秒 = 讓星狼回去。電腦也可以按 R
    · 像法環一樣只能在野外騎：地城、城鎮、Boss 的結界裡叫不出來，騎著走進去會自動下來
    · 跑得比走路快 1.7 倍；騎著按瞬移 = 星狼往前撲（距離是瞬移的 0.6 倍，一樣有無敵時間）
    · 騎著按攻擊 / 技能 / 喝藥 = 先跳下來，再做那個動作
    · 被打中就摔下來（按住呼喚到一半被打中也會中斷，要放開重按） */
 export const RIDE_SPD = 1.7, WOLF_DASH = .6, DROP_T = .18;
-export const CALL_T = 2, CALL_SHOW = .35;                               // 按住幾秒叫出來 / 按住多久才開始畫圈（短按只是瞬移，不要閃一下圈）
+export const CALL_T = .5, OFF_T = 1, CALL_SHOW = .15;                    // 按住幾秒叫出來 / 騎著按住幾秒讓牠回去（比較久：衝刺時多按一下不會掉下來）/ 按住多久才開始畫圈（短按只是瞬移）
 const STRIDE = 3.2;                                                      // 全速時每秒跑幾個步伐（render 用 rideRun 挑奔跑的哪一格）
 
 export const hasWolf = () => G.bossDead || !!G.lab;                     // 狼王倒下就解鎖（舊存檔打過狼王的也算）；開發用的測試場 / 測試版（?lab、?test）直接開
@@ -35,7 +35,7 @@ export function rideBlock(pl: Player): string | null {
 }
 
 /** 按住呼喚的進度 0～1（腳下的圈畫到哪；render/player.ts 用）。還沒按夠久 = 0 */
-export const callProgress = (pl: Player) => pl.rideT > CALL_SHOW ? Math.min(1, (pl.rideT - CALL_SHOW) / (CALL_T - CALL_SHOW)) : 0;
+export const callProgress = (pl: Player) => pl.rideT > CALL_SHOW ? Math.min(1, (pl.rideT - CALL_SHOW) / ((pl.ride ? OFF_T : CALL_T) - CALL_SHOW)) : 0;
 
 /* R 鍵：沒騎 → 馬上叫出來；騎著 → 跳下來 */
 export function toggleMount(pl: Player) {
@@ -89,7 +89,7 @@ export function updateMount(pl: Player, dt: number) {
   }
 }
 
-/* 按住瞬移鍵：數秒數，滿 2 秒就叫出來（騎著 = 讓牠回去）。中途放開、被打、去做別的事 → 重算 */
+/* 按住瞬移鍵：數秒數，滿 0.5 秒就叫出來（騎著按住 1 秒 = 讓牠回去）。中途放開、被打、去做別的事 → 重算 */
 function holdCall(pl: Player, dt: number) {
   const down = held.dodge || keys.dodge;
   if (!down) { pl.rideT = 0; pl.callLock = false; return; }
@@ -98,7 +98,7 @@ function holdCall(pl: Player, dt: number) {
   const q = callProgress(pl);
   if (q > 0 && Math.random() < dt * (10 + 30 * q)) { const a = rr(0, TAU), d = rr(16, 26);   // 星光從四周聚過來，越接近叫出來越多
     G.parts.push({ x:pl.x + Math.cos(a) * d, y:pl.y - 6 + Math.sin(a) * d * .5, vx:-Math.cos(a) * d * 2.4, vy:-Math.sin(a) * d * 1.2, life:.4, max:.4, col:pick(STARC), star:rr(.8, 2), drag:1 }); }
-  if (pl.rideT < CALL_T) return;
+  if (pl.rideT < (pl.ride ? OFF_T : CALL_T)) return;
   pl.rideT = 0; pl.callLock = true;                                      // 叫完要放開才會再算
   if (pl.ride) { dismount(pl); return; }
   const why = rideBlock(pl); if (why) { toast(why, '#c8b8ff'); return; }
@@ -113,7 +113,7 @@ function intro() {
   if (G.time - seenAt < 4) return;                                      // 等「強敵已擊敗」的橫幅先播完
   flags.add('starwolf');
   toast('巢穴深處走出一匹身上帶著星光的狼，在你面前低下了頭。', '#c8b8ff');
-  setTimeout(() => toast('在野外按住瞬移鍵 2 秒呼喚星狼。騎著按瞬移 = 星狼往前撲', '#f1e7d0'), 1600);
+  setTimeout(() => toast('在野外按住瞬移鍵呼喚星狼。騎著按瞬移 = 星狼往前撲，按住 1 秒讓牠回去', '#f1e7d0'), 1600);
 }
 
 /* 電腦版下方的按鍵說明：解鎖後加一句 */
