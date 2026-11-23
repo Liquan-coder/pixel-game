@@ -48,7 +48,7 @@ const pageScript = async () => {
   const shop = await imp('ui/shop');
   const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies'), status: await imp('game/status'), bt: await imp('game/bossTuning'), ai3: await imp('world/bossAI3'), puz2: await imp('world/puz2'), coll: await imp('game/collision'), pause: await imp('ui/pause'), puz: await imp('world/puzzles'), mech: await imp('world/bossMech'), statues: await imp('world/statues'), sight: await imp('world/sight'), ending: await imp('world/ending'), secrets: await imp('world/secrets'), cb: await imp('game/combat'), dboss: await imp('world/dungeonBoss') };
 
-  const imp0 = { pu: await imp('game/playerUpdate'), ai4: await imp('world/bossAI4'), status: await imp('game/status'), combat: await imp('game/combat'), dgb: await imp('world/dungeonBoss'), rig: await imp('art/bossRig'), save: await imp('game/save'), map: await imp('render/map'), dg: await imp('world/dungeons'), mount: await imp('game/mount'), input: await imp('ui/interact'), inp: await imp('ui/input'), hud: await imp('ui/hud'), title: await imp('ui/title') };
+  const imp0 = { pu: await imp('game/playerUpdate'), ai4: await imp('world/bossAI4'), status: await imp('game/status'), combat: await imp('game/combat'), dgb: await imp('world/dungeonBoss'), rig: await imp('art/bossRig'), anim: await imp('render/bossAnim'), save: await imp('game/save'), map: await imp('render/map'), dg: await imp('world/dungeons'), mount: await imp('game/mount'), input: await imp('ui/interact'), inp: await imp('ui/input'), hud: await imp('ui/hud'), title: await imp('ui/title') };
   const step = (n, opts = {}) => {
     for (let i = 0; i < n; i++) {
       if (opts.god && G.me) { G.me.hp = G.me.maxHp; G.me.st = G.me.maxSt; }
@@ -296,6 +296,9 @@ const pageScript = async () => {
     if (!Q.flags.has('end:home') || !sc.textContent.includes('結局・歸星')) throw new Error('選了結局沒有記下 / 沒有顯示結局文字');
     sc.querySelector('.endback').click(); step(1);
     if (!sc.hidden || imp0.hud.openMenu) throw new Error('「回到荒野」沒有關掉結局畫面');
+    it.run(); step(1); sc.querySelector('[data-end="home"]').click(); step(1);
+    const skip = sc.querySelector('.endskip'); if (!skip) throw new Error('結局文字沒有「跳過」');
+    skip.click(); step(1); if (!sc.hidden || imp0.hud.openMenu || G.paused) throw new Error('按「跳過」沒有回到荒野');
     if (!(Q.regionLook(0).amb < M.REGIONS[0].amb)) throw new Error('打倒史萊姆女王後平原沒有變亮');
     const npc = towns.NPCS.find(m => m.town === 'dawn' && m.name === '村長'); Q.flags.delete('heard:r1'); tp(npc.x, npc.y + 60); step(2); tp(npc.x, npc.y + 14); step(2);
     const r1 = S.REACTS.find(r => r.id === 'r1'); if (!document.getElementById('talk').textContent.includes(r1.line)) throw new Error('打倒史萊姆女王後村長沒有說新的話：' + document.getElementById('talk').textContent);
@@ -738,6 +741,31 @@ const pageScript = async () => {
     b.state = 'idle'; b._pend = null; for (let i = 0; i < 20; i++) { b.x += 3; step(1, { god: true }); }   // 走動 → 燈要晃起來
     if (!b._pend || Math.abs(b._pend.phi) < .01 && Math.abs(b._pend.w) < .01) throw new Error('近衛隊長走動時燈沒有晃');
     log.push('  近衛隊長：刺、劈、甩燈、突進、劈撩刺連段、燈油、舉燈都放得出來，燈會晃');
+    G.projs = []; menus.restAt(CAMPS[0]); setMenu(null); step(2, { god: true });
+  });
+
+  run('有骨架的 Boss（熔爐守護者）：錘子（砸地 / 撩地火線）+ 左拳（捶地震波）+ 胸口熔爐（火渣 / 炸開 / 外圈）、出招會記 e.act、熔爐會亮', () => {
+    const A3 = await0.ai3, Q = await0.quest, D = imp0.dg.DUNGEONS.find(d => d.boss === 'forgeguard'), id = 'dg_' + D.id; setMenu(null);
+    const B = imp0.dgb.DBOSS.forgeguard, all = B.moves.concat(B.p2).map(m => m[0]);
+    for (const bad of ['charge', 'combo', 'leap', 'cross', 'blink']) if (all.includes(bad)) throw new Error('熔爐守護者（石頭巨人）又出現了不合理的招：' + bad);
+    RB.rbDead.delete(id); Q.flags.delete('dgn:' + D.id); RB.resetRegionBosses(); const b = RB.rbs.find(e => e.id === id); if (!b) throw new Error('找不到熔爐守護者');
+    tp(D.ent[0] * 16 + 8, (D.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2);
+    tp(b.def.x, b.def.y + 40); step(100, { god: true }); if (b.state === 'sleep') throw new Error('熔爐守護者沒醒');
+    const runMove = (m, mo, want) => { b.state = 'idle'; b.act = null; b.objs = []; const acts = []; A3.startMove(b, m, mo, 10, 0);
+      let left = 400; while (b.state !== 'idle' && left-- > 0) { G.me.iframe = 0; const a = b.act; step(1, { god: true }); b.hp = b.maxHp; if (b.act && b.act !== a) acts.push(b.act.k); }
+      if (b.state !== 'idle') throw new Error(m + ' 一直沒結束（' + b.state + '）');
+      if (acts.join() !== want) throw new Error(m + ' 的出招紀錄不對：' + acts.join() + '，應該是 ' + want); };
+    const mv = Object.fromEntries(B.moves.concat(B.p2).map(m => [m[0], m[2]]));
+    b.phase = 1; runMove('slam', mv.slam, 'slam'); runMove('lash', mv.lash, 'lash'); runMove('wave', mv.wave, 'pound'); runMove('rain', mv.rain, 'plant');
+    runMove('donut', { r0: 48, r: 128, k: 1.4 }, 'plant');
+    b.phase = 2; runMove('nova', mv.nova, 'nova');
+    const rig = imp0.rig.rigOf(b.kind); if (!rig || !rig.limbs.arm || !rig.limbs.arm2 || !rig.spec.core) throw new Error('熔爐守護者的骨架沒拆好（錘子的手 / 左拳 / 熔爐）');
+    const pose = st => { b.state = st; b.wt = 1; b.t = 0; return imp0.anim.POSE[b.kind](b, rig); };
+    if (pose('slamWind').up < .9) throw new Error('砸地蓄力時錘子沒有舉過頭');
+    if (pose('waveWind').arm2 < 2) throw new Error('震波蓄力時左拳沒有舉起來');
+    if (pose('novaWind').heat < .9) throw new Error('炸開之前熔爐沒有變亮');
+    for (const st of ['idle', 'slamWind', 'lashWind', 'waveWind', 'castWind', 'novaWind', 'donutWind', 'pullWind', 'summonWind', 'intro']) { b.state = st; b.wt = 1; b.t = .3; step(1, { god: true }); }
+    log.push('  熔爐守護者：砸地、撩地、捶地震波、火渣、炸開、外圈都放得出來，蓄力姿勢對');
     G.projs = []; menus.restAt(CAMPS[0]); setMenu(null); step(2, { god: true });
   });
 

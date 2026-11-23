@@ -28,6 +28,9 @@ export interface Pose {
   behind2?: boolean;        // 另一隻手 + 吊著的東西擺到身體後面（畫在身體前面會蓋住臉 / 身體）
   clip?: boolean;           // 武器插進地裡（腳底以下不畫）
   glow?: number;            // 武器尖端發光（0~1）
+  up?: number;              // 手臂連肩膀往上提（0~1，乘上 RIG 的 shrug）。沒寫 = 照手臂轉的角度自動算（霜墓騎士）
+  drop2?: number;           // 另一隻手的肩膀往下沉幾格（美術格）：拳頭捶地時要碰得到地
+  heat?: number;            // 身上的發光點（RIG 的 core，例如胸口熔爐）有多亮（0~1）
   snap?: boolean;           // 這一格直接到位（出手那一下），不要平滑過去
   k?: number;               // 平滑的速度（越大越快回到目標姿勢；預設 18）
 }
@@ -181,7 +184,71 @@ function captain(e, rig: Rig): Pose {
   if (e.flash > 0) { P.lean -= .07 * f; P.ox -= f; }
   return P;
 }
-export const POSE: Record<string, (e, rig: Rig) => Pose> = { db_frostknight: frostknight, db_captain: captain };
+/* ---- 熔爐守護者：石頭巨人，右手狼牙錘、左手大石拳、胸口一座熔爐。全身最重：沒有跳、沒有衝，每一下都是砸 ----
+   三種「從哪來」分得很清楚：錘子舉過頭 = 砸地（一圈）；錘子拖在地上 = 往前撩出一條火（直線）；左拳舉起來 = 捶地出震波；
+   胸口熔爐變亮 = 火渣 / 炸開 / 吸人。角度寫法跟近衛隊長一樣（面向右時：0 = 前、−π/2 = 上、π/2 = 下、π = 後） */
+function forgeguard(e, rig: Rig): Pose {
+  const f = e.flip ? -1 : 1, A = e.anim || 0, st = e.state, q = e.wt ? clamp(1 - e.t / e.wt, 0, 1) : 0, sp = rig.spec;
+  const B1 = Math.atan2(sp.grip[1] - sp.shoulder[1], sp.grip[0] - sp.shoulder[0]);   // 錘子那隻手：肩膀 → 拳頭（往前上，手肘彎著）
+  const B2 = 1.72;                                                       // 左手垂著：肩膀 → 石拳（往下）
+  const MR = -Math.PI / 2, W = (a: number) => f > 0 ? a : Math.PI - a;   // MR = 錘子平常的角度（直立）
+  const act = e.act, since = act ? G.time - act.t0 : 99, cx = Math.cos(e.aim ?? 0);
+  const P: Pose = { ox: 0, oy: 0, lift: 0, lean: 0, rot: 0, wa: W(MR), ws: 0, arm: 0, arm2: 0, up: 0, drop2: 0, heat: .25 + .08 * Math.sin(A * 3) };
+  const mace = (a: number, m: number, ws = 0) => { P.arm = a - B1; P.wa = W(m); P.ws = ws; };   // 手臂方向 a、錘子方向 m
+  const fist = (a: number) => { P.arm2 = a - B2; };                    // 左拳方向（往外舉 = 數字變大：經過 π 到頭頂）
+  const shiver = (from: number) => q > from ? Math.sin(G.time * 70) * .5 * (q - from) / (1 - from) : 0;
+  const TOP = -1.9, TOPM = -2.45, LOW = 1, LOWM = 1.2, FUP = 4.4, FDN = 1.45, REACH = 12;   // 錘子：舉過頭（手 TOP、錘頭倒向腦後 TOPM）↔ 砸到身前地上（LOW / LOWM）；左拳：舉到頭頂（FUP）↔ 捶到腳邊（FDN）
+  const spread = (k: number) => { mace(lerp(B1, -.2, k), lerp(MR, -1.15, k)); fist(lerp(B2, 2.5, k)); P.lean = -.08 * f * k; P.lift = k; };   // 張開雙臂、挺胸（熔爐對著外面）
+  switch (st) {
+    case 'intro': {                                                      // 熔爐點火：胸口慢慢亮起來 → 挺胸 → 錘頭往地上一頓
+      const u = 1 - e.t / 1.4; P.heat = ease(u / .6); if (u < .7) spread(ease(u / .6) * .7);
+      else { mace(LOW, LOWM, 4); P.oy = 1; P.snap = true; if (e._introHit !== e.def.id) { e._introHit = e.def.id; dustPuff(e.x + 10 * f, e.y, 8, 40); shake(5, .25); } }
+      return P; }
+    case 'slamWind': {                                                   // 砸地・蓄力：錘子舉過頭、錘頭倒向腦後，身體往後仰、整個人抬高
+      const k = ease(q / .6), a = lerp(B1, TOP, k); mace(a, a + lerp(MR - B1, TOPM - TOP, k)); P.up = k; P.lean = -.1 * f * k; P.lift = 2 * k; P.ox = shiver(.75); return P; }
+    case 'lashWind': {                                                   // 撩地・蓄力：錘頭壓在身前地上、慢慢燒紅（往前撩出一條火）
+      const k = ease(q / .5), a = lerp(B1, LOW, k); mace(a, a + lerp(MR - B1, LOWM - LOW, k), REACH * k); P.glow = .35 * k; P.lean = .12 * f * k; P.oy = 2 * k; P.ox = shiver(.7); return P; }
+    case 'waveWind': {                                                   // 震波・蓄力：左拳從旁邊高高舉過頭（往外繞上去）
+      const k = ease(q / .6); fist(lerp(B2, FUP, k)); P.lean = .05 * f * k; P.lift = k; P.ox = shiver(.75); return P; }
+    case 'castWind': {                                                   // 噴火渣：熔爐往天上噴 → 挺胸、往後仰
+      const k = ease(q / .7); spread(k * .6); P.lean = -.14 * f * k; P.heat = .3 + .7 * k; P.ox = shiver(.7); return P; }
+    case 'novaWind': case 'donutWind': {                                 // 炸開：雙臂張開、熔爐越來越亮、全身抖 → 往外炸
+      const k = ease(q / .8); spread(k); P.heat = .3 + .7 * k; P.ox = shiver(.5); return P; }
+    case 'pullWind': {                                                   // 吸：熔爐「吸氣」，雙臂往後張、身體往前頂，一亮一暗
+      spread(.8); P.lean = .1 * f; P.heat = .6 + .4 * Math.sin(G.time * 9); P.ox = Math.sin(G.time * 50) * .4; return P; }
+    case 'summonWind': {                                                 // 叫小兵：錘子直直舉高、錘頭發光，熔爐跟著亮
+      const k = ease(q / .6); mace(lerp(B1, -1.35, k), MR, 0); P.up = .6 * k; P.glow = .35 * k; P.heat = .3 + .5 * k; return P; }
+  }
+  if (/Wind$/.test(st)) { mace(lerp(B1, TOP, .4), lerp(MR, TOPM, .3)); P.up = .4; P.ox = shiver(.6); return P; }   // 沒寫到的招：錘子半舉、會抖
+  /* ---- 出手 + 收招（e.act 記下出手的那一刻） ---- */
+  if (act && act.k === 'slam' && since < 1) {                           // 砸：從頭頂往前砸到地上 → 停住（反擊空檔）→ 沿原路舉回來
+    if (since < .1) { const k = ease(since / .1), a = lerp(TOP, LOW, k); mace(a, a + lerp(TOPM - TOP, LOWM - LOW, k), REACH * k); P.up = 1 - k; P.lean = lerp(-.1, .14, k) * f; P.oy = 2 * k; P.snap = true; return P; }
+    if (since < .5) { mace(LOW, LOWM, REACH); P.lean = .14 * f; P.oy = 2; P.snap = true;
+      if (e._smash !== act.t0) { e._smash = act.t0; dustPuff(e.x + f * 14, e.y, 10, 50); } /* 錘頭落地的地方揚灰 */ return P; }
+    const k = ease((since - .5) / .5); mace(lerp(LOW, B1, k), lerp(LOWM, MR, k), REACH * (1 - k)); P.lean = .14 * f * (1 - k); P.oy = 2 * (1 - k); P.snap = true; return P;
+  }
+  if (act && act.k === 'lash' && since < .8) {                          // 撩：錘頭從地上往前上方撩起來（火沿著地面往前燒）→ 停在上面 → 放下來
+    const UPA = -1.25, UPM = -.75;                                        // 撩到頂：拳頭舉到肩膀上面、錘頭往前上方（指著你那邊）
+    if (since < .12) { const k = ease(since / .12), a = lerp(LOW, UPA, k); mace(a, a + lerp(LOWM - LOW, UPM - UPA, k), REACH * (1 - k)); P.up = .5 * k; P.lean = lerp(.12, -.06, k) * f; P.ox = 3 * cx * k; P.glow = .35 * (1 - k); P.snap = true; return P; }
+    if (since < .4) { mace(UPA, UPM); P.up = .5; P.lean = -.06 * f; P.ox = 3 * cx; P.snap = true; return P; }
+    const k = ease((since - .4) / .4); mace(lerp(UPA, B1, k), lerp(UPM, MR, k)); P.up = .5 * (1 - k); P.ox = 3 * cx * (1 - k); P.snap = true; return P;
+  }
+  if (act && act.k === 'pound' && since < .9) {                         // 捶：左拳從頭頂往外繞下來捶到腳邊 → 停住 → 收回
+    if (since < .1) { const k = ease(since / .1); fist(lerp(FUP, FDN, k)); P.drop2 = 12 * k; P.lean = lerp(.05, -.1, k) * f; P.oy = 2 * k; P.snap = true; return P; }
+    if (since < .45) { fist(FDN); P.drop2 = 12; P.lean = -.1 * f; P.oy = 2; P.snap = true; return P; }
+    P.k = 6;
+  }
+  if (act && (act.k === 'nova' || act.k === 'plant') && since < .6) { P.k = 5; if (since < .2) { spread(1); P.heat = 1; P.snap = since < .05; return P; } }   // 炸完 / 噴完：熔爐慢慢暗回去、手放下
+  /* ---- 平常：站著 / 走路（石頭巨人一步一震） ---- */
+  const v = e._v || 0;
+  if (v > 8) { const s = Math.sin(A * 3.6);
+    P.lift = Math.abs(s) * 1.2; P.rot = .03 * s; mace(B1 + .08 * s, MR + .08 * s); fist(B2 - .1 * s);
+    if (Math.sign(s) !== e._stepS) { e._stepS = Math.sign(s); dustPuff(e.x + (s > 0 ? 4 : -4), e.y, 3, 18); }
+  } else { const b = Math.sin(A * 1.3); mace(B1 + .03 * b, MR + .03 * b); fist(B2 + .03 * b); P.lift = b > .3 ? HK : 0; }
+  if (e.flash > 0) { P.lean -= .05 * f; P.ox -= f; }
+  return P;
+}
+export const POSE: Record<string, (e, rig: Rig) => Pose> = { db_frostknight: frostknight, db_captain: captain, db_forgeguard: forgeguard };
 
 /* 畫一隻有骨架的 Boss：照 spec.order 一層一層畫。回傳 false = 這隻沒有骨架，照舊畫整張圖
    預設順序：有手臂 = 武器 → 手臂 → 身體（肩甲蓋住手臂根部）；沒有手臂 = 身體 → 武器 → 手 */
@@ -195,7 +262,7 @@ export function drawRigged(e, white: boolean): boolean {
   else { const k = 1 - Math.exp(-dt * (T.k || 18));
     S.ox = lerp(S.ox, T.ox, k); S.oy = lerp(S.oy, T.oy, k); S.lift = lerp(S.lift, T.lift, k); S.lean = lerp(S.lean, T.lean, k); S.rot = lerp(S.rot, T.rot, k);
     S.wa = lerpA(S.wa, T.wa, k); S.ws = lerp(S.ws, T.ws, k); S.arm = lerp(S.arm || 0, T.arm || 0, k); S.arm2 = lerp(S.arm2 || 0, T.arm2 || 0, k);
-    S.lamp = lerp(S.lamp || 0, T.lamp || 0, k); S.clip = T.clip; S.glow = T.glow; S.behind2 = T.behind2; }
+    S.lamp = lerp(S.lamp || 0, T.lamp || 0, k); S.up = lerp(S.up || 0, T.up || 0, k); S.drop2 = lerp(S.drop2 || 0, T.drop2 || 0, k); S.heat = lerp(S.heat || 0, T.heat || 0, k); S.clip = T.clip; S.glow = T.glow; S.behind2 = T.behind2; }
   const sp = rig.spec, L = rig.limbs, body = rig.body, mir = sp.mirror ? !e.flip : e.flip, th = S.arm || 0, th2 = S.arm2 || 0;
   drawShadow(e.x, e.y + 1, body.w * .7);
   const X = snapF(e.x + S.ox), Y = snapF(e.y + 2 + S.oy - (e.z || 0) - S.lift);
@@ -208,7 +275,7 @@ export function drawRigged(e, white: boolean): boolean {
   const blit = (F, x: number, y: number) => ctx.drawImage(white ? F.w : F.c, snapF(x - F.ox * HK), snapF(y - F.oy * HK), F.c.width * HK, F.c.height * HK);
   // 手的位置：沒有手臂 = 固定在身體上；有手臂 = 繞肩膀轉 th
   let g = ctr(sp.grip), shrug = 0;
-  if (L.arm) { g = rotA(ctr(L.arm.pivot), g, th); shrug = (sp.shrug || 0) * clamp((th - 1.2) / 1.5, 0, 1); g[1] -= shrug; }   // 舉過頭：整隻手臂連肩膀往上提
+  if (L.arm) { g = rotA(ctr(L.arm.pivot), g, th); shrug = (sp.shrug || 0) * (T.up !== undefined ? S.up || 0 : clamp((th - 1.2) / 1.5, 0, 1)); g[1] -= shrug; }   // 舉過頭：整隻手臂連肩膀往上提
   const [hx, hy] = toWorld(g[0], g[1]);
   // 吊著的東西（燈）：吊點跟著 arm2 的手走；角度用鐘擺算（手一甩，燈就晃）
   let hp: number[] = null, phi = 0;
@@ -219,15 +286,22 @@ export function drawRigged(e, white: boolean): boolean {
     P.w += ((-ax * Math.cos(P.phi) - (400 - ay) * Math.sin(P.phi)) / 7 - 4 * P.w) * dt; P.phi = clamp(P.phi + P.w * dt, -1.4, 1.4);   // 擺長 7、重力 400、阻尼 4
     P.x = hp[0]; P.y = hp[1]; P.vx = vx; P.vy = vy; phi = P.phi; }
   const draw: Record<Layer, () => void> = {
-    body: () => { ctx.save(); place(); drawSprite(body, 0, 0, mir, white, false); ctx.restore(); },
+    body: () => { ctx.save(); place(); drawSprite(body, 0, 0, mir, white, false); ctx.restore();
+      if (sp.core) { const [x0, y0, x1, y1] = sp.core, h = (S.heat || 0) * (1 + .1 * Math.sin(G.time * 24)), [cx, cy] = toWorld((x0 + x1) / 2, (y0 + y1) / 2);   // 胸口熔爐：格柵本身越來越亮、會照亮周圍
+        if (G.RB_L) G.RB_L.push({ x: cx, y: cy, r: 30 + 50 * h, warm: 1 });
+        if (h > .05 && !white) { ctx.save(); place(); ctx.globalCompositeOperation = 'lighter';
+          const rx = (ax: number) => ((mir ? rig.aw - ax : ax) - rig.aw / 2) * HK, ry = (ay: number) => (ay - rig.ah) * HK, L0 = Math.min(rx(x0), rx(x1 + 1));
+          ctx.fillStyle = `rgba(255,110,30,${.4 * h})`; ctx.fillRect(L0, ry(y0), (x1 + 1 - x0) * HK, (y1 + 1 - y0) * HK);
+          ctx.fillStyle = `rgba(255,220,120,${.35 * h * h})`; ctx.fillRect(L0 + 3 * HK, ry(y0 + 3), (x1 - x0 - 5) * HK, (y1 - y0 - 5) * HK); ctx.restore();
+          if (h > .6 && Math.random() < (h - .6) * camDt * 60) G.parts.push({ x: cx + (Math.random() - .5) * 6, y: cy - 2, vx: (Math.random() - .5) * 20, vy: -30 - Math.random() * 30, life: .5, max: .5, col: Math.random() < .5 ? '#f07a32' : '#ffd04a', s: 1 }); } } },   // 很熱的時候冒火星
     hand: () => { if (L.arm) return; ctx.save(); place(); drawSprite(rig.hand, 0, 0, mir, white, false); ctx.restore(); },
     wpn: () => { const F = weaponFrame(e.kind, rig, S.wa, mir), wx = hx + Math.cos(S.wa) * S.ws * HK, wy = hy + Math.sin(S.wa) * S.ws * HK;
       if (S.clip) { ctx.save(); ctx.beginPath(); ctx.rect(X - 300, Y - 300, 600, 300); ctx.clip(); }   // 插進地裡：腳底以下不畫
       blit(F, wx, wy); if (S.clip) ctx.restore();
-      if (S.glow > .05) { const len = (sp.tip ?? sp.grip[1] - rig.wy0) * HK + S.ws * HK, tx = wx + Math.cos(S.wa) * len, ty = wy + Math.sin(S.wa) * len;   // 尖端發光
+      if (S.glow > .05) { const len = (sp.tip ?? sp.grip[1] - rig.wy0) * HK, tx = wx + Math.cos(S.wa) * len, ty = wy + Math.sin(S.wa) * len;   // 尖端發光
         drawOrb(tx, ty, (1.5 + 2 * S.glow) * (1 + .15 * Math.sin(G.time * 30)), e.def.aura || ['#4a6e94', '#a8dcff', '#ffffff']); } },
     arm: () => { if (!L.arm) return; const p = ctr(L.arm.pivot), [sx, sy] = toWorld(p[0], p[1] - shrug); blit(limbFrame(e.kind, rig, 'arm', turn(th), mir), sx, sy); },
-    arm2: () => { if (!L.arm2) return; const p = ctr(L.arm2.pivot), [sx, sy] = toWorld(p[0], p[1]); blit(limbFrame(e.kind, rig, 'arm2', turn(th2), mir), sx, sy); },
+    arm2: () => { if (!L.arm2) return; const p = ctr(L.arm2.pivot), [sx, sy] = toWorld(p[0], p[1] + (S.drop2 || 0)); blit(limbFrame(e.kind, rig, 'arm2', turn(th2), mir), sx, sy); },
     hang: () => { if (!hp) return; blit(limbFrame(e.kind, rig, 'hang', mir ? phi : -phi, mir), hp[0], hp[1]);
       if (sp.light) { const p = ctr(L.hang.pivot), dx = (sp.light[0] - L.hang.pivot[0]) * HK * (mir ? -1 : 1), dy = (sp.light[1] - L.hang.pivot[1]) * HK, C = Math.cos(-phi), Sn = Math.sin(-phi);   // 燈芯：跟著燈晃
         const lx = hp[0] + dx * C - dy * Sn, ly = hp[1] + dx * Sn + dy * C, f = S.lamp || 0; void p;

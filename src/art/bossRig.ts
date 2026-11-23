@@ -24,6 +24,7 @@ export interface RigSpec {
   arm2?: Limb;                               // 另一隻手
   hang?: Limb;                               // 吊在 arm2 手上的東西：pivot = 吊點（跟著 arm2 轉），自己像鐘擺一樣晃
   light?: [number, number];                  // hang 上會發光的那一點（燈芯）
+  core?: [number, number, number, number];   // 身體上會發光的一塊 [x0, y0, x1, y1]（熔爐守護者胸口的熔爐格柵）：姿勢的 heat 越大越亮
   fill?: { y0: number; y1: number; x: number; s: string };   // 手擋住的那段武器：用 s 補回去（不然武器推出去會缺一截）
   patch?: boolean;                           // 拆掉的格子如果被身體包住 → 用最近的身體顏色補起來
   grip: [number, number];                    // 手握住武器的那一格
@@ -58,6 +59,14 @@ export const RIG: Record<string, RigSpec> = {
     arm2: { pick: (x, y) => x >= 61 && y >= 26 && y <= 40, pivot: [59, 36] },
     hang: { pick: (x, y) => x >= 66 && y >= 41 && y <= 67, pivot: [75, 41] }, light: [75, 53],
     order: ['body', 'arm2', 'hang', 'wpn', 'arm'] },
+  // 熔爐守護者：石頭巨人。右手（畫面右邊）握狼牙錘：錘頭 0~32 列、錘柄 79~80 欄、柄尾的球 59~68 列；拳頭 33~44 列（74~88 欄），
+  // 拳頭下面是彎著的前臂（45~62 列）。肩膀的大石塊（63~73 欄、37~48 列）留在身體上，蓋住手臂的根部。
+  // 左手（畫面左邊）垂著一顆大石拳（49~94 列、16 欄以左），肩膀石塊一樣留在身體上。胸口熔爐格柵在 33~54 欄、60~72 列
+  db_forgeguard: { wpn: (x, y) => (y <= 32 && x >= 70) || (y >= 45 && y <= 58 && x >= 78 && x <= 80) || (y >= 59 && y <= 68 && x >= 73),
+    hand: () => false, grip: [79.5, 39], tip: 29, base: -Math.PI / 2, fill: { y0: 33, y1: 44, x: 78, s: 'olso' },
+    arm: (x, y) => y >= 33 && y <= 62 && (y <= 48 ? x >= 74 : x >= 67), shoulder: [69, 44], shrug: 9,
+    arm2: { pick: (x, y) => x <= 16 && y >= 49 && y <= 94, pivot: [13, 47] }, core: [33, 60, 54, 72],
+    order: ['arm2', 'wpn', 'arm', 'body'] },
 };
 export interface Part { rows: string[]; y0: number; pivot: [number, number] }
 export interface Rig { spec: RigSpec; body: any; hand: any; wrows: string[]; wy0: number; wpal: Record<string, string>; aw: number; ah: number; limbs: Partial<Record<'arm' | 'arm2' | 'hang', Part>> }

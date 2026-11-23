@@ -59,7 +59,7 @@ function bindBtn(id, key) {
 }
 bindBtn('bAtk', 'atk'); bindBtn('bSkill', 'skill'); bindBtn('bDodge', 'dodge'); bindBtn('bPot', 'pot');
 document.addEventListener('gesturestart', e => e.preventDefault());
-document.addEventListener('touchmove', e => { const t = e.target as HTMLElement; if (!t.closest || !t.closest('.panel')) e.preventDefault(); }, { passive:false });
+document.addEventListener('touchmove', e => { const t = e.target as HTMLElement; if (!t.closest || !t.closest('.panel, #endScreen')) e.preventDefault(); }, { passive:false });   // 選單和結局畫面可以用手指捲
 let lastMenu = null;
 export function readInput() {
   if (openMenu !== lastMenu) { lastMenu = openMenu; releaseAll(); }    // 開 / 關選單：全部放開（選單開著的時候放開的鍵、手指，有時候收不到）。還按著的鍵會自動連發，馬上又會算按著

@@ -536,10 +536,10 @@ button.fneed{width:100%;text-align:left;font-family:var(--font)}
 @media (max-width:700px){.lvk .gain{display:none}}   /* 窄的時候：每一格已經寫了「下一點」的變化，這行省掉 */
 
 /* ---- 結局畫面（world/ending.ts）：全螢幕、文字一句一句淡入 ---- */
-#endScreen{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
+#endScreen{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;touch-action:pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
   background:radial-gradient(ellipse at 50% 30%,#2a2050 0%,#0d0a18 60%,#05040a 100%);overflow-y:auto;color:var(--text)}
 #endScreen[hidden]{display:none}
-.endbox{max-width:560px;width:100%;margin:auto;text-align:center}
+.endbox{max-width:560px;width:100%;margin:auto;text-align:center}   /* margin:auto：放得下就置中，放不下就從頂端開始、往下捲（不會切掉上下） */
 .endbox h2{color:#f2c14e;font-size:22px;letter-spacing:.2em;margin:4px 0 14px;text-shadow:0 0 12px #f2c14e66}
 .endl{font-size:16px;line-height:1.9;margin:0 0 14px;opacity:0;animation:endIn 1.6s ease forwards}
 .endl.now{opacity:1;animation:none}
@@ -550,5 +550,16 @@ button.fneed{width:100%;text-align:left;font-family:var(--font)}
 .endopt small{font-size:13px;color:var(--muted)}
 .endopt:hover,.endopt:focus-visible{border-color:#f2c14e;box-shadow:inset -2px -2px 0 #0006,0 0 0 2px var(--ink),0 0 14px #f2c14e55}
 .endseen{font-size:13px;color:var(--muted);margin:6px 0 12px}
+.endskip{position:fixed;z-index:61;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));min-height:36px;padding:6px 14px;font-size:14px;opacity:.85;touch-action:manipulation}   /* 結局文字的「跳過」：一直在右上角 */
+#endScreen .sbtn.endback{min-height:40px;padding:8px 18px;font-size:15px;touch-action:manipulation}
+@media (max-height:520px){   /* 橫向手機：字和間距縮小，選項排成一排 */
+  .endbox h2{font-size:18px;margin:0 0 8px}
+  .endl{font-size:14px;line-height:1.6;margin:0 0 8px}
+  .endopts{flex-direction:row;max-width:560px;margin:10px auto 8px}
+  .endopt{flex:1 1 0;padding:8px 10px}
+  .endopt b{font-size:16px}
+  .endseen{margin:4px 0 8px}
+  .endbox:has(.endskip){padding-top:30px}
+}
 .endtitle{font-size:24px;margin-top:26px}
 .endback{margin-top:6px}

@@ -49,7 +49,7 @@ function screen() {
   el = document.createElement('div'); el.id = 'endScreen'; el.hidden = true; document.body.appendChild(el);
   el.addEventListener('click', e => { const b = (e.target as HTMLElement).closest('button');
     if (!b) { el.querySelectorAll('.endl').forEach(n => n.classList.add('now')); return; }   // 點空白：文字一次全部出現
-    if (b.dataset.end) play(b.dataset.end); else close(); });
+    if (b.dataset.end) play(b.dataset.end); else close(); });   // 「跳過」「回到荒野」「還沒準備好」都是關掉、回到荒野（結局在一開始就存好了）
   return el;
 }
 function openChoice() {
@@ -65,7 +65,7 @@ function play(id: string) {
   const e = ENDINGS.find(x => x.id === id); if (!e) return;
   const first = !flags.has('end:' + id); flags.add('end:' + id); save(); sfx.level();
   const s = screen(), n = e.lines.length, D = 2.6;                     // 每句隔 2.6 秒
-  s.innerHTML = '<div class="endbox">' + e.lines.map((t, i) => '<p class="endl" style="animation-delay:' + (i * D + .4) + 's">' + t + '</p>').join('')
+  s.innerHTML = '<div class="endbox"><button type="button" class="sbtn endskip">跳過 ▸▸</button>' + e.lines.map((t, i) => '<p class="endl" style="animation-delay:' + (i * D + .4) + 's">' + t + '</p>').join('')
     + '<h2 class="endl endtitle" style="animation-delay:' + (n * D + .6) + 's">— ' + e.title + ' —</h2>'
     + '<p class="endl endseen" style="animation-delay:' + (n * D + 1.4) + 's">見過的結局 ' + endingsSeen().length + ' / ' + ENDINGS.length + (first ? '' : '（看過了）') + '</p>'
     + '<button type="button" class="sbtn endl endback" style="animation-delay:' + (n * D + 1.8) + 's">回到荒野</button></div>';

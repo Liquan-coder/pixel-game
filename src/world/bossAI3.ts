@@ -231,7 +231,7 @@ AI.dgn = (e, dt, d, dx, dy) => {
       break;
     case 'novaWind':
       e.t -= dt; if (e.t <= 0) { e.tele = null; for (const a of e.shots) shoot(e, a, o.spd, dmgOf(e, o));
-        for (const dl of [0, .1]) G.fx.push({ k: 'warp', x: e.x, y: e.y - 8, r0: 6, r1: 50, th: 4, delay: dl, t: 0, d: .35 + dl, col: colsOf(e)[1] }); burst(e.x, e.y - 8, TH(e).impact, 14); sfx.skill(); e.state = 'idle'; e.t = rr(.7, 1) * wk; }
+        for (const dl of [0, .1]) G.fx.push({ k: 'warp', x: e.x, y: e.y - 8, r0: 6, r1: 50, th: 4, delay: dl, t: 0, d: .35 + dl, col: colsOf(e)[1] }); burst(e.x, e.y - 8, TH(e).impact, 14); sfx.skill(); e.act = { k: 'nova', t0: G.time, aim: e.aim }; e.state = 'idle'; e.t = rr(.7, 1) * wk; }
       break;
     case 'castWind':
       e.t -= dt; if (e.t <= 0) { e.act = { k: 'plant', t0: G.time, aim: e.aim }; e.state = 'idle'; e.t = rr(.5, .8) * wk; }

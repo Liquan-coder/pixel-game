@@ -3,7 +3,7 @@
    每一招打出去會記 e.act（給 render/bossAnim.ts 的動作用）。
 
    場地型（逼你抓閃避時機 → 完美閃避的用武之地）
-     wave      震波：砸地 → 一圈（二階段兩圈）往外擴的環，只能抓時機閃過去           { r 最遠, spd, W 環寬, n 幾圈 }          act: slam
+     wave      震波：砸地 → 一圈（二階段兩圈）往外擴的環，只能抓時機閃過去           { r 最遠, spd, W 環寬, n 幾圈 }          act: pound
      beam      掃射光束：細線鎖定起點 → 粗光束從一邊轉到另一邊                         { L, W, arc 掃多大, dur 掃幾秒 }         act: lash
      grid      網格：整個場地一排排光束（井字），二階段轉 45° 再一次                    { W, gap 線的間距, n 每邊幾條 }          act: plant
      meteor    追身落雷：在你腳下一個接一個落（每 gap 秒一個），要一直走                { n, gap, r, fall 落下要幾秒 }           act: plant
@@ -163,7 +163,7 @@ export function moreStates(e, dt: number, dx: number, dy: number): boolean {
       if (e.t <= 0) { e.tele = null; const n = (o.n || 1) + (p2 ? 1 : 0);
         for (let i = 0; i < n; i++) objs(e).push({ k: 'wave', x: e.x, y: e.y, r: 6, R: Math.min(o.r || 150, D.R * 1.6), spd: o.spd || 120, W: o.W || 10, delay: i * .5, dmg: dmgOf(e, o), hit: new Set() });
         hitNear(e.x, e.y, 24, dmgOf(e, o));                                 // 砸下去的那一點也會痛
-        quakeFx(e.x, e.y, 40); burst(e.x, e.y, T.impact, 24); sfx.boom(); shake(6, .3); e.act = { k: 'slam', t0: G.time, aim: e.aim }; done(e, rr(.8, 1) * wk, dx, dy); }
+        quakeFx(e.x, e.y, 40); burst(e.x, e.y, T.impact, 24); sfx.boom(); shake(6, .3); e.act = { k: 'pound', t0: G.time, aim: e.aim }; done(e, rr(.8, 1) * wk, dx, dy); }
       break;
     case 'beamWind':
       if (e.t <= 0) { e.tele = null; e.state = 'beam'; e.t = e.wt = o.dur || 1.2; e.act = { k: 'lash', t0: G.time, aim: e.bm.a0 }; sfx.skill(); }
