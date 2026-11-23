@@ -1,7 +1,7 @@
 /* ================= 鑿刻感的石像、石碑 =================
    每個東西都拆成幾個「平的面」，每個面只有一個顏色（頂面最亮、朝左上的亮、朝右下的暗），
    sculpt 會在每個面的左上邊描一條亮線 → 看起來像一刀一刀鑿出來的稜角。最後再加裂縫、青苔。
-   （野外的普通石頭還是用 world/tileArt.ts 圓圓的舊畫法） */
+   野外的石頭 = 一個平平的頂面 + 一圈側面（chiselRock），石像、石碑也是同一套。 */
 import { mulberry32 } from '../core/util';
 import { SH, sculpt } from './monsters';
 
@@ -11,6 +11,44 @@ export const norm = (x: number, y: number, z: number) => { const m = Math.hypot(
 export function poly(pts: Pt[], nrm: number[]) {
   return (x: number, y: number) => { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j];
     if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c ? nrm : null; };
+}
+
+export const SLATE = ['#1e222e', '#363d4e', '#535d70', '#7a8598', '#a8b2c2'];   // 冷色的板岩灰（平原的石頭、神像）
+/* 一顆有切面的石塊：回傳 sculpt 的零件。
+   外圈 n 個點 = 石頭的輪廓；內圈 = 往左上縮小的同一圈 = 平平的「頂面」（最亮）；
+   內外圈之間每一段 = 一個側面（四邊形），朝哪邊就照哪邊的亮度 → 一圈深淺不同的切面。
+   grp：同一顆石頭的面之間不畫黑線；ridges：把頂面的邊收集起來，之後描亮線 */
+export function facetBoulder(R: () => number, cx: number, cy: number, rx: number, ry: number, n: number, ramp: string[], grp: number, ridges?: [Pt, Pt][]) {
+  const out: Pt[] = [], inn: Pt[] = [], ix = cx - rx * .12, iy = cy - ry * .3, k0 = .42 + R() * .12;
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI + (i + .5) / n * Math.PI * 2 + (R() - .5) * .4, r = .84 + R() * .18;
+    let x = cx + Math.cos(a) * rx * r, y = cy + Math.sin(a) * ry * r;
+    const flat = cy + ry * .5; if (y > flat) y = flat + (y - flat) * .35;                  // 底部壓平：石頭是「坐」在地上的
+    out.push([x, y]); const k = k0 * (.85 + R() * .3); inn.push([ix + (x - cx) * k, iy + (y - cy) * k * .8]);
+  }
+  const parts: any[] = [{ sh: poly(inn, norm(-.15, -.45, .9)), ramp, grp, bias: .3 }];       // 頂面
+  if (ridges) for (let i = 0; i < n; i++) ridges.push([inn[i], inn[(i + 1) % n]]);
+  for (let i = 0; i < n; i++) { const j = (i + 1) % n, mx = (out[i][0] + out[j][0]) / 2 - cx, my = (out[i][1] + out[j][1]) / 2 - cy, m = Math.hypot(mx, my) || 1;
+    parts.push({ sh: poly([inn[i], out[i], out[j], inn[j]], norm(mx / m, my / m * .8, .45)), ramp, grp, bias: .3 + (my > 0 ? .32 : 0) + (R() - .5) * .1 }); }   // 正面（朝鏡頭）不要黑成一片，留最深的顏色給外框和裂縫
+  return parts;
+}
+/* 野外的石頭（40×28 美術像素，跟以前一樣大）：一大一小兩塊，或三塊。moss = [暗, 亮] 青苔；glow = 熔岩區的發光裂縫 */
+export function chiselRock(seed: number, Rm: string[], moss: string[] | null, glow: boolean) {
+  const R = mulberry32(seed), two = R() < .55, rid: [Pt, Pt][] = [];
+  const parts = [...facetBoulder(R, 18, 16, 13, 10, 7 + (R() * 2 | 0), Rm, 1, rid),
+    ...facetBoulder(R, 32, 21, 6.5, 5, 5, Rm, 2)];
+  if (!two) parts.unshift(...facetBoulder(R, 8, 21, 5.5, 4.5, 5, Rm, 3));
+  return sculpt(40, 28, parts, a => {
+    // 頂面的邊描亮：上半圈（迎光）用最亮色，下半圈不描（交給側面自己的深淺）
+    for (const [p, q] of rid) { if ((p[1] + q[1]) / 2 > 14) continue; const n = Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1])); for (let i = 0; i <= n; i++) a.set(p[0] + (q[0] - p[0]) * i / n, p[1] + (q[1] - p[1]) * i / n, Rm[4]); }
+    // 裂縫：從大石頭的亮面往下折兩折；左邊配一格亮色 → 看起來是「刻進去」的
+    const cr = (x: number, y: number, len: number) => { for (let i = 0; i < len; i++) { if (a.pid(x, y) < 0 || a.pid(x, y + 1) < 0) break; a.set(x, y, Rm[0]); if (a.pid(x - 1, y) >= 0) a.set(x - 1, y, Rm[4]); x += R() < .5 ? 1 : 0; y += 1; if (R() < .3) x -= 1; } };
+    cr(12 + (R() * 6 | 0), 10 + (R() * 3 | 0), 5 + (R() * 3 | 0)); if (R() < .6) cr(21 + (R() * 4 | 0), 12, 4);
+    // 青苔：上緣（上面是空的）往下長 1～3 格，亮暗交錯
+    if (moss) for (let x = 0; x < 40; x++) { if (R() < .35) continue;
+      for (let y = 0; y < 28; y++) if (a.pid(x, y) >= 0) { if (a.pid(x, y - 1) < 0) { const d = 1 + (R() * 2.4 | 0); for (let j = 0; j < d; j++) a.set(x, y + j, j === 0 ? moss[1] : moss[0]); } break; } }
+    if (glow) { a.line(20, 10, 24, 16, '#e8743b'); a.line(24, 16, 22, 22, '#e8743b'); a.set(23, 15, '#ffd27a'); a.set(21, 12, '#ffd27a'); }
+  });
 }
 
 /* ================= 星之神像（64×150 美術像素） =================

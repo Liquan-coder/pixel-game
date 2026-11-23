@@ -9,7 +9,7 @@ import { drawArtSprite, flame } from './chunks';
 import { DUNGEONS, dungeonHooks } from './dungeons';
 import { pick, rr } from '../core/util';
 import { RUNE_SLATE, guardStatue, runeStone } from '../art/stoneArt';
-import { MON_H, MON_W, monument } from '../art/monuments';
+import { MON_H, MON_TOP, MON_W, monument } from '../art/monuments';
 
 /* ---- 圖：洞口（洞窟、石窟）、石門（古墓） ---- */
 const ROCKR = ['#2a2630', '#46404e', '#655e6e', '#8a8294'];
@@ -22,8 +22,8 @@ const CRYPT_SP = sculpt(72, 64, [{ sh: SH.box(36, 38, 30, 25, 2), ramp: ['#2e2a3
   a.rect(22, 24, 28, 40, '#08060c'); a.rect(25, 27, 22, 37, '#000000'); a.rect(22, 22, 28, 2, '#aaa4bc');
   for (const [x, y] of [[35, 17], [36, 17], [36, 16], [36, 18], [37, 17], [36, 15], [36, 19], [34, 17], [38, 17]]) a.set(x, y, '#c8a8ff');   // 門楣上的星形刻紋
   a.rect(13, 26, 3, 36, '#2e2a36'); a.rect(56, 26, 3, 36, '#2e2a36'); });
-/* ---- 入口上方的地標：每座地城一尊自己的紀念石像（art/monuments.ts）——石柱頂上雕著裡面的 Boss。
-   比岩丘高很多 → 還沒看到洞口就先看到它；頂端冒紫色光柱，打完地城就熄掉 ---- */
+/* ---- 入口上方的地標：每座地城都是同一尊守護王像（art/monuments.ts），不透露裡面的 Boss。
+   比岩丘高 → 還沒看到洞口就先看到它；王冠上冒紫色光柱，打完地城就熄掉 ---- */
 const STONE5 = ['#1e1a26', '#2e2a36', '#4a4558', '#6a6478', '#8e88a0'];   // 古墓用的偏紫灰石頭
 const TORCH_POST = sculpt(10, 40, [{ sh: SH.box(5, 22, 2, 18, 3), ramp: ['#2e1c0e', '#4a3018', '#6a4626', '#86603a'], grp: 1 }, { sh: SH.ell(5, 6, 4, 3), ramp: ['#2a2834', '#4a4858', '#7a788a'], grp: 2 }]);
 const MIST = { cave: '#b8b2c8', grotto: '#9ad0e8', crypt: '#c8b8e8' } as Record<string, string>;
@@ -171,9 +171,9 @@ export function drawDoors(vis, list, L, addLight) {
     if (!d.stairs) drawDeco(d, vis, list, L, addLight, done);                                       // 前院：石板地、雕像、破旗、符文石……
     if (!d.stairs && (vis(ex, ey, 60) || vis(ex, ey - 110, 90))) {
       const crypt = d.style === 'crypt', sp = crypt ? CRYPT_SP : CAVE_SP, r = regAtT(d.ent[0], d.ent[1]);
-      const mon = monument(d.id, crypt ? STONE5 : (SRAMP.rock[r] || STONE5), r), mx = ex + (crypt ? 0 : 10), my = ey - 40;   // 石像畫在岩丘上（排在洞口後面）
-      const bx = mx + (mon.top[0] - MON_W / 2) * HK, by = my - (MON_H - mon.top[1]) * HK;                                    // 光柱冒出來的地方
-      list.push({ y: my, f: () => { drawArtSprite(mon.img, mx, my); if (!done) beacon(bx, by, d.ent[0]); } });
+      const mon = monument(crypt ? STONE5 : (SRAMP.rock[r] || STONE5), r), mx = ex, my = ey - 40;                              // 石像站在岩丘上、洞口正上方（排在洞口後面）
+      const bx = mx + (MON_TOP[0] - MON_W / 2) * HK, by = my - (MON_H - MON_TOP[1]) * HK;                                  // 光柱冒出來的地方：王冠正上方
+      list.push({ y: my, f: () => { drawArtSprite(mon, mx, my); if (!done) beacon(bx, by, d.ent[0]); } });
       if (!done) addLight(L, bx, by, 40 + Math.sin(G.time * 2) * 4, 3);
       list.push({ y: ey - 2, f: () => { drawArtSprite(sp, ex, ey); if (!done) drawFog(ex, ey, crypt, d.ent[0] * .13); } });
       for (const s of [-1, 1]) { const tx = ex + s * 30, ty = ey + 22;                               // 洞口兩邊的火把
