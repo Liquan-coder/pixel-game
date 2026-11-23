@@ -69,7 +69,7 @@ export const DBOSS: Record<string, DBossDef> = {
       ['counter', 2, { dur: 1.4, then: ['sweep', { r: 62, half: 1.3, k: 1.5 }] }]] },   // 架劍：亂砍會被一劍劈回來
   forgeguard: { name: '熔爐守護者', sub: '熔爐重新點火了', lv: 55, hp: 5200, spd: 26, ring: ['#ff8a3a', '#fff0a0'], aura: ['#ff6a2a', '#ffb040', '#fff0a0'], cols: F, proj: 'ember',
     moves: [['slam', 3, { r: 64, k: 1.5 }], ['lash', 2, { L: 170, W: 22, k: 1.3, trail: F }], ['rain', 2, { n: 8, r: 24, k: 1.1, cols: F }], ['wave', 3, { r: 150, spd: 115, W: 10, k: 1.3 }]],   // 錘子砸地，震波往外擴（要抓時機閃過去）
-    p2: [['nova', 2, { n: 14, spd: 140, k: .8 }], ['summon', 1, { n: 2, max: 3 }]] },
+    p2: [['nova', 2, { n: 12, spd: 140, k: .8 }], ['summon', 1, { n: 2, max: 3 }]] },   // 炸開 12 顆：線和線之間站得下人
   starwarden: { name: '星之看守者', sub: '「你終於回來了。……不，你不是她。」', lv: 80, hp: 8800, spd: 48, ring: ['#c8a8ff', '#ffffff'], aura: ['#6a4ad0', '#b49cff', '#ffffff'], cols: V, proj: 'bolt',
     moves: [['fan', 3, { n: 7, spread: 1, spd: 170, k: .9 }], ['rain', 2, { n: 9, r: 24, k: 1.1, cols: V }], ['nova', 2, { n: 16, spd: 140, k: .8 }], ['lash', 1, { L: 180, W: 18, k: 1.4 }],
       ['beam', 2, { L: 180, W: 10, arc: 2.4, dur: 1.3, k: 1 }], ['orb', 2, { n: 1, spd: 55, k: 1.2, mult: 3, stun: 2.2 }]],   // 法杖掃射；星球打得回去

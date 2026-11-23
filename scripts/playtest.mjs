@@ -763,7 +763,9 @@ const pageScript = async () => {
     const pose = st => { b.state = st; b.wt = 1; b.t = 0; return imp0.anim.POSE[b.kind](b, rig); };
     if (pose('slamWind').up < .9) throw new Error('砸地蓄力時錘子沒有舉過頭');
     if (pose('waveWind').arm2 < 2) throw new Error('震波蓄力時左拳沒有舉起來');
-    if (pose('novaWind').heat < .9) throw new Error('炸開之前熔爐沒有變亮');
+    b.act = null; const h0 = pose('idle').heat, h1 = pose('novaWind').heat; if (h1 < .65 || h1 - h0 < .3) throw new Error('炸開之前熔爐沒有變亮：平常 ' + h0.toFixed(2) + '、炸開前 ' + h1.toFixed(2));
+    b.state = 'idle'; b.act = null; A3.startMove(b, 'nova', mv.nova, 10, 0); if (!b.tele || !b.tele.every(t => t.k === 'lane') || b.tele.length !== mv.nova.n) throw new Error('炸開的預警要是放射線（一顆一條），不是圓圈');
+    step(60, { god: true }); if (G.projs.some(p => p.owner === 'e' && Math.hypot(p.x - b.def.x, p.y - b.def.y) > b.def.R + 4)) throw new Error('火渣飛出 Boss 戰的圈外還沒熄');
     for (const st of ['idle', 'slamWind', 'lashWind', 'waveWind', 'castWind', 'novaWind', 'donutWind', 'pullWind', 'summonWind', 'intro']) { b.state = st; b.wt = 1; b.t = .3; step(1, { god: true }); }
     log.push('  熔爐守護者：砸地、撩地、捶地震波、火渣、炸開、外圈都放得出來，蓄力姿勢對');
     G.projs = []; menus.restAt(CAMPS[0]); setMenu(null); step(2, { god: true });
@@ -949,13 +951,16 @@ const pageScript = async () => {
     Object.assign(G.me, { weapon: keep.w, armor: keep.a, end: keep.end, str: keep.str }); recalc(G.me); G.me.st = G.me.maxSt;
   });
 
-  run('暴擊傷害：每種武器不一樣（短刀 ×2.4、戰鎚 ×1.6）', () => {
+  run('暴擊傷害：每種武器不一樣（短刀 ×2.4、戰鎚 ×1.6），保證暴擊至少 ×1.8', () => {
     const E = await0.enemies, I = await0.items; setMenu(null); G.enemies = []; const keep = G.me.weapon;
     const avg = (crit) => { G.me.crit = crit; const e = E.makeEnemy('skel', 1, G.me.x + 14, G.me.y, { alive: true, timer: 0 }); e.hp = e.maxHp = 1e9; e.stun = 99; e.dmg = 0; G.enemies = [e];
       let s = 0; for (let i = 0; i < 40; i++) { const h = e.hp; G.me.critNext = 0; G.me.counterT = 0; G.me.dodgeAtkT = 0; damageEnemy(G.me, e, 1, G.me.x, G.me.y, { proc: true }); s += h - e.hp; } G.enemies = []; return s / 40; };
     for (const [t, m] of [['dagger', 2.4], ['hammer', 1.6]]) { G.me.weapon = I.makeWeapon(t); recalc(G.me);
       if (G.me.critMul !== m) throw new Error(t + '：暴擊傷害應該是 ×' + m + '，現在 ×' + G.me.critMul);
       const r = avg(100) / avg(0); if (Math.abs(r - m) > .12) throw new Error(t + '：暴擊打出來是普通的 ' + r.toFixed(2) + ' 倍，應該是 ' + m); }
+    { G.me.weapon = I.makeWeapon('hammer'); recalc(G.me); const base = avg(0), e = E.makeEnemy('skel', 1, G.me.x + 14, G.me.y, { alive: true, timer: 0 }); e.hp = e.maxHp = 1e9; e.stun = 99; e.dmg = 0; G.enemies = [e];   // 保證暴擊（完美閃避後）至少 ×1.8，就算是戰鎚
+      let s = 0; for (let i = 0; i < 40; i++) { const h = e.hp; G.me.critNext = G.time + 1; damageEnemy(G.me, e, 1, G.me.x, G.me.y, { proc: true }); s += h - e.hp; } G.enemies = [];
+      const r = s / 40 / base; if (Math.abs(r - 1.8) > .12) throw new Error('戰鎚完美閃避後的暴擊是普通的 ' + r.toFixed(2) + ' 倍，應該至少 1.8'); }
     G.me.weapon = keep; recalc(G.me);
   });
 

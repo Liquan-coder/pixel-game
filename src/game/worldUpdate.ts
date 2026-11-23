@@ -42,6 +42,8 @@ function updateProjectiles(dt) {
     let dead = p.life <= 0 || (p.kind !== 'rain' && !p.arena && BLOCKP.has(tileAt(Math.floor(p.x / TS), Math.floor((p.y + 6) / TS))));
     if (p.back && Math.hypot(p.by.x - p.x, p.by.y - 7 - p.y) < 12) dead = true;   // 月牙飛回手上
     if (!dead && p.arena) dead = bounceIn(p);
+    if (!dead && p.fence && Math.hypot(p.x - p.fence.x, p.y - p.fence.y) > p.fence.R) { dead = true;   // 地城 Boss 的子彈：飛出 Boss 戰的圈就熄掉，冒一點火星
+      for (let k = 0; k < 4; k++) G.parts.push({ x:p.x, y:p.y, vx:rr(-25, 25), vy:rr(-35, 5), life:.3, max:.3, col:pick(p.cols ? [p.cols[1], p.cols[2]] : ['#ffb040', '#ffffff']), s:1 }); }
     if (p.kind === 'fire' && Math.random() < .8) G.parts.push({ x:p.x, y:p.y, vx:rr(-15, 15), vy:rr(-15, 15), life:.3, max:.3, col: Math.random() < .5 ? '#f2c14e' : '#e8743b', s:2 });
     if (p.kind === 'ember' && Math.random() < .7) G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:-p.vx * .1, vy:-p.vy * .1 - 10, life:.35, max:.35, col:pick(p.cols ? [p.cols[1], p.cols[2]] : ['#ffb040', '#ff6a2a']), s:1 });
     if (p.kind === 'glob' && Math.random() < .5) G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:0, vy:10, life:.4, max:.4, col:p.cols ? p.cols[1] : '#4fbf5a', s:1, g:60 });

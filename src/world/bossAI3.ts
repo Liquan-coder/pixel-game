@@ -43,7 +43,8 @@ export const TH = (e): Theme => { const d = e.def; if (d.theme) return d.theme; 
   return d.theme = { cols: d.aura, proj, rain: 'pillar', impact, sweep: 'wave', lash, pool: 'water', trail: impact } as Theme; };
 export const colsOf = (e) => TH(e).cols || e.def.boss.cols;
 function shoot(e, a, spd, dmg) { const T = TH(e);
-  G.projs.push({ x: e.x + Math.cos(a) * 16, y: e.y - 12 + Math.sin(a) * 12, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, r: 5, life: 1.7, dmg, owner: 'e', kind: T.proj, R: 12, th: 5, cols: T.cols }); }
+  G.projs.push({ x: e.x + Math.cos(a) * 16, y: e.y - 12 + Math.sin(a) * 12, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, r: 5, life: 1.7, dmg, owner: 'e', kind: T.proj, R: 12, th: 5, cols: T.cols,
+    fence: { x: e.def.x, y: e.def.y, R: e.def.R } }); }   // 飛到 Boss 戰的圈外就熄掉（不然會在圈外繼續飛一陣子）
 function strike(m) {                                                    // 落下 / 冒出來的一擊：圓裡的人受傷 + 這隻 Boss 自己的樣子
   const { x, y, r, dmg, cols } = m;
   for (const pl of G.players) if (Math.hypot(pl.x - x, pl.y - y) < r - DG && hurtPlayer(pl, dmg, x, y)) hitSpark(pl.x, pl.y - 8, true, -Math.PI / 2);
@@ -143,7 +144,7 @@ export function startMove(e, m: string, mo, dx: number, dy: number) {
   else if (m === 'fan') { const n = mo.n + (p2 ? 2 : 0); e.shots = []; for (let i = 0; i < n; i++) e.shots.push(n === 1 ? e.aim : e.aim - mo.spread / 2 + mo.spread * i / (n - 1));
     rbWind(e, 'fanWind', .55 * wk, e.shots.map(a => ({ k: 'lane', a, L: 110, W: 12 }))); }
   else if (m === 'nova') { e.shots = []; const n = mo.n, a0 = rr(0, TAU); for (let i = 0; i < n; i++) e.shots.push(a0 + i / n * TAU);
-    rbWind(e, 'novaWind', .7 * wk, [{ k: 'circle', r: 36 }]); }
+    rbWind(e, 'novaWind', .7 * wk, e.shots.map(a => ({ k: 'lane', a, L: 64, W: 6 }))); }   // 預警畫成放射線（每一顆會飛的方向），站在兩條線中間就躲得掉；畫成圓圈會被當成砸地
   else if (m === 'rain') { const pts = []; for (let i = 0; i < mo.n + (p2 ? 2 : 0); i++) { const q = i === 0 ? { x: e.tgt.x, y: e.tgt.y } : { x: e.tgt.x + rr(-80, 80), y: e.tgt.y + rr(-60, 60) }; keepIn(q, D, 18); pts.push(q); }
     const T = TH(e); for (const [i, q] of pts.entries()) e.pend.push({ x: q.x, y: q.y, r: mo.r, t: .9 * wk + i * .08, T: .9 * wk + i * .08, dmg: dmgOf(e, mo), fall: T.rain, impact: T.impact,
       cols: T.rainCols || mo.cols || colsOf(e), warm: T.rain === 'pillar' && T.impact === 'lava' ? 1 : 2 });

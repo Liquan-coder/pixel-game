@@ -212,7 +212,10 @@ function forgeguard(e, rig: Rig): Pose {
       const k = ease(q / .6); fist(lerp(B2, FUP, k)); P.lean = .05 * f * k; P.lift = k; P.ox = shiver(.75); return P; }
     case 'castWind': {                                                   // 噴火渣：熔爐往天上噴 → 挺胸、往後仰
       const k = ease(q / .7); spread(k * .6); P.lean = -.14 * f * k; P.heat = .3 + .7 * k; P.ox = shiver(.7); return P; }
-    case 'novaWind': case 'donutWind': {                                 // 炸開：雙臂張開、熔爐越來越亮、全身抖 → 往外炸
+    case 'novaWind': {                                                   // 炸開（往四周射火渣）：雙手往下往外甩開、挺胸後仰，熔爐對著外面狂閃 → 錘子不舉起來，才不會被當成要砸地
+      const k = ease(q / .7); mace(lerp(B1, .7, k), lerp(MR, .9, k)); fist(lerp(B2, 2.3, k)); P.lean = -.12 * f * k; P.lift = 2 * k;
+      P.heat = (.4 + .6 * k) * (q > .5 ? .85 + .15 * Math.sin(G.time * 40) : 1); P.ox = shiver(.5); return P; }
+    case 'donutWind': {                                                  // 外圈炸：雙臂張開、熔爐越來越亮 → 熱浪往外圈炸（貼著牠反而安全）
       const k = ease(q / .8); spread(k); P.heat = .3 + .7 * k; P.ox = shiver(.5); return P; }
     case 'pullWind': {                                                   // 吸：熔爐「吸氣」，雙臂往後張、身體往前頂，一亮一暗
       spread(.8); P.lean = .1 * f; P.heat = .6 + .4 * Math.sin(G.time * 9); P.ox = Math.sin(G.time * 50) * .4; return P; }
@@ -238,7 +241,8 @@ function forgeguard(e, rig: Rig): Pose {
     if (since < .45) { fist(FDN); P.drop2 = 12; P.lean = -.1 * f; P.oy = 2; P.snap = true; return P; }
     P.k = 6;
   }
-  if (act && (act.k === 'nova' || act.k === 'plant') && since < .6) { P.k = 5; if (since < .2) { spread(1); P.heat = 1; P.snap = since < .05; return P; } }   // 炸完 / 噴完：熔爐慢慢暗回去、手放下
+  if (act && act.k === 'nova' && since < .6) { P.k = 5; if (since < .2) { mace(.7, .9); fist(2.3); P.lean = -.12 * f; P.lift = 2; P.heat = 1; P.snap = since < .05; return P; } }   // 炸完：熔爐慢慢暗回去、手收回來
+  if (act && act.k === 'plant' && since < .6) { P.k = 5; if (since < .2) { spread(1); P.heat = 1; P.snap = since < .05; return P; } }   // 炸完 / 噴完：熔爐慢慢暗回去、手放下
   /* ---- 平常：站著 / 走路（石頭巨人一步一震） ---- */
   const v = e._v || 0;
   if (v > 8) { const s = Math.sin(A * 3.6);
