@@ -11,7 +11,7 @@ import { asn, drawArrow, drawStar, drawWarp, fillArt } from './fx';
 import { camDt } from '../main';
 import type { Player } from '../types';
 import { bodyGone, deathFx } from './pfx';
-import { RIDE_Y, SEAT_X, WOLF_CX, drawWolf, wolfRideY, type WolfAnim } from '../art/starWolf';
+import { RIDE_Y, drawWolf, wolfRideY, type WolfAnim } from '../art/starWolf';
 import { DROP_T, callProgress } from '../game/mount';
 
 /* ================= RENDER ================= */
@@ -131,7 +131,7 @@ export function drawPlayer(pl: Player) {
   if (ride) drawMount(pl, run);
   // 騎著：整個人抬到狼背上（跟著步伐一起騰空）；剛跳下來：從狼背落回地上
   const rideY = ride ? wolfRideY(run) : pl.rideDrop > 0 ? RIDE_Y * pl.rideDrop / DROP_T : 0;
-  const py = pl.y - rideY, seat = ride ? (SEAT_X - WOLF_CX) * HK * (pl.flip ? -1 : 1) : 0;
+  const py = pl.y - rideY;
   const dir = pl.flip ? -1 : 1, spinA = pl.spin > 0 ? pl.face + (1 - pl.spin / .3) * TAU * dir : 0;
   const ap = heroAttackPose(pl), vs = Math.abs(Math.cos(pl.face));   // 面向上下時前傾減半（只分兩檔，姿勢圖不會無限增加）
   const step = Math.floor(pl.anim * 8) % 4, frame = ap ? heroPose(vs < .7 ? Math.round(ap[0] / 2) : ap[0], ap[1], ap[2]) : ride ? HERO.ride : HERO.walk[pl.moving ? step : 0];
@@ -144,7 +144,7 @@ export function drawPlayer(pl: Player) {
     hop = t < wu ? 6 * Math.sin(Math.PI / 2 * t / wu) : t < wu + sw ? 6 * Math.max(0, 1 - (t - wu) / (sw * .35)) : 0; }
   const ly = Math.sin(pl.face) * lean * .5 - hop;                       // 身體跟著姿勢前後移一點
   pl.leanX = lx; pl.leanY = ly;
-  const X = snapF(pl.x + seat + lx - (flip ? HERO_W - 26 + PX0 : 26 + PX0) * k), Y = snapF(py + ly + 2 - bob - (HERO_H + PY0) * k);
+  const X = snapF(pl.x + lx - (flip ? HERO_W - 26 + PX0 : 26 + PX0) * k), Y = snapF(py + ly + 2 - bob - (HERO_H + PY0) * k);
   deathFx(pl, flip ? frame.f : frame.n, X, Y, pl.x + lx, pl.y + ly + 2 - bob, flip);   // 倒下的第一幀：用這一格的女巫開始碎成光點
   const layer = sp => ctx.drawImage(white ? (flip ? sp.wf : sp.wn) : (flip ? sp.f : sp.n), X, Y, sp.w * k, sp.h * k);
   const hand = (cx, cy) => [X + (PX0 + (flip ? HERO_W - cx : cx)) * k, Y + (PY0 + cy) * k];
@@ -183,7 +183,7 @@ export function drawPlayer(pl: Player) {
   else if (pl.swing || pl.thrust > 0) ang = pl.face;
   else if (pl.wRec > 0) { const q = 1 - pl.wRec / (pl.wRecD || WREC), s = q * q * (3 - 2 * q); ang = lerpA(pl.wFrom, rest, s); hA = lerpA(pl.wFrom, pl.face, s); reach = REACH * (1 - s); }   // 揮完把刀收回來，不瞬間跳回
   else ang = rest;
-  const hx = pl.x + seat + lx + Math.cos(hA) * (HAND_R + reach), hy = py - 7 + ly + .5 + Math.sin(hA) * (HAND_R + reach) * (msw && !msw.ranged ? msw.sy : HSY) - lift;
+  const hx = pl.x + lx + Math.cos(hA) * (HAND_R + reach), hy = py - 7 + ly + .5 + Math.sin(hA) * (HAND_R + reach) * (msw && !msw.ranged ? msw.sy : HSY) - lift;
   const off = pl.thrust > 0 ? 6 : msw && phase === 'C' && msw.ty === 'spear' ? -4 : 0, showW = !blink && pl.dodge <= 0, gx = hx + Math.cos(ang) * off, gy = hy + Math.sin(ang) * off;
   const behind = Math.sin(hA) < -.45;                                 // 手舉到頭上方時，武器畫在身體後面
   const drawW = () => {
