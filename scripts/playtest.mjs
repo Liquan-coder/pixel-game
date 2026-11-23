@@ -357,6 +357,8 @@ const pageScript = async () => {
     const drop = () => { const d = { x: G.me.x, y: G.me.y, z: 0, vz: 0, vx: 0, vy: 0, item: I.makeWeapon('axe'), t: 0, warned: false }; G.drops.push(d); return d; };
     if (!WU.pickUp(G.me, drop()) || G.me.inv.length !== 100) throw new Error('第 100 件撿不起來');
     if (WU.pickUp(G.me, drop()) || G.me.inv.length !== 100) throw new Error('背包滿 100 件了還撿得起來');
+    G.me.inv = G.me.inv.slice(0, 3); menus.toggleInv(); if (document.querySelectorAll('#bagGrid .slot').length !== 100) throw new Error('只有 3 件時，背包沒有畫出 100 格：' + document.querySelectorAll('#bagGrid .slot').length);
+    setMenu(null); G.me.inv = Array.from({ length: 100 }, () => I.makeWeapon('sword'));
     menus.toggleInv(); if (document.getElementById('invCount').textContent !== '100/100') throw new Error('標題沒寫 100/100：' + document.getElementById('invCount').textContent);
     if (document.querySelectorAll('#bagGrid .slot[data-i]').length !== 100) throw new Error('背包格子沒畫出 100 件');
     setMenu(null); G.me.inv = []; G.drops = [];

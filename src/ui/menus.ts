@@ -238,7 +238,7 @@ export function renderInv() {
   const list = G.me.inv.map((it, i) => ({ it, i })).filter(o => bagFilter === 'all' || slotOf(o.it) === bagFilter);
   const cells = list.map(({ it, i }) => '<button type="button" class="slot' + (G.selItem === it.id ? ' sel' : '') + (batch && batch.has(it.id) ? ' pick' : '') + (unmet(G.me, it).length ? ' bad' : '') + (sealOn(it) ? ' sl' : '') + '" data-i="' + i + '" style="border-color:' + RAR[it.rarity].c + '" aria-label="' + it.name + '"><img alt="" src="' + ICON_URL[it.type] + '">' + sealBadge(it) + '<i style="color:' + RAR[it.rarity].c + '">' + badge(it) + '</i></button>');
   const blank = drop.has('bag') ? '<button type="button" class="slot blank drop" data-drop="1" aria-label="卸下"></button>' : '<div class="slot blank"></div>';
-  if (bagFilter === 'all') { const pad = Math.min(INV_MAX, Math.max(25, Math.ceil(cells.length / 5) * 5 + 5)); while (cells.length < pad) cells.push(blank); }   // 空格子：至少 5 排，之後永遠多一排空的（不用捲過 100 格空格；還剩幾格看標題的 n/100）
+  if (bagFilter === 'all') while (cells.length < INV_MAX) cells.push(blank);   // 空格子也全部畫出來（100 格，往下捲），一眼看出背包還剩多少
   else if (drop.has('bag')) cells.push(blank);                                // 篩選中：多放一個空格讓你卸下
   $('bagGrid').innerHTML = cells.length ? cells.join('') : '<div class="empty">這一類還沒有東西。</div>';
 }
