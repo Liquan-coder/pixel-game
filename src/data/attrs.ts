@@ -9,19 +9,37 @@ import type { Item, Player } from '../types';
 
 export type AttrKey = 'vit' | 'end' | 'str' | 'dex' | 'int' | 'luk';
 export const ATTR_BASE = 5;
-export const ATTRS: { k: AttrKey; n: string; d: string }[] = [
-  { k: 'vit', n: '體魄', d: '生命上限' },
-  { k: 'end', n: '耐力', d: '體力上限、負重上限、少量防禦' },
-  { k: 'str', n: '力量', d: '重武器的傷害（斧、鎚、劍）' },
-  { k: 'dex', n: '敏捷', d: '快武器的傷害（短刀、太刀、長槍）、攻擊速度' },
-  { k: 'int', n: '智識', d: '魔法武器的傷害（法杖、鐮刀）、技能冷卻' },
-  { k: 'luk', n: '幸運', d: '暴擊率、怪物比較常掉素材' },
+export const ATTRS: { k: AttrKey; n: string; d: string }[] = [         // d：一句話說明（升級畫面另外直接寫出現在的數字：attrLine）
+  { k: 'vit', n: '體魄', d: '生命上限、所有回血效果' },
+  { k: 'end', n: '耐力', d: '體力、負重、防禦、被打後的反擊' },
+  { k: 'str', n: '力量', d: '重武器的傷害、蓄力速度和蓄滿一擊' },
+  { k: 'dex', n: '敏捷', d: '快武器的傷害、攻速、瞬移省體力' },
+  { k: 'int', n: '智識', d: '魔法武器的傷害、技能冷卻、刻印效果' },
+  { k: 'luk', n: '幸運', d: '暴擊率、暴擊傷害、掉素材' },
 ];
 export const ATTR_NAME: Record<AttrKey, string> = Object.fromEntries(ATTRS.map(a => [a.k, a.n])) as any;
 
 /* 遞減曲線：從 5 點開始算（先 ÷ LV_K），每點的價值 → 前 37 點 1、再 50 點 0.6、之後 0.2（以 LV_K = 2.5 算） */
 // ÷ LV_K：等級尺度放大 2.5 倍（data/levels.ts），每一點的效果跟著變小
 export function soft(v: number) { const x = Math.max(0, v - ATTR_BASE) / LV_K; return Math.min(x, 15) + .6 * Math.max(0, Math.min(x - 15, 20)) + .2 * Math.max(0, x - 35); }
+
+/* ---- 能力值的「流派副效果」：主效果是讓某類武器變痛，副效果各接一個流派（比主效果小，點了順便讓流派更強） ----
+   每一點都照 soft()（遞減點數）算。例：幸運 40 → soft 14 → 暴擊率 +11.2%、暴擊傷害 +0.42（短刀 ×2.4 → ×2.82）
+     體魄 → 吸血流：所有回血 +1.5%（吸血、渴血、打倒回血、藥水、鐮刀、每秒回復）
+     耐力 → 反傷流：反擊 +2%（怒氣打回去、反傷、守光騎士的誓言）
+     力量 → 重擊流：蓄力速度 +2%、蓄滿那一下 +1.5%
+     敏捷 → 閃避流：瞬移花的體力 −1.5%（最多 −30%）
+     智識 → 異常流：刻印效果 +1.5%（跟飾品的「刻印效果」加在一起）
+     幸運 → 暴擊流：暴擊率 +0.8%（最多 +25%）、暴擊傷害 +0.03 */
+export const PERK = { heal: 1.5, retal: 2, charge: 2, chargeDmg: 1.5, dodgeSave: 1.5, dodgeCap: 30, fxBuild: 1.5, crit: .8, critCap: 25, critDmg: .03 };
+export function perks(pl: Player) {
+  const s = (k: AttrKey) => soft(pl[k] ?? ATTR_BASE);
+  return { heal: PERK.heal * s('vit'), retal: PERK.retal * s('end'), charge: PERK.charge * s('str'), chargeDmg: PERK.chargeDmg * s('str'),
+    dodgeSave: Math.min(PERK.dodgeCap, PERK.dodgeSave * s('dex')), fxBuild: PERK.fxBuild * s('int'),
+    crit: Math.min(PERK.critCap, PERK.crit * s('luk')), critDmg: PERK.critDmg * s('luk') };
+}
+export const healMul = (pl: Player) => 1 + ((pl.tfx && pl.tfx.heal) || 0) / 100;    // 回血效果（體魄）
+export const retalMul = (pl: Player) => 1 + ((pl.tfx && pl.tfx.retal) || 0) / 100;  // 反擊效果（耐力）
 
 /* 武器加成：每種能力值的係數（加起來大約 1）。字母只是給玩家看的：S ≥ 1、A ≥ .75、B ≥ .5、C ≥ .3、D > 0 */
 export const WSCALE: Record<string, Partial<Record<AttrKey, number>>> = {

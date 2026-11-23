@@ -19,6 +19,7 @@ import { flashHp, hideBanner, showArea, toast } from '../ui/hud';
 import { save } from './save';
 import { CALL_SHOW, RIDE_SPD, dismount, hasWolf, toggleMount, updateMount } from './mount';
 import type { Player } from '../types';
+import { healMul } from '../data/attrs';
 
 /* ================= PLAYER UPDATE ================= */
 /* 死掉的時候：魂晶和金幣各掉 80% 在原地（身上留 20%），走回去就全部撿回來；還沒撿又死一次，舊的那包就沒了 */
@@ -40,11 +41,11 @@ export function updatePlayer(pl: Player, dt) {
   if (pl.swing) { const s = pl.swing; s.t += dt; if (s.t >= s.d) { if (s.anim) { const g = s.f + s.r1 * s.sd; pl.wFrom = s.ranged ? g : Math.atan2(Math.sin(g) * s.sy, Math.cos(g)); pl.wRec = pl.wRecD = s.back; pl.wTy = s.ty; pl.wRot = Math.sign(s.r1 - (s.rs ?? s.r0)) * s.sd; } pl.swing = null; } }
   if (pl.wRec > 0) pl.wRec -= dt;
   if (Math.abs(pl.kx) + Math.abs(pl.ky) > 2) { moveEnt(pl, pl.kx * dt, pl.ky * dt); const k = Math.pow(0.001, dt); pl.kx *= k; pl.ky *= k; } else pl.kx = pl.ky = 0;
-  if (pl.tfx && pl.tfx.regen && pl.hp > 0 && pl.hp < pl.maxHp) pl.hp = Math.min(pl.maxHp, pl.hp + pl.maxHp * pl.tfx.regen / 100 * dt);   // 飾品：慢慢回血
+  if (pl.tfx && pl.tfx.regen && pl.hp > 0 && pl.hp < pl.maxHp) pl.hp = Math.min(pl.maxHp, pl.hp + pl.maxHp * pl.tfx.regen / 100 * dt * healMul(pl));   // 飾品：慢慢回血
   if (pl.healGlow > 0) pl.healGlow -= dt;
   if (pl.drink > 0) { pl.drink -= dt;
     if (Math.random() < dt * 26) G.parts.push({ x:pl.x + rr(-8, 8), y:pl.y + rr(-2, 2), vx:0, vy:-rr(14, 26), life:rr(.4, .6), max:.6, col:pick(HEALC), s:1 });   // 喝的時候腳邊慢慢冒綠光
-    if (pl.drink <= 0) { const h = Math.round(pl.maxHp * (.5 + ((pl.tfx && pl.tfx.potion) || 0) / 100));   // 飾品：藥水多回一點
+    if (pl.drink <= 0) { const h = Math.round(pl.maxHp * (.5 + ((pl.tfx && pl.tfx.potion) || 0) / 100) * healMul(pl));   // 體魄：回血效果   // 飾品：藥水多回一點
       const got = Math.min(pl.maxHp, pl.hp + h) - pl.hp; pl.hp += got; healFx(pl, h, got); } }
   const m = Math.hypot(input.mx, input.my);
   if (pl.dash) {

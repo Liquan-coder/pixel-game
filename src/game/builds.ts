@@ -9,12 +9,15 @@
      暴擊 critCdr     鷹隼之羽：暴擊時技能冷卻減少
      重擊 quake       巨人的心臟：蓄滿的一擊放出震波、震暈小怪
      異常 spread      瘟疫之瓶：刻印發作時傳染給旁邊的怪（寫在 game/weaponFx.ts，因為要用到各種累積值）
+   能力值也各接一個流派（data/attrs.ts 的 PERK，加進 tfx）：體魄 → 吸血（回血 +%）、耐力 → 反傷（反擊 +%）、力量 → 重擊（蓄力）、
+     敏捷 → 閃避（瞬移省體力）、智識 → 異常（刻印 +%）、幸運 → 暴擊（暴擊率 + 暴擊傷害）。暴擊流的獨特武器：蠍尾短刀（連鎖，game/signatures.ts）
    combat.ts 只在幾個地方呼叫這裡（tryDodge、hurtPlayer、calcDmg、damageEnemy、releaseCharge），規則都在這個檔案。 */
 import { G } from '../core/state';
 import { TAU, pick, rr } from '../core/util';
 import { sfx } from '../core/audio';
 import { toast } from '../ui/hud';
 import type { Enemy, Player } from '../types';
+import { healMul, retalMul } from '../data/attrs';
 
 export const DODGE_CD = .32, PD_WIN = .15;                             // 瞬移的後搖、完美閃避的判定時間（秒）
 type Hooks = { aoe: (pl: Player, cx: number, cy: number, rad: number, mult: number, opts?: any) => void; shake: (m: number, t: number) => void;
@@ -84,13 +87,14 @@ export const rageFrac = (pl: Player) => pl.rage > 0 ? pl.rage / (pl.maxHp * RAGE
 export function buildHit(pl: Player, e: Enemy, v: number, crit: boolean, proc: boolean) {
   const t = T(pl);
   if (!proc && t.rage && pl.rage > 0) {                                  // 反傷流：怒氣一次打回去
-    const extra = Math.round(pl.rage * t.rage / 100); v += extra; pl.rage = 0;
+    const extra = Math.round(pl.rage * t.rage / 100 * retalMul(pl)); v += extra;   // 耐力：反擊更痛
+    pl.rage = 0;
     G.fx.push({ k: 'ring', x: e.x, y: e.y - 6, r0: 4, r1: 34, t: 0, d: .35, col: '#ff5a3a' });
     for (let k = 0; k < 22; k++) { const a = rr(0, TAU), s = rr(60, 160); G.parts.push({ x: e.x, y: e.y - 8, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rr(.3, .55), max: .55, col: pick(['#ff5a3a', '#ffb040', '#ffffff', '#c8201a']), star: rr(1, 2.2), drag: 4 }); }
     G.hitStop = Math.max(G.hitStop, .08); H.shake(5, .2); sfx.boom();
   }
   if (t.thirst && pl.hp < pl.maxHp) {                                    // 吸血流：生命越少吸越多
-    const lost = 1 - pl.hp / pl.maxHp, h = Math.min(v * t.thirst / 100 * lost, pl.maxHp * .03) * (e.boss ? .5 : 1);
+    const lost = 1 - pl.hp / pl.maxHp, h = Math.min(v * t.thirst / 100 * lost, pl.maxHp * .03) * (e.boss ? .5 : 1) * healMul(pl);   // 體魄：回血效果
     if (h > 0) { pl.hp = Math.min(pl.maxHp, pl.hp + h); pl.thirstAcc = (pl.thirstAcc || 0) + h;
       for (let k = 0; k < 3; k++) { const life = rr(.25, .4), sx = e.x + rr(-4, 4), sy = e.y - rr(4, 12);       // 血從怪身上飛回主角
         G.parts.push({ x: sx, y: sy, vx: (pl.x - sx) / life, vy: (pl.y - 10 - sy) / life, life, max: life, col: pick(['#ff3a4a', '#c01020', '#ff8a94']), star: rr(.6, 1.2) }); }

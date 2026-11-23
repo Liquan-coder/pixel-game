@@ -47,6 +47,8 @@ Object.assign(UQ, {
 Object.assign(UQ, {
   silktwin: { type: 'twinblade', name: '巢母雙頭刀', base: 16, aff: { speed: 10, crit: 6 }, req: { dex: 13, str: 8 },
     lore: '巢母的兩根毒牙，用蛛絲綁在同一根骨頭的兩端。轉起來的時候，像一張會咬人的網。', from: '迷霧森林・蛛巢洞窟' },
+  scorpfang: { type: 'dagger', name: '蠍尾短刀', base: 14, aff: { crit: 10, speed: 6 }, req: { dex: 14 },   // 暴擊流的第一把獨特武器（同一座地城的金箱是砂眼指環：暴擊率 +10%）
+    lore: '風蝕岩窟的巨蠍斷下來的尾刺，毒腺已經乾了。可是被它刺中的地方，還是會一跳一跳地痛。', from: '骸骨荒地・風蝕岩窟' },
   sandcrescent: { type: 'crescent', name: '沙王的月牙刀', base: 16, aff: { crit: 8, cdr: 10 }, req: { dex: 13, str: 11 },
     lore: '沙之王每晚對著月亮祈禱，月亮就把自己的一角借給了他。丟出去的刀，總會回到主人手上。', from: '骸骨荒地・沙埋神殿' },
   darkmoon: { type: 'darkmoon', name: '暗月大劍', base: 23, aff: { crit: 6, cdr: 12 }, req: { str: 16, int: 18 }, scale: { str: .5, int: .7 },
@@ -61,7 +63,7 @@ Object.assign(UQ, {
   elfblades: { type: 'elfblades', name: '螢火雙刀', base: 14, aff: { speed: 10, crit: 6 }, req: { dex: 17 },
     lore: '月蛾女王吞下的螢火，最後凝成了兩把刀。揮起來的時候，刀光像一群飛走的螢火蟲。', from: '精靈王國・螢月禁林' },
 } as Record<string, UniqueDef>);
-for (const k of ['royalguard', 'forgehammer', 'deepstaff', 'silktwin', 'sandcrescent', 'darkmoon', 'elfbow', 'elfrapier', 'elfblades']) { UQ_REQ[k] = UQ[k].req; if (UQ[k].scale) UQ_SCALE[k] = UQ[k].scale; UQ_BY_NAME[UQ[k].name] = k; }
+for (const k of ['royalguard', 'forgehammer', 'deepstaff', 'silktwin', 'scorpfang', 'sandcrescent', 'darkmoon', 'elfbow', 'elfrapier', 'elfblades']) { UQ_REQ[k] = UQ[k].req; if (UQ[k].scale) UQ_SCALE[k] = UQ[k].scale; UQ_BY_NAME[UQ[k].name] = k; }
 
 /* ================= 獨特武器的招牌能力 =================
    獨特武器不裝刻印，每把有自己的規則（寫在 game/signatures.ts）：n = 名字、d = 卡片上的說明、cols = 刀光顏色（深 / 中 / 亮） */
@@ -77,6 +79,7 @@ export const UQSIG: Record<string, { n: string; d: string; cols: [string, string
   forgehammer:  { n: '鍛打', d: '打中會讓鎚子變燙（最多 6 層），燒到最熱時下一次砸地熔岩爆炸（攻擊力 160%，留下一片火海）', cols: ['#7a2a0a', '#ff6a2a', '#fff0a0'] },
   deepstaff:    { n: '深淵之眼', d: '法彈和火球會轉彎追蹤附近的敵人', cols: ['#1a0a30', '#6a3aa0', '#40e0c0'] },
   silktwin:     { n: '蛛網', d: '打中黏上蛛網 3 秒：敵人變慢，受到的傷害 +20%', cols: ['#3a2a4a', '#c8c8d8', '#ffffff'] },
+  scorpfang:    { n: '連鎖', d: '暴擊後，下一擊暴擊率 +20%（最多疊 3 層 = +60%，頭上的蠍尾）；沒暴擊或 3 秒沒打到東西就歸零', cols: ['#4a0a14', '#ff4a5a', '#ffd0d4'] },
   sandcrescent: { n: '沙暴月', d: '月牙砍到敵人就飛回來，在那裡捲起一陣沙暴（1.6 秒），把附近的敵人吸過去', cols: ['#6a4a1a', '#d8b870', '#fff0c8'] },
   darkmoon:     { n: '暗月', d: '月光劍浪經過的地方留下冷月光（2.5 秒），踩到的敵人變慢', cols: ['#23206e', '#8aa0ff', '#eef4ff'] },
   elfbow:       { n: '王之箭', d: '每第 6 箭多射一支金色大箭，第一次打中就分裂成 3 支', cols: ['#8a6a10', '#ffe08a', '#ffffff'] },

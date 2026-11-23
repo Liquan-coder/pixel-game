@@ -18,11 +18,12 @@ import { bumpPot, showBanner, toast } from '../ui/hud';
 import type { Enemy } from '../types';
 import { WOLF_DASH, dismount, wolfDashFx } from './mount';
 import { SEALC, bindFx, fxOf, onHit, onKill } from './weaponFx';
-import { bindSig, sigBlock, sigHit, sigKill, sigPre, sigSlam, sigSwing } from './signatures';
+import { bindSig, sigBlock, sigCrit, sigHit, sigKill, sigPre, sigSlam, sigSwing } from './signatures';
 import { UQSIG } from '../data/uniques';
 import { bindBuilds, buildHit, canDodge, dodgeStarted, forcedCrit, fullCharge, iframeHit, playerHurt } from './builds';
 import './bossTuning';                                                   // Boss 的傷害倍率和獎勵（平衡用）
 import type { Player } from '../types';
+import { healMul, retalMul } from '../data/attrs';
 
 /* ================= PLAYER COMBAT ================= */
 export function targets(pl: Player) { const t = []; for (const e of G.enemies) if (Math.abs(e.x - pl.x) < 300 && Math.abs(e.y - pl.y) < 300) t.push(e); if (G.B && !G.bossDead && G.B.state !== 'sleep' && !(G.B.z > 8)) t.push(G.B);
@@ -41,8 +42,9 @@ function calcDmg(pl: Player, mult, cb = 0) {                                   /
   const T = pl.tfx || {};
   if (T.lowHp && pl.hp < pl.maxHp * .35) v *= 1 + T.lowHp / 100;            // 飾品：低血量時加攻
   if (T.dodgeAtk && G.time < (pl.dodgeAtkT || 0)) { v *= 1 + T.dodgeAtk / 100; pl.dodgeAtkT = 0; }   // 飾品：瞬移後的下一擊
-  const ctr = T.counter && G.time < (pl.counterT || 0); if (ctr) { v *= 1 + T.counter / 100; pl.counterT = 0; }   // 反擊之誓：被打中後的下一擊
-  const sure = ctr || forcedCrit(pl), crit = sure || Math.random() * 100 < pl.crit + cb; if (crit) v *= sure ? sureMul(pl) : pl.critMul || 1.8;   // forcedCrit：完美閃避後的下一擊（game/builds.ts）；暴擊傷害看武器（data/attrs.ts 的 WCRIT）
+  const ctr = T.counter && G.time < (pl.counterT || 0); if (ctr) { v *= 1 + T.counter / 100 * retalMul(pl); pl.counterT = 0; }   // 反擊之誓：被打中後的下一擊
+  const sure = ctr || forcedCrit(pl), crit = sure || Math.random() * 100 < pl.crit + cb + sigCrit(pl);   // sigCrit：蠍尾短刀的連鎖
+  if (crit) v *= sure ? sureMul(pl) : pl.critMul || 1.8;   // forcedCrit：完美閃避後的下一擊（game/builds.ts）；暴擊傷害看武器（data/attrs.ts 的 WCRIT）
   return { v: Math.max(1, Math.round(v)), crit };
 }
 export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: number, opts: { heavy?: boolean; stun?: number; crit?: boolean; heal?: number; proc?: boolean; cb?: number; kb?: number } = {}) {
@@ -57,7 +59,7 @@ export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: 
   if (opts.crit && !crit) { crit = true; v = Math.round(v * sureMul(pl)); }      // 居合：一定暴擊
   { const sg = sigPre(pl, e, !!opts.proc); if (sg.crit && !crit) { crit = true; v = Math.round(v * sureMul(pl)); } if (sg.mul !== 1) v = Math.round(v * sg.mul); }   // 獨特武器：背刺、蛛網易傷（game/signatures.ts）
   if (opts.heal) { if (G.time - (pl.healT0 || -9) > .6) { pl.healT0 = G.time; pl.healN = 0; }   // 鐮刀收割：打中一隻回一點血，一次技能最多算 3 隻
-    if (pl.healN < 3) { pl.healN++; pl.hp = Math.min(pl.maxHp, pl.hp + Math.round(pl.maxHp * opts.heal * (e.boss ? .5 : 1))); } }
+    if (pl.healN < 3) { pl.healN++; pl.hp = Math.min(pl.maxHp, pl.hp + Math.round(pl.maxHp * opts.heal * (e.boss ? .5 : 1) * healMul(pl))); } }
   v = buildHit(pl, e, v, crit, !!opts.proc);                           // 流派：怒氣、吸血、暴擊減冷卻（game/builds.ts）
   e.hp -= v; e.flash = .1; e.hitT = .32; e.hitDir = Math.sign(e.x - sx) || 1;
   G.nums.push({ x:e.x + rr(-3, 3), y:e.y - (e.boss ? 26 : 16), txt:String(v), col: crit ? '#ffd84a' : '#ffffff', t:0, d:.7, big:crit });
@@ -65,13 +67,13 @@ export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: 
   if (!e.boss && !e.elite && !BEH[e.beh].heavy) { const k = 110 * (opts.kb ?? 1); e.kx = Math.cos(a) * k; e.ky = Math.sin(a) * k; }   // kb = 擊退倍率（雙頭刀風車：只推一點點，不然一下就把怪推出圈外）
   if (opts.stun && !e.boss) e.stun = e.elite ? opts.stun * .4 : opts.stun;
   if (!e.boss && (e.state === 'idle' || e.state === 'return')) e.state = 'chase';
-  if (pl.ls > 0) pl.hp = Math.min(pl.maxHp, pl.hp + Math.min(v * pl.ls, pl.maxHp * .01) * (e.boss ? .5 : 1));   // 吸血：每一下最多回 1% 生命，打 Boss 減半
+  if (pl.ls > 0) pl.hp = Math.min(pl.maxHp, pl.hp + Math.min(v * pl.ls, pl.maxHp * .01) * (e.boss ? .5 : 1) * healMul(pl));   // 吸血：每一下最多回 1% 生命，打 Boss 減半
   hitSpark(e.x, e.y - 7, crit, a);
   if (opts.heavy) { G.hitStop = Math.max(G.hitStop, .055); shake(3, .1); }
   crit ? sfx.crit() : sfx.hit();
   if (crit) shake(2, .1);
   if (!opts.proc) onHit(pl, e, v, crit);                                // 刻印效果（出血、燃燒、寒霜、雷鳴…）
-  if (!opts.proc) sigHit(pl, e);                                         // 獨特武器的招牌（game/signatures.ts）
+  if (!opts.proc) sigHit(pl, e, crit);                                         // 獨特武器的招牌（game/signatures.ts）
   finish(pl, e);
 }
 function finish(pl: Player, e: Enemy) {                                  // 血量歸零 → 依種類走對應的死亡流程（只會走一次）
@@ -302,7 +304,7 @@ function rapierHit(pl: Player, len, mult, heavy) {
 export const CH1 = .45, CH2 = 1.1, CHC = ['#9a7cff', '#c8a0ff', '#ffd04a'];
 export function stopCharge(pl: Player) { pl.chargeArm = false; pl.charging = false; pl.charge = 0; pl.chargeLv = 0; pl.chargeHold = 0; }
 export function updateCharge(pl: Player, dt) {
-  pl.charge += dt * (1 + ((pl.tfx && pl.tfx.charge) || 0) / 100);        // 飾品：蓄力比較快
+  pl.charge += dt * (1 + ((pl.tfx && pl.tfx.charge) || 0) / 100);        // 飾品 + 力量：蓄力比較快
   const lv = pl.charge >= CH2 ? 2 : pl.charge >= CH1 ? 1 : 0;
   if (lv > pl.chargeLv) { pl.chargeLv = lv; sfx.charge(lv); if (lv === 2) shake(1.5, .1);
     G.fx.push({ k:'warp', x:pl.x, y:pl.y, r0:4, r1:lv === 2 ? 26 : 18, th:3, t:0, d:.3, col:CHC[lv] });
@@ -318,7 +320,7 @@ export function bowShot(pl: Player) {
 }
 export function releaseCharge(pl: Player, lv) {
   if (pl.st <= 0) return;
-  const type = pl.weapon.type, cols = wcols(pl, type), s = lv >= 2 ? 1.45 : 1;
+  const type = pl.weapon.type, cols = wcols(pl, type), s = lv >= 2 ? 1.45 * (1 + ((pl.tfx && pl.tfx.chargeDmg) || 0) / 100) : 1;   // 蓄滿：力量讓這一下更痛
   spendSt(pl, lv >= 2 ? 26 : 18); pl.atkCd = .35; pl.combo = 0; pl.comboT = 0; sfx.release(lv);
   if (lv >= 2) fullCharge(pl);                                           // 重擊流：蓄滿放出震波（game/builds.ts）
   switch (type) {
@@ -634,7 +636,7 @@ export function trySkill(pl: Player) {
 function trail(x0, y0, x1, y1) { for (let i = 0; i <= 10; i++) { const k = i / 10; G.parts.push({ x:x0 + (x1 - x0) * k, y:y0 - 6 + (y1 - y0) * k, vx:rr(-8, 8), vy:rr(-8, 8), life:.35, max:.35, col: i % 2 ? '#b49cff' : '#e8e2ff', s:2 }); } }
 export function tryDodge(pl: Player) {                                                // 瞬移：消失、極快地移動一小段、在落點閃現
   if (pl.dodge > 0 || pl.drink > 0 || pl.dash || pl.dead) return;
-  const C = ACLS[pl.acls] || ACLS.medium, cost = 20 + C.dodgeSt;        // 防具類型：輕甲省體力、閃得遠；重甲相反
+  const C = ACLS[pl.acls] || ACLS.medium, cost = Math.round((20 + C.dodgeSt) * (1 - ((pl.tfx && pl.tfx.dodgeSave) || 0) / 100));   // 敏捷：瞬移省體力        // 防具類型：輕甲省體力、閃得遠；重甲相反
   if (!canDodge(pl, cost)) return;                                       // 體力要付得起、閃完 0.32 秒內不能再閃（game/builds.ts）
   stopCharge(pl); spendSt(pl, cost); dodgeStarted(pl, cost); const m = Math.hypot(input.mx, input.my);
   const a = m > .2 ? Math.atan2(input.my, input.mx) : pl.face, sp = 520 * C.dodgeMul * (pl.ride ? WOLF_DASH : 1);   // 騎著星狼：往前撲，距離短一點
@@ -669,7 +671,8 @@ export function hurtPlayer(pl: Player, v, sx, sy, extra?: FX) {
   burst(pl.x, pl.y - 6, 8, '#d8434e', 60);
   if (C && C.fx) applyFx(pl, C.fx); if (extra) applyFx(pl, extra);
   if (T.thorns && C && C.src && !C.src.dead && C.src.hp > 0) {             // 反傷流：把一部分傷害還給打你的那隻（毒池、子彈也算是牠打的）
-    let r = Math.max(1, Math.round(v * T.thorns / 100)); if (C.src.boss) r = Math.min(r, C.src.hp - 1);   // Boss 不會被反傷打死（最後一下要自己砍：牠正在出招的程式還在跑）
+    let r = Math.max(1, Math.round(v * T.thorns / 100 * retalMul(pl)));   // 耐力：反擊更痛
+    if (C.src.boss) r = Math.min(r, C.src.hp - 1);   // Boss 不會被反傷打死（最後一下要自己砍：牠正在出招的程式還在跑）
     if (r > 0) rawHit(pl, C.src, r, '#c88aff');
     if (r > 0) G.nums.push({ x:C.src.x + rr(-3, 3), y:C.src.y - (C.src.boss ? 26 : 16), txt:String(r), col:'#c88aff', t:0, d:.6 }); }
   if (pl.hp <= 0) downPlayer(pl);

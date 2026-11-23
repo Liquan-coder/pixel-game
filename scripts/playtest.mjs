@@ -973,6 +973,21 @@ const pageScript = async () => {
     Object.assign(G.me, { weapon: keep.w, armor: keep.a, end: keep.end, str: keep.str }); recalc(G.me); G.me.st = G.me.maxSt;
   });
 
+  run('能力值的流派副效果：幸運 → 暴擊、體魄 → 回血、耐力 → 反擊、力量 → 蓄力、敏捷 → 瞬移體力、智識 → 刻印', () => {
+    const I = await0.items, keep = { w: G.me.weapon, a: ['vit', 'end', 'str', 'dex', 'int', 'luk'].map(k => G.me[k]) }; setMenu(null);
+    G.me.weapon = I.makeWeapon('dagger'); for (const k of ['vit', 'end', 'str', 'dex', 'int', 'luk']) G.me[k] = 5; recalc(G.me);
+    const c0 = G.me.crit, m0 = G.me.critMul, t0 = { ...G.me.tfx };
+    for (const k of ['vit', 'end', 'str', 'dex', 'int', 'luk']) G.me[k] = 40; recalc(G.me); const T = G.me.tfx;   // 40 點 = 遞減點數 14
+    const near = (a, b) => Math.abs(a - b) < .6;
+    if (G.me.crit - c0 !== 11) throw new Error('幸運 40 應該 +11% 暴擊率，現在 +' + (G.me.crit - c0));
+    if (Math.abs(G.me.critMul - m0 - .42) > .011) throw new Error('幸運 40 應該 +0.42 暴擊傷害，現在 +' + (G.me.critMul - m0).toFixed(2));
+    for (const [k, v, n] of [['heal', 21, '體魄 → 回血'], ['retal', 28, '耐力 → 反擊'], ['charge', 28, '力量 → 蓄力'], ['chargeDmg', 21, '力量 → 蓄滿一擊'], ['dodgeSave', 21, '敏捷 → 瞬移體力'], ['fxBuild', 21, '智識 → 刻印']])
+      if (!near(T[k] - (t0[k] || 0), v)) throw new Error(n + '：40 點應該 +' + v + '%，現在 +' + (T[k] - (t0[k] || 0)).toFixed(1));
+    { const dodgeCost = dex => { G.me.dex = dex; recalc(G.me); G.me.dodge = 0; G.me.drink = 0; G.me.dash = null; G.me.dodgeReady = 0; G.me.st = G.me.maxSt; const st0 = G.me.st; await0.cb.tryDodge(G.me); G.me.dodge = 0; G.me.dodgeReady = 0; return st0 - G.me.st; };
+      const c5 = dodgeCost(5), c40 = dodgeCost(40); if (!(c40 < c5 * .85)) throw new Error('敏捷 40 瞬移沒有省體力：' + c5 + ' → ' + c40); }   // 省 21%
+    G.me.weapon = keep.w; ['vit', 'end', 'str', 'dex', 'int', 'luk'].forEach((k, i) => G.me[k] = keep.a[i]); recalc(G.me);
+  });
+
   run('暴擊傷害：每種武器不一樣（短刀 ×2.4、戰鎚 ×1.6），保證暴擊至少 ×1.8', () => {
     const E = await0.enemies, I = await0.items; setMenu(null); G.enemies = []; const keep = G.me.weapon;
     const avg = (crit) => { G.me.crit = crit; const e = E.makeEnemy('skel', 1, G.me.x + 14, G.me.y, { alive: true, timer: 0 }); e.hp = e.maxHp = 1e9; e.stun = 99; e.dmg = 0; G.enemies = [e];
@@ -986,7 +1001,7 @@ const pageScript = async () => {
     G.me.weapon = keep; recalc(G.me);
   });
 
-  run('獨特武器的招牌：16 把各自的能力都會觸發', () => {
+  run('獨特武器的招牌：17 把各自的能力都會觸發', () => {
     const E = await0.enemies, C = await0.cb, I = await0.items, out = []; setMenu(null); G.enemies = [];
     { const camp = CAMPS.find(c => c.id === 'start'), open = (x, y) => [-60, -30, 0, 30, 60].every(dx => [-30, 0, 30].every(dy => !await0.coll.collides(x + dx, y + dy, G.me.r + 2)));
       let p = null; for (let r = 60; r < 500 && !p; r += 20) for (let a = 0; a < 6.28 && !p; a += .4) { const x = camp.x + Math.cos(a) * r, y = camp.y + Math.sin(a) * r; if (open(x, y)) p = [x, y]; }
@@ -1016,8 +1031,11 @@ const pageScript = async () => {
     use('darkmoon'); { const e = mk('skel', 50, 0); e.stun = 0; G.me.skillCd = 0; C.trySkill(G.me); step(40, { god: true }); ok('darkmoon', e.slowT > 0 || e.spd0 != null, '月光劍浪沒有留下冷月光'); }
     use('elfbow'); { mk('skel', 90, 0); let royal = false; for (let i = 0; i < 6; i++) { G.me.atkCd = 0; C.tryAttack(G.me); step(20, { god: true }); if (G.projs.some(p => p.royal)) royal = true; } ok('elfbow', royal, '第 6 箭沒有王之箭'); }
     use('elfrapier'); { const e = mk('skel', 20, 0); hitN(e, 4); const h = e.hp; G.me.crit = 0; const n0 = G.nums.length; hitN(e, 1); ok('elfrapier', G.nums.slice(n0).some(n => n.big) && h - e.hp > G.me.atkPow, '5 層月痕沒有爆發'); }
+    use('scorpfang'); { const e = mk('skel', 20, 0); G.me.crit = 100; for (let i = 0; i < 4; i++) { damageEnemy(G.me, e, .01, G.me.x, G.me.y); step(8, { god: true }); }   // 暴擊疊連鎖（最多 3 層），沒暴擊就歸零
+      ok('scorpfang', G.me.chain === 3, '連續暴擊沒有疊到 3 層連鎖：' + G.me.chain);
+      G.me.crit = -100; damageEnemy(G.me, e, .01, G.me.x, G.me.y); ok('scorpfang', !G.me.chain, '沒暴擊連鎖沒有歸零'); G.me.crit = 5; }
     use('elfblades'); { const e = mk('skel', 20, 0); let flew = false; for (let i = 0; i < 20 && !flew; i++) { G.me.flyT = 0; damageEnemy(G.me, e, .01, G.me.x, G.me.y); step(2); if (G.fx.some(f => f.k === 'sorb' && f.cols && f.cols[1] === '#f0f060')) flew = true; } ok('elfblades', flew, '沒有放出螢火蟲'); }
-    log.push('  招牌：' + [...new Set(out)].length + ' / 16');
+    log.push('  招牌：' + [...new Set(out)].length + ' / 17');
     G.me.weapon = keep; G.me.str = G.me.dex = G.me.int = 5; recalc(G.me); G.enemies = []; G.projs = []; G.me.sigShield = 0; G.me.hp = G.me.maxHp;
   });
 

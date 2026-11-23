@@ -134,6 +134,18 @@ const FLYC = ['#5a5a10', '#f0f060', '#ffffc8', '#ffffff'];                 // �
 function firefly(pl: Player, e: Enemy) { const n: Ent = { k: 'fly', pl, x: e.x + rr(-4, 4), y: e.y - 10, t: 0, vx: rr(-40, 40), vy: -rr(30, 60), ph: rr(0, 9) }; ents.push(n); orb(n, FLYC, 2.6, 4, 30); }
 
 /* ================= combat.ts 呼叫的 ================= */
+/* 蠍尾短刀「連鎖」：額外的暴擊率（combat.ts 的 calcDmg 加上去）。層數在 sigHit 更新 */
+export const CHAIN_K = 20, CHAIN_MAX = 3;
+export function sigCrit(pl: Player) { return uq(pl) === 'scorpfang' ? (pl.chain || 0) * CHAIN_K : 0; }
+function chainHit(pl: Player, e: Enemy, crit: boolean) {
+  if (G.time - (pl.chainT || 0) < .1) return;                            // 同一刀砍到好幾隻只算一次
+  pl.chainT = G.time;
+  if (!crit) { if (pl.chain > 0) parts(pl.x, pl.y - 26, 6, ['#6a3a3a', '#8a6a6a'], 30); pl.chain = 0; return; }   // 斷掉：頭上的蠍尾散掉
+  pl.chain = Math.min(CHAIN_MAX, (pl.chain || 0) + 1);
+  const C = ['#ff4a5a', '#ffd0d4', '#ffffff'];
+  ring(e.x, e.y - 6, 10 + pl.chain * 5, pl.chain === CHAIN_MAX ? '#ffd84a' : '#ff4a5a', .22); parts(e.x, e.y - 8, 4 + pl.chain * 4, C, 80 + pl.chain * 20);
+  if (pl.chain === CHAIN_MAX) sfx.charge(2);
+}
 /* 打中前：回傳要不要改成暴擊、傷害倍率 */
 export function sigPre(pl: Player, e: Enemy, proc: boolean) {
   const k = uq(pl), r = { crit: false, mul: 1 }; if (!k || proc) return r;
@@ -141,8 +153,9 @@ export function sigPre(pl: Player, e: Enemy, proc: boolean) {
   if (k === 'silktwin' && e.webT > G.time) r.mul *= 1.2;
   return r;
 }
-export function sigHit(pl: Player, e: Enemy) {
+export function sigHit(pl: Player, e: Enemy, crit = false) {
   const k = uq(pl); if (!k) return;
+  if (k === 'scorpfang') chainHit(pl, e, crit);
   if (k === 'wolfblade') { if (G.time - (pl.huntT || 0) > .1) { pl.huntT = G.time; pl.hunt = (pl.hunt || 0) + 1; }
     if (pl.hunt >= 5 && e.hp > 0) { pl.hunt = 0; wolfLeap(pl, e); } }
   else if (k === 'emberstaff') { if (G.time - (pl.emT || 0) > .35) { pl.emT = G.time; firePatch(pl, e.x, e.y); } }
@@ -192,6 +205,7 @@ export function sigTick(dt: number) {
   for (const pl of G.players) {
     const k = uq(pl);
     if (pl.sigShield > G.time) { if (Math.random() < dt * 30) { const a = rr(0, TAU); G.parts.push({ x: pl.x + Math.cos(a) * 11, y: pl.y - 8 + Math.sin(a) * 8, vx: -Math.sin(a) * 30, vy: Math.cos(a) * 20, life: .3, max: .3, col: pick(['#f2c14e', '#fff0a8']), star: rr(.6, 1.2) }); } }   // 護盾：身邊一圈金光
+    if (pl.chain > 0 && (k !== 'scorpfang' || G.time - (pl.chainT || 0) > 3)) pl.chain = 0;   // 連鎖：3 秒沒打到東西 / 換武器 → 歸零
     if (k === 'forgehammer' && pl.heat > 0) { if (G.time - (pl.heatHit || 0) > 3) pl.heat = Math.max(0, pl.heat - dt * 2);       // 3 秒沒打到東西就慢慢冷掉
       if (Math.random() < dt * pl.heat * 6) { const hx = pl.x + Math.cos(pl.face) * 10; G.parts.push({ x: hx + rr(-4, 4), y: pl.y - rr(6, 14), vx: rr(-6, 6), vy: -rr(20, 50), life: .4, max: .4, col: pl.heat >= 6 ? pick(['#ffffff', '#fff0a0']) : pick(['#ff6a2a', '#ffb040']), star: rr(.6, 1.5), drag: 1 }); } }   // 鎚子越熱冒越多火星，最熱時是白的
     if (k !== 'forgehammer') pl.heat = 0;

@@ -18,7 +18,8 @@ import { coinChip, hudIcon, openMenu, setMenu, soulChip, toast } from './hud';
 import { moveMerchant } from './shop';
 import { restockSmiths } from '../world/towns';
 import { save } from '../game/save';
-import { ATTRS, ATTR_BASE, ATTR_NAME, atkSplit, critGrade, critMulOf, grade, reqOf, scaleOf, unmet } from '../data/attrs';
+import { ATTRS, ATTR_BASE, ATTR_NAME, atkSplit, critGrade, critMulOf, grade, perks, reqOf, scaleOf, soft, unmet } from '../data/attrs';
+import type { AttrKey } from '../data/attrs';
 import { HERO, HERO_W } from '../art/hero';
 import { drawWeapon } from '../art/weapon';
 import { MARK_MAX, marks, navT, renderJournal, setNav } from '../game/quest';
@@ -41,6 +42,19 @@ function pendCost(extra = 0) {                                          // 分�
   return c;
 }
 const withPend = () => { const p = { ...G.me }; for (const a of ATTRS) p[a.k] += pend[a.k]; p.freePts = Math.max(0, p.freePts - pendN()); return p; };
+/* 升級畫面：每個能力值「現在給你什麼」直接寫數字（不用自己算）。攻擊只算現在拿的這把武器（不吃這個能力值就不寫） */
+function attrLine(p, k: AttrKey) {
+  const s = soft(p[k] ?? ATTR_BASE), P = perks(p), w = G.me.weapon, S = w ? scaleOf(w) : {}, pc = (v: number) => Math.round(v) + '%';
+  const atk = S[k] ? '攻擊 +' + Math.round(w.atk * S[k] * .06 * s) : '';
+  const L: Record<AttrKey, string[]> = {
+    vit: ['生命 +' + Math.round(22 * s), '回血 +' + pc(P.heal)],
+    end: ['體力 +' + Math.round(8 * s), '防禦 +' + Math.round(.5 * s), '反擊 +' + pc(P.retal)],
+    str: [atk, '蓄力 +' + pc(P.charge), '蓄滿一擊 +' + pc(P.chargeDmg)],
+    dex: [atk, '攻速 +' + pc(Math.min(15, .6 * s)), '瞬移體力 −' + pc(P.dodgeSave)],
+    int: [atk, '冷卻 −' + pc(Math.min(15, .6 * s)), '刻印 +' + pc(P.fxBuild)],
+    luk: ['暴擊率 +' + Math.round(P.crit * 10) / 10 + '%', '暴擊傷害 +' + pc(P.critDmg * 100), '掉素材 +' + pc(.8 * s)] };
+  return L[k].filter(Boolean).join('・');
+}
 function renderCamp() {
   $('campName').textContent = G.curCamp ? G.curCamp.name : '營火';
   for (const b of document.querySelectorAll<HTMLElement>('#campMenu .tabs button')) b.classList.toggle('on', b.dataset.tab === G.campTab);
@@ -51,13 +65,14 @@ function renderCamp() {
     const now = calcStats(after, curEq(G.me));
     const keepY = body.scrollTop;                                       // 重畫時記住捲到哪裡（按 ＋ 不會跳回最上面）
     const free = Math.max(0, G.me.freePts - pendN());
-    body.innerHTML = '<div class="lvgrid">' + ATTRS.map(a => '<div class="statrow' + (pend[a.k] ? ' pend' : '') + '"><div class="nm">' + a.n + '</div><small class="ds">' + a.d + '</small>' +   // 一格一行：名字、說明、－ 數字 ＋
+    body.innerHTML = '<div class="lvgrid">' + ATTRS.map(a => '<div class="statrow' + (pend[a.k] ? ' pend' : '') + '"><div class="nm">' + a.n + '</div><small class="ds">' + attrLine(after, a.k) + '</small>' +   // 一格一行：名字、說明、－ 數字 ＋
       '<button type="button" class="minus" data-dec="' + a.k + '"' + (pend[a.k] ? '' : ' disabled') + ' aria-label="減少' + a.n + '">−</button>' +
       '<div class="val">' + (G.me[a.k] + pend[a.k]) + (pend[a.k] ? '<small>+' + pend[a.k] + '</small>' : '') + '</div>' +
       '<button type="button" class="plus" data-stat="' + a.k + '"' + (canAdd ? '' : ' disabled') + ' aria-label="提升' + a.n + '">+</button></div>').join('') + '</div>';
     body.scrollTop = keepY;
     const n = pendN(), cost = pendCost(), base = calcStats(G.me, curEq(G.me)), d = [];
-    if (n) { if (now.maxHp !== base.maxHp) d.push('生命 +' + (now.maxHp - base.maxHp)); if (now.maxSt !== base.maxSt) d.push('體力 +' + (now.maxSt - base.maxSt)); if (now.atk !== base.atk) d.push('攻擊 +' + (now.atk - base.atk)); if (now.def !== base.def) d.push('防禦 +' + (now.def - base.def)); }
+    if (n) { if (now.maxHp !== base.maxHp) d.push('生命 +' + (now.maxHp - base.maxHp)); if (now.maxSt !== base.maxSt) d.push('體力 +' + (now.maxSt - base.maxSt)); if (now.atk !== base.atk) d.push('攻擊 +' + (now.atk - base.atk)); if (now.def !== base.def) d.push('防禦 +' + (now.def - base.def));
+      if (now.crit !== base.crit) d.push('暴擊率 +' + (now.crit - base.crit) + '%'); if (now.critMul !== base.critMul) d.push('暴擊傷害 +' + Math.round((now.critMul - base.critMul) * 100) + '%'); }
     // 底下三格大字：等級、魂晶（扣完剩多少）、升級需要 → 最重要的資訊放最顯眼，不用自己算
     const S = hudIcon('魂晶'), left = G.me.souls - cost, paid = Math.max(0, n - G.me.freePts), lv0 = level(G.me);   // 用重生水滴洗出來的免費點數不會升級
     const nx1 = nxtCost - cost, tile = (cls: string, lbl: string, val: string, sub = '') => '<div class="kt ' + cls + '"><small>' + lbl + '</small><b>' + val + (sub ? '<s>' + sub + '</s>' : '') + '</b></div>';

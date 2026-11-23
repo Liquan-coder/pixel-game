@@ -94,6 +94,7 @@ export function drawStatus(pl: Player) {
   // 累積圖示：頭上一個血滴（出血）/ 雪花（凍傷），從下往上變亮，亮到頂就發作。快滿時外框會閃
   const icons: [string, number, number?][] = []; if (S.bleed > 0) icons.push(['bleed', S.bleed / 100]); if (S.frost > 0) icons.push(['frost', S.frost / 100]);
   if (pl.rage > 0) icons.push(['rage', rageFrac(pl), 2]);              // 反傷流的怒氣
+  if (pl.chain > 0) icons.push(['chain', pl.chain / 3, 2]);            // 蠍尾短刀的連鎖（3 層滿）
   for (const k of ['poison', 'burn', 'slow', 'root', 'silence', 'blind'] as const) if (S[k] > 0) icons.push([k, Math.min(1, S[k] / ((S.mx && S.mx[k]) || S[k])), 2]);   // 持續型：還剩多少時間
   buildRow(icons, x, y - 29);
 }
@@ -107,6 +108,9 @@ export const BUILD: Record<string, { rows: string[]; lit: string; hi: string; da
   // 怒氣（反傷流，game/builds.ts）：漫畫的生氣符號（四個角的青筋），怒氣越多越滿
   rage: { lit: '#ff4a3a', hi: '#ffd0a0', dark: '#5a1a14', hx: 1, hy: 1, rows: [
     '.xx..xx.', 'xxx..xxx', 'xx....xx', '........', '........', 'xx....xx', 'xxx..xxx', '.xx..xx.'] },
+  // 連鎖（蠍尾短刀，game/signatures.ts）：彎起來的蠍尾 + 尾刺，層數越多越滿
+  chain: { lit: '#ff4a5a', hi: '#ffd0d4', dark: '#4a1418', hx: 5, hy: 0, rows: [
+    '..xxxx..', '.x....x.', '.xx...x.', '.x....x.', '.....xx.', '....xx..', '..xxx...', 'xxx.....'] },
   /* 持續型狀態（頭上的圖示，亮的部分 = 還剩多少時間）：暈眩、冰凍有自己的大特效（星星、冰晶），不另外畫 */
   poison: { lit: '#4a8a3a', hi: '#a8d08a', dark: '#1a3020', hx: 1, hy: 1, rows: [   // 骷髏（眼睛、鼻子、牙縫是黑的）
     '.xxxxx.', 'xxxxxxx', 'x.xxx.x', 'x.xxx.x', 'xxx.xxx', '.xxxxx.', '.x.x.x.'] },

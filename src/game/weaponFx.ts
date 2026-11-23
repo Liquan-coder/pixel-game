@@ -8,6 +8,7 @@ import type { Enemy, Item, Player } from '../types';
 import { UQ } from '../data/uniques';
 import { WT } from '../data/items';
 import { BUILD_DECAY, BUILD_HOLD } from '../data/ailments';
+import { healMul } from '../data/attrs';
 
 export const WFXD: Record<string, { n: string; c: string; d: string; pre: string }> = {
   bleed: { n: '出血', c: '#ff5a64', pre: '血棘', d: '連續命中會累積出血，滿了爆發「最大生命 15%」的傷害（Boss 5%）' },
@@ -67,7 +68,7 @@ function tickOrbs(dt: number) {
     o.x += o.vx * dt; o.y += o.vy * dt;
     G.parts.push({ x: o.x + rr(-1.5, 1.5), y: o.y + rr(-1.5, 1.5), vx: rr(-8, 8), vy: rr(-8, 8), life: rr(.25, .4), max: .4, col: pick(['#ff3a4a', '#c01020', '#ff9aa4', '#ffffff']), star: rr(.7, 1.6), drag: 2 });   // 拖著的尾巴
     if (d < 7 || o.t > 1.6 || pl.dead) { orbs.splice(i, 1); o.done = true; if (pl.dead) continue;
-      const h = Math.round(pl.maxHp * o.heal / 100); pl.hp = Math.min(pl.maxHp, pl.hp + h);                                             // 碰到主角才回血
+      const h = Math.round(pl.maxHp * o.heal / 100 * healMul(pl)); pl.hp = Math.min(pl.maxHp, pl.hp + h);                                             // 碰到主角才回血
       G.nums.push({ x: pl.x, y: pl.y - 28, txt: '+' + h, col: '#ff6a74', t: 0, d: .8, big: true });
       G.fx.push({ k: 'ring', x: pl.x, y: pl.y - 4, r0: 3, r1: 20, t: 0, d: .3, col: '#ff5a64' });
       for (let k = 0; k < 12; k++) { const a = rr(0, TAU); G.parts.push({ x: pl.x + Math.cos(a) * 9, y: pl.y - 10 + Math.sin(a) * 9, vx: -Math.cos(a) * 30, vy: -Math.sin(a) * 30 - 20, life: .4, max: .4, col: pick(['#ff5a64', '#ffc0c8']), star: rr(.8, 1.6), drag: 2 }); }
@@ -133,7 +134,7 @@ export function onKill(pl: Player, e: Enemy) {
   if (!pl) return 1;
   const T = pl.tfx || {}, soul = fxOf(pl.weapon) === 'soul', heal = (soul ? 4 : 0) + (T.killHeal || 0);   // 噬魂刻印 + 飾品「打倒敵人回血」
   if (soul) soulOrb(pl, e, heal);                                        // 噬魂：魂飛回來才回血（tickOrbs）
-  else if (heal) { const h = Math.round(pl.maxHp * heal / 100); pl.hp = Math.min(pl.maxHp, pl.hp + h);
+  else if (heal) { const h = Math.round(pl.maxHp * heal / 100 * healMul(pl)); pl.hp = Math.min(pl.maxHp, pl.hp + h);
     G.nums.push({ x: pl.x, y: pl.y - 28, txt: '+' + h, col: '#c8a8ff', t: 0, d: .7 }); }
   return (soul ? 1.25 : 1) * (1 + (T.souls || 0) / 100);                 // 魂晶倍率
 }
