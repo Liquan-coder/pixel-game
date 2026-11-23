@@ -381,12 +381,12 @@ const pageScript = async () => {
     const s0 = G.me.souls; sb().click(); if (G.me.inv.length !== 2) throw new Error('批量按一次就分解了（要再確認一次）');
     sb().click(); if (G.me.inv.length || !(G.me.souls > s0)) throw new Error('批量分解沒有生效：剩 ' + G.me.inv.length + ' 件');
     if (!sb().hidden) throw new Error('分解完右上角應該變回空的');
-    // 點身上的裝備：防具 / 飾品 → 右上角變「脫下」；武器 → 灰的「不能空手」
+    // 點身上的裝備：防具 / 飾品 → 右上角變「脫下」；武器 → 空的（不能空手）
     const arm = I.makeArmor('chain'); G.me.armor = arm; recalc(G.me); menus.renderInv();
     document.querySelector('#invMenu [data-eq="armor"]').click();
     if (sb().hidden || sb().textContent !== '脫下') throw new Error('點身上的防具，右上角沒有變「脫下」：' + sb().textContent);
     sb().click(); if (G.me.armor || !G.me.inv.includes(arm)) throw new Error('按「脫下」沒有把防具放回背包');
-    document.querySelector('#invMenu [data-eq="weapon"]').click(); if (sb().hidden || !sb().disabled || sb().textContent !== '不能空手') throw new Error('點武器應該是灰的「不能空手」：' + sb().textContent);
+    document.querySelector('#invMenu [data-eq="weapon"]').click(); if (!sb().hidden) throw new Error('點武器右上角應該是空的（不能空手，不用寫脫下）：' + sb().textContent);
     setMenu(null);
   });
 
