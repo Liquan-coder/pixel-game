@@ -538,6 +538,16 @@ const pageScript = async () => {
     log.push('  存檔大小 ' + before.length + ' bytes');
   });
 
+  run('存檔 → 讀檔：血量和藥水照存檔時的，不會免費回滿', () => {
+    G.me.dead = false; G.me.hp = Math.max(1, Math.floor(G.me.maxHp * .3)); G.me.pot = 0;
+    const want = Math.ceil(G.me.hp), s = JSON.parse(JSON.stringify(serialize()));
+    if (!s.pos) throw new Error('存檔沒有位置，這個測試要站在 Boss 區外面');
+    applySave(s);
+    if (G.me.hp !== want || G.me.pot !== 0) throw new Error('讀檔後血 ' + G.me.hp + '（應該 ' + want + '）藥水 ' + G.me.pot + '（應該 0）');
+    s.pos = null; applySave(s);                                          // 沒有位置（死掉 / 回營火）→ 補滿
+    if (G.me.hp !== G.me.maxHp || G.me.pot !== G.potMax) throw new Error('回營火應該補滿：' + G.me.hp + '/' + G.me.maxHp);
+  });
+
   run('舊存檔（v6）：舊的起始營火變成西丘營火（v8 整塊平原往南移 216 格）', () => {
     save(); const s = loadSave(); s.v = 6; s.lastCamp = 'start'; s.camps = ['start', 'dawn']; s.merchant = { camp: 'start', stock: [] };
     applySave(s); const W = CAMPS.find(c => c.id === 'west'), S0 = CAMPS.find(c => c.id === 'start');

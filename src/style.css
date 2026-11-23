@@ -409,7 +409,7 @@ body:not(.touch) #controls{display:none}
 .tog{min-width:64px;padding:7px 10px;background:var(--panel2);border:2px solid var(--line);color:var(--muted);font-size:14px}
 .tog.on{border-color:var(--gold);color:var(--gold);background:#3a2e1c}
 .seg{display:flex}.seg button{padding:7px 12px;background:var(--panel2);border:2px solid var(--line);color:var(--muted);font-size:14px;margin-left:-2px}.seg button.on{border-color:var(--gold);color:var(--gold);background:#3a2e1c;position:relative}
-.phelp p{margin:0;padding:7px 4px;border-bottom:1px solid #ffffff14;font-size:14px;line-height:1.5}.phelp b{display:inline-block;min-width:96px;color:var(--gold);font-weight:400;margin-right:8px}
+.phelp p{margin:0;padding:7px 4px;border-bottom:1px solid #ffffff14;font-size:14px;line-height:1.5;display:grid;grid-template-columns:7.5em 1fr;column-gap:8px;align-items:start}.phelp b{color:var(--gold);font-weight:400}   /* 兩欄：標題一欄、說明一欄，說明換行時對齊說明那一欄 */
 
 /* ---- 主線（碎片化）：左上角的傳聞、地圖進度；旅程裡的記憶碎片 ---- */
 #quest .qsrc{display:block;font-style:normal;font-size:11px;color:var(--muted);margin-top:1px}

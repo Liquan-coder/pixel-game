@@ -28,7 +28,7 @@ export function lastSlot() { try { const n = Number(localStorage.getItem(LAST_KE
 export function serialize() {
   return { v:14, at:Date.now(), mats:G.me.mats, vit:G.me.vit, str:G.me.str, end:G.me.end, dex:G.me.dex, int:G.me.int, luk:G.me.luk, souls:G.me.souls, gold:G.me.gold, tears:G.me.tears, freePts:G.me.freePts, inv:G.me.inv, weapon:G.me.weapon, armor:G.me.armor, trinkets:G.me.trinkets,
     merchant: merchant ? { camp:merchant.camp, stock:merchant.stock } : null, rbDead: [...rbDead], potMax: G.potMax, bossDead: G.bossDead,
-    camps: CAMPS.filter(c => c.lit).map(c => c.id), lastCamp: G.lastCamp, pos: lastPos(), lost: G.lost, uid: G.uid, map: packExplored(), mw: MW, chests: CHESTS.filter(c => c.opened).map(c => c.id), flags: [...flags], lore: [...loreRead], disc: [...discovered] };
+    camps: CAMPS.filter(c => c.lit).map(c => c.id), lastCamp: G.lastCamp, pos: lastPos(), hp: Math.ceil(G.me.hp), pot: G.me.pot, lost: G.lost, uid: G.uid, map: packExplored(), mw: MW, chests: CHESTS.filter(c => c.opened).map(c => c.id), flags: [...flags], lore: [...loreRead], disc: [...discovered] };
 }
 /* 最後站的位置：重開遊戲時回到這裡，不是回營火。死掉中 → 不記（會回營火）；在 Boss 區裡 → 記「最後一次站在 Boss 區外面」的地方 */
 function lastPos() { const p = G.me; if (p.dead) return null;
@@ -93,6 +93,8 @@ export function applySave(d) {
   if (d.merchant && CAMPS.some(c => c.id === d.merchant.camp && c.lit) && Array.isArray(d.merchant.stock) && d.v >= 6) placeMerchant(d.merchant.camp, d.merchant.stock);   // v6 以前的貨是舊武器 → 重新進貨
   else placeMerchant(d.merchant && CAMPS.some(c => c.id === d.merchant.camp && c.lit) ? d.merchant.camp : CAMPS.find(c => c.id === G.lastCamp && !c.dg) ? G.lastCamp : 'start');   // 商人不待在地城裡
   recalc(G.me); G.me.hp = G.me.maxHp; G.me.st = G.me.maxSt; G.me.pot = G.potMax;
+  /* 回到存檔時站的地方 → 血量和藥水也照存檔時的（不然關掉重開就等於免費回滿）。沒有位置 = 死掉 / 回營火，才補滿 */
+  if (d.pos && typeof d.hp === 'number') { G.me.hp = Math.max(1, Math.min(G.me.maxHp, d.hp)); if (typeof d.pot === 'number') G.me.pot = Math.max(0, Math.min(G.potMax, d.pot)); }
 }
 setInterval(() => { if (G.started && !G.me.dead) save(); }, 15000);
 document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
