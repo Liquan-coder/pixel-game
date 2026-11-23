@@ -7,7 +7,7 @@ import { drawWeapon } from '../art/weapon';
 import { ICON, WT } from '../data/items';
 import { CH1, CH2, CHC, restAng, wcols } from '../game/combat';
 import { fxOf } from '../game/weaponFx';
-import { asn, drawArrow, drawStar, drawWarp, fillArt } from './fx';
+import { asn, drawArrow, drawWoodArrow, drawStar, drawWarp, fillArt } from './fx';
 import { camDt } from '../main';
 import type { Player } from '../types';
 import { bodyGone, deathFx } from './pfx';
@@ -205,7 +205,7 @@ export function drawPlayer(pl: Player) {
   if (showW && !pl.dead) sealAura(pl, gx, gy, ang);
   if (showW && !pl.dead && pl.charging && (pl.weapon.type === 'bow' || pl.weapon.type === 'elfbow')) {   // 拉弓：箭搭在弦上朝前，蓄力越滿箭頭越亮
     const lv = pl.chargeLv, ax = gx + Math.cos(pl.face) * 11, ay = gy + Math.sin(pl.face) * 11, col = wcols(pl, pl.weapon.type);   // ax, ay = 箭頭（在弓的前面一點）
-    drawArrow(ax, ay, pl.face, 5 + lv * 1.5, col, false); drawStar(ax, ay, 1 + lv * 1.5 + Math.sin(G.time * 20) * .5, lv >= 2 ? '#ffd04a' : '#ffffff'); }
+    if (pl.weapon.type === 'bow') drawWoodArrow(ax, ay, pl.face, 9 + lv); else drawArrow(ax, ay, pl.face, 5 + lv * 1.5, col, false); drawStar(ax, ay, 1 + lv * 1.5 + Math.sin(G.time * 20) * .5, lv >= 2 ? '#ffd04a' : '#ffffff'); }   // 長弓搭的是木箭
   if (!pl.dead) skillParticles(pl, gx, gy, ang);
   if (msw && phase === 'S') { (pl.wHist = pl.wHist || []).push([gx, gy, ang]); if (pl.wHist.length > 3) pl.wHist.shift(); } else pl.wHist = null;
   ctx.globalAlpha = 1;

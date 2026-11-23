@@ -142,6 +142,14 @@ export function drawSpikes(f, k) {                                            //
     fillArt(ox - W, oy - H, ox + W, oy + 1, (x, y) => { const v = (oy - y) / H; if (v < 0 || v > 1) return 0; const hw = W * (1 - v); const dx = x - ox; if (Math.abs(dx) > hw) return 0; return dx < -hw * .3 ? 3 : dx < hw * .3 ? 2 : 1; }, f.cols || BONEC); }
 }
 export function drawOrb(x, y, r, cols) { fillArt(x - r, y - r, x + r, y + r, (px, py) => { const d = Math.hypot(px - x, py - y) / r; return d > 1 ? 0 : d > .68 ? 1 : d > .36 ? 2 : 3; }, cols); }
+// 長弓的木箭（一般的箭，不是精靈的光劍）：木桿 + 鐵箭頭 + 白羽毛。x, y = 箭頭
+export function drawWoodArrow(x, y, a, len) {
+  const c = Math.cos(a), s = Math.sin(a), tx = x - c * len, ty = y - s * len, px = -s, py = c;
+  artPath(); artLine(tx, ty, x - c * 2, y - s * 2, 2); ctx.fillStyle = '#2a1a0e'; ctx.fill();               // 桿子的深色外框
+  artPath(); artLine(tx, ty, x - c * 2, y - s * 2, 1); ctx.fillStyle = '#b07a3a'; ctx.fill();                // 木桿
+  artPath(); artLine(x - c * 3.5 + px * 1.6, y - s * 3.5 + py * 1.6, x, y, 1); artLine(x - c * 3.5 - px * 1.6, y - s * 3.5 - py * 1.6, x, y, 1); artLine(x - c * 3, y - s * 3, x, y, 2); ctx.fillStyle = '#c8ccd8'; ctx.fill();   // 鐵箭頭
+  artPath(); artLine(tx + c * 2.5 + px * 1.8, ty + s * 2.5 + py * 1.8, tx + c * .5, ty + s * .5, 1); artLine(tx + c * 2.5 - px * 1.8, ty + s * 2.5 - py * 1.8, tx + c * .5, ty + s * .5, 1); ctx.fillStyle = '#f4f0e8'; ctx.fill();   // 羽毛
+}
 // 箭：一律畫成綠色的魔法光劍（精靈弓手、長弓、精靈弓、箭雨都用這個），比木頭箭顯眼很多。x, y = 劍尖
 const ARROWC = ['#0f4a26', '#3fd86a', '#b8ffc8', '#f4fff6'];              // 外框深綠、劍身綠、亮綠、白色劍芯
 export function drawArrow(x, y, a, len, _cols, big) {

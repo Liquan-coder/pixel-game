@@ -32,6 +32,7 @@ export const UQ: Record<string, UniqueDef> = {
 for (const k in UQ) { UQ_REQ[k] = UQ[k].req; if (UQ[k].scale) UQ_SCALE[k] = UQ[k].scale; }
 /** 舊存檔的獨特武器只有名字 → 對回編號 */
 export const UQ_BY_NAME: Record<string, string> = Object.fromEntries(Object.entries(UQ).map(([k, u]) => [u.name, k]));
+UQ_BY_NAME['精靈王的長弓'] = 'elfbow';                                    // 改名前的舊名字（很舊的存檔只記名字）
 
 /* ================= 地底的獨特武器（地底遺跡最深處的金箱） ================= */
 Object.assign(UQ, {
@@ -53,7 +54,7 @@ Object.assign(UQ, {
 } as Record<string, UniqueDef>);
 /* ================= 精靈武器（精靈王國，world/elfland.ts）：三種都是自己的武器種類 ================= */
 Object.assign(UQ, {
-  elfbow: { type: 'elfbow', name: '精靈王的長弓', base: 16, aff: { crit: 8, speed: 8 }, req: { dex: 15, int: 10 },
+  elfbow: { type: 'elfbow', name: '精靈王的連發弓', base: 16, aff: { crit: 8, speed: 8 }, req: { dex: 15, int: 10 },
     lore: '弓弦是月光搓成的。精靈王說，他射出的每一支箭，都是一句沒說出口的道歉。', from: '精靈王國・精靈王城' },
   elfrapier: { type: 'elfrapier', name: '月泉細劍', base: 13, aff: { crit: 10, cdr: 10 }, req: { dex: 15, int: 8 },
     lore: '月泉湖心的島上插著這把劍。劍身映著的月亮，比天上的還要圓。', from: '精靈王國・月泉' },

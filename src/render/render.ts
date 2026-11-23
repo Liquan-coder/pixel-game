@@ -17,7 +17,7 @@ import { drawNum, drawPlayer, drawShadow, heroSlices } from './player';
 import { drawWolf } from '../art/starWolf';
 import { drawBlind, drawStatus } from '../game/status';
 import { SET } from '../ui/pause';
-import { artLine, artPath, asn, drawArrow, drawCrescent, drawLance, drawOrb, drawQuake, drawRibbon, drawRune, drawSmear, drawSpikes, drawStar, drawWarp, drawWaveP, fxCols } from './fx';
+import { artLine, artPath, asn, drawArrow, drawWoodArrow, drawCrescent, drawLance, drawOrb, drawQuake, drawRibbon, drawRune, drawSmear, drawSpikes, drawStar, drawWarp, drawWaveP, fxCols } from './fx';
 import { addLight, drawCamp, drawDrop, drawEnemy, drawTelegraph } from './enemy';
 import { rigOf } from '../art/bossRig';
 import { drawMerchant, merchant } from '../ui/shop';
@@ -125,8 +125,9 @@ export function render() {
     else if (p.kind === 'wave') { drawWaveP(p); addLight(L, p.x, p.y, 40, 3); }
     else if (p.kind === 'boom') { const a = G.time * 16; if (p.seek) { const g = ctx.globalAlpha; ctx.globalAlpha = .18 + .06 * Math.sin(G.time * 9); drawOrb(p.x, p.y, p.R * 1.05, p.cols ? [p.cols[0], p.cols[1], p.cols[2], p.cols[2]] : ['#2c3a8a', '#6a86e0', '#a8c4ff', '#d8e4ff']); ctx.globalAlpha = g; }   // 月牙：邊飛邊轉；月牙刀的外面一圈淡淡的月暈   // 月暈跟著刀光的顏色（沙王的月牙刀是沙色）
       drawWaveP({ x:p.x, y:p.y, vx:Math.cos(a), vy:Math.sin(a), R:p.R, th:p.th, half:p.half, cols:p.cols }); addLight(L, p.x, p.y, p.seek ? 60 : 36, p.seek ? 5 : 3); }
+    else if (p.kind === 'arrow' && p.wood) drawWoodArrow(p.x, p.y, Math.atan2(p.vy, p.vx), p.big ? 13 : 10);   // 長弓：一般的木箭
     else if (p.kind === 'arrow') { drawArrow(p.x, p.y, Math.atan2(p.vy, p.vx), p.big ? 16 : 11, p.cols, p.big); addLight(L, p.x, p.y, p.big ? 34 : 24, 6); }   // 綠光（箭都是綠色魔法劍）
-    else if (p.kind === 'rain') { const q = p.life / .14; if (q < 1) drawArrow(p.x, p.y - q * 70, Math.PI / 2, 11, p.cols, false); }   // 箭雨：最後 0.14 秒從天上掉下來
+    else if (p.kind === 'rain') { const q = p.life / .14; if (q < 1) { if (p.wood) drawWoodArrow(p.x, p.y - q * 70, Math.PI / 2, 10); else drawArrow(p.x, p.y - q * 70, Math.PI / 2, 11, p.cols, false); } }   // 箭雨：最後 0.14 秒從天上掉下來
     else if (p.kind === 'claw') { drawWaveP(p); addLight(L, p.x, p.y, 34, 1); }
     else if (p.kind === 'ember') { drawOrb(p.x, p.y, 4.5, p.cols || FIREC); addLight(L, p.x, p.y, 30, 1); }
     else if (p.kind === 'snowball') { ctx.globalAlpha = .3; ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(p.x, p.y + p.r + 3, p.r, p.r * .35, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;   // 會反彈的大雪球（雪原巨人）
@@ -158,15 +159,15 @@ export function render() {
     else if (f.k === 'cres') drawCrescent(f, k);
     else if (f.k === 'sorb') { if (f.o.done) { f.t = f.d; continue; } const o = f.o, p = 1 + .15 * Math.sin(G.time * 20);   // 噬魂的魂（game/weaponFx.ts）：紅色光球（紫色會跟魂晶搞混）
       ctx.globalAlpha = 1; drawOrb(o.x, o.y, (f.r || 4) * p, f.cols || ['#4a0a14', '#e0283a', '#ff9aa4', '#ffffff']); addLight(L, o.x, o.y, f.lr || 40, f.lw || 1); }   // 也用來畫燈魂、螢火蟲（game/signatures.ts：cols / r / 光的顏色）
-    else if (f.k === 'sstorm') { const o = f.o; if (o.done) { f.t = f.d; continue; }   // 沙王的月牙刀的沙暴（game/signatures.ts）：地上一圈影子 + 四條從地面往上捲、越高越寬的沙臂
+    else if (f.k === 'sstorm') { const o = f.o; if (o.done) { f.t = f.d; continue; }   // 沙王的月牙刀的沙暴（game/signatures.ts）：地上的影子 + 漏斗形沙柱 + 一團團繞著轉的沙塵雲
       const q = Math.min(1, o.age / .2, o.t / .3), H = 42, W0 = 7, W1 = 30;  // 漏斗：底部半寬 W0、頂部半寬 W1、高 H
       ctx.globalAlpha = .25 * q; ctx.fillStyle = '#8a6a3a'; ctx.beginPath(); ctx.ellipse(o.x, o.y, 38, 14, 0, 0, TAU); ctx.fill();   // 地上的影子
-      ctx.globalAlpha = .35 * q; ctx.fillStyle = '#c8a060'; ctx.beginPath(); ctx.moveTo(o.x - W0, o.y); ctx.lineTo(o.x - W1, o.y - H); ctx.lineTo(o.x + W1, o.y - H); ctx.lineTo(o.x + W0, o.y); ctx.closePath(); ctx.fill();   // 半透明的沙柱
-      const band = (k: number, w: number) => { artPath(); let px = 0, py = 0;   // 繞著漏斗轉的一條沙帶（只畫轉到前面的那半圈）
-        for (let s = 0; s <= 12; s++) { const u = s / 12, h = ((k / 6 + G.time * 1.6) % 1) * H * .25 + u * H * .75, rr0 = W0 + (W1 - W0) * h / H, a = G.time * 9 + k * TAU / 6 + u * 1.7;
-          const x = o.x + Math.cos(a) * rr0, y = o.y - h + Math.sin(a) * rr0 * .25; if (s && Math.sin(a) > -.3) artLine(px, py, x, y, (6 - u * 2.5) * w); px = x; py = y; }
-        ctx.fill(); };
-      for (let k = 0; k < 6; k++) { ctx.globalAlpha = .75 * q; ctx.fillStyle = '#5a3a18'; band(k, 1.5); ctx.globalAlpha = .95 * q; ctx.fillStyle = k % 2 ? '#fff0c0' : '#d8b870'; band(k, 1); }
+      ctx.globalAlpha = .28 * q; ctx.fillStyle = '#c8a060'; ctx.beginPath(); ctx.moveTo(o.x - W0, o.y); ctx.lineTo(o.x - W1, o.y - H); ctx.lineTo(o.x + W1, o.y - H); ctx.lineTo(o.x + W0, o.y); ctx.closePath(); ctx.fill();   // 半透明的沙柱
+      const hash = (n: number) => { const v = Math.sin(n * 12.9898) * 43758.5453; return v - Math.floor(v); };   // 每團固定的亂數（不會每幀亂跳）
+      for (let k = 0; k < 36; k++) {                                     // 一團團旋轉的沙塵雲：各自從不同角度、不同高度出發，慢慢往上飄，越高轉得越大圈
+        const u = (hash(k) + G.time * (.45 + hash(k + 50) * .3)) % 1, h = u * H, rad = (W0 + (W1 - W0) * u) * (.75 + hash(k + 90) * .35), a = G.time * (6 - u * 2) + hash(k + 20) * TAU, front = Math.sin(a);
+        const x = o.x + Math.cos(a) * rad, y = o.y - h + front * rad * .25, r = 2.5 + u * 3;
+        ctx.globalAlpha = q * (front > -.2 ? .9 : .4) * Math.min(1, (1 - u) * 4); drawOrb(x, y, r, k % 3 ? ['#6a4a20', '#b89050', '#d8b870', '#f0e0a8'] : ['#6a4a20', '#d8b870', '#f0e0a8', '#fff8e0']); }
       addLight(L, o.x, o.y - 14, 60 * q, 4); }
     else if (f.k === 'wghost') { const sp = SPR[f.kind]; if (sp && sp.wn) { const w = sp.w, h = sp.h; ctx.globalAlpha = .5 * (1 - k); ctx.drawImage(f.flip ? sp.wf : sp.wn, snapF(f.x - w / 2), snapF(f.y + 2 - h), w, h); } }   // 白色半透明的殘影（狼牙雙刃的狼影）
     else if (f.k === 'zap') { const fl = Math.floor(G.time * 30) % 2 ? 1 : .8, th = f.thin ? .55 : 1;   // 閃電（game/weaponFx.ts 的雷鳴）：淡黃光暈 + 黃 + 白芯，一閃一閃；f.br = 分岔

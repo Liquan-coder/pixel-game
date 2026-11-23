@@ -83,10 +83,13 @@ const pageScript = async () => {
       for (let k = 0; k < 90; k++) { step(1, { god: true }); for (const p of G.projs) if (p.owner === 'p' && !seen.has(p)) { seen.add(p); shots++; } if (G.me.charging) throw new Error('連發弓按住開始蓄力了'); }
       held.atk = false; step(20, { god: true }); if (shots < 4) throw new Error('連發弓按住 1.5 秒只射了 ' + shots + ' 支'); return;
     }
-    if (type === 'bow') {                                             // 蓄力弓：點一下也要拉弓（自動拉到 0.3 秒才射），不能連點
-      step(30); G.me.atkCd = 0; const seen = new Set(G.projs); let shots = 0;
-      for (let k = 0; k < 60; k++) { if (k % 4 === 0) { pressed.atk = true; held.atk = true; } else held.atk = false; step(1, { god: true }); for (const p of G.projs) if (p.owner === 'p' && !seen.has(p)) { seen.add(p); shots++; } }
-      held.atk = false; step(20, { god: true }); if (shots < 1) throw new Error('蓄力弓點一下沒有射箭'); if (shots > 3) throw new Error('蓄力弓連點 1 秒射了 ' + shots + ' 支（應該要拉弓）');
+    if (type === 'bow') {                                             // 蓄力弓：一直點射不出去；按住 0.45 秒以上放開才射，箭是一般的木箭
+      step(30); G.me.atkCd = 0; const seen = new Set(G.projs); let shots = 0; const count = () => { for (const p of G.projs) if (p.owner === 'p' && !seen.has(p)) { seen.add(p); shots++; } };
+      for (let k = 0; k < 60; k++) { if (k % 4 === 0) { pressed.atk = true; held.atk = true; } else held.atk = false; step(1, { god: true }); count(); }
+      held.atk = false; step(20, { god: true }); count(); if (shots > 0) throw new Error('蓄力弓一直點還是射出 ' + shots + ' 支（應該要按住拉弓）');
+      G.me.atkCd = 0; pressed.atk = true; held.atk = true; step(36, { god: true }); held.atk = false; step(3, { god: true }); count();
+      if (shots !== 1) throw new Error('蓄力弓按住 0.6 秒放開，射了 ' + shots + ' 支（應該 1 支）');
+      if (![...seen].some(p => p.owner === 'p' && p.wood)) throw new Error('長弓的箭不是木箭');
     }
     step(30); G.me.st = 60; G.me.atkCd = 0; pressed.atk = true; held.atk = true; step(10);       // 按住攻擊：不揮刀，直接開始蓄力
     if (G.me.swing || G.me.atkCd > 0) throw new Error('按住攻擊還是先揮了一刀');
@@ -739,12 +742,13 @@ const pageScript = async () => {
     step(15); if (!(G.me.st < st1)) throw new Error('後搖中按的瞬移，時間到沒有自動閃');
     step(30);
     // 完美閃避：瞬移後 0.2 秒內被打 → 沒受傷、體力退回、下一擊必定暴擊
-    G.me.st = G.me.maxSt; G.me.iframe = 0; C.tryDodge(G.me); const st2 = G.me.st, hp2 = G.me.hp; G.hitCtx = e.hc; hurtPlayer(G.me, 10, e.x, e.y); G.hitCtx = null;
+    G.me.st = G.me.maxSt; G.me.iframe = 0; G.me.dodgeReady = 0; G.me.drink = 0; G.me.dash = null; C.tryDodge(G.me); const st2 = G.me.st, hp2 = G.me.hp; G.hitCtx = e.hc; hurtPlayer(G.me, 10, e.x, e.y); G.hitCtx = null;
     if (G.me.hp !== hp2 || G.me.st <= st2 || !(G.me.critNext > G.time)) throw new Error('完美閃避沒有觸發');
     G.me.crit = 0; const n0 = G.nums.length; damageEnemy(G.me, e, 1, G.me.x, G.me.y); if (!G.nums.slice(n0).some(n => n.big) || G.me.critNext) throw new Error('完美閃避後的下一擊沒有暴擊');
     step(40, { god: true });
     // 殘影之紗：完美閃避 → 0.5 秒後原地爆炸
-    G.me.tfx = { afterimage: 150 }; G.me.st = G.me.maxSt; G.me.iframe = 0; G.me.x = e.x - 20; C.tryDodge(G.me); G.hitCtx = e.hc; hurtPlayer(G.me, 10, e.x, e.y); G.hitCtx = null;
+    G.me.tfx = { afterimage: 150 }; G.me.st = G.me.maxSt; G.me.iframe = 0; G.me.x = e.x - 20; G.me.y = e.y; G.me.face = Math.PI; input.mx = input.my = 0; G.me.dodgeReady = 0; G.me.drink = 0; G.me.dash = null; G.me.ride = false; G.slowT = 0; C.tryDodge(G.me);   // 清掉會擋住瞬移的狀態（前面的測試可能留下）
+    if (!(G.me.dodge > 0)) throw new Error('殘影之紗：瞬移沒有出去'); G.hitCtx = e.hc; hurtPlayer(G.me, 10, e.x, e.y); G.hitCtx = null;
     const h3 = e.hp; step(40, { god: true }); if (!(e.hp < h3)) throw new Error('殘影之紗：殘影沒有爆炸');
     // 怒棘之心：被打中存怒氣 → 下一擊多打
     G.me.tfx = { rage: 150 }; G.me.iframe = 0; G.me.hp = G.me.maxHp; G.hitCtx = e.hc; hurtPlayer(G.me, 40, e.x, e.y); G.hitCtx = null;

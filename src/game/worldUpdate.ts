@@ -46,7 +46,7 @@ function updateProjectiles(dt) {
     if (p.kind === 'ember' && Math.random() < .7) G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:-p.vx * .1, vy:-p.vy * .1 - 10, life:.35, max:.35, col:pick(p.cols ? [p.cols[1], p.cols[2]] : ['#ffb040', '#ff6a2a']), s:1 });
     if (p.kind === 'glob' && Math.random() < .5) G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:0, vy:10, life:.4, max:.4, col:p.cols ? p.cols[1] : '#4fbf5a', s:1, g:60 });
     if (p.kind === 'claw' && Math.random() < .7) G.parts.push({ x:p.x + rr(-3, 3), y:p.y + rr(-3, 3), vx:-p.vx * .1, vy:-p.vy * .1, life:.3, max:.3, col:pick(p.cols ? [p.cols[1], '#ffffff'] : ['#ff5a5a', '#ffd0d0']), star:rr(.6, 1.6), drag:3 });
-    if ((p.kind === 'bolt' && Math.random() < .6) || p.kind === 'orb' || ((p.kind === 'wave' || p.kind === 'boom') && Math.random() < .8) || (p.kind === 'arrow' && Math.random() < .8))
+    if ((p.kind === 'bolt' && Math.random() < .6) || p.kind === 'orb' || ((p.kind === 'wave' || p.kind === 'boom') && Math.random() < .8) || (p.kind === 'arrow' && !p.wood && Math.random() < .8))   // 木箭（長弓）不拖綠光
       G.parts.push({ x:p.x + rr(-2, 2), y:p.y + rr(-2, 2), vx:-p.vx * .1 + rr(-15, 15), vy:-p.vy * .1 + rr(-15, 15), life:rr(.2, .4), max:.4, col:pick(p.kind === 'arrow' ? ['#3fd86a', '#b8ffc8', '#ffffff'] : (p.kind === 'wave' || p.kind === 'boom') && p.cols ? [p.cols[1], '#ffffff'] : STARC), star:rr(.6, p.kind === 'orb' ? 2.4 : 1.6), drag:3 });
     projTrail(p);                                                      // Boss 專屬子彈的拖尾（world/bossThemes.ts）
     if (p.kind === 'spore' && Math.random() < .3) G.parts.push({ x:p.x, y:p.y, vx:0, vy:-5, life:.4, max:.4, col:'#c46ad8', s:1 });
@@ -85,7 +85,7 @@ function projMult(p, e) {
 function boomMotion(p, dt) {
   p.age = (p.age || 0) + dt;
   if (p.age < p.ret) {                                                  // 去程：附近有還沒砍到的敵人 → 轉過去追（月牙刀）；沒有 → 慢慢減速
-    let tg = null, bd = 130; const cur0 = Math.atan2(p.vy, p.vx);
+    let tg = null, bd = 100; const cur0 = Math.atan2(p.vy, p.vx);
     if (p.seek) for (const e of targets(p.by)) { if (e.hp <= 0 || p.hit.has(e) || e.obj) continue;      // 只追前方 70 度以內、還沒被別的月牙盯上的（三道月牙才會分頭砍）
       if (e.moonBy && e.moonBy !== p && G.projs.includes(e.moonBy) && !e.moonBy.back && !e.moonBy.hit.has(e)) continue;
       const d = Math.hypot(e.x - p.x, e.y - 7 - p.y), da = Math.atan2(e.y - 7 - p.y, e.x - p.x) - cur0; if (d > 20 && Math.abs(Math.atan2(Math.sin(da), Math.cos(da))) > 1.22) continue;

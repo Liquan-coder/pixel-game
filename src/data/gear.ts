@@ -21,7 +21,7 @@ export const EFF: Record<string, (v: number) => string> = {
   dodgeAtk: v => '瞬移後 1.5 秒內，下一擊傷害 +' + v + '%',
   killHeal: v => '打倒敵人時回復 ' + v + '% 生命',
   charge: v => '蓄力速度 +' + v + '%',
-  fxBuild: v => '刻印效果（出血、凍傷、雷鳴的累積，燃燒機率）+' + v + '%',
+  fxBuild: v => '刻印效果（出血、凍傷的累積、燃燒機率，雷鳴的冷卻更短）+' + v + '%',
   lowHp: v => '生命低於 35% 時，攻擊力 +' + v + '%',
   potion: v => '藥水多回 ' + v + '% 生命',
   souls: v => '得到的魂晶 +' + v + '%',

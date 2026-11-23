@@ -114,7 +114,7 @@ export const WFX = {                                                         // 
   sword: ['#4a6ae0', '#a8c0ff', '#ffffff'], dagger: ['#7a4ae0', '#d0b8ff', '#ffffff'], axe: ['#c8401e', '#ffb040', '#fff6d0'],
   spear: ['#2a8a9a', '#9af0ff', '#ffffff'], staff: ['#6a4ad0', '#b49cff', '#ffffff'], wolfblade: ['#3a2470', '#9a6cff', '#f0e0ff'],
   katana: ['#a8203a', '#ff8aa0', '#ffffff'], hammer: ['#8a5a1a', '#f2c14e', '#fff6d0'], scythe: ['#1e5a46', '#6ae0b0', '#e0fff0'],
-  bow: ['#3e7a2a', '#b8e07a', '#ffffff'], greatsword: ['#5a6a8a', '#c8d4ec', '#ffffff'], rapier: ['#c03070', '#ff9ad0', '#ffffff'],
+  bow: ['#6a4a2a', '#d8c8a0', '#ffffff'], greatsword: ['#5a6a8a', '#c8d4ec', '#ffffff'], rapier: ['#c03070', '#ff9ad0', '#ffffff'],
   crescent: ['#2c3a8a', '#a8c4ff', '#f4f8ff'], twinblade: ['#2a6ac0', '#8ad0ff', '#ffffff'], darkmoon: ['#2a2a8a', '#8aa0ff', '#e8f0ff'],
   elfbow: ['#1e7a5a', '#9ae0b4', '#ffffff'], elfrapier: ['#1e7a6a', '#a8f0e0', '#ffffff'], elfblades: ['#2a8a4a', '#b8f0a0', '#ffffff'] };   // 精靈武器：葉綠色
 const MOONC = ['#23206e', '#8aa0ff', '#eef4ff'];                         // 暗月大劍的月光（不管有沒有刻印都是這個顏色）
@@ -235,7 +235,7 @@ export function tryAttack(pl: Player) {
         if (n && pl.axeN >= 3) { shake(2, .08); for (let i = 0; i < 10; i++) { const a = pl.face + rr(-1.4, 1.4), v = rr(60, 150);   // 滿層：斧刃冒火
           G.parts.push({ x:pl.x + Math.cos(a) * 16, y:pl.y - 8 + Math.sin(a) * 10, vx:Math.cos(a) * v, vy:Math.sin(a) * v - 30, life:rr(.25, .45), max:.45, col:pick(['#ff6a2a', '#ffb040', '#fff0a0']), star:rr(1, 2), drag:5 }); } } }
       if (type === 'twinblade') meleeHit(pl, R - 4, 100, .6, undefined, pl.face + Math.PI);   // 背後的敵人吃 60%
-      if (type === 'crescent' && fin) throwBoom(pl, pl.face, .6, 22, cols, .5);                  // 月牙刀第三下：把刀氣丟出去，會飛回來
+      if (type === 'crescent' && fin) throwBoom(pl, pl.face, .6, 17, cols, .3);                  // 月牙刀第三下：把刀氣丟出去，會飛回來
       if (type === 'greatsword' && fin) crackLine(pl, pl.face, 64, 9, .8, { stun:.4 });       // 大劍第三下：砸地，往前裂一小段
       if (type === 'darkmoon') {                                       // 暗月：打中存一層月光（最多 3），第三下把月光全部放成劍氣
         if (!fin && n) { pl.moonN = Math.min(3, (pl.moonN || 0) + 1);
@@ -258,7 +258,7 @@ export function tryAttack(pl: Player) {
 function shootArrow(pl: Player, a, mult, pierce, cols, spd = 420, big = false) {   // 長弓的箭（飛行距離越遠越痛：worldUpdate.ts 的 projMult）
   const x = pl.x + Math.cos(a) * 10, y = pl.y - 7 + Math.sin(a) * 10;
   G.projs.push({ x, y, x0:x, y0:y, vx:Math.cos(a) * spd, vy:Math.sin(a) * spd, r:big ? 5 : 3, life:210 / spd + (big ? .1 : 0), mult, owner:'p', by:pl, kind:'arrow', far:true,
-    pierce, hit:pierce ? new Set() : undefined, light:!big, cols, big });
+    pierce, hit:pierce ? new Set() : undefined, light:!big, cols, big, wood:pl.weapon.type === 'bow' });   // wood：長弓射的是一般的木箭
 }
 const LEAFC = ['#1e6a4a', '#9ae0b4', '#f0fff4'];                         // 精靈武器的葉刃 / 葉子
 function leafWave(pl: Player, a, mult, R, spd = 300, life = .32) {             // 精靈細劍的葉刃（穿透，飛一小段）
@@ -305,11 +305,11 @@ export function updateCharge(pl: Player, dt) {
   if (Math.random() < .55 + lv * .3) { const a = rr(0, TAU), R = rr(18, 28);                      // 往身上聚集的星光
     G.parts.push({ x:pl.x + Math.cos(a) * R, y:pl.y - 8 + Math.sin(a) * R * .7, vx:-Math.cos(a) * R * 3.2, vy:-Math.sin(a) * R * 2.2, life:.3, max:.3, col:lv === 2 ? '#ffd04a' : pick(STARC), star:rr(.6, 1.6) }); }
 }
-/* 蓄力弓（長弓）放開時還沒蓄到第一段：射一支一般的箭（game/playerUpdate.ts）。至少要拉 BOW_MIN 秒 */
-export const BOW_MIN = .3;
+/* 蓄力弓（長弓）放開時還沒蓄到第一段：射一支一般的箭（game/playerUpdate.ts）。至少要拉 BOW_MIN 秒，太早放開不會射 */
+export const BOW_MIN = .45;
 export function bowShot(pl: Player) {
-  autoFace(pl, 230); pl.swing = { t:0, d:.22, ranged:true, ty:'bow' }; pl.atkCd = .15;
-  shootArrow(pl, pl.face, 1, false, wcols(pl, 'bow')); sfx.swing();
+  autoFace(pl, 230); pl.swing = { t:0, d:.22, ranged:true, ty:'bow' }; pl.atkCd = .35;   // 拉 0.45 秒 + 冷卻 0.35 秒 ≈ 每 0.8 秒一箭，所以每箭 160%（跟以前每 0.5 秒 100% 差不多）
+  shootArrow(pl, pl.face, 1.6, false, wcols(pl, 'bow')); sfx.swing();
 }
 export function releaseCharge(pl: Player, lv) {
   if (pl.st <= 0) return;
@@ -427,7 +427,7 @@ export function releaseCharge(pl: Player, lv) {
     case 'crescent': {                                                // 月蝕：丟出一道大月牙（滿蓄力：前後各一道）
       autoFace(pl, 160); const a = pl.face; pl.spin = .3;
       smearFx(pl, a - Math.PI, a + Math.PI, 32, 11, .18, cols, .14);
-      for (const da of lv >= 2 ? [0, Math.PI] : [0]) throwBoom(pl, a + da, 2 * s, 30, cols, .65, 360);
+      for (const da of lv >= 2 ? [0, Math.PI] : [0]) throwBoom(pl, a + da, 2 * s, 24, cols, .4, 360);
       sfx.swing(); shake(3, .12); break; }
     case 'twinblade': {                                               // 雙月突進：轉著刀往前衝，路上的都被捲進去，衝完再轉一圈
       autoFace(pl, 130); const a = pl.face, L = lv >= 2 ? 90 : 60, x0 = pl.x, y0 = pl.y, T = .18;
@@ -571,10 +571,10 @@ export function trySkill(pl: Player) {
       const t = nearestTarget(pl, 200); autoFace(pl, 200);
       const cx = t ? t.x : pl.x + Math.cos(pl.face) * 90, cy = t ? t.y : pl.y + Math.sin(pl.face) * 90;
       pl.swing = { t:0, d:.25, ranged:true, ty:'bow' }; pl.skillLock = .25;
-      G.fx.push({ k:'warp', x:cx, y:cy, r0:34, r1:30, th:2, t:0, d:.9, col:wc[1] });              // 落點的圈
+      G.fx.push({ k:'warp', x:cx, y:cy, r0:52, r1:48, th:2, t:0, d:.9, col:wc[1] });              // 落點的圈
       for (let i = 0; i < 6; i++) G.parts.push({ x:pl.x + rr(-3, 3), y:pl.y - 12, vx:rr(-20, 20), vy:-rr(220, 300), life:.25, max:.25, col:pick([wc[1], '#ffffff']), star:rr(1, 2), drag:1 });   // 往天上射的箭光
-      for (let i = 0; i < 10; i++) { const ra = rr(0, TAU), rd = Math.sqrt(Math.random()) * 32;
-        G.projs.push({ x:cx + Math.cos(ra) * rd, y:cy + Math.sin(ra) * rd * .8, vx:0, vy:0, r:0, life:.35 + i * .05, max:.35 + i * .05, mult:1.1, owner:'p', by:pl, kind:'rain', cols:wc }); }
+      for (let i = 0; i < 16; i++) { const ra = rr(0, TAU), rd = Math.sqrt(Math.random()) * 50;   // 16 支、半徑 50（以前 10 支、32）
+        G.projs.push({ x:cx + Math.cos(ra) * rd, y:cy + Math.sin(ra) * rd * .8, vx:0, vy:0, r:0, life:.35 + i * .035, max:.35 + i * .035, mult:1.1, owner:'p', by:pl, kind:'rain', cols:wc, wood:pl.weapon.type === 'bow' }); }
       sfx.fire(); break; }
     case 'leafvolley': {                                              // 千葉齊射：往前方扇形連射十二支葉箭（穿透）
       autoFace(pl, 220); pl.skillLock = .5; const a0 = pl.face;
@@ -608,7 +608,7 @@ export function trySkill(pl: Player) {
       break;
     case 'moonring': {                                                // 月輪迴旋：丟出三道月牙，飛出去再飛回來
       autoFace(pl, 160); pl.skillLock = .25; pl.spin = .3; const a = pl.face;
-      for (const da of [-.5, 0, .5]) throwBoom(pl, a + da, 1.5, 22, wc, .6, 320);
+      for (const da of [-.5, 0, .5]) throwBoom(pl, a + da, 1.5, 17, wc, .38, 320);
       sfx.swing(); shake(2, .1); break; }
     case 'bladewheel':                                                // 旋刃風車：1.5 秒內一直轉，可以走動（不鎖移動），期間不能普攻
       pl.wheelT = G.time + 1.5;
