@@ -32,7 +32,7 @@ export function resetQuest() { flags.clear(); loreRead.clear(); coresBefore = nu
 let hudKey = '', coresBefore: Set<string> | null = null;
 export function updateQuest() {
   if (!G.started) return;
-  updateStatues(id => rbDead.has(id));                                   // 地圖殘頁、一開始亮的平原（world/statues.ts）
+  updateStatues();                                                       // 一開始亮的平原（world/statues.ts）
   const got = new Set(CORES.filter(c => c.done(qc)).map(c => c.id));
   if (coresBefore) for (const c of CORES) if (got.has(c.id) && !coresBefore.has(c.id)) {   // 剛拿到一顆星核：記憶碎片收進旅程
     loreRead.add('mem:' + c.id); toast('取回' + c.name + '（' + cores() + '/' + CORE_N + '）', '#ffe38a', true);

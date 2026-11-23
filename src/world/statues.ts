@@ -4,7 +4,8 @@
    （只有地形：河、山、路、森林）。營火、地城、地標、城鎮要自己在畫面上看到過才會標（world/sight.ts）——看地形自己找。
    神像放在地區的交界處（從前一個地區走過去就會碰到）。不拿殘頁、自己找到神像也可以直接祈禱。
 
-   殘頁：frag:1～5（史萊姆女王、蘑菇王、骸骨將軍、熔岩巨龍、雪原巨人）；交給製圖師：given:k；祈禱過：statue:k；一開始的平原：chart:0 */
+   殘頁 k：不另外記，「那隻 Boss 死了」就等於拿到了（hasFrag，看 rbDead）。只記一份，測試或之後的功能改了死亡名單，殘頁就跟著對。
+   交給製圖師：given:k；祈禱過：statue:k；一開始的平原：chart:0 */
 import { G } from '../core/state';
 import { TAU, pick, rr } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
@@ -21,6 +22,7 @@ import type { Player } from '../types';
 import { placeAltar } from './ending';
 import { CARTO_HINTS } from '../data/story';
 import { setupSecrets } from './secrets';
+import { rbDead } from './regionBoss';
 
 /* 地區 → 第幾塊地圖（0 = 一開始就亮的平原；4 = 狼王巢穴跟森林一起；7 = 地城，不算） */
 const ZONE_OF_REG = [0, 1, 2, 3, 1, 4, 5, -1, 6];                 // 8 = 精靈王國 → 第 6 塊
@@ -38,6 +40,8 @@ export const STATUE_N = DEF.length;
 export interface Statue { k: number; x: number; y: number; tx: number; ty: number; frag: string; prop: { x: number; y: number; r: number } }
 export const STATUES: Statue[] = [];
 export const fragBoss = (k: number) => DEF[k - 1].frag;
+/** 有沒有殘頁 k = 掉這張殘頁的 Boss 死了沒（沒有 frag:k 旗子，免得兩份對不上） */
+export const hasFrag = (k: number) => rbDead.has(fragBoss(k));
 
 /* 生成：main.ts 在 dressEntrances / setupPuzzles 之後呼叫 */
 export function placeStatues() {
@@ -68,7 +72,7 @@ export const zoneAt = (tx: number, ty: number) => ZONE_OF_REG[reg[Math.floor(ty)
 export const zoneOfReg = (r: number) => ZONE_OF_REG[r] ?? -1;
 export const statueKnown = (s: Statue) => flags.has('given:' + s.k) || flags.has('statue:' + s.k) || flags.has('seen:s' + s.k);
 export const statueLit = (s: Statue) => flags.has('statue:' + s.k);
-export const fragsHeld = () => DEF.filter(D => flags.has('frag:' + D.k) && !flags.has('given:' + D.k)).map(D => D.k);
+export const fragsHeld = () => DEF.filter(D => hasFrag(D.k) && !flags.has('given:' + D.k)).map(D => D.k);
 export const fragCount = () => DEF.filter(D => flags.has('statue:' + D.k)).length;
 
 /* ---- 製圖師提示下一張殘頁（文字在 data/story.ts 的 CARTO_HINTS）----
@@ -76,17 +80,20 @@ export const fragCount = () => DEF.filter(D => flags.has('statue:' + D.k)).lengt
    自己先找到神像祈禱過的那一塊就跳過（地圖已經亮了，殘頁沒用）。全部撿到了 → 提醒去神像；全部亮了 → 收尾的話 */
 const HINT_ORDER = [1, 6, 2, 3, 4, 5];
 export function cartoHint(): { key: string; line: string } | null {
-  const k = HINT_ORDER.find(k => !flags.has('frag:' + k) && !flags.has('statue:' + k));
+  const k = HINT_ORDER.find(k => !hasFrag(k) && !flags.has('statue:' + k));
   const key = k ? String(k) : DEF.some(D => flags.has('given:' + D.k) && !flags.has('statue:' + D.k)) ? 'mark' : fragCount() >= STATUE_N ? 'done' : '';
   return key ? { key, line: CARTO_HINTS[key] } : null;              // ''：殘頁還在身上沒交 → 交出的按鈕會出現，不用多說
 }
 
-/* ---- 每幀（game/quest.ts 的 updateQuest 呼叫）：打倒 Boss → 拿到殘頁；開新遊戲 / 舊存檔 → 平原一定是亮的 ---- */
-export function updateStatues(bossDead: (id: string) => boolean) {
+/* ---- 每幀（game/quest.ts 的 updateQuest 呼叫）：開新遊戲 / 舊存檔 → 平原一定是亮的 ---- */
+export function updateStatues() {
   if (!charted(0)) chartZone(0);
-  for (const D of DEF) if (!flags.has('frag:' + D.k) && bossDead(D.frag)) { flags.add('frag:' + D.k);
-    setTimeout(() => { showBanner('得到 地圖殘頁', '上面畫著一座神像……城鎮的製圖師也許看得懂', 3200);
-      toast('地圖殘頁：拿給城鎮裡的製圖師', '#e8d8b0', true); }, 6400); save(); }
+}
+/* ---- Boss 倒下的那一刻（world/regionBoss.ts 的 regionBossDie）：掉殘頁的 Boss → 跳「得到 地圖殘頁」。只是通知，殘頁本身看 rbDead ---- */
+export function fragNotice(bossId: string) {
+  if (!DEF.some(D => D.frag === bossId)) return;
+  setTimeout(() => { showBanner('得到 地圖殘頁', '上面畫著一座神像……城鎮的製圖師也許看得懂', 3200);
+    toast('地圖殘頁：拿給城鎮裡的製圖師', '#e8d8b0', true); }, 6400);
 }
 
 /* ---- 互動（ui/interact.ts）：神像 = 祈禱；製圖師 = 交出殘頁 ---- */

@@ -25,6 +25,7 @@ import { drawMore } from './bossAI4';
 import { REXTRA } from './dungeonBoss';
 import { DB_FX, RB_FX } from '../data/ailments';
 import { BOSS_HP } from '../game/bossTuning';
+import { fragNotice } from './statues';
 
 export const RBDEF: Record<string, any> = {
   queen: { id:'queen', name:'史萊姆女王・翠凝', short:'史萊姆女王', sub:'聖堂的聖壇前，湖水凝成了女王', tx:34, ty:322, tr:8.5, lv:15, hp:950, kind:'queen', ai:'queen',
@@ -129,7 +130,7 @@ export function updateRegionBosses(dt) {
   }
 }
 export function regionBossDie(e, by) {                                  // by = 打死它的玩家
-  const d = e.def; e.dead = true; rbDead.add(d.id); G.enemies = G.enemies.filter(x => x.rbAdd !== d.id); $('bossBar').hidden = true;
+  const d = e.def; e.dead = true; rbDead.add(d.id); fragNotice(d.id); G.enemies = G.enemies.filter(x => x.rbAdd !== d.id); $('bossBar').hidden = true;
   G.hitStop = Math.max(G.hitStop, .4); G.fx.push({ k:'flash', col:'#ffffff', a:.7, t:0, d:.6 });
   for (const dl of [0, .12, .24]) G.fx.push({ k:'warp', x:e.x, y:e.y, r0:6, r1:90, th:5, delay:dl, t:0, d:.6 + dl, col:dl ? '#f2c14e' : d.aura[0] });
   for (let i = 0; i < 40; i++) G.parts.push({ x:e.x + rr(-12, 12), y:e.y - rr(0, 24), vx:rr(-15, 15), vy:-rr(40, 140), life:rr(.7, 1.4), max:1.4, col:pick(d.aura.concat(['#f2c14e', '#b49cff'])), star:rr(1, 3), drag:1 });

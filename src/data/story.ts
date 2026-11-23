@@ -29,7 +29,7 @@ export interface Rumor { id: string; text: string; src: string; learn: (q: Quest
 export const RUMORS: Rumor[] = [
   { id: 'town', text: '往北走，河的那一邊有人住。', src: '山丘上的石碑', learn: () => true, done: q => q.found('晨風鎮'), tx: 70, ty: 352, r: 18 },
   { id: 'queen', text: '鏡湖的湖心有一座聖堂。晴朗的夜裡，湖水會自己站起來。', src: '晨風鎮的村長', learn: q => q.flag('talk:dawn:村長') || q.read('t10'), done: q => q.boss('queen'), tx: 40, ty: 318, r: 18 },
-  { id: 'frag', text: '你撿到的那張舊地圖……晨風鎮有個製圖師，他看得懂這種東西。', src: '自己的直覺', learn: q => q.flag('frag:1'), done: q => q.flag('given:1'), tx: 62, ty: 346, r: 10 },
+  { id: 'frag', text: '你撿到的那張舊地圖……晨風鎮有個製圖師，他看得懂這種東西。', src: '自己的直覺', learn: q => q.boss('queen'), done: q => q.flag('given:1'), tx: 62, ty: 346, r: 10 },
   { id: 'wolf', text: '森林東北的岩丘上，有狼每晚朝著星星墜落的方向嚎叫。', src: '晨風鎮的衛兵', learn: q => q.flag('talk:dawn:衛兵') || q.read('t12') || q.boss('queen'), done: q => q.wolf, tx: 296, ty: 282, r: 24 },
   { id: 'mushking', text: '森林深處的深谷裡，所有的蘑菇只聽一個聲音。', src: '晨風鎮的少女', learn: q => q.flag('talk:dawn:少女') || q.read('t19') || q.lit('forest'), done: q => q.boss('mushking'), tx: 220, ty: 336, r: 22 },
   { id: 'general', text: '北方的古王城關上城門很多年了。守城的人，一個也沒有離開。', src: '王城城門的石碑', learn: q => q.read('t14') || q.boss('mushking') || q.lit('castle'), done: q => q.boss('general'), tx: 106, ty: 134, r: 26 },

@@ -241,7 +241,7 @@ const pageScript = async () => {
     const s1 = ST.STATUES[0], fz = M.REGIONS.findIndex(r => r.key === 'forest'), fi = M.reg.findIndex((r, i) => r === fz && !M.explored[i]);
     if (fi < 0) throw new Error('森林一開始就全亮了');
     Q.flags.delete('given:1'); Q.flags.delete('statue:1'); Q.flags.delete('seen:s1');
-    RB.rbDead.add('queen'); step(2); if (!Q.flags.has('frag:1')) throw new Error('打倒史萊姆女王沒拿到地圖殘頁');
+    RB.rbDead.add('queen'); step(2); if (!ST.fragsHeld().includes(1)) throw new Error('打倒史萊姆女王沒拿到地圖殘頁');
     if (ST.statueKnown(s1)) throw new Error('還沒交殘頁，地圖上就有神像');
     const c = towns.NPCS.find(n => n.name === '製圖師'); tp(c.x, c.y + 14); step(2);
     let it = imp0.input.interactTarget(); if (!it || it.btn !== '交出') throw new Error('站在製圖師旁邊沒有「交出」：' + (it && it.btn)); it.run();
@@ -257,19 +257,20 @@ const pageScript = async () => {
 
   run('製圖師：照進度暗示下一張殘頁在哪', () => {
     const ST = await0.statues, Q = await0.quest, S = await0.story, towns = await0.towns, keep = [...Q.flags];
-    const c = towns.NPCS.find(n => n.town === 'dawn' && n.name === '製圖師'), deadKeep = [...RB.rbDead]; RB.rbDead.clear();   // 前面的測試打倒過 Boss → 遊戲每格會把那些殘頁補回來，先清空
+    const c = towns.NPCS.find(n => n.town === 'dawn' && n.name === '製圖師'), deadKeep = [...RB.rbDead];   // 殘頁 = 那隻 Boss 死了沒 → 用死亡名單擺出每種進度，最後還原
     const talk = () => { tp(c.x, c.y + 80); step(2); tp(c.x, c.y + 14); step(2); return document.getElementById('talk').textContent; };
-    const wipe = () => { for (const f of [...Q.flags]) if (/^(frag|given|statue|heard:carto):/.test(f)) Q.flags.delete(f); };
-    wipe(); if (!talk().includes(S.CARTO_HINTS[1])) throw new Error('一開始製圖師沒有提鏡湖');
-    for (const [k, want] of [[1, 6], [6, 2], [2, 3], [3, 4], [4, 5]]) { Q.flags.add('frag:' + k); Q.flags.add('given:' + k); Q.flags.add('statue:' + k);
+    const wipe = () => { for (const f of [...Q.flags]) if (/^(given|statue|heard:carto):/.test(f)) Q.flags.delete(f); RB.rbDead.clear(); }, got = k => RB.rbDead.add(ST.fragBoss(k));
+    wipe(); step(2); if (ST.fragsHeld().length) throw new Error('Boss 都沒死，殘頁卻被補回來了：' + ST.fragsHeld());
+    if (!talk().includes(S.CARTO_HINTS[1])) throw new Error('一開始製圖師沒有提鏡湖');
+    for (const [k, want] of [[1, 6], [6, 2], [2, 3], [3, 4], [4, 5]]) { got(k); Q.flags.add('given:' + k); Q.flags.add('statue:' + k);
       const t = talk(); if (!t.includes(S.CARTO_HINTS[want])) throw new Error('拿到殘頁 ' + k + ' 之後，製圖師沒有提下一張（' + want + '）｜對話框「' + t.slice(0, 30) + '」距離 ' + Math.round(Math.hypot(G.me.x - c.x, G.me.y - c.y))
-        + (G.me.dead ? ' 死了' : '') + (G.paused ? ' 暫停' : '') + ' 想說 ' + ST.cartoHint()?.key + ' 殘頁 ' + [...Q.flags].filter(f => f.startsWith('frag:')).join(',') + ' 附近的怪 ' + G.enemies.filter(e => !e.dead && Math.hypot(e.x - c.x, e.y - c.y) < 200).map(e => e.kind || e.name).join(',')); }
-    wipe(); Q.flags.add('statue:2'); Q.flags.add('frag:1'); Q.flags.add('frag:6'); Q.flags.add('heard:carto:1');
+        + (G.me.dead ? ' 死了' : '') + (G.paused ? ' 暫停' : '') + ' 想說 ' + ST.cartoHint()?.key + ' 死掉的 Boss ' + [...RB.rbDead].join(',') + ' 附近的怪 ' + G.enemies.filter(e => !e.dead && Math.hypot(e.x - c.x, e.y - c.y) < 200).map(e => e.kind || e.name).join(',')); }
+    wipe(); Q.flags.add('statue:2'); got(1); got(6); Q.flags.add('heard:carto:1');
     if (!talk().includes(S.CARTO_HINTS[3])) throw new Error('自己祈禱過的神像（2）沒有跳過');
-    wipe(); for (let k = 1; k <= 6; k++) { Q.flags.add('frag:' + k); Q.flags.add('given:' + k); } if (!talk().includes(S.CARTO_HINTS.mark)) throw new Error('殘頁都交了，製圖師沒有提醒去神像');
+    wipe(); for (let k = 1; k <= 6; k++) { got(k); Q.flags.add('given:' + k); } if (!talk().includes(S.CARTO_HINTS.mark)) throw new Error('殘頁都交了，製圖師沒有提醒去神像');
     for (let k = 1; k <= 6; k++) Q.flags.add('statue:' + k); if (!talk().includes(S.CARTO_HINTS.done)) throw new Error('全部點亮後製圖師沒有說收尾的話');
     if (/Lv|等級|危險|打不過/.test(Object.values(S.CARTO_HINTS).join())) throw new Error('製圖師的提示出現等級 / 危險字眼');
-    tp(c.x, c.y + 80); step(2); Q.flags.clear(); for (const f of keep) Q.flags.add(f); for (const id of deadKeep) RB.rbDead.add(id);
+    tp(c.x, c.y + 80); step(2); Q.flags.clear(); for (const f of keep) Q.flags.add(f); RB.rbDead.clear(); for (const id of deadKeep) RB.rbDead.add(id);
   });
 
   run('結局：觀星儀 → 七顆星核 + 最後的看守者 → 選結局 → 回到荒野；Boss 倒下後鎮民換台詞、天色變亮', () => {
