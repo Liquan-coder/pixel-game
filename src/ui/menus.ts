@@ -155,7 +155,7 @@ function eqWith(it: Item) {
   else if (sl === 'trinket') { const n = tSlots(), k = out.trinkets.slice(0, n).findIndex(t => !t); out.trinkets[k >= 0 ? k : 0] = it; }
   return out;
 }
-/* 左上的「選中物品」卡：圖示、名字、一行重點（換上後的變化），右邊是這件能做的事（裝備、分解、卸下） */
+/* 左上的「選中物品」卡：圖示、名字、一行重點（換上後的變化）。沒有按鈕：裝備 = 點發亮的欄位、取消 = 再點一次、分解 = 右上角的按鈕 */
 function statDiff(now, nx) {                                            // 換上後變了什麼：攻擊 +5、暴擊 +3%
   const out = [], pct = (k: string) => k === 'ls' || k === 'aspd' || k === 'cdr' || k === 'defRed';
   for (const [n, k] of [['生命', 'maxHp'], ['攻擊', 'atk'], ['防禦', 'def'], ['體力', 'maxSt'], ['暴擊', 'crit'], ['減傷', 'defRed'], ['吸血', 'ls'], ['攻速', 'aspd'], ['冷卻', 'cdr']]) {
@@ -195,17 +195,11 @@ function selEffect(it: Item) {
     const fx = fxOf(it); return fx ? line('<b style="color:' + WFXD[fx].c + '">' + WFXD[fx].n + '</b>：' + WFXD[fx].d) : ''; }
   const ls = effLines(effOf(it)); return ls.length ? line(ls.join('，')) : '';
 }
-let salvArm = 0, salvAllArm = false;                                     // 分解要按兩次（強化過 / 刻印 / 獨特的那種）
-function selActs(sel) {
-  const it = sel.it, sl = slotOf(it), b = (act: string, label: string, cls = '', dis = false) => '<button type="button" class="sact ' + cls + '" data-act="' + act + '"' + (dis ? ' disabled' : '') + '>' + label + '</button>';
-  const full = G.me.inv.length >= 24, out = [];
-  if (sel.where === 'bag') {
-    if (sl !== 'seal') out.push(b('equip', sl !== 'trinket' && unmet(G.me, it).length ? '能力不夠' : '裝備', 'pri', sl !== 'trinket' && unmet(G.me, it).length > 0));
-    out.push(b('salv', salvArm === it.id ? '確定分解？' : '分解 +' + salvValue(it), 'warn'));
-  } else if (sl !== 'weapon') out.push(b('uneq', full ? '背包滿了' : '卸下', '', full));
-  out.push(b('cancel', '取消'));
-  return '<div class="sacts">' + out.join('') + '</div>';
-}
+let salvArm = 0;                                                         // 分解要按兩次（強化過 / 刻印 / 獨特的那種）：按過一次的那一件
+/* 批量分解：按住背包裡的東西 1 秒進入，之後點一下 = 勾 / 取消勾；右上角的按鈕一次分解勾起來的全部 */
+let batch: Set<number> | null = null, batchArm = false;
+const batchItems = () => batch ? G.me.inv.filter(it => batch.has(it.id)) : [];
+export function startBatch(id: number) { batch = new Set([id]); batchArm = false; G.selItem = null; salvArm = 0; renderInv(); }
 export function renderInv() {
   $('invCount').textContent = G.me.inv.length + '/24'; $('invGold').innerHTML = coinChip(G.me.gold); $('invSouls').innerHTML = soulChip(G.me.souls);
   const eq = curEq(G.me), sel = selected(), bagIt = sel && sel.where === 'bag' ? sel.it : null, nSlots = tSlots();
@@ -216,7 +210,8 @@ export function renderInv() {
   if (!sel || sel.it.id !== lastSelId) infoMode = false;                  // 換選別件 → 回到數值
   const R = sel ? RAR[sel.it.rarity] : null, U = sel && sel.it.uq;
   const head = sel ? '<div class="selcard" style="border-color:' + R.c + '"><button type="button" class="sico' + (infoMode ? ' on' : '') + '" data-act="info" aria-label="說明"><img alt="" src="' + ICON_URL[sel.it.type] + '"><i>' + (infoMode ? '↩' : '?') + '</i></button><div class="selmid"><div class="selname"><b style="color:' + R.c + '">' + itemName(sel.it) + '</b><i>' + (U ? '獨特' : SLOTN[sl]) + '</i></div>' +
-    '<div class="selsum">' + selSummary(sel, now, pv) + '</div>' + (infoMode ? '' : selEffect(sel.it) + reqLine(sel.it)) + '</div>' + selActs(sel) + '</div>' : '';
+    '<div class="selsum">' + selSummary(sel, now, pv) + '</div>' + (infoMode ? '' : selEffect(sel.it) + reqLine(sel.it)) + '</div></div>'
+    : batch ? batchCard() : '';
   info.innerHTML = head + '<div class="cscroll">' + (sel && infoMode ? itemCard(sel.it, null, 'det') :   // 「說明」：這件的刻印、技能、需求、背景故事（取代下面的數值，不用往下捲）
     '<div class="keystats">' + keyTile('hp', '生命', 'maxHp', now, pv) + keyTile('atk', '攻擊', 'atk', now, pv) + keyTile('df', '防禦', 'def', now, pv) + '</div>' + loadBar(now, pv) +
     '<div class="cbox"><div class="lbl">詳細屬性</div><div class="stattbl">' + statRows(now, pv) + '</div></div>' +
@@ -233,11 +228,14 @@ export function renderInv() {
     [0, 1, 2, 3].map(i => slotBtn(eq.trinkets[i], 't' + i, '飾品 ' + (i + 1), i >= nSlots)).join('');
   // 右邊：背包（或素材清單）
   for (const b of document.querySelectorAll<HTMLElement>('#bagTabs button')) b.classList.toggle('on', b.dataset.f === bagFilter);
-  const n = salvAllN(), sb = $('salvAll') as HTMLButtonElement; sb.hidden = !n; sb.classList.toggle('arm', salvAllArm);   // 一鍵分解：右上角，有東西可分解才出現
-  sb.textContent = salvAllArm ? '確定分解 ' + n + ' 件？' : '一鍵分解 ' + n;
+  // 右上角的分解：平常是空的；點了背包裡的東西 → 分解這一件；批量模式 → 分解勾起來的全部
+  const sb = $('salvAll') as HTMLButtonElement, B = batchItems(), bs = B.reduce((a, it) => a + salvValue(it), 0);
+  sb.hidden = !batch && !bagIt; sb.disabled = !!batch && !B.length; sb.classList.toggle('arm', batch ? batchArm : !!bagIt && salvArm === bagIt.id);
+  sb.textContent = batch ? (!B.length ? '勾選要分解的' : batchArm ? '確定分解 ' + B.length + ' 件？' : '分解 ' + B.length + ' 件 +' + bs)
+    : bagIt ? (salvArm === bagIt.id ? '確定分解？' : '分解 +' + salvValue(bagIt)) : '';
   if (bagFilter === 'mat') { $('bagGrid').innerHTML = '<div class="matlist">' + MAT_KEYS.map(k => '<div class="matrow"><img alt="" src="' + ORE_URL[k] + '"><span style="color:' + MATS[k].c + '">' + MATS[k].n + '<small>' + MATS[k].d + '</small></span><b>' + (G.me.mats[k] || 0) + '</b></div>').join('') + '</div>'; return; }
   const list = G.me.inv.map((it, i) => ({ it, i })).filter(o => bagFilter === 'all' || slotOf(o.it) === bagFilter);
-  const cells = list.map(({ it, i }) => '<button type="button" class="slot' + (G.selItem === it.id ? ' sel' : '') + (unmet(G.me, it).length ? ' bad' : '') + (sealOn(it) ? ' sl' : '') + '" data-i="' + i + '" style="border-color:' + RAR[it.rarity].c + '" aria-label="' + it.name + '"><img alt="" src="' + ICON_URL[it.type] + '">' + sealBadge(it) + '<i style="color:' + RAR[it.rarity].c + '">' + badge(it) + '</i></button>');
+  const cells = list.map(({ it, i }) => '<button type="button" class="slot' + (G.selItem === it.id ? ' sel' : '') + (batch && batch.has(it.id) ? ' pick' : '') + (unmet(G.me, it).length ? ' bad' : '') + (sealOn(it) ? ' sl' : '') + '" data-i="' + i + '" style="border-color:' + RAR[it.rarity].c + '" aria-label="' + it.name + '"><img alt="" src="' + ICON_URL[it.type] + '">' + sealBadge(it) + '<i style="color:' + RAR[it.rarity].c + '">' + badge(it) + '</i></button>');
   const blank = drop.has('bag') ? '<button type="button" class="slot blank drop" data-drop="1" aria-label="卸下"></button>' : '<div class="slot blank"></div>';
   if (bagFilter === 'all') while (cells.length < 24) cells.push(blank);   // 空格子也畫出來，一眼看出背包還剩多少
   else if (drop.has('bag')) cells.push(blank);                                // 篩選中：多放一個空格讓你卸下
@@ -258,15 +256,29 @@ function dropTargets(sel, nSlots: number) {
 const sealOn = (it: Item | null) => !!it && slotOf(it) === 'weapon' && !!it.fx && !it.uq;
 const sealBadge = (it: Item) => sealOn(it) ? '<img class="sealb" alt="" title="' + WFXD[it.fx].n + '刻印" src="' + ICON_URL.seal + '" style="border-color:' + WFXD[it.fx].c + '">' : '';
 const salvValue = it => Math.round(3 * gearValue(it) * (slotOf(it) === 'weapon' ? .5 : 1));
-const junk = (it: Item) => { const sl = slotOf(it); return (sl === 'weapon' || sl === 'armor') && it.rarity === 0 && !it.up; };   // 一鍵分解的對象：沒強化、沒刻印的一般武器 / 防具
-const salvAllN = () => G.me.inv.filter(junk).length;
+const junk = (it: Item) => { const sl = slotOf(it); return (sl === 'weapon' || sl === 'armor') && it.rarity === 0 && !it.up; };   // 批量的「勾沒強化的」：沒強化、沒刻印的一般武器 / 防具
+/* 批量分解時左上角的卡：勾了幾件、能拿多少魂晶（最大的字）＋ 快速勾選 / 離開 */
+function batchCard() {
+  const B = batchItems(), s = B.reduce((a, it) => a + salvValue(it), 0), b = (act: string, label: string) => '<button type="button" class="sact" data-act="' + act + '">' + label + '</button>';
+  return '<div class="selcard batchcard"><div class="selmid"><div class="selname"><b>批量分解</b></div><div class="selsum">點背包裡的東西勾選 / 取消</div>' +
+    '<div class="bnums"><span>已選 <b>' + B.length + '</b> 件</span><span>可得 <b class="soul">' + s + '</b> 魂晶</span></div></div>' +
+    '<div class="sacts">' + b('bjunk', '勾沒強化的') + b('bclear', '全部取消') + b('bexit', '離開') + '</div></div>';
+}
 const precious = (it: Item) => !!(it.up || it.uq || it.ug || it.rarity >= 3);   // 分解前要再按一次確認
 export const badge = it => (slotOf(it) === 'weapon' || slotOf(it) === 'armor') && it.up ? '+' + it.up : '';    // 背包格子左上角的小字：強化等級
 export const matLine = () => MAT_KEYS.map(k => '<span title="' + MATS[k].d + '" style="color:' + MATS[k].c + '">' + MATS[k].n + ' <b>' + (G.me.mats[k] || 0) + '</b></span>').join('');
 $('invMenu').addEventListener('click', e => {
   const t = (e.target as HTMLElement).closest('button'); if (!t || (t as HTMLButtonElement).disabled) return;
-  if (t.id !== 'salvAll') salvAllArm = false;
+  if (t.id !== 'salvAll') batchArm = false;
+  if (holdFired && t.dataset.i !== undefined) { holdFired = false; return; }       // 剛剛是按住（進批量），放開時的那一下不算點
   if (t.hasAttribute('data-close')) { setMenu(null); return; }
+  if (t.dataset.i !== undefined && batch) { const it = G.me.inv[+t.dataset.i]; if (it) { if (batch.has(it.id)) batch.delete(it.id); else batch.add(it.id); } renderInv(); return; }
+  if (t.dataset.act && batch) { const a = t.dataset.act;
+    if (a === 'bjunk') for (const it of G.me.inv) if (junk(it)) batch.add(it.id);
+    if (a === 'bclear') batch.clear();
+    if (a === 'bexit') batch = null;
+    renderInv(); return; }
+  if (batch && t.dataset.eq) return;                                                  // 批量中不能換裝
   if (t.dataset.i !== undefined) { const it = G.me.inv[+t.dataset.i]; G.selItem = it && G.selItem !== it.id ? it.id : null; salvArm = 0; renderInv(); return; }
   if (t.dataset.f) { bagFilter = t.dataset.f; renderInv(); return; }
   const sel = selected(), done = () => { recalc(G.me); G.selItem = null; salvArm = 0; sfx.pick(); renderInv(); save(); };
@@ -277,27 +289,31 @@ $('invMenu').addEventListener('click', e => {
     if (sl === 'trinket') { const ti = +k.slice(1), old = G.me.trinkets[ti]; G.me.inv.splice(idx, 1, ...(old ? [old] : [])); G.me.trinkets[ti] = it; }
     else { const old = G.me[sl]; G.me.inv.splice(idx, 1, ...(old ? [old] : [])); G.me[sl] = it; }   // 換下來的放回原本那一格
     return done(); };
-  if (t.dataset.act && sel) { const a = t.dataset.act, it = sel.it;
-    if (a === 'cancel') { G.selItem = null; salvArm = 0; renderInv(); return; }
-    if (a === 'info') { infoMode = !infoMode; renderInv(); return; }
-    if (a === 'equip' && sel.where === 'bag') { const sl = slotOf(it);                // 「裝備」按鈕：飾品放第一個空的欄位（都滿了就換掉第 1 格）
-      if (sl === 'trinket') { const n = tSlots(), k = G.me.trinkets.slice(0, n).findIndex(x => !x); return put('t' + (k >= 0 ? k : 0)); }
-      return put(sl); }
-    if (a === 'salv' && sel.where === 'bag') { if (precious(it) && salvArm !== it.id) { salvArm = it.id; renderInv(); return; }
-      G.me.inv.splice(G.me.inv.indexOf(it), 1); G.me.souls += salvValue(it); toast('分解獲得 ' + salvValue(it) + ' 魂晶', '#b49cff'); return done(); }
-    if (a === 'uneq' && canUnequip(sel)) { if (sel.slot === 'armor') G.me.armor = null; else G.me.trinkets[sel.ti] = null; G.me.inv.push(it); return done(); }
-    return; }
+  if (t.dataset.act === 'info' && sel) { infoMode = !infoMode; renderInv(); return; }   // 點選中卡的圖示：說明 ↔ 數值
   if (t.dataset.eq) { const k = t.dataset.eq;
     if (sel && sel.where === 'bag' && dropTargets(sel, tSlots()).has(k)) return put(k);   // 選著背包裡的東西 → 放進這一格
     const it = k === 'weapon' ? G.me.weapon : k === 'armor' ? G.me.armor : G.me.trinkets[+k.slice(1)];
     G.selItem = it && G.selItem !== it.id ? it.id : null; salvArm = 0; renderInv(); return; }
   if (t.dataset.drop && canUnequip(sel)) {                                            // 選著身上的防具 / 飾品 → 點背包空格 = 卸下
     if (sel.slot === 'armor') G.me.armor = null; else G.me.trinkets[sel.ti] = null; G.me.inv.push(sel.it); return done(); }
-  if (t.id === 'salvAll') {                                                           // 一鍵分解（按兩次）：沒強化、沒刻印的一般武器 / 防具
-    if (!salvAllArm) { salvAllArm = true; renderInv(); return; }
-    salvAllArm = false; let s = 0; G.me.inv = G.me.inv.filter(it => { if (junk(it)) { s += salvValue(it); return false; } return true; });
-    G.me.souls += s; if (s) { toast('分解獲得 ' + s + ' 魂晶', '#b49cff'); sfx.pick(); } G.selItem = null; renderInv(); save(); }
+  if (t.id === 'salvAll') {                                                           // 右上角的分解
+    const gone = batch ? batchItems() : sel && sel.where === 'bag' ? [sel.it] : []; if (!gone.length) return;
+    if (batch ? !batchArm : precious(gone[0]) && salvArm !== gone[0].id) { if (batch) batchArm = true; else salvArm = gone[0].id; renderInv(); return; }   // 先按一次確認
+    const s = gone.reduce((a, it) => a + salvValue(it), 0); G.me.inv = G.me.inv.filter(it => !gone.includes(it)); G.me.souls += s;
+    toast('分解 ' + gone.length + ' 件，獲得 ' + s + ' 魂晶', '#b49cff'); batch = null; batchArm = false; return done(); }
 });
+/* 按住背包裡的東西 1 秒 → 批量分解（那一件先勾起來）。手指移動、捲動、放開都會取消；按著的時候格子慢慢變紅 */
+const HOLD_MS = 1000;
+let holdT = 0, holdX = 0, holdY = 0, holdFired = false;
+const bagEl = $('bagGrid'), holdEnd = () => { clearTimeout(holdT); bagEl.querySelector('.slot.hold')?.classList.remove('hold'); };
+bagEl.addEventListener('pointerdown', e => {
+  holdFired = false; holdEnd(); const c = (e.target as HTMLElement).closest<HTMLElement>('.slot[data-i]'); if (!c || batch) return;
+  holdX = e.clientX; holdY = e.clientY; c.classList.add('hold');
+  holdT = window.setTimeout(() => { const it = G.me.inv[+c.dataset.i]; if (!it) return; holdFired = true; sfx.pick(); startBatch(it.id); }, HOLD_MS);
+});
+bagEl.addEventListener('pointermove', e => { if (Math.hypot(e.clientX - holdX, e.clientY - holdY) > 8) holdEnd(); });
+for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) bagEl.addEventListener(ev, holdEnd);
+bagEl.addEventListener('contextmenu', e => e.preventDefault());                    // 手機長按不要跳出選單
 export let mapTab = 'map';
 function showMapTab() { for (const b of document.querySelectorAll<HTMLElement>('#mapTabs button')) b.classList.toggle('on', b.dataset.mt === mapTab);
   $('mapPane').hidden = mapTab !== 'map'; $('journal').hidden = mapTab !== 'journal'; renderMapFoot(mapTab === 'map' ? mapPick() : null); if (mapTab === 'journal') renderJournal(); else renderBigMap(); }
@@ -329,7 +345,7 @@ $('mapMenu').addEventListener('click', e => { const t = (e.target as HTMLElement
   else if (t.dataset.travel) { const c = CAMPS.find(c => c.id === t.dataset.travel); if (!c || !c.lit || travelBlock()) return;
     clearMapSel(); G.lastCamp = c.id; placeAtCamp(G.me, c.id); restoreWorld(); save(); setMenu(null); G.region = ''; sfx.level(); burst(G.me.x, G.me.y - 6, 14, '#f2c14e', 40); }
 });
-export function toggleInv() { if (openMenu === 'inv') setMenu(null); else if (!openMenu && G.started && !G.me.dead) { G.selItem = null; renderInv(); setMenu('inv'); } }
+export function toggleInv() { if (openMenu === 'inv') setMenu(null); else if (!openMenu && G.started && !G.me.dead) { G.selItem = null; batch = null; renderInv(); setMenu('inv'); } }
 export function toggleMap() { if (openMenu === 'map') setMenu(null); else if (!openMenu && G.started && !G.me.dead) { clearMapSel(); mapTab = 'map'; setMenu('map'); showMapTab(); centerMap(); renderBigMap(); } }
 onTap($('bagBtn'), toggleInv);
 onTap(mini, toggleMap);
