@@ -5,10 +5,10 @@
 import { mulberry32 } from '../core/util';
 import { SH, sculpt } from './monsters';
 
-type Pt = [number, number];
-const norm = (x: number, y: number, z: number) => { const m = Math.hypot(x, y, z); return [x / m, y / m, z / m]; };
+export type Pt = [number, number];
+export const norm = (x: number, y: number, z: number) => { const m = Math.hypot(x, y, z); return [x / m, y / m, z / m]; };
 // 多邊形裡面的點都回傳同一個法線 → 平的面（凸、凹都可以）
-function poly(pts: Pt[], nrm: number[]) {
+export function poly(pts: Pt[], nrm: number[]) {
   return (x: number, y: number) => { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j];
     if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c ? nrm : null; };
 }
@@ -117,7 +117,7 @@ export function runeStone(seed: number, ramp: string[], glowCol: [string, string
    眼睛的位置不能動：dungeonArt 會在 (25,44)/(32,44)（石像鬼）、(28,42)/(31,42)（騎士）疊紫光 */
 const LIT = norm(-.75, -.15, .65), MID = norm(-.15, .1, .98), DRK = norm(.8, .05, .6), UPF = norm(-.1, -.85, .5);
 const STEELR = ['#3a3a4e', '#6a6a80', '#a8a8c0', '#e8e8f8'];
-function slab(S: string[], x0: number, x1: number, y0: number, y1: number, d: number, g: number) {
+export function slab(S: string[], x0: number, x1: number, y0: number, y1: number, d: number, g: number) {
   return [{ sh: poly([[x0, y0], [x0 + d, y0 - d], [x1 + d, y0 - d], [x1, y0]], UPF), ramp: S, grp: g, bias: .1 },
     { sh: poly([[x0, y0], [x1, y0], [x1, y1], [x0, y1]], MID), ramp: S, grp: g, bias: .1 },
     { sh: poly([[x1, y0], [x1 + d, y0 - d], [x1 + d, y1 - d], [x1, y1]], DRK), ramp: S, grp: g, bias: .3 }];

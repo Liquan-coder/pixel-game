@@ -9,6 +9,7 @@ import { drawArtSprite, flame } from './chunks';
 import { DUNGEONS, dungeonHooks } from './dungeons';
 import { pick, rr } from '../core/util';
 import { RUNE_SLATE, guardStatue, runeStone } from '../art/stoneArt';
+import { MON_H, MON_W, monument } from '../art/monuments';
 
 /* ---- 圖：洞口（洞窟、石窟）、石門（古墓） ---- */
 const ROCKR = ['#2a2630', '#46404e', '#655e6e', '#8a8294'];
@@ -21,16 +22,9 @@ const CRYPT_SP = sculpt(72, 64, [{ sh: SH.box(36, 38, 30, 25, 2), ramp: ['#2e2a3
   a.rect(22, 24, 28, 40, '#08060c'); a.rect(25, 27, 22, 37, '#000000'); a.rect(22, 22, 28, 2, '#aaa4bc');
   for (const [x, y] of [[35, 17], [36, 17], [36, 16], [36, 18], [37, 17], [36, 15], [36, 19], [34, 17], [38, 17]]) a.set(x, y, '#c8a8ff');   // 門楣上的星形刻紋
   a.rect(13, 26, 3, 36, '#2e2a36'); a.rect(56, 26, 3, 36, '#2e2a36'); });
-/* ---- 入口上方的地標：洞窟 / 石窟 = 一根高高的尖岩（顏色跟著地區），古墓 = 一根斷掉的方尖碑。比岩丘高很多 → 還沒看到洞口就先看到它 ---- */
-const CRAG = [0, 1, 2, 3, 5, 6].reduce((o, r) => { const R = SRAMP.rock[r];
-  o[r] = sculpt(66, 196, [{ sh: SH.ell(33, 176, 30, 18), ramp: R, tex: .35, grp: 1 }, { sh: SH.cap(34, 170, 30, 40, 22, 9), ramp: R, tex: .35, grp: 2 },
-    { sh: SH.cap(30, 60, 34, 8, 10, 4), ramp: R, tex: .35, grp: 3 }, { sh: SH.ell(18, 150, 9, 22), ramp: R, tex: .35, grp: 4 }], a => {
-    if (r === 5) for (let x = 20; x < 46; x++) for (let y = 0; y < 196; y++) if (a.get(x, y) && !a.get(x, y - 3)) { a.set(x, y, '#ffffff'); a.set(x, y + 1, '#dce8f4'); }   // 雪原：岩頂積雪
-    if (r <= 1 || r === 6) for (let k = 0; k < 40; k++) { const x = 14 + ((k * 37) % 40), y = 60 + ((k * 53) % 120); if (a.get(x, y)) a.set(x, y, k & 1 ? '#3e7050' : '#5a8a46'); }   // 青苔
-  }); return o; }, {} as Record<number, HTMLCanvasElement>);
-const OBELISK = sculpt(40, 170, [{ sh: SH.box(20, 158, 18, 10, 3), ramp: ['#2e2a36', '#4a4558', '#6a6478', '#8e88a0'], grp: 1 },
-  { sh: SH.poly([[8, 150], [32, 150], [28, 20], [22, 8], [12, 30]]), ramp: ['#2e2a36', '#4a4558', '#6a6478', '#8e88a0'], tex: .25, grp: 2 }], a => {
-  for (const [x, y] of [[20, 60], [19, 61], [21, 61], [20, 62], [20, 59], [18, 61], [22, 61]]) a.set(x, y, '#c8a8ff'); });
+/* ---- 入口上方的地標：每座地城一尊自己的紀念石像（art/monuments.ts）——石柱頂上雕著裡面的 Boss。
+   比岩丘高很多 → 還沒看到洞口就先看到它；頂端冒紫色光柱，打完地城就熄掉 ---- */
+const STONE5 = ['#1e1a26', '#2e2a36', '#4a4558', '#6a6478', '#8e88a0'];   // 古墓用的偏紫灰石頭
 const TORCH_POST = sculpt(10, 40, [{ sh: SH.box(5, 22, 2, 18, 3), ramp: ['#2e1c0e', '#4a3018', '#6a4626', '#86603a'], grp: 1 }, { sh: SH.ell(5, 6, 4, 3), ramp: ['#2a2834', '#4a4858', '#7a788a'], grp: 2 }]);
 const MIST = { cave: '#b8b2c8', grotto: '#9ad0e8', crypt: '#c8b8e8' } as Record<string, string>;
 const regAtT = (tx: number, ty: number) => reg[ty * MW + tx];
@@ -85,9 +79,9 @@ function beacon(x: number, y: number, seed: number) {
   col.addColorStop(0, 'rgba(200,168,255,0)'); col.addColorStop(1, 'rgba(200,168,255,' + (.34 + .12 * p) + ')');
   ctx.fillStyle = col; ctx.fillRect(snapF(x - 3), snapF(y - 90), 6, 90);
   ctx.globalAlpha = .5; ctx.fillRect(snapF(x - 1), snapF(y - 90), 2, 90); ctx.globalAlpha = 1;
-  const g = ctx.createRadialGradient(x, y, 0, x, y, 16 + 3 * p); g.addColorStop(0, 'rgba(255,255,255,.95)'); g.addColorStop(.25, 'rgba(216,190,255,.8)'); g.addColorStop(1, 'rgba(140,90,230,0)');
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 16 + 3 * p, 0, Math.PI * 2); ctx.fill();
-  for (let k = 0; k < 3; k++) { const a = t * 1.6 + k * 2.094; ctx.fillStyle = k ? '#c8a8ff' : '#ffffff'; ctx.fillRect(snapF(x + Math.cos(a) * 8), snapF(y + Math.sin(a) * 4), HKP * 1.5, HKP * 1.5); }   // 繞著轉的光點
+  const g = ctx.createRadialGradient(x, y, 0, x, y, 9 + 2 * p); g.addColorStop(0, 'rgba(255,255,255,.9)'); g.addColorStop(.3, 'rgba(216,190,255,.55)'); g.addColorStop(1, 'rgba(140,90,230,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 9 + 2 * p, 0, Math.PI * 2); ctx.fill();   // 小小一團：不要蓋住石像
+  for (let k = 0; k < 3; k++) { const a = t * 1.6 + k * 2.094; ctx.fillStyle = k ? '#c8a8ff' : '#ffffff'; ctx.fillRect(snapF(x + Math.cos(a) * 6), snapF(y + Math.sin(a) * 3), HKP * 1.5, HKP * 1.5); }   // 繞著轉的光點
   if (Math.random() < .35) G.parts.push({ x: x + rr(-3, 3), y: y - rr(0, 4), vx: rr(-5, 5), vy: -rr(16, 34), life: rr(1, 1.8), max: 1.8, col: pick(['#c8a8ff', '#9a6ae8', '#f0e8ff']), star: rr(.6, 1.5), drag: .6 });
 }
 
@@ -176,9 +170,11 @@ export function drawDoors(vis, list, L, addLight) {
         if (Math.random() < .5) G.parts.push({ x: sx + rr(-7, 7), y: sy + rr(-6, 8), vx: rr(-4, 4), vy: -rr(8, 24), life: rr(.8, 1.5), max: 1.5, col: pick(['#ffffff', '#e8eeff']), star: rr(.4, 1.2), drag: 1 }); } }); } }
     if (!d.stairs) drawDeco(d, vis, list, L, addLight, done);                                       // 前院：石板地、雕像、破旗、符文石……
     if (!d.stairs && (vis(ex, ey, 60) || vis(ex, ey - 110, 90))) {
-      const crypt = d.style === 'crypt', sp = crypt ? CRYPT_SP : CAVE_SP, top = crypt ? OBELISK : CRAG[regAtT(d.ent[0], d.ent[1])] || CRAG[0];
-      list.push({ y: ey - 40, f: () => { drawArtSprite(top, ex + (crypt ? 0 : 10), ey - 40); if (!done) beacon(ex + (crypt ? 0 : 11), ey - 40 - (crypt ? 52 : 62), d.ent[0]); } });   // 岩丘上的尖岩 / 方尖碑（排在洞口後面）+ 頂端的紫光
-      if (!done) addLight(L, ex + (crypt ? 0 : 11), ey - (crypt ? 92 : 102), 40 + Math.sin(G.time * 2) * 4, 3);
+      const crypt = d.style === 'crypt', sp = crypt ? CRYPT_SP : CAVE_SP, r = regAtT(d.ent[0], d.ent[1]);
+      const mon = monument(d.id, crypt ? STONE5 : (SRAMP.rock[r] || STONE5), r), mx = ex + (crypt ? 0 : 10), my = ey - 40;   // 石像畫在岩丘上（排在洞口後面）
+      const bx = mx + (mon.top[0] - MON_W / 2) * HK, by = my - (MON_H - mon.top[1]) * HK;                                    // 光柱冒出來的地方
+      list.push({ y: my, f: () => { drawArtSprite(mon.img, mx, my); if (!done) beacon(bx, by, d.ent[0]); } });
+      if (!done) addLight(L, bx, by, 40 + Math.sin(G.time * 2) * 4, 3);
       list.push({ y: ey - 2, f: () => { drawArtSprite(sp, ex, ey); if (!done) drawFog(ex, ey, crypt, d.ent[0] * .13); } });
       for (const s of [-1, 1]) { const tx = ex + s * 30, ty = ey + 22;                               // 洞口兩邊的火把
         list.push({ y: ty, f: () => { drawArtSprite(TORCH_POST, tx, ty); flame(tx, ty - 12, 4, d.ent[0] + s); } }); addLight(L, tx, ty - 14, 46 + Math.sin(G.time * 9 + s) * 2, 1); }
