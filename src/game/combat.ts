@@ -27,7 +27,8 @@ import type { Player } from '../types';
 /* ================= PLAYER COMBAT ================= */
 export function targets(pl: Player) { const t = []; for (const e of G.enemies) if (Math.abs(e.x - pl.x) < 300 && Math.abs(e.y - pl.y) < 300) t.push(e); if (G.B && !G.bossDead && G.B.state !== 'sleep' && !(G.B.z > 8)) t.push(G.B);
   for (const e of rbs) { if (e.dead || e.state === 'sleep' || e.state === 'intro') continue; if (!(e.z > 8) && !e.hidden) t.push(e);
-    if (e.mech) for (const o of e.mech.objs) if (!o.dead) t.push(o); }                // Boss 機制的物件（裂口、水晶、卵……）也打得到
+    if (e.mech) for (const o of e.mech.objs) if (!o.dead) t.push(o);
+    for (const o of e.objs || []) if (o.hittable && !o.dead) t.push(o); }   // Boss 丟出來、打得到的東西（彈反球，world/bossAI4.ts）                // Boss 機制的物件（裂口、水晶、卵……）也打得到
   return t; }
 function nearestTarget(pl: Player, maxD) { let best = null, bd = maxD; for (const e of targets(pl)) { const d = Math.hypot(e.x - pl.x, e.y - pl.y) - e.r; if (d < bd && canSee(pl.x, pl.y - 6, e.x, e.y - 6)) { bd = d; best = e; } } return best; }   // 隔著牆的不算（不會瞄準 / 撲向牆後的敵人）
 function autoFace(pl: Player, maxD) { const t = nearestTarget(pl, maxD); if (t) pl.face = Math.atan2(t.y - pl.y, t.x - pl.x); pl.aimLock = .3; updFlip(pl); }
@@ -45,6 +46,8 @@ function calcDmg(pl: Player, mult, cb = 0) {                                   /
 export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: number, opts: { heavy?: boolean; stun?: number; crit?: boolean; heal?: number; proc?: boolean; cb?: number; kb?: number } = {}) {
   if (e.hp <= 0) return;
   if (!canSee(sx, sy - 6, e.x, e.y - 6)) return;                         // 隔著牆（懸崖、石牆、房子）打不到
+  if (e.onHit) { e.onHit(pl, sx, sy); return; }                         // 打得到的 Boss 招式（彈反球：打回去，world/bossAI4.ts）
+  if (e.guard && e.onGuard) { e.onGuard(pl, sx, sy); return; }           // Boss 架招中：格擋 → 反擊（world/bossAI4.ts）
   if (e.obj) { objHit(e); return; }                                      // Boss 機制的物件：每下 -1（world/bossMech.ts）
   if (e.immune) { G.fx.push({ k:'warp', x:e.x, y:e.y - 14, r0:16, r1:26, th:2, t:0, d:.2, col:'#ffffff' }); sfx.hit(); return; }   // 護盾：打不進去
   let { v, crit } = calcDmg(pl, mult, opts.cb || 0);

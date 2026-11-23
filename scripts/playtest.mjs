@@ -48,7 +48,7 @@ const pageScript = async () => {
   const shop = await imp('ui/shop');
   const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies'), status: await imp('game/status'), bt: await imp('game/bossTuning'), ai3: await imp('world/bossAI3'), puz2: await imp('world/puz2'), coll: await imp('game/collision'), pause: await imp('ui/pause'), puz: await imp('world/puzzles'), mech: await imp('world/bossMech'), statues: await imp('world/statues'), sight: await imp('world/sight'), ending: await imp('world/ending'), secrets: await imp('world/secrets'), cb: await imp('game/combat'), dboss: await imp('world/dungeonBoss') };
 
-  const imp0 = { pu: await imp('game/playerUpdate'), dgb: await imp('world/dungeonBoss'), rig: await imp('art/bossRig'), save: await imp('game/save'), map: await imp('render/map'), dg: await imp('world/dungeons'), mount: await imp('game/mount'), input: await imp('ui/interact'), inp: await imp('ui/input'), hud: await imp('ui/hud'), title: await imp('ui/title') };
+  const imp0 = { pu: await imp('game/playerUpdate'), ai4: await imp('world/bossAI4'), status: await imp('game/status'), combat: await imp('game/combat'), dgb: await imp('world/dungeonBoss'), rig: await imp('art/bossRig'), save: await imp('game/save'), map: await imp('render/map'), dg: await imp('world/dungeons'), mount: await imp('game/mount'), input: await imp('ui/interact'), inp: await imp('ui/input'), hud: await imp('ui/hud'), title: await imp('ui/title') };
   const step = (n, opts = {}) => {
     for (let i = 0; i < n; i++) {
       if (opts.god && G.me) { G.me.hp = G.me.maxHp; G.me.st = G.me.maxSt; }
@@ -603,6 +603,43 @@ const pageScript = async () => {
       log.push('  ' + b.def.name + '：四招都放得出來');
       G.projs = []; menus.restAt(CAMPS[0]); setMenu(null); step(2, { god: true });
     }
+  });
+
+  run('Boss 新招第二批：震波 / 光束 / 網格 / 追身落雷 / 架招 / 抓取 / 彈反球 / 迴力鏢 / 環繞 / 瞬移 / 分身', () => {
+    const A3 = await0.ai3, A4 = imp0.ai4, D0 = imp0.dg.DUNGEONS[0], id = 'dg_' + D0.id; setMenu(null);
+    const known = new Set(['charge', 'combo', 'thrust', 'chain', 'slam', 'leap', 'sweep', 'lash', 'fan', 'nova', 'rain', 'pools', 'spiral', 'summon', 'erupt', 'pull', 'donut', 'cross', 'homing', ...A4.MORE]);
+    for (const [k, B] of Object.entries({ ...imp0.dgb.DBOSS, elfking: imp0.dgb.ELFKING })) for (const [m, , o] of B.moves.concat(B.p2)) {   // 招式表裡每一招都要是招式庫認得的
+      if (!known.has(m)) throw new Error(k + '：不認得的招 ' + m); if (m === 'chain') for (const [m2] of o.seq) if (!known.has(m2)) throw new Error(k + '：連段裡不認得的招 ' + m2); }
+    RB.rbDead.delete(id); await0.quest.flags.delete('dgn:' + D0.id); RB.resetRegionBosses(); const b = RB.rbs.find(e => e.id === id); if (!b) throw new Error('找不到 ' + id);
+    tp(D0.ent[0] * 16 + 8, (D0.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2);
+    tp(b.def.x, b.def.y + 40); step(100, { god: true }); if (b.state === 'sleep') throw new Error('沒醒');
+    let hurt = 0, seen = new Set();
+    const tick = (n) => { for (let i = 0; i < n; i++) { step(1, { god: true }); b.hp = Math.max(b.hp, b.maxHp * .9); seen.add(b.state); if (G.me.hurt > .28) { hurt++; G.me.hurt = 0; } } };
+    const go = (m, mo, at, pre) => { b.state = 'idle'; b.act = null; b.objs = []; b.pend = []; b.x = b.def.x; b.y = b.def.y; b.phase = 1; hurt = 0; seen = new Set();
+      G.me.x = b.x + at[0]; G.me.y = b.y + at[1]; G.me.iframe = 0; G.me.face = at[2] ?? 0; if (imp0.status.sx(G.me)) imp0.status.clearStatus(G.me); pre?.();
+      A3.startMove(b, m, mo, G.me.x - b.x, G.me.y - b.y); let left = 600; while (b.state !== 'idle' && left-- > 0) tick(1); if (b.state !== 'idle') throw new Error(m + ' 一直沒結束（' + b.state + '）'); };
+    go('wave', { r: 150, spd: 120, W: 10, k: 1 }, [70, 0]); tick(90); if (!hurt) throw new Error('震波：站著不閃，環經過腳下卻沒打到');
+    go('beam', { L: 160, W: 10, arc: 2.4, dur: 1.2, k: 1 }, [60, 0]); if (!seen.has('beam') || !hurt) throw new Error('掃射光束：沒掃到站在前面的人');
+    go('grid', { W: 12, gap: 56, n: 1, k: 1 }, [0, 0], () => { G.me.x = b.def.x; G.me.y = b.def.y; b.x = b.def.x + 40; }); if (!hurt) throw new Error('網格：站在正中間那條線上卻沒被打到');
+    go('meteor', { n: 4, gap: .3, r: 20, k: 1, fall: .6 }, [60, 0]); tick(60); if (hurt < 1) throw new Error('追身落雷：站著不動卻沒被打到');
+    go('counter', { dur: 1.4, then: ['sweep', { r: 60, half: 1.2, k: 1.4 }] }, [24, 0], () => {}); // 不打他：時間到自己收架
+    if (seen.has('sweepWind')) throw new Error('架招：沒打他卻反擊了');
+    b.state = 'idle'; A3.startMove(b, 'counter', { dur: 1.4, then: ['sweep', { r: 60, half: 1.2, k: 1.4 }] }, 24, 0); tick(5); const hp0 = b.hp = b.maxHp;
+    damageEnemy(G.me, b, 1, G.me.x, G.me.y); if (b.hp !== hp0) throw new Error('架招：打他卻扣到血（應該被擋下來）'); if (b.state !== 'sweepWind') throw new Error('架招：被打之後沒有反擊（' + b.state + '）'); tick(80);
+    go('grab', { L: 70, W: 16, k: 2, hits: 3, hold: 1.1, miss: 1.6, reach: 26 }, [b.r + 12, 0]); if (!seen.has('hold') || hurt < 3) throw new Error('抓取：站在正前面沒被抓住 / 沒連打（' + [...seen] + ' 打中 ' + hurt + '）');
+    go('grab', { L: 70, W: 16, k: 2, hits: 3, hold: 1.1, miss: 1.6, reach: 26 }, [110, 0]); if (!seen.has('stagger') || seen.has('hold')) throw new Error('抓取：沒抓到卻沒有露出破綻（' + [...seen] + '）');
+    go('orb', { n: 1, spd: 55, k: 1, mult: 3, stun: 2 }, [80, 0]); const orb = b.objs.find(o => o.k === 'orb'); if (!orb) throw new Error('彈反球：沒有丟出球');
+    if (!imp0.combat.targets(G.me).includes(orb)) throw new Error('彈反球：球不在玩家打得到的目標裡'); const hp1 = b.hp = b.maxHp;
+    damageEnemy(G.me, orb, 1, orb.x - 10, orb.y); if (!orb.back) throw new Error('彈反球：打到球卻沒彈回去'); seen = new Set(); tick(120);
+    if (!(b.hp < hp1) || !seen.has('stagger')) throw new Error('彈反球：打回去沒有打到 Boss / Boss 沒暈（hp ' + b.hp + '/' + hp1 + '）'); b.state = 'idle'; tick(5);
+    go('boomerang', { L: 150, spd: 230, pause: .4, k: 1 }, [100, 0]); tick(150); if (b.objs.some(o => o.k === 'boom')) throw new Error('迴力鏢：一直沒飛回來'); if (!hurt) throw new Error('迴力鏢：站在路線上卻沒被打到');
+    go('orbit', { n: 4, r: 30, dur: 2, spd: 2.6, k: .8 }, [30, 0]); tick(30); if (!b.objs.some(o => o.k === 'orbit') || !hurt) throw new Error('環繞物：沒出現 / 貼著 Boss 卻沒被打到'); tick(120); if (b.objs.some(o => o.k === 'orbit')) throw new Error('環繞物：時間到沒消失');
+    go('blink', { d: 30, then: ['sweep', { r: 56, half: 1.1, k: 1.2 }] }, [60, 0, 0]); if (!(b.x < G.me.x)) throw new Error('瞬移：沒有出現在背後（玩家面向右，Boss 應該在左邊）'); if (!seen.has('sweepWind')) throw new Error('瞬移：出現後沒有接著出招');
+    go('mirage', { n: 2, m: 'charge', mo: { L: 120, W: 22, spd: 300, k: 1 } }, [90, 0]);
+    if (!seen.has('dash')) throw new Error('分身：真身沒有衝'); tick(40); if (b.objs.some(o => o.k === 'clone')) throw new Error('分身：打完沒有消失');
+    b.state = 'idle'; A3.startMove(b, 'mirage', { n: 2, m: 'charge', mo: { L: 120, W: 22, spd: 300, k: 1 } }, 90, 0); if (b.objs.filter(o => o.k === 'clone').length !== 2) throw new Error('分身：數量不對');
+    tick(120); log.push('  十一招都放得出來，而且做的事對（震波經過才痛、架招被打才反擊、抓空會露破綻、球打得回去……）');
+    b.objs = []; G.projs = []; menus.restAt(CAMPS[0]); setMenu(null); step(2, { god: true });
   });
 
   run('有骨架的 Boss（霜墓騎士）：招式合理（刺 / 橫掃 / 單次衝鋒 / 插地 / 刺刺掃連段）、出招會記 e.act 給動畫、畫得出來', () => {

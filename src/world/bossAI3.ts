@@ -31,16 +31,17 @@ import { hurtPlayer } from '../game/combat';
 import { hitSpark, quakeFx, shake } from '../game/worldUpdate';
 import type { Move } from './dungeonBoss';
 import { burst, trail, type Theme } from './bossThemes';
+import { MORE, moreStates, startMore, tickMore } from './bossAI4';
 
-const base = (e) => 10 + 3 * tier(e.lv);
-const dmgOf = (e, o) => Math.round(base(e) * (o.k || 1));
+export const base = (e) => 10 + 3 * tier(e.lv);
+export const dmgOf = (e, o) => Math.round(base(e) * (o.k || 1));
 /* 區域 / 主線 Boss 沒有 THEME：用牠的光環顏色 + 一組相近的特效，讓牠們二階段也能用新招（pull / donut / cross / homing） */
 const RT: Record<string, [string, string, Theme['lash']]> = { queen: ['bubble', 'splash', 'beam'], general: ['lantern', 'sparks', 'chain'], dragon: ['flame', 'lava', 'firewhip'],
   mushking: ['sporeG', 'poison', 'vine'], yeti: ['icicle', 'ice', 'beam'], lich: ['poison', 'poison', 'chain'], mossguard: ['thorn', 'moss', 'vine'], mistwitch: ['wisp', 'ghost', 'chain'],
   sandgiant: ['scarab', 'dust', 'beam'], slagmother: ['magma', 'lava', 'firewhip'], frostwyrm: ['frostwave', 'ice', 'beam'], toxqueen: ['sporeG', 'poison', 'vine'] };
-const TH = (e): Theme => { const d = e.def; if (d.theme) return d.theme; const [proj, impact, lash] = RT[d.id] || ['bolt', 'sparks', 'beam'];   // 這隻 Boss 的特效主題（world/bossThemes.ts）
+export const TH = (e): Theme => { const d = e.def; if (d.theme) return d.theme; const [proj, impact, lash] = RT[d.id] || ['bolt', 'sparks', 'beam'];   // 這隻 Boss 的特效主題（world/bossThemes.ts）
   return d.theme = { cols: d.aura, proj, rain: 'pillar', impact, sweep: 'wave', lash, pool: 'water', trail: impact } as Theme; };
-const colsOf = (e) => TH(e).cols || e.def.boss.cols;
+export const colsOf = (e) => TH(e).cols || e.def.boss.cols;
 function shoot(e, a, spd, dmg) { const T = TH(e);
   G.projs.push({ x: e.x + Math.cos(a) * 16, y: e.y - 12 + Math.sin(a) * 12, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, r: 5, life: 1.7, dmg, owner: 'e', kind: T.proj, R: 12, th: 5, cols: T.cols }); }
 function strike(m) {                                                    // 落下 / 冒出來的一擊：圓裡的人受傷 + 這隻 Boss 自己的樣子
@@ -56,11 +57,13 @@ function strike(m) {                                                    // 落�
 function pickMove(e, d): Move {
   const B = e.def.boss, list: Move[] = e.phase === 2 ? B.moves.concat(B.p2) : B.moves;
   const fits = (m: string, o, d: number) => !(m === 'summon' && (e.sumT || 0) > 0) && !((m === 'sweep' || m === 'slam') && d > 90) && !(m === 'charge' && d < (o?.minD || 40)) && !(m === 'pull' && d > (o?.r || 50) * 2.4)
-    && !(m === 'thrust' && d > (o?.L || 80) + 16);                     // 刺：要走到刺得到的距離才出手
+    && !(m === 'thrust' && d > (o?.L || 80) + 16)                      // 刺：要走到刺得到的距離才出手
+    && !(m === 'grab' && d > (o?.L || 64) + 20) && !(m === 'counter' && d > 90)   // 抓取、架招：你在身邊才有用
+    && !(m === 'orbit' && e.objs?.some(x => x.k === 'orbit')) && !(m === 'mirage' && d < 50);   // 環繞物同時只有一組
   const ok = list.filter(([m, , o]) => m === 'chain' ? fits(o.seq[0][0], o.seq[0][1], d) : fits(m, o, d));
   let r = Math.random() * ok.reduce((s, m) => s + m[1], 0); for (const m of ok) if ((r -= m[1]) < 0) return m; return ok[0] || list[0];
 }
-const laneTele = (e, o) => [{ k: 'lane', a: e.aim, L: o.L, W: o.W }];
+export const laneTele = (e, o) => [{ k: 'lane', a: e.aim, L: o.L, W: o.W }];
 const crossTele = (e, o) => [0, 1, 2, 3].map(i => ({ k: 'lane', a: e.aim + i * Math.PI / 2, L: o.L, W: o.W }));
 function laneHit(e, a, o) {                                                // 一條直線（長 o.L、半寬 o.W）上的人受傷
   const c = Math.cos(a), s = Math.sin(a);
@@ -148,10 +151,11 @@ export function startMove(e, m: string, mo, dx: number, dy: number) {
   else if (m === 'spiral') { e.sa = e.aim; rbWind(e, 'spiralWind', .5 * wk, [{ k: 'circle', r: 30 }]); }
   else if (m === 'summon') { e.sumT = 14; rbWind(e, 'summonWind', .7, [{ k: 'circle', r: 30 }]); }
   else if (m === 'pull' || m === 'donut' || m === 'cross' || m === 'homing') startExtra(e, m, mo, dx, dy);
+  else if (MORE.has(m)) startMore(e, m, mo, dx, dy);                    // 第二批招式（world/bossAI4.ts）
   else if (m === 'erupt') { e.hidden = e.immune = e.mound = true; rbWind(e, 'sinkWind', .45); burst(e.x, e.y, TH(e).impact, 22); quakeFx(e.x, e.y, 30); sfx.boom(); }
 }
 /* 一招打完：連段還有下一招 → 直接接（預警縮短成 6 成）；沒有 → 站著喘一下 rest 秒 */
-function done(e, rest: number, dx: number, dy: number) {
+export function done(e, rest: number, dx: number, dy: number) {
   if (e.chain?.length) { const [m, mo] = e.chain.shift(); startMove(e, m, mo, dx, dy); e.t *= .6; e.wt = e.t; return; }
   e.chain = null; e.state = 'idle'; e.t = rest;
 }
@@ -159,8 +163,10 @@ AI.dgn = (e, dt, d, dx, dy) => {
   const B = e.def.boss, D = e.def, p2 = e.phase === 2, wk = p2 ? .78 : 1;
   tickPools(e, dt); if (e.sumT > 0) e.sumT -= dt;
   e.pend = (e.pend || []).filter(m => { m.t -= dt; if (m.t > 0) return true; strike(m); shake(2, .1); sfx.boom(); return false; });
+  tickMore(e, dt);                                                      // 震波、光球、迴力鏢、分身、環繞物（world/bossAI4.ts）
   if (jumpStates(e, dt, e.mo?.r || 48, dmgOf(e, e.mo || {}), e.mo?.air || .7, () => { burst(e.x, e.y, TH(e).impact, 26); if (e.mo?.pool) pool(e, e.x, e.y, 34, 3.5, Math.round(base(e) * .35), e.mo.pool); })) return;
   if (extraStates(e, dt)) return;
+  if (moreStates(e, dt, dx, dy)) return;
   const o = e.mo || {};
   switch (e.state) {
     case 'idle': {

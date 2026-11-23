@@ -147,6 +147,8 @@ function captain(e, rig: Rig): Pose {
       lantern(lerp(B2, TOSS0, k)); P.lamp = k; P.behind2 = k > .5; P.lean = -.08 * cx * k; P.rot = -.04 * f * k; P.ox = shiver(.75); return P; }
     case 'donutWind': { const k = ease(q / .6);                          // 舉燈：燈高高舉起，燈火一圈一圈變亮 → 往外炸開
       lantern(lerp(B2, -.8, k)); P.lamp = k; P.lift = k; P.ox = shiver(.8); return P; }   // 往前上方舉（正上方的話燈會吊在臉前面）
+    case 'guard': {                                                      // 架招：劍斜舉在身前擋住自己、重心往後，劍身閃白光 → 看得出「現在打他會被擋」
+      const k = ease(Math.min(1, (e.wt - e.t) / .15)); sword(lerp(B1, .1, k), lerp(SW, -1.25, k), 2 * k); P.lean = -.06 * f * k; P.glow = .5 + .3 * Math.sin(G.time * 16); return P; }
     case 'summonWind': { const k = ease(q / .6);                         // 舉劍號令：劍往上指，劍尖發光
       sword(lerp(B1, -1.3, k), lerp(SW, -Math.PI / 2, k), 2 * k); P.glow = k; P.lean = -.05 * f * k; return P; }
   }

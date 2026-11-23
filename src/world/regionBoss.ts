@@ -21,6 +21,7 @@ import { nearestPlayer } from '../game/player';
 import { DEFAULT_COLS, REGION_FX, recolorNew, rmapCols } from './bossThemes';
 import { drawFall } from '../render/bossFx';
 import { EXTRA_STATES, extraStates, startExtra } from './bossAI3';
+import { drawMore } from './bossAI4';
 import { REXTRA } from './dungeonBoss';
 import { DB_FX, RB_FX } from '../data/ailments';
 import { BOSS_HP } from '../game/bossTuning';
@@ -161,9 +162,10 @@ export function drawRBTele(e) {
   const fc = REGION_FX[e.def.id] ? rmapCols(e.def.id, DEFAULT_COLS.fire) : undefined;
   if ((e.state === 'breath' || (e.state === 'sweep' && e.def.ai === 'dragon')) && e.glow) { const [gx, gy, ga] = e.glow; drawOrb(gx, gy, 6 + Math.sin(G.time * 40), REGION_FX[e.def.id] ? rmapCols(e.def.id, FIREC) : FIREC); for (const k of [30, 60, 90]) G.RB_L.push({ x:gx + Math.cos(ga) * k, y:gy + Math.sin(ga) * k, r:46, warm:1 }); }
   for (const b of e.burns || []) { if (vis2(b.x, b.y)) flame(b.x + Math.sin(b.ph) * 2, b.y + 2, 3 + 2 * Math.min(1, b.t), b.ph, fc); }
+  drawMore(e);                                                          // 第二批招式的東西（world/bossAI4.ts）
   for (const t of e.tele || []) { const qq = t.q !== undefined ? t.q : q;
     if (t.k === 'circle') teleCircle(t.x !== undefined ? t.x : e.x, t.y !== undefined ? t.y : e.y, t.r, qq);
-    else if (t.k === 'lane') teleLane(e.x, e.y - 6, t.a, t.L, t.W, qq);
+    else if (t.k === 'lane') teleLane(t.x ?? e.x, (t.y ?? e.y) - 6, t.a, t.L, t.W, qq);   // x / y：不是從 Boss 身上出發的線（網格）
     else if (t.k === 'sector') teleSector(e.x, e.y - 6, t.r, t.a, t.half, qq);
     else if (t.k === 'ring') teleRing(e.x, e.y, t.r0, t.r, qq); }
 }
