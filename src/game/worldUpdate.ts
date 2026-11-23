@@ -4,7 +4,7 @@ import { updateNPCs } from '../world/towns';
 import { updateQuest } from './quest';
 import { TAU, pick, rr } from '../core/util';
 import { HK, LH, LW, ctx, snapF } from '../core/canvas';
-import { COIN_SP, ICON, RAR, SOUL_SP } from '../data/items';
+import { COIN_SP, ICON, INV_MAX, RAR, SOUL_SP } from '../data/items';
 import { MATS, ORE_SP, ORE_TO_MAT } from '../data/forge';
 import { BLOCKP, TS, spawns } from '../world/map';
 import { updateRegionBosses } from '../world/regionBoss';
@@ -193,7 +193,7 @@ export function nearDrop(pl) {
   return best;
 }
 export function pickUp(pl, d) {
-  if (pl.inv.length >= 24) { if (pl === G.me) toast('背包滿了，先去分解一些裝備', '#ff8a8a'); return false; }
+  if (pl.inv.length >= INV_MAX) { if (pl === G.me) toast('背包滿了，先去分解一些裝備', '#ff8a8a'); return false; }
   const i = G.drops.indexOf(d); if (i < 0) return false;
   G.drops.splice(i, 1); pl.inv.push(d.item);
   if (pl === G.me) { const R = RAR[d.item.rarity]; toast('獲得 ' + R.n + '・' + d.item.name, R.c, true); sfx.pick(); }

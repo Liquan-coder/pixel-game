@@ -34,7 +34,7 @@ const pageScript = async () => {
   const ITEMS = await imp('data/items'), PLAYER = await imp('game/player');
   const { recalc, pressed, held, input, newPlayer, resetPlayers } = await imp('game/player');
   const BOSS = await imp('game/boss');
-  const { update } = await imp('game/worldUpdate');
+  const { update } = await imp('game/worldUpdate'), imp0wu = await imp('game/worldUpdate');
   const { render } = await imp('render/render');
   const { renderMini, renderBigMap } = await imp('render/map');
   const { updateHUD, setMenu } = await imp('ui/hud');
@@ -347,6 +347,18 @@ const pageScript = async () => {
     const mid = { id: 998, type: 'sword', ilvl: 9, rarity: 2, aff: {}, name: '舊劍' }; F.migrateWeapon(mid);
     log.push('  舊武器換算：25 級史詩斧 → +' + old.up + '，9 級稀有劍 → +' + mid.up + '（攻擊 ' + mid.atk + '）');
     G.me.weapon = makeItem('sword', 0, 0); recalc(G.me);
+  });
+
+  run('背包 100 格：第 100 件撿得到，滿了撿不到', () => {
+    const I = ITEMS, WU = imp0wu; setMenu(null);
+    if (I.INV_MAX !== 100) throw new Error('背包上限應該是 100：' + I.INV_MAX);
+    G.me.inv = Array.from({ length: 99 }, () => I.makeWeapon('sword')); G.drops = [];
+    const drop = () => { const d = { x: G.me.x, y: G.me.y, z: 0, vz: 0, vx: 0, vy: 0, item: I.makeWeapon('axe'), t: 0, warned: false }; G.drops.push(d); return d; };
+    if (!WU.pickUp(G.me, drop()) || G.me.inv.length !== 100) throw new Error('第 100 件撿不起來');
+    if (WU.pickUp(G.me, drop()) || G.me.inv.length !== 100) throw new Error('背包滿 100 件了還撿得起來');
+    menus.toggleInv(); if (document.getElementById('invCount').textContent !== '100/100') throw new Error('標題沒寫 100/100：' + document.getElementById('invCount').textContent);
+    if (document.querySelectorAll('#bagGrid .slot[data-i]').length !== 100) throw new Error('背包格子沒畫出 100 件');
+    setMenu(null); G.me.inv = []; G.drops = [];
   });
 
   run('分解：點一件 → 右上角分解；按住 1 秒 → 批量分解', () => {

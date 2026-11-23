@@ -1,7 +1,7 @@
 import { G } from '../core/state';
 import { $, clamp, pick, ri } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
-import { COIN_SP, DROP_WEAPONS, UP_MAX, ICON_URL, WT, MERCH_SP, RAR, SLOTN, armorStats, gearValue, itemName, makeArmor, makeSeal, makeTrinket, makeWeapon, slotOf } from '../data/items';
+import { COIN_SP, DROP_WEAPONS, UP_MAX, ICON_URL, INV_MAX, WT, MERCH_SP, RAR, SLOTN, armorStats, gearValue, itemName, makeArmor, makeSeal, makeTrinket, makeWeapon, slotOf } from '../data/items';
 import { A_UP_MAX, ARMOR_BASIC, ARMOR_BUILD, ARMOR_REGION, TRINKET_KEYS } from '../data/gear';
 import { FX_KEYS, WFXD } from '../game/weaponFx';
 import { MATS, ORE_URL, PAGES, PAGE_URL, REGION_MAT, SEAL_COST, atkAt, canStamp, canUpgrade, doUpgrade, hasPage, maxUp, stampSeal, upCost } from '../data/forge';
@@ -162,7 +162,7 @@ function renderShop() {
       : shopRow(o.item.type, itemName(o.item), SLOTN[slotOf(o.item)] + (o.item.fx && isW(o.item) ? ' · 帶刻印' : ''), o.sold ? '售出' : o.price, RAR[o.item.rarity].c, i, o.sold));
     const o = vendor.stock[shopSel] && shown(vendor.stock[shopSel]) ? vendor.stock[shopSel] : null;
     let det = '', act = '';                                             // det = 商品卡（在捲動區裡），act = 買下按鈕（固定在底部）
-    if (o && o.kind === 'item' && !o.sold) { det = itemCard(o.item, slotOf(o.item) === 'trinket' || slotOf(o.item) === 'seal' ? null : G.me[slotOf(o.item)]); act = '<button type="button" class="pri" data-buy="' + shopSel + '"' + (G.me.gold < o.price || G.me.inv.length >= 24 ? ' disabled' : '') + '>買下（' + o.price + ' 金幣）</button>'; }
+    if (o && o.kind === 'item' && !o.sold) { det = itemCard(o.item, slotOf(o.item) === 'trinket' || slotOf(o.item) === 'seal' ? null : G.me[slotOf(o.item)]); act = '<button type="button" class="pri" data-buy="' + shopSel + '"' + (G.me.gold < o.price || G.me.inv.length >= INV_MAX ? ' disabled' : '') + '>買下（' + o.price + ' 金幣）</button>'; }
     else if (o && o.kind !== 'item') act = '<button type="button" class="pri" data-buy="' + shopSel + '"' + (G.me.gold < o.price ? ' disabled' : '') + '>買下（' + o.price + ' 金幣）</button>';
     body.innerHTML = '<div class="shoplist">' + rows.join('') + '</div><div id="shopDet" style="margin-top:8px">' + det + '</div><p class="hintp">商品會在你下次休息時刷新，商人也會走到別的營火。地區越深入，賣的裝備越好。</p>';
     setFoot(act, o && o.kind === 'item' && o.item.name);
@@ -198,7 +198,7 @@ $('shopMenu').addEventListener('click', e => {
     else if (o.kind === 'potUp') { if (!o.left || G.potMax >= 8) return; o.left--; G.potMax++; G.me.pot++; o.price = 250 * (G.potMax - 2); toast('藥水上限 +1（現在 ' + G.potMax + ' 瓶）', '#f2c14e'); }
     else if (o.kind === 'tear') { if (!o.left) return; o.left--; G.me.tears = (G.me.tears || 0) + 1; toast('重生水滴 +1（拿給晨風鎮或霜歌鎮的修女）', '#9ae8ff'); }
     else if (o.kind === 'ore') { if (!o.left) return; o.left--; G.me.mats[o.mat] = (G.me.mats[o.mat] || 0) + 1; toast(MATS[o.mat].n + ' +1', MATS[o.mat].c); }
-    else { if (o.sold || G.me.inv.length >= 24) return; o.sold = true; G.me.inv.push(o.item); toast('買到 ' + o.item.name, RAR[o.item.rarity].c); shopSel = null; }
+    else { if (o.sold || G.me.inv.length >= INV_MAX) return; o.sold = true; G.me.inv.push(o.item); toast('買到 ' + o.item.name, RAR[o.item.rarity].c); shopSel = null; }
     G.me.gold -= price; sfx.buy(); renderShop(); save(); return; }
   if (t.dataset.sell) { const i = G.me.inv.findIndex(x => x.id === +t.dataset.sell); if (i < 0) return; const it = G.me.inv.splice(i, 1)[0];
     G.me.gold += sellPrice(it); sfx.coin(); shopSel = null; renderShop(); save(); }

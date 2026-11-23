@@ -34,6 +34,8 @@ export const WT = {
   elfrapier:{name:'精靈細劍',base:11,cd:.28,range:38,arc:0,stam:8,skill:'moonstep',sn:'月步',scd:6,trait:'第三下刺出一道葉刃',sd:'化成月光往前閃三次，每次穿過路上的敵人（每次 220%），期間無敵'},
   elfblades:{name:'精靈雙刀',base:12,cd:.3,range:28,arc:140,stam:8,skill:'windwaltz',sn:'風之輪舞',scd:7,trait:'左右交替的四連斬，第四下轉一圈',sd:'旋轉著往前衝，路上的敵人一直被砍（6 下，每下 100%），衝完再轉一圈（160%）'},
 };
+/** 背包最多幾格（滿了撿不到、買不了東西） */
+export const INV_MAX = 100;
 /* 顏色（沒有品階了，只用來分辨是哪一種東西）：0 一般、2 地區防具 / 飾品、3 刻印（或裝了刻印的武器）、4 獨特。m 只給舊存檔換算用 */
 export const RAR = [
   {n:'一般',c:'#d9d4ca',m:1},{n:'一般',c:'#6fd36f',m:1.12},{n:'特殊',c:'#55a8ff',m:1.25},

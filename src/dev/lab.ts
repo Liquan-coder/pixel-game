@@ -7,7 +7,7 @@
    只有開發模式（npm run dev）才會載入這個檔案（main.ts 用 import.meta.env.DEV 判斷），上線的版本裡沒有它。 */
 import { G } from '../core/state';
 import { rr } from '../core/util';
-import { WT, makeSeal, makeWeapon } from '../data/items';
+import { INV_MAX, WT, makeSeal, makeWeapon } from '../data/items';
 import { SEAL_COST } from '../data/forge';
 import { NPCS } from '../world/towns';
 import { openShop } from '../ui/shop';
@@ -66,8 +66,8 @@ function brute() { const [x, y] = near(50); const e = add('skel', x, y); e.maxHp
 function sandbag() { const [x, y] = near(55); const e = add('golem', x, y); e.maxHp = e.hp = 300; e.dmg = 1; bags.add(e); }   // 血量正常（出血爆的 15% 才是真的大小），每一幀補滿
 /* 鐵匠：背包補上每種刻印各一個、一把沒刻印的長劍、夠用的星砂，然後打開鐵匠的「刻印」分頁 */
 function smith() {
-  for (const [k] of SEALS) if (k && !G.me.inv.some(it => it.slot === 'seal' && it.fx === k) && G.me.inv.length < 24) G.me.inv.push(makeSeal(k));
-  if (G.me.inv.length < 24) G.me.inv.push(makeWeapon('sword'));
+  for (const [k] of SEALS) if (k && !G.me.inv.some(it => it.slot === 'seal' && it.fx === k) && G.me.inv.length < INV_MAX) G.me.inv.push(makeSeal(k));
+  if (G.me.inv.length < INV_MAX) G.me.inv.push(makeWeapon('sword'));
   G.me.mats[SEAL_COST.mat] = Math.max(G.me.mats[SEAL_COST.mat] || 0, SEAL_COST.n * 10);
   openShop(NPCS.find(n => n.smith), 'seal');
 }

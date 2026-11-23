@@ -1,6 +1,6 @@
 import { G } from '../core/state';
 import { $, onTap } from '../core/util';
-import { AFFIX, ICON_URL, RAR, SLOTN, UP_MAX, WT, armorStats, effOf, gearValue, itemName, slotOf } from '../data/items';
+import { AFFIX, ICON_URL, INV_MAX, RAR, SLOTN, UP_MAX, WT, armorStats, effOf, gearValue, itemName, slotOf } from '../data/items';
 import { ACLS, ARMORS, A_UP_MAX, A_WEIGHT, LOAD_TIERS, MAIN_BOSSES, T_SLOTS_MAX, W_WEIGHT, effLines, fmtW } from '../data/gear';
 import type { Item } from '../types';
 import { MATS, MAT_KEYS, ORE_URL } from '../data/forge';
@@ -201,7 +201,7 @@ let batch: Set<number> | null = null, batchArm = false;
 const batchItems = () => batch ? G.me.inv.filter(it => batch.has(it.id)) : [];
 export function startBatch(id: number) { batch = new Set([id]); batchArm = false; G.selItem = null; salvArm = 0; renderInv(); }
 export function renderInv() {
-  $('invCount').textContent = G.me.inv.length + '/24'; $('invGold').innerHTML = coinChip(G.me.gold); $('invSouls').innerHTML = soulChip(G.me.souls);
+  $('invCount').textContent = G.me.inv.length + '/' + INV_MAX; $('invGold').innerHTML = coinChip(G.me.gold); $('invSouls').innerHTML = soulChip(G.me.souls);
   const eq = curEq(G.me), sel = selected(), bagIt = sel && sel.where === 'bag' ? sel.it : null, nSlots = tSlots();
   // 左欄：上面是選中的物品（有選才出現）＋ 按鈕；下面一直是角色數值（選了背包的東西 → 顯示換上後的變化）
   const info = $('cInfo'), keepY = info.querySelector('.cscroll')?.scrollTop || 0;
@@ -237,13 +237,13 @@ export function renderInv() {
   const list = G.me.inv.map((it, i) => ({ it, i })).filter(o => bagFilter === 'all' || slotOf(o.it) === bagFilter);
   const cells = list.map(({ it, i }) => '<button type="button" class="slot' + (G.selItem === it.id ? ' sel' : '') + (batch && batch.has(it.id) ? ' pick' : '') + (unmet(G.me, it).length ? ' bad' : '') + (sealOn(it) ? ' sl' : '') + '" data-i="' + i + '" style="border-color:' + RAR[it.rarity].c + '" aria-label="' + it.name + '"><img alt="" src="' + ICON_URL[it.type] + '">' + sealBadge(it) + '<i style="color:' + RAR[it.rarity].c + '">' + badge(it) + '</i></button>');
   const blank = drop.has('bag') ? '<button type="button" class="slot blank drop" data-drop="1" aria-label="卸下"></button>' : '<div class="slot blank"></div>';
-  if (bagFilter === 'all') while (cells.length < 24) cells.push(blank);   // 空格子也畫出來，一眼看出背包還剩多少
+  if (bagFilter === 'all') { const pad = Math.min(INV_MAX, Math.max(25, Math.ceil(cells.length / 5) * 5 + 5)); while (cells.length < pad) cells.push(blank); }   // 空格子：至少 5 排，之後永遠多一排空的（不用捲過 100 格空格；還剩幾格看標題的 n/100）
   else if (drop.has('bag')) cells.push(blank);                                // 篩選中：多放一個空格讓你卸下
   $('bagGrid').innerHTML = cells.length ? cells.join('') : '<div class="empty">這一類還沒有東西。</div>';
 }
 let lastSelId = null, infoMode = false;                                 // infoMode = 左欄顯示物品說明（不是數值）
 /* 點一下選、再點目標放進去：選了背包裡的東西 → 能放的欄位發亮；選了身上的防具 / 飾品 → 背包空格發亮（卸下） */
-const canUnequip = (sel) => !!sel && sel.where === 'eq' && sel.slot !== 'weapon' && G.me.inv.length < 24;   // 武器不能空手
+const canUnequip = (sel) => !!sel && sel.where === 'eq' && sel.slot !== 'weapon' && G.me.inv.length < INV_MAX;   // 武器不能空手
 function dropTargets(sel, nSlots: number) {
   const out = new Set<string>(); if (!sel) return out;
   if (sel.where === 'bag') { const sl = slotOf(sel.it);
