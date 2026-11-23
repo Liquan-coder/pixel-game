@@ -1,56 +1,16 @@
-/* ================= 鑿刻感的石頭 =================
-   以前的石頭是幾顆橢圓，光影很平滑 → 看起來像灰色黏土。
-   這裡改成「切面」：每顆石頭 = 一個平平的頂面 + 一圈側面，
-   每個面只有一個顏色（頂面最亮、朝左上的亮、朝右下的暗），
-   sculpt 會在每個面的左上邊描一條亮線 → 看起來像一刀一刀鑿出來的稜角。
-   最後再加裂縫、青苔。 */
+/* ================= 鑿刻感的石像、石碑 =================
+   每個東西都拆成幾個「平的面」，每個面只有一個顏色（頂面最亮、朝左上的亮、朝右下的暗），
+   sculpt 會在每個面的左上邊描一條亮線 → 看起來像一刀一刀鑿出來的稜角。最後再加裂縫、青苔。
+   （野外的普通石頭還是用 world/tileArt.ts 圓圓的舊畫法） */
 import { mulberry32 } from '../core/util';
 import { SH, sculpt } from './monsters';
 
 type Pt = [number, number];
-export const SLATE = ['#1e222e', '#363d4e', '#535d70', '#7a8598', '#a8b2c2'];   // 冷色的板岩灰（平原的石頭、神像）
-/* 一顆有切面的石塊：回傳 sculpt 的零件。
-   外圈 n 個點 = 石頭的輪廓；內圈 = 往左上縮小的同一圈 = 平平的「頂面」（最亮）；
-   內外圈之間每一段 = 一個側面（四邊形），朝哪邊就照哪邊的亮度 → 一圈深淺不同的切面。
-   grp：同一顆石頭的面之間不畫黑線；ridges：把頂面的邊收集起來，之後描亮線 */
-export function facetBoulder(R: () => number, cx: number, cy: number, rx: number, ry: number, n: number, ramp: string[], grp: number, ridges?: [Pt, Pt][]) {
-  const out: Pt[] = [], inn: Pt[] = [], ix = cx - rx * .12, iy = cy - ry * .3, k0 = .42 + R() * .12;
-  for (let i = 0; i < n; i++) {
-    const a = -Math.PI + (i + .5) / n * Math.PI * 2 + (R() - .5) * .4, r = .84 + R() * .18;
-    let x = cx + Math.cos(a) * rx * r, y = cy + Math.sin(a) * ry * r;
-    const flat = cy + ry * .5; if (y > flat) y = flat + (y - flat) * .35;                  // 底部壓平：石頭是「坐」在地上的
-    out.push([x, y]); const k = k0 * (.85 + R() * .3); inn.push([ix + (x - cx) * k, iy + (y - cy) * k * .8]);
-  }
-  const parts: any[] = [{ sh: poly(inn, norm(-.15, -.45, .9)), ramp, grp, bias: .3 }];       // 頂面
-  if (ridges) for (let i = 0; i < n; i++) ridges.push([inn[i], inn[(i + 1) % n]]);
-  for (let i = 0; i < n; i++) { const j = (i + 1) % n, mx = (out[i][0] + out[j][0]) / 2 - cx, my = (out[i][1] + out[j][1]) / 2 - cy, m = Math.hypot(mx, my) || 1;
-    parts.push({ sh: poly([inn[i], out[i], out[j], inn[j]], norm(mx / m, my / m * .8, .45)), ramp, grp, bias: .3 + (my > 0 ? .32 : 0) + (R() - .5) * .1 }); }   // 正面（朝鏡頭）不要黑成一片，留最深的顏色給外框和裂縫
-  return parts;
-}
 const norm = (x: number, y: number, z: number) => { const m = Math.hypot(x, y, z); return [x / m, y / m, z / m]; };
 // 多邊形裡面的點都回傳同一個法線 → 平的面（凸、凹都可以）
 function poly(pts: Pt[], nrm: number[]) {
   return (x: number, y: number) => { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j];
     if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c ? nrm : null; };
-}
-
-/* 野外的石頭（40×28 美術像素，跟以前一樣大）：一大一小兩塊，或三塊。moss = [暗, 亮] 青苔；glow = 熔岩區的發光裂縫 */
-export function chiselRock(seed: number, Rm: string[], moss: string[] | null, glow: boolean) {
-  const R = mulberry32(seed), two = R() < .55, rid: [Pt, Pt][] = [];
-  const parts = [...facetBoulder(R, 18, 16, 13, 10, 7 + (R() * 2 | 0), Rm, 1, rid),
-    ...facetBoulder(R, 32, 21, 6.5, 5, 5, Rm, 2)];
-  if (!two) parts.unshift(...facetBoulder(R, 8, 21, 5.5, 4.5, 5, Rm, 3));
-  return sculpt(40, 28, parts, a => {
-    // 頂面的邊描亮：上半圈（迎光）用最亮色，下半圈不描（交給側面自己的深淺）
-    for (const [p, q] of rid) { if ((p[1] + q[1]) / 2 > 14) continue; const n = Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1])); for (let i = 0; i <= n; i++) a.set(p[0] + (q[0] - p[0]) * i / n, p[1] + (q[1] - p[1]) * i / n, Rm[4]); }
-    // 裂縫：從大石頭的亮面往下折兩折；左邊配一格亮色 → 看起來是「刻進去」的
-    const cr = (x: number, y: number, len: number) => { for (let i = 0; i < len; i++) { if (a.pid(x, y) < 0 || a.pid(x, y + 1) < 0) break; a.set(x, y, Rm[0]); if (a.pid(x - 1, y) >= 0) a.set(x - 1, y, Rm[4]); x += R() < .5 ? 1 : 0; y += 1; if (R() < .3) x -= 1; } };
-    cr(12 + (R() * 6 | 0), 10 + (R() * 3 | 0), 5 + (R() * 3 | 0)); if (R() < .6) cr(21 + (R() * 4 | 0), 12, 4);
-    // 青苔：上緣（上面是空的）往下長 1～3 格，亮暗交錯
-    if (moss) for (let x = 0; x < 40; x++) { if (R() < .35) continue;
-      for (let y = 0; y < 28; y++) if (a.pid(x, y) >= 0) { if (a.pid(x, y - 1) < 0) { const d = 1 + (R() * 2.4 | 0); for (let j = 0; j < d; j++) a.set(x, y + j, j === 0 ? moss[1] : moss[0]); } break; } }
-    if (glow) { a.line(20, 10, 24, 16, '#e8743b'); a.line(24, 16, 22, 22, '#e8743b'); a.set(23, 15, '#ffd27a'); a.set(21, 12, '#ffd27a'); }
-  });
 }
 
 /* ================= 星之神像（64×150 美術像素） =================
@@ -149,4 +109,49 @@ export function runeStone(seed: number, ramp: string[], glowCol: [string, string
   g.globalAlpha = 1; for (const [x, y] of carved) g.fillRect(x, y, 1, 1);
   g.fillStyle = glowCol[1]; for (let i = 0; i < carved.length; i += 3) g.fillRect(carved[i][0], carved[i][1], 1, 1);   // 最亮的芯
   return { stone, glow };
+}
+
+/* ================= 地城前院的守門雕像（60×124 美術像素，world/dungeonArt.ts 用） =================
+   跟星之神像同一套：三層石座（亮頂面 + 正面 + 暗側面），上面的像也是一塊一塊平的切面。
+   garg = 蹲著的石像鬼（洞窟、石窟），hood = 雙手按著劍的兜帽騎士（古墓）。
+   眼睛的位置不能動：dungeonArt 會在 (25,44)/(32,44)（石像鬼）、(28,42)/(31,42)（騎士）疊紫光 */
+const LIT = norm(-.75, -.15, .65), MID = norm(-.15, .1, .98), DRK = norm(.8, .05, .6), UPF = norm(-.1, -.85, .5);
+const STEELR = ['#3a3a4e', '#6a6a80', '#a8a8c0', '#e8e8f8'];
+function slab(S: string[], x0: number, x1: number, y0: number, y1: number, d: number, g: number) {
+  return [{ sh: poly([[x0, y0], [x0 + d, y0 - d], [x1 + d, y0 - d], [x1, y0]], UPF), ramp: S, grp: g, bias: .1 },
+    { sh: poly([[x0, y0], [x1, y0], [x1, y1], [x0, y1]], MID), ramp: S, grp: g, bias: .1 },
+    { sh: poly([[x1, y0], [x1 + d, y0 - d], [x1 + d, y1 - d], [x1, y1]], DRK), ramp: S, grp: g, bias: .3 }];
+}
+export function guardStatue(kind: 'garg' | 'hood', S: string[]) {
+  const R = mulberry32(kind === 'garg' ? 41 : 43), f = (pts: Pt[], n: number[], g: number, bias = .05, ramp = S) => ({ sh: poly(pts, n), ramp, grp: g, bias });
+  const parts: any[] = [...slab(S, 5, 52, 112, 123, 3, 1), ...slab(S, 9, 48, 101, 112, 3, 2), ...slab(S, 6, 51, 96, 101, 3, 3)];
+  if (kind === 'garg') parts.push(
+    f([[21, 60], [5, 28], [2, 44], [12, 56]], LIT, 4), f([[21, 60], [12, 56], [2, 44], [3, 64], [9, 80], [20, 80]], MID, 4),                       // 左翅：上緣亮面 + 翼膜
+    f([[37, 60], [53, 28], [56, 44], [46, 56]], norm(.4, -.6, .7), 4), f([[37, 60], [46, 56], [56, 44], [55, 64], [49, 80], [38, 80]], DRK, 4, .3),   // 右翅（背光）
+    f([[14, 95], [13, 84], [19, 76], [27, 80], [27, 95]], LIT, 5), f([[44, 95], [45, 84], [39, 76], [31, 80], [31, 95]], DRK, 5, .3),               // 後腿
+    f([[22, 58], [29, 56], [29, 92], [23, 90], [19, 74]], norm(-.45, .05, .9), 6), f([[29, 56], [36, 58], [39, 74], [35, 90], [29, 92]], norm(.5, .05, .86), 6, .2),   // 身體：左亮右暗兩個面
+    f([[19, 64], [25, 66], [25, 94], [17, 95], [17, 90]], norm(-.7, .1, .7), 7), f([[39, 64], [33, 66], [33, 94], [41, 95], [41, 90]], norm(.7, .1, .7), 7, .25),   // 前腳撐在石座上
+    f([[21, 37], [37, 37], [35, 41], [23, 41]], UPF, 8), f([[21, 37], [23, 41], [24, 53], [19, 46]], LIT, 8),                                     // 頭：頂面、左面
+    f([[23, 41], [35, 41], [34, 53], [24, 53]], MID, 8, .1), f([[37, 37], [39, 46], [34, 53], [35, 41]], DRK, 8, .3),                            // 正面、右面
+    f([[22, 38], [13, 19], [27, 35]], LIT, 9, .1), f([[36, 38], [45, 19], [31, 35]], norm(.5, -.4, .75), 9));                                  // 角
+  else {
+    const topX = [20, 24, 28, 32, 36, 40], hemX = [12, 19, 26, 33, 40, 47], hemY = [96, 95, 96, 95, 96, 95], tilt = [-.8, .2, -.4, .4, .75];
+    for (let i = 0; i < 5; i++) parts.push(f([[topX[i], 56], [topX[i + 1], 56], [hemX[i + 1], hemY[i + 1]], [hemX[i], hemY[i]]], norm(tilt[i], .1, .7), 4));   // 袍子的褶子
+    parts.push(f([[17, 57], [30, 48], [30, 61], [19, 61]], LIT, 5), f([[30, 48], [43, 57], [41, 61], [30, 61]], norm(.6, -.2, .75), 5, .15),       // 披肩
+      f([[19, 48], [22, 32], [30, 22], [30, 50]], LIT, 6), f([[30, 22], [38, 32], [41, 48], [30, 50]], norm(.6, -.1, .8), 6, .15),                // 兜帽
+      f([[22, 58], [38, 58], [38, 61], [22, 61]], UPF, 7, .1, STEELR),                                                                    // 護手
+      f([[28, 61], [30, 61], [30, 96], [28, 94]], norm(-.6, 0, .8), 8, .1, STEELR), f([[30, 61], [32, 61], [32, 94], [30, 96]], norm(.6, 0, .8), 8, .2, STEELR),   // 劍身：兩個斜面
+      { sh: SH.ell(30, 55, 4, 3), ramp: S, grp: 9, bias: .15 });                                                                         // 按在劍柄上的手
+  }
+  return sculpt(60, 124, parts, a => {
+    const D = S[0], HI = S[S.length - 1];
+    if (kind === 'garg') { a.rect(24, 43, 4, 2, '#0a0810'); a.rect(32, 43, 4, 2, '#0a0810'); a.rect(26, 50, 7, 1, '#1a1620'); for (const x of [27, 31]) a.set(x, 51, HI);   // 眼窩、嘴、獠牙
+      for (const [x0, y0, x1, y1] of [[20, 60, 6, 34], [20, 60, 3, 52], [38, 60, 52, 34], [38, 60, 55, 52]]) a.line(x0, y0, x1, y1, D);   // 翅膀的骨架
+      for (const x of [17, 19, 21, 23, 35, 37, 39, 41]) a.set(x, 95, HI); }                                                             // 爪子
+    else { a.ell(30, 42, 6, 7, '#0a0810'); a.ell(30, 43, 4, 5, '#000000'); for (let y = 63; y < 92; y++) a.set(30, y, STEELR[3]); }       // 兜帽裡的黑、劍脊
+    for (let x = 18; x < 48; x += 12) for (let y = 102; y < 112; y++) { a.set(x, y, S[1]); a.set(x - 1, y, HI); }                    // 石座的磚縫
+    const crack = (x: number, y: number, n: number) => { for (let i = 0; i < n; i++) { if (a.pid(x, y) < 0) break; a.set(x, y, D); a.set(x - 1, y, HI); x += R() < .5 ? 1 : -1; y++; } };
+    crack(15, 103, 6); crack(44, 113, 6); crack(26, 70, 6);
+    for (let x = 5; x < 56; x++) { if (R() < .45) continue; for (const y0 of [93, 108]) for (let y = y0; y < y0 + 6; y++) if (a.pid(x, y) >= 0) { const d = 1 + (R() * 2.5 | 0); for (let j = 0; j < d; j++) a.set(x, y + j, j ? '#2e4a34' : '#4a7a4e'); break; } }   // 青苔
+  });
 }

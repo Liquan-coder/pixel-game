@@ -8,6 +8,7 @@ import { SRAMP } from './tileArt';
 import { drawArtSprite, flame } from './chunks';
 import { DUNGEONS, dungeonHooks } from './dungeons';
 import { pick, rr } from '../core/util';
+import { RUNE_SLATE, guardStatue, runeStone } from '../art/stoneArt';
 
 /* ---- 圖：洞口（洞窟、石窟）、石門（古墓） ---- */
 const ROCKR = ['#2a2630', '#46404e', '#655e6e', '#8a8294'];
@@ -94,27 +95,15 @@ function beacon(x: number, y: number, seed: number) {
    石板地 + 發黑的地面 + 守門雕像 + 破旗 + 符文石 + 頭骨 / 舊劍。打完以後雕像的眼睛、符文石的光會熄掉 */
 const STONE = ['#2e2a36', '#4a4558', '#6a6478', '#8e88a0'], BONE = ['#6a6456', '#a8a08a', '#d8d0b8', '#f4f0e0'], STEEL = ['#3a3a4e', '#6a6a80', '#a8a8c0', '#e8e8f8'];
 const WOOD = ['#2e1c0e', '#4a3018', '#6a4626', '#86603a'], CLOTH = ['#1e0e30', '#3a1c5a', '#5a2e88', '#7a4ab0'], DCOL = '#c8a8ff';
-const pedestal = (R: string[], w: number, y: number) => [{ sh: SH.box(w / 2, y + 12, w / 2 - 4, 11, 4), ramp: R, tex: .3, grp: 1 }, { sh: SH.box(w / 2, y, w / 2 - 1, 4, 6), ramp: R, tex: .2, bias: .15, grp: 2 }];
 const statueCache: Record<string, HTMLCanvasElement> = {};
 function statueArt(kind: 'garg' | 'hood', R: string[]) {                  // 守門雕像：石像鬼（洞窟、石窟）/ 拿劍的兜帽騎士（古墓）。60×124 細像素
   const key = kind + R[1]; if (statueCache[key]) return statueCache[key];
-  const parts: any[] = pedestal(R, 60, 98);
-  if (kind === 'garg') parts.push({ sh: SH.poly([[18, 58], [3, 30], [0, 60], [7, 78], [18, 76]]), ramp: R, tex: .3, grp: 3 }, { sh: SH.poly([[42, 58], [57, 30], [60, 60], [53, 78], [42, 76]]), ramp: R, tex: .3, grp: 3 },
-    { sh: SH.ell(19, 88, 8, 7), ramp: R, tex: .3, grp: 4 }, { sh: SH.ell(41, 88, 8, 7), ramp: R, tex: .3, grp: 4 }, { sh: SH.ell(30, 70, 15, 22, (x, y) => y < 94), ramp: R, tex: .3, grp: 5 },
-    { sh: SH.ell(30, 44, 11, 10), ramp: R, tex: .3, grp: 6 }, { sh: SH.poly([[22, 38], [14, 20], [26, 34]]), ramp: R, grp: 7 }, { sh: SH.poly([[38, 38], [46, 20], [34, 34]]), ramp: R, grp: 7 });
-  else parts.push({ sh: SH.poly([[13, 96], [47, 96], [39, 50], [21, 50]]), ramp: R, tex: .25, grp: 3 }, { sh: SH.ell(30, 52, 13, 7), ramp: R, tex: .25, grp: 4 },
-    { sh: SH.ell(30, 38, 10, 13), ramp: R, tex: .25, grp: 5 }, { sh: SH.box(30, 78, 2, 18, 2), ramp: STEEL, bias: .1, grp: 6 }, { sh: SH.box(30, 59, 8, 2, 2), ramp: STEEL, grp: 7 }, { sh: SH.ell(30, 55, 4, 3), ramp: R, grp: 8 });
-  return statueCache[key] = sculpt(60, 124, parts, a => {
-    if (kind === 'garg') { a.rect(24, 43, 4, 2, '#0a0810'); a.rect(32, 43, 4, 2, '#0a0810'); a.rect(26, 51, 8, 1, '#1a1620'); }
-    else { a.ell(30, 42, 6, 7, '#0a0810'); a.ell(30, 43, 4, 5, '#000000'); }
-    for (let k = 0; k < 26; k++) { const x = 6 + ((k * 37) % 48), y = 30 + ((k * 53) % 90); if (a.get(x, y)) a.set(x, y, k % 3 ? R[0] : '#3e5a3a'); }   // 裂痕、青苔
-  });
+  return statueCache[key] = guardStatue(kind, R);                       // 鑿刻切面的石像（art/stoneArt.ts）
 }
 const BANNER = sculpt(34, 112, [{ sh: SH.box(6, 58, 2, 52, 2), ramp: WOOD, grp: 1 }, { sh: SH.ell(6, 5, 3, 3), ramp: STEEL, grp: 2 }, { sh: SH.box(17, 13, 13, 1.6, 2), ramp: WOOD, grp: 3 },
   { sh: SH.poly([[8, 15], [31, 15], [31, 70], [27, 62], [23, 78], [18, 64], [13, 74], [8, 64]]), ramp: CLOTH, tex: .25, grp: 4 }], a => {
   for (const [x, y] of [[19, 30], [19, 31], [19, 32], [19, 33], [19, 34], [17, 32], [18, 32], [20, 32], [21, 32], [19, 29], [19, 35]]) a.set(x, y, '#c8a060');   // 褪色的金色星紋
   for (let k = 0; k < 10; k++) { const x = 10 + ((k * 7) % 20), y = 40 + ((k * 11) % 26); if (a.get(x, y)) a.set(x, y, CLOTH[0]); } });               // 破洞、污漬
-const RUNE = sculpt(26, 56, [{ sh: SH.ell(13, 52, 11, 4), ramp: ['#1e1a14', '#3a3226', '#4e4434'], grp: 1 }, { sh: SH.cap(13, 49, 13, 12, 10, 7), ramp: STONE, tex: .35, grp: 2 }]);
 const SKULL = sculpt(30, 18, [{ sh: SH.cap(2, 15, 28, 14, 1.6, 1.6), ramp: BONE, grp: 1 }, { sh: SH.ell(9, 10, 5.5, 5), ramp: BONE, grp: 2 }, { sh: SH.ell(21, 11, 4.5, 4.5), ramp: BONE, grp: 3 }], a => {
   for (const [x, y] of [[7, 10], [11, 10], [20, 11], [23, 11]]) { a.set(x, y, '#1a1612'); a.set(x, y + 1, '#1a1612'); } a.set(9, 13, '#3a3428'); });
 const BONES = sculpt(30, 14, [{ sh: SH.cap(3, 4, 26, 11, 1.5, 1.5), ramp: BONE, grp: 1 }, { sh: SH.cap(4, 11, 24, 5, 1.4, 1.4), ramp: BONE, grp: 2 }, { sh: SH.ell(3, 4, 2.4, 2.4), ramp: BONE, grp: 3 },
@@ -168,10 +157,10 @@ function drawDeco(d: any, vis, list, L, addLight, done: boolean) {
           ctx.globalAlpha = gl; ctx.fillStyle = DCOL; for (const ox of d.style === 'crypt' ? [-2, 1] : [-5, 2]) ctx.fillRect(snapF(x + ox * HK), snapF(eyY), HK * 3, HK * 2); ctx.globalAlpha = 1; } } });
       if (!done) addLight(L, x, y - 30, 14, 3); }
     else if (o.k === 'banner') list.push({ y, f: () => { ctx.save(); ctx.translate(snapF(x), 0); if (o.flip) ctx.scale(-1, 1); drawArtSprite(BANNER, 5 * HK * 2, y + 1); ctx.restore(); } });
-    else if (o.k === 'rune') { list.push({ y, f: () => { drawArtSprite(RUNE, x, y + 2);
-        const gl = done ? .25 : .55 + .45 * Math.sin(G.time * 2 + x * .1); ctx.globalAlpha = gl; ctx.fillStyle = done ? '#6a6478' : DCOL;   // 刻在石頭上的符文
-        const top = y + 2 - 44 * HK; for (const [ox, oy, w, h] of [[0, 0, 1, 7], [-2, 2, 5, 1], [-1, 5, 3, 1], [-2, 8, 1, 2], [2, 8, 1, 2]]) ctx.fillRect(snapF(x + (ox - .5) * HK), snapF(top + oy * HK), w * HK, h * HK);
-        ctx.globalAlpha = 1; } });
+    else if (o.k === 'rune') { const art = (o as any).art ||= runeStone(900 + Math.round(x * 7 + y * 3) % 997, RUNE_SLATE, ['#d8b8ff', '#ffffff']);   // 跟野外的符文石同一種石頭，符文發紫光
+      list.push({ y, f: () => { drawShadow(x, y + 1, 9); drawArtSprite(art.stone, x, y + 2);
+        if (!done) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .75 + .25 * Math.sin(G.time * 2 + x * .1); drawArtSprite(art.glow, x, y + 2); drawArtSprite(art.glow, x, y + 2);   // 打完了 → 符文熄掉，只剩刻痕
+          ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; } } });
       if (!done) addLight(L, x, y - 8, 16, 3); }
     else { const sp = o.k === 'skull' ? SKULL : o.k === 'bones' ? BONES : SWORD;
       list.push({ y: y - 4, f: () => { if (o.flip) { ctx.save(); ctx.translate(snapF(x), 0); ctx.scale(-1, 1); drawArtSprite(sp, 0, y + 1); ctx.restore(); } else drawArtSprite(sp, x, y + 1); } }); }

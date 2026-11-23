@@ -1,6 +1,5 @@
 import { mulberry32 } from '../core/util';
 import { SH, hash2, sculpt } from '../art/monsters';
-import { SLATE, chiselRock } from '../art/stoneArt';
 import { STAIRS, ARENA, BIGT, BRIDGE, CLIFF, CRATE, DOOR, FOG, GRAVE, GROUND, HOUSE, HOUSES, LAVA, MH, MW, PILLAR, RFLOOR, ROAD, ROCK, RWALL, TREE, WALKABLE, WATER, hgt, map, reg } from './map';
 import { CARPU, CRUSTU, ICEW, LAVU, MUDW, NZ0, NZ1, NZ2, RUIN, RUINU, SCU, TA, UL, WATU, WOODU, groundK, hexU, isLavaish, isRoadish, isWallT, isWaterish, nz, tileAt } from './gen';
 
@@ -303,6 +302,13 @@ function hdSpike(seed) { const R = mulberry32(seed), O = SRAMP.obs;
     { sh: SH.tri(20, 0, 51, 9, 0), ramp: O, grp: 3 },
   ], a => { let x = 20, y = 12; for (let k = 0; k < 16; k++) { a.set(x, y, k % 3 ? '#e8743b' : '#ffd27a'); y += 2; x += R() < .5 ? -1 : 1; }
     for (let k = 0; k < 4; k++) a.set(11 + k % 2, 30 + k * 3, '#e8743b'); }); }
+function hdRock(seed, Rm, moss, glow) { const R = mulberry32(seed);
+  return sculpt(40, 28, [
+    { sh: SH.ell(14, 18, 11, 9), ramp: Rm, tex: .35, grp: 1 },
+    { sh: SH.ell(25, 16, 13, 11), ramp: Rm, tex: .35, grp: 2, line: Rm[0] },
+    { sh: SH.ell(33, 22, 6, 5), ramp: Rm, tex: .35, grp: 3, line: Rm[0] },
+  ], a => { if (moss) for (let x = 0; x < 40; x++) for (let y = 0; y < 28; y++) { const p = a.pid(x, y); if (p >= 0 && a.pid(x, y - 1) !== p && R() < .7) { a.set(x, y, moss[1]); a.set(x, y + 1, moss[0]); } }
+    if (glow) { a.line(22, 9, 26, 16, '#e8743b'); a.line(26, 16, 24, 22, '#e8743b'); a.set(25, 15, '#ffd27a'); } }); }
 function hdPillar(U) { const W = [U.mo, U.wf2, U.wf, U.cap, U.hi];
   return sculpt(42, 96, [
     { sh: SH.box(21, 89, 19, 6, 4), ramp: W, grp: 1 },
@@ -453,7 +459,7 @@ const SCN = {
     [hdPine(4), hdPine(5), hdPine(6)], [hdDead(7, SRAMP.dead), hdDead(8, SRAMP.dead)], [hdSpike(9), hdSpike(10)], [hdDead(11, SRAMP.obs), hdTreeRound(12, SRAMP.leafD, SRAMP.bark)],
     [hdPineSnow(13), hdPineSnow(14), hdPineSnow(15)], [hdDead(16, SRAMP.deadS), hdTreeRound(17, SRAMP.leafS, SRAMP.deadS), hdDead(18, SRAMP.deadS)],
     [], [hdTreeRound(41, SRAMP.leafE, SRAMP.birch), hdTreeRound(42, SRAMP.leafE, SRAMP.birch), hdTreeRound(43, SRAMP.leafE2, SRAMP.birch)]],   // 7 = 地城（沒有樹）、8 = 精靈王國的白樺
-  rocks: SRAMP.rock.map((Rm, r) => { const moss = r === 1 ? ['#2e5a36', '#4a8a4e'] : r === 5 ? ['#dce8f4', '#ffffff'] : r === 6 ? ['#2e3a1e', '#4a6a2e'] : r === 8 ? ['#2e6a5a', '#4a9a7a'] : null; const Rk = r === 0 ? SLATE : Rm; return [chiselRock(20 + r, Rk, moss, r === 3), chiselRock(30 + r, Rk, moss, false)]; }),   // 有切面的石頭（art/stoneArt.ts）；平原用冷色的板岩灰
+  rocks: SRAMP.rock.map((Rm, r) => { const moss = r === 1 ? ['#2e5a36', '#4a8a4e'] : r === 5 ? ['#dce8f4', '#ffffff'] : r === 6 ? ['#2e3a1e', '#4a6a2e'] : r === 8 ? ['#2e6a5a', '#4a9a7a'] : null; return [hdRock(20 + r, Rm, moss, r === 3), hdRock(30 + r, Rm, moss, false)]; }),
   pillars: RUIN.map(u => hdPillar(u)), crate: hdCrate(), graves: [hdGrave(1), hdGrave(2)], big: hdBigTree(),
   bigE: hdBigTree(['#3a5868', '#5a8094', '#86aabc', '#b4d0dc', '#dceef4', '#ffffff'], SRAMP.birch, ['#9ad8ff', '#e8f8ff', '#6ab0e8']),   // 精靈王國的白樹：白色樹皮、銀藍色的葉子
 };

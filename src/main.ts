@@ -28,7 +28,6 @@ import { dressEntrances } from './world/dungeons';
 import { setupPuzzles } from './world/puzzles';
 import './world/puz2'; import './world/puz3'; import './world/puz4'; import './world/puz5';                        // 各地城的招牌機關（要在 setupPuzzles 之前登記好）
 import { placeStatues } from './world/statues';
-import { placeRunestones } from './world/runestones';
 import { hurtPlayer } from './game/combat';
 import { placeAtCamp, restoreWorld } from './game/playerUpdate';
 import { update, updateMotes } from './game/worldUpdate';
@@ -79,7 +78,7 @@ function frame(ts) {
 }
 
 function boot(data) {
-  genWorld(); genChests(reachable); placeTablets(); dressEntrances(CHESTS); setupPuzzles(); placeStatues(); placeRunestones(); bakeFullMap();   // dressEntrances 要在寶箱之後：只清前院的樹，其他東西的位置不變
+  genWorld(); genChests(reachable); placeTablets(); dressEntrances(CHESTS); setupPuzzles(); placeStatues(); bakeFullMap();   // dressEntrances 要在寶箱之後：只清前院的樹，其他東西的位置不變
   resetPlayers(); placeAtCamp(G.me, 'start'); respawnAll(); resetBoss();
   resize(); window.addEventListener('resize', resize);
   initTitle();                                                          // 標題畫面：三格存檔（ui/title.ts）
