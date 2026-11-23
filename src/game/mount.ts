@@ -15,14 +15,14 @@ import type { Player } from '../types';
 
 /* ================= 星狼（坐騎） =================
    打倒狼王之後，巢穴裡的一匹星狼會載你（石碑：狼群曾經是看守森林的騎士）。測試場（?lab、?test）直接開。
-   · 按住瞬移鍵 0.5 秒呼喚（腳下的圈畫滿；按下去的那一下照常瞬移）；騎著時按住 1 秒 = 讓星狼回去。電腦也可以按 R
+   · 按住瞬移鍵 1 秒呼喚（腳下的圈畫滿；按下去的那一下照常瞬移）；騎著時按住 1 秒 = 讓星狼回去。電腦也可以按 R
    · 像法環一樣只能在野外騎：地城、城鎮、Boss 的結界裡叫不出來，騎著走進去會自動下來
    · 跑得比走路快 1.7 倍；騎著按瞬移 = 星狼往前撲（距離是瞬移的 0.6 倍，一樣有無敵時間）
    · 騎著按攻擊 / 技能 / 喝藥 = 先跳下來，再做那個動作
    · 被打中就摔下來（按住呼喚到一半被打中也會中斷，要放開重按） */
 export const RIDE_SPD = 1.7, WOLF_DASH = .6, DROP_T = .18;
-export const CALL_T = .5, OFF_T = 1, CALL_SHOW = .15;                    // 按住幾秒叫出來 / 騎著按住幾秒讓牠回去（比較久：衝刺時多按一下不會掉下來）/ 按住多久才開始畫圈（短按只是瞬移）
-const STRIDE = 3.2;                                                      // 全速時每秒跑幾個步伐（render 用 rideRun 挑奔跑的哪一格）
+export const CALL_T = 1, OFF_T = 1, CALL_SHOW = .15;                     // 按住幾秒叫出來 / 騎著按住幾秒讓牠回去 / 按住多久才開始畫圈（短按只是瞬移）
+const STRIDE = 2.4;                                                      // 全速時每秒跑幾個步伐（render 用 rideRun 挑奔跑的哪一格）
 
 export const hasWolf = () => G.bossDead || !!G.lab;                     // 狼王倒下就解鎖（舊存檔打過狼王的也算）；開發用的測試場 / 測試版（?lab、?test）直接開
 
@@ -89,7 +89,7 @@ export function updateMount(pl: Player, dt: number) {
   }
 }
 
-/* 按住瞬移鍵：數秒數，滿 0.5 秒就叫出來（騎著按住 1 秒 = 讓牠回去）。中途放開、被打、去做別的事 → 重算 */
+/* 按住瞬移鍵：數秒數，滿 1 秒就叫出來（騎著按住 1 秒 = 讓牠回去）。中途放開、被打、去做別的事 → 重算 */
 function holdCall(pl: Player, dt: number) {
   const down = held.dodge || keys.dodge;
   if (!down) { pl.rideT = 0; pl.callLock = false; return; }

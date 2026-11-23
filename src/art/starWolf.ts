@@ -15,7 +15,7 @@ const PX = 8, PT = 5;                                                    // 畫�
 const W = BW + PX * 2, H = BH + PT, GROUND = PT + BH - 1;                // GROUND = 腳底那一列
 export const WOLF_CX = 35;                                               // 狼的中心欄（玩家的 x 對到這裡）
 export const SEAT_X = 34, SEAT_Y = 18;                                   // 騎的人坐在背上的這一格（身體圖的座標）
-export const RUN_N = 10, IDLE_N = 4;
+export const RUN_N = 12, IDLE_N = 4;
 
 /* ---- 身體：把描圖裡的腿切掉（後腿從大腿下緣、前腿從胸口下緣），切口補上外框；腿接上去的地方不補（腿會從那裡長出來） ---- */
 const CUT: [number, number, number][] = [[12, 26, 46], [36, 58, 42]];  // [x 從, x 到, 從第幾列開始切掉]
@@ -41,9 +41,10 @@ const FRONT: LegDef = { ax: 44, ay: 30, segs: [{ L: 9, w0: 8.5, w1: 6 }, { L: 11
 const HIND: LegDef = { ax: 20, ay: 36, segs: [{ L: 10, w0: 11, w1: 7 }, { L: 8, w0: 6.2, w1: 4.2 }, { L: 7, w0: 4.2, w1: 3.8 }], stand: [.35, -.55, .1] };
 const reachOf = (D: LegDef, a: number[]) => D.segs.reduce((y, g, i) => y + g.L * Math.cos(a[i]), D.ay) + 2;   // 腳底在第幾列
 for (const D of [FRONT, HIND]) D.ay += BH - 1 - reachOf(D, D.stand);
-// 一個步伐的關鍵姿勢 [t, 第一段, 第二段, 第三段]，中間用平滑曲線補。t = 0：前腳往前伸到底、後腳往後蹬到底（身體拉最長）
-const FRONT_K = [[0, .2, 1.0, .9], [.14, .05, .55, .5], [.28, -.3, 0, .1], [.4, -.7, -.55, -.7], [.52, -.75, -.3, -1.9], [.7, -.3, .5, -1.0], [.88, .1, 1.05, .4]];
-const HIND_K = [[0, -.3, -1.2, -.6], [.13, .2, -1.15, -1.0], [.3, .7, -.5, -.7], [.44, .9, .1, .25], [.55, .7, -.2, .2], [.7, .35, -.55, .05], [.85, -.05, -1.0, -.4]];
+// 一條腿一個步伐的關鍵姿勢 [t, 第一段, 第二段, 第三段]，中間用平滑曲線補（照狗小跑步的參考圖）：
+// t = 0 腳往前伸、落地 → 0.25 腳在身體正下方 → 0.48 往後蹬 → 0.6 抬起來（前腳腕往後折、後腳腳踝往上收）→ 0.75 往前擺 → 0.9 再伸出去
+const FRONT_K = [[0, -.1, .45, .4], [.25, -.35, .02, .1], [.48, -.6, -.4, -.5], [.6, -.55, -.25, -1.45], [.75, -.25, .3, -1.1], [.9, -.05, .6, .3]];
+const HIND_K = [[0, .65, -.3, .3], [.25, .35, -.55, .1], [.48, 0, -.95, -.35], [.6, .25, -1.3, -1.1], [.75, .6, -.7, -.5], [.9, .75, -.25, .35]];
 function gaitAt(K: number[][], t: number): A3 {                         // 週期性 Catmull-Rom：關鍵姿勢之間圓滑地過去
   t = ((t % 1) + 1) % 1; let i = K.length - 1; while (K[i][0] > t) i--;
   const P = (k: number) => K[((k % K.length) + K.length) % K.length], t0 = K[i][0], t1 = i + 1 < K.length ? K[i + 1][0] : 1, u = (t - t0) / (t1 - t0);
@@ -97,18 +98,17 @@ function pasteBody(out: string[][], body: string[][], pitch: number, dy: number,
   for (let x = MID; x < BW; x++) col(x, x + PX + stretch);               // 前半身（縮短時蓋在後半身上面）
 }
 
-const FAR_LAG = .2;                                                      // 遠側的腿慢 1/5 個步伐：四條腿各動各的，看得出四條都在跑
+/* 小跑步：斜對角的兩條腿一起動（近側前腳 + 遠側後腳一組，遠側前腳 + 近側後腳一組），兩組差半個步伐 */
 type Pose = { f: A3; ff: A3; h: A3; hf: A3; pitch: number; dy: number; sway: number; stretch: number };
 function pose(t: number | 'stand' | 'leap'): Pose {
   if (t === 'stand') return { f: FRONT.stand, ff: [-.45, -.12, .05], h: HIND.stand, hf: [.25, -.65, .2], pitch: 0, dy: 0, sway: 0, stretch: 0 };
   if (t === 'leap') return { f: [.5, 1.35, 1.2], ff: [.35, 1.1, .8], h: [-.55, -1.35, -.9], hf: [-.35, -1.2, -1.4], pitch: 1, dy: -4, sway: -3, stretch: 2 };   // 衝刺：前腳往前伸到底、後腳往後蹬到底
-  const P: Pose = { f: gaitAt(FRONT_K, t), ff: gaitAt(FRONT_K, t - FAR_LAG), h: gaitAt(HIND_K, t), hf: gaitAt(HIND_K, t - FAR_LAG),
-    pitch: 2.2 * Math.cos(2 * Math.PI * (t - .45)), dy: 0, sway: Math.round(-2 + 2 * Math.sin(2 * Math.PI * t)),
-    stretch: Math.round(2 * Math.cos(2 * Math.PI * t)) };   // 前後腳張開（t = 0）時身體拉長，收到肚子下面（t = 0.5）時縮短
-  // 腳比較長（快要伸直往下）的那一下把身體撐高，四條腳都收起來時就騰空
+  const P: Pose = { f: gaitAt(FRONT_K, t), hf: gaitAt(HIND_K, t), ff: gaitAt(FRONT_K, t + .5), h: gaitAt(HIND_K, t + .5),
+    pitch: 0, dy: 0, sway: Math.round(-1 + Math.sin(4 * Math.PI * t)), stretch: 0 };   // 身體保持水平，尾巴輕輕甩
+  // 撐地的腳快要伸直往下時，把身體撐高一點（腳不會插進地裡）
   const reach = (D: LegDef, a: A3) => reachOf(D, a) - (BH - 1);
   const low = Math.max(reach(FRONT, P.f), reach(HIND, P.h), reach(FRONT, P.ff) - 1, reach(HIND, P.hf) - 1);
-  P.dy = -Math.max(0, Math.round(low)) - Math.round(1.6 * Math.max(0, Math.cos(4 * Math.PI * (t - .47))));
+  P.dy = -Math.max(0, Math.round(low));                                 // 撐地的腳伸直（在身體正下方）時身體比較高：一個步伐上下兩次
   return P;
 }
 

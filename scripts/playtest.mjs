@@ -591,6 +591,27 @@ const pageScript = async () => {
     G.projs = []; menus.restAt(CAMPS[0]); setMenu(null); step(2, { god: true });
   });
 
+  run('有骨架的 Boss（近衛隊長）：劍（刺 / 劈 / 劈撩刺連段 / 單次突進）+ 燈（甩燈火星 / 燈油 / 舉燈）、出招會記 e.act、燈會晃', () => {
+    const A3 = await0.ai3, Q = await0.quest, D = imp0.dg.DUNGEONS.find(d => d.boss === 'captain'), id = 'dg_' + D.id; setMenu(null);
+    const B = imp0.dgb.DBOSS.captain, all = B.moves.concat(B.p2).map(m => m[0]);
+    for (const bad of ['combo', 'cross', 'rain']) if (all.includes(bad)) throw new Error('近衛隊長又出現了不合理的招：' + bad);
+    RB.rbDead.delete(id); Q.flags.delete('dgn:' + D.id); RB.resetRegionBosses(); const b = RB.rbs.find(e => e.id === id); if (!b) throw new Error('找不到近衛隊長');
+    tp(D.ent[0] * 16 + 8, (D.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2);
+    tp(b.def.x, b.def.y + 40); step(100, { god: true }); if (b.state === 'sleep') throw new Error('近衛隊長沒醒');
+    const runMove = (m, mo, want) => { b.state = 'idle'; b.act = null; const acts = []; A3.startMove(b, m, mo, 10, 0);
+      let left = 400; while (b.state !== 'idle' && left-- > 0) { G.me.iframe = 0; const a = b.act; step(1, { god: true }); b.hp = b.maxHp; if (b.act && b.act !== a) acts.push(b.act.k + (b.act.rev ? '撩' : '')); }
+      if (b.state !== 'idle') throw new Error(m + ' 一直沒結束（' + b.state + '）');
+      if (acts.join() !== want) throw new Error(m + ' 的出招紀錄不對：' + acts.join() + '，應該是 ' + want); };
+    const mv = Object.fromEntries(B.moves.concat(B.p2).map(m => [m[0], m[2]]));
+    b.phase = 1; runMove('thrust', mv.thrust, 'thrust'); runMove('sweep', mv.sweep, 'sweep'); runMove('fan', mv.fan, 'toss'); runMove('charge', mv.charge, 'chargeEnd');
+    b.phase = 2; runMove('chain', mv.chain, 'sweep,sweep撩,thrust'); runMove('pools', mv.pools, 'toss'); runMove('donut', { r0: 44, r: 124, k: 1.3 }, 'plant');
+    const rig = imp0.rig.rigOf(b.kind); if (!rig || !rig.limbs.arm || !rig.limbs.arm2 || !rig.limbs.hang) throw new Error('近衛隊長的骨架沒拆好（劍的手 / 提燈的手 / 燈）');
+    b.state = 'idle'; b._pend = null; for (let i = 0; i < 20; i++) { b.x += 3; step(1, { god: true }); }   // 走動 → 燈要晃起來
+    if (!b._pend || Math.abs(b._pend.phi) < .01 && Math.abs(b._pend.w) < .01) throw new Error('近衛隊長走動時燈沒有晃');
+    log.push('  近衛隊長：刺、劈、甩燈、突進、劈撩刺連段、燈油、舉燈都放得出來，燈會晃');
+    G.projs = []; menus.restAt(CAMPS[0]); setMenu(null); step(2, { god: true });
+  });
+
   run('Boss 招牌招：每隻都放得出自己的招，只有史萊姆女王會跳', () => {
     setMenu(null); const was = new Set(RB.rbDead);
     const SIG = { queen: 'jump', slagmother: 'boilWind', mushking: 'spiral', toxqueen: 'mineWind', yeti: 'ballWind', sandgiant: 'twisterWind',
@@ -794,14 +815,14 @@ const pageScript = async () => {
     G.me.weapon = keep; G.me.str = G.me.dex = G.me.int = 5; recalc(G.me); G.enemies = []; G.projs = []; G.me.sigShield = 0; G.me.hp = G.me.maxHp;
   });
 
-  run('星狼（坐騎）：打倒狼王才叫得出來、按住瞬移 0.5 秒呼喚、跑得比較快、騎著瞬移 = 往前撲、按攻擊跳下來、被打摔下來、城鎮 / 地城騎不進去', () => {
+  run('星狼（坐騎）：打倒狼王才叫得出來、按住瞬移 1 秒呼喚、跑得比較快、騎著瞬移 = 往前撲、按攻擊跳下來、被打摔下來、城鎮 / 地城騎不進去', () => {
     const MT = imp0.mount, Q = await0.quest, M = await0.map, keep = G.bossDead, keepLab = G.lab; setMenu(null); G.enemies = []; G.lab = false;
     const camp = CAMPS.find(c => c.id === 'start'); tp(camp.x, camp.y + 16); G.me.ride = false; G.me.rideT = 0; step(2);
     const hold = n => { held.dodge = true; step(n); held.dodge = false; step(1); };
     G.bossDead = false; hold(140); if (G.me.ride) throw new Error('還沒打倒狼王就叫得出星狼');
-    G.bossDead = true; Q.flags.delete('starwolf'); hold(15); if (G.me.ride) throw new Error('只按住 0.25 秒就叫出來了（要 0.5 秒）');
-    hold(35); if (!G.me.ride) throw new Error('按住瞬移鍵 0.5 秒沒有叫出星狼');
-    hold(35); if (!G.me.ride) throw new Error('騎著按住 0.5 秒就下來了（要 1 秒）'); hold(70); if (G.me.ride) throw new Error('騎著按住 1 秒沒有讓星狼回去'); hold(35);
+    G.bossDead = true; Q.flags.delete('starwolf'); hold(40); if (G.me.ride) throw new Error('只按住 0.6 秒就叫出來了（要 1 秒）');
+    hold(65); if (!G.me.ride) throw new Error('按住瞬移鍵 1 秒沒有叫出星狼');
+    hold(35); if (!G.me.ride) throw new Error('騎著按住 0.5 秒就下來了（要 1 秒）'); hold(70); if (G.me.ride) throw new Error('騎著按住 1 秒沒有讓星狼回去'); hold(65);
     step(250); if (!Q.flags.has('starwolf')) throw new Error('第一次見到星狼的提示沒有出現');
     // 速度：找一個 140 px 內沒有障礙的方向，走路 vs 騎狼各跑 30 格
     const dirs = [[1, 0], [-1, 0], [0, -1], [0, 1]], free = d => { for (let t = 0; t <= 140; t += 4) if (await0.coll.collides(camp.x + d[0] * t, camp.y + 16 + d[1] * t, G.me.r + 2)) return false; return true; };
