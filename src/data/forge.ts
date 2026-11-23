@@ -83,14 +83,52 @@ export const oreForLevel = matForLevel;                                 // 舊�
 /** 舊存檔的礦石 → 新素材 */
 export const ORE_TO_MAT: Record<string, MatKey> = { ore1: 'mat1', ore2: 'mat3', ore3: 'mat5', ore4: 'core' };
 
-/* 掉在地上的礦石：小石頭 + 亮色結晶（跟魂晶一樣會自己飛過來） */
-export const ORE_SP = Object.fromEntries(MAT_KEYS.map(k => [k, sculpt(12, 12, [
-  { sh: SH.ell(6, 8, 5, 3.6), ramp: ['#1e1a22', '#3a3440', '#5a5260'], grp: 1 },
-  { sh: SH.poly([[4, 8], [6, 1], [8, 8]]), ramp: MATS[k].ramp, grp: 2 },
-  { sh: SH.poly([[7, 9], [9.5, 4], [11, 9]]), ramp: MATS[k].ramp, grp: 3 },
-], a => { a.set(6, 3, '#ffffff'); })])) as Record<MatKey, HTMLCanvasElement>;
+/* 素材的圖示（掉在地上 + 背包 / 鐵匠頁）：每一種長得不一樣，不只換顏色。14×14 細像素（外框會自己加）
+   星砂 = 一小堆閃亮的沙、星屑 = 一瓶發光的碎屑、星片 = 兩片薄薄的碎片、星石 = 裂縫發光的石頭、
+   星晶 = 一叢水晶柱、星髓 = 一滴發光的精華、隕星之心 = 岩殼裡的金色核心、黯星石 = 嵌著星星的黑石 */
+const STAR4 = (a, x: number, y: number, c: string, core = '#ffffff') => { a.set(x, y - 1, c); a.set(x, y + 1, c); a.set(x - 1, y, c); a.set(x + 1, y, c); a.set(x, y, core); };
+const either = (...fs) => (x, y) => { for (const f of fs) { const n = f(x, y); if (n) return n; } return null; };
+const ICON_DEF: Record<MatKey, () => HTMLCanvasElement> = {
+  mat1: () => { const R = MATS.mat1.ramp; return sculpt(14, 14, [{ sh: SH.tri(7, 3.5, 12.8, 6.4, 0), ramp: R, tex: .55 }], a => {   // 尖尖的一小堆沙
+    for (const [x, y] of [[6, 7], [8, 9], [5, 11], [9, 11], [7, 10], [3, 12], [10, 12]]) a.set(x, y, R[3]);   // 沙裡一粒一粒的亮點
+    a.set(7, 4, '#ffffff'); STAR4(a, 11, 3, R[3]); a.set(3, 6, R[3]); a.set(1, 10, R[2]); a.set(13, 9, R[2]); }); },   // 上面飄著星光、旁邊撒出來的沙
+  mat2: () => { const R = MATS.mat2.ramp; return sculpt(14, 14, [
+    { sh: SH.ell(7, 9.5, 4.3, 4), ramp: ['#2a3a34', '#4a6a5a', '#7aa08a', '#c8e8d8'], grp: 1 },                      // 玻璃瓶
+    { sh: SH.box(7, 4.6, 1.6, 1.4, 2), ramp: ['#2a3a34', '#4a6a5a', '#7aa08a', '#c8e8d8'], grp: 1 },
+    { sh: SH.box(7, 2.4, 2, 1.1, 2), ramp: ['#3a2410', '#6a4626', '#9a6a3a', '#c89a60'], grp: 2 }], a => {          // 軟木塞
+    a.ell(7, 10.3, 3.2, 2.8, R[2], true); for (const [x, y] of [[6, 10], [8, 11], [7, 9], [5, 11], [9, 10]]) a.set(x, y, R[3]);   // 瓶子裡發光的綠色碎屑
+    a.set(5, 8, '#ffffff'); a.set(5, 9, '#e8fff0'); }); },
+  mat3: () => { const R = MATS.mat3.ramp; return sculpt(14, 14, [
+    { sh: SH.poly([[1, 9], [6, 1.5], [11, 4], [7, 12]]), ramp: R, bias: .1, grp: 1 },                                // 大片：寬寬的、有稜角的碎片
+    { sh: SH.poly([[8, 13], [11, 8], [13.5, 12]]), ramp: R, bias: -.1, grp: 2 }], a => {                             // 小片
+    a.line(2, 9, 6, 2, R[3]); a.line(6, 2, 10, 4, R[3]); a.line(5, 6, 8, 9, R[1]); a.set(6, 2, '#ffffff'); a.line(9, 12, 11, 9, R[3]); STAR4(a, 12, 2, R[3]); }); },   // 亮邊、中間一道折痕、星光
+  mat4: () => { const R = MATS.mat4.ramp; return sculpt(14, 14, [
+    { sh: SH.ell(7, 8.5, 5.8, 4.8), ramp: ['#1e1612', '#3a2e26', '#5a4a3e', '#7a6656'], tex: .45 }], a => {        // 粗糙的石頭
+    a.line(4, 6, 6, 8, R[2]); a.line(6, 8, 5, 10, R[2]); a.line(6, 8, 9, 9, R[2]); a.line(9, 9, 10, 7, R[2]); a.line(9, 9, 9, 11, R[1]);   // 發光的裂縫
+    a.set(6, 8, R[3]); a.set(9, 9, R[3]); a.set(7, 4, R[1]); }); },
+  mat5: () => { const R = MATS.mat5.ramp; return sculpt(14, 14, [
+    { sh: SH.poly([[1, 13], [4, 13], [4.5, 7], [2.5, 5], [1, 7]]), ramp: R, bias: -.15, grp: 1 },                  // 左
+    { sh: SH.poly([[9, 13], [13, 13], [13, 8], [11.5, 6], [10, 8]]), ramp: R, bias: -.1, grp: 2 },                 // 右
+    { sh: SH.poly([[4, 13], [10, 13], [10, 4], [7, 0.5], [4, 4]]), ramp: R, bias: .15, grp: 3 }], a => {           // 中間最高
+    for (let y = 2; y < 13; y++) a.set(6, y, R[3]); a.set(7, 1, '#ffffff'); a.set(2, 7, R[3]); a.set(11, 8, R[3]); }); },
+  mat6: () => { const R = MATS.mat6.ramp; return sculpt(14, 14, [
+    { sh: either(SH.ell(7, 9, 4.6, 4.4), SH.poly([[7, 0.5], [10.8, 7], [3.2, 7]])), ramp: R, bias: .15 }], a => {   // 一滴
+    a.ell(7, 9.5, 2.2, 2, R[3], true); a.set(5, 7, '#ffffff'); a.set(5, 8, '#ffffff'); a.set(6, 4, R[3]);
+    a.set(1, 4, R[2]); a.set(12, 11, R[2]); }); },                                                                   // 旁邊飄的光點
+  core: () => { const R = MATS.core.ramp; return sculpt(14, 14, [
+    { sh: SH.ell(7, 7.5, 6, 6), ramp: ['#1a1418', '#2e2428', '#4a3a3a', '#6a5450'], tex: .4, grp: 1 },               // 燒焦的岩殼
+    { sh: SH.ell(7, 7.5, 3.6, 3.6), ramp: R, bias: .2, grp: 2 }], a => {                                             // 金色的核心
+    for (const [x, y] of [[7, 1], [7, 2], [1, 7], [2, 7], [12, 7], [13, 7], [7, 13], [3, 3], [11, 3], [3, 11], [11, 11]]) if (a.get(x, y)) a.set(x, y, R[1]);   // 岩殼上的裂縫透出光
+    STAR4(a, 7, 7, R[3]); }); },
+  umat: () => { const R = MATS.umat.ramp; return sculpt(14, 14, [
+    { sh: SH.poly([[4, 1], [10, 1], [13, 5], [12, 11], [8, 13], [3, 12], [1, 6]]), ramp: ['#120a1a', '#24142e', '#3a2448', '#583a66'], tex: .3 }], a => {   // 稜角分明的黑紫色石頭
+    a.line(4, 2, 1, 6, '#6a4a7a'); a.line(4, 2, 9, 2, '#6a4a7a');
+    for (const [x, y] of [[7, 3], [7, 4], [7, 10], [7, 11], [3, 7], [4, 7], [10, 7], [11, 7]]) a.set(x, y, R[2]);   // 嵌在裡面的橘色星星
+    for (const [x, y] of [[6, 6], [8, 6], [6, 8], [8, 8], [7, 5], [7, 9], [5, 7], [9, 7]]) a.set(x, y, R[3]); a.set(7, 7, '#ffffff'); }); },
+};
+export const ORE_SP = Object.fromEntries(MAT_KEYS.map(k => [k, ICON_DEF[k]()])) as Record<MatKey, HTMLCanvasElement>;
 export const ORE_URL = Object.fromEntries(MAT_KEYS.map(k => { const c = ORE_SP[k], q = document.createElement('canvas'); q.width = q.height = 32; const g = q.getContext('2d');
-  g.imageSmoothingEnabled = false; g.drawImage(c, 4, 4, 24, 24); try { return [k, q.toDataURL()]; } catch (e) { return [k, '']; } })) as Record<MatKey, string>;
+  g.imageSmoothingEnabled = false; g.drawImage(c, 2, 2, 28, 28); try { return [k, q.toDataURL()]; } catch (e) { return [k, '']; } })) as Record<MatKey, string>;
 
 /* 鍛造圖的小圖示（鐵匠強化頁用）：米色紙捲 + 金色的鎚子記號 */
 export const PAGE_URL = (() => { const q = document.createElement('canvas'); q.width = q.height = 32; const g = q.getContext('2d'), P = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x * 2, y * 2, w * 2, h * 2); };
