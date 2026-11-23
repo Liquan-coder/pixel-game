@@ -4,7 +4,7 @@ import { G } from '../core/state';
 import { TAU, pick, rr } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
 import { sfx } from '../core/audio';
-import { CLIFF, GROUND, LAVA, MW, PROPS, RFLOOR, TS, map } from './map';
+import { CLIFF, GROUND, LAVA, MW, PILLAR, PROPS, RFLOOR, RWALL, TS, map } from './map';
 import type { Room } from './dungeons';
 import { flame } from './chunks';
 import { flags } from '../game/quest';
@@ -123,11 +123,26 @@ MECHS.wind = {
   },
 };
 
-/* ---------- 推石板（沙埋神殿，Boss 大廳前）：兩塊大石頭推到兩塊壓力板上 → 開門。推錯卡住了可以按重置 ---------- */
+/* ---------- 推石（風蝕岩窟的寶物房前、沙埋神殿的 Boss 大廳前）：把三顆大石頭推到三塊壓力板上 → 開門。推錯卡住了可以按重置 ----------
+   房間中間用石柱圍出一塊 11×7 的推石區（下面正中間一個缺口讓人進去），外面留一圈走道，門照樣走得通。
+   關卡是程式隨機產生、電腦把每種推法都試過之後挑的：最少要推 40 下左右、要一直換石頭推，推到一半的局面有六成以上已經解不開（scripts/playtest.mjs 會自己解一次確認解得開）。
+   # 石牆  . 空地  B 石頭  o 壓力板；最下面一排正中間是入口 */
+const BOULDER_LEVELS: Record<string, string[]> = {
+  windcave: ['o..#..#....', '.....o..#..', '......#..B.', 'o.#.##..#.#', '..#....#.B.', '........B..', '..........#'],     // 最少推 42 下、換石頭 23 次
+  sandtemple: ['..#.#.#....', '...B.......', '...B..#..o.', '..#..###...', '.B##..o#...', '...#....o..', '.#..#...#.#'],   // 最少推 38 下、換石頭 29 次（Boss 前，最難）
+};
 MECHS.boulders = {
   setup(p, r) {
     const mk = (tx: number, ty: number) => { const b = { tx, ty, x: tx * TS + 8, y: ty * TS + 8, sx: 0, sy: 0, t: 0, push: 0, home: [tx, ty], prop: { x: tx * TS + 8, y: ty * TS + 8, r: 7 } }; PROPS.push(b.prop); return b; };
-    return { r, plates: [[r.x - 2, r.y - 2], [r.x + 2, r.y - 2]], bs: [mk(r.x - 4, r.y), mk(r.x + 4, r.y)], reset: { x: r.x * TS + 8, y: (r.y + 3) * TS + 12 } };
+    const lv = BOULDER_LEVELS[p.d.id] || BOULDER_LEVELS.sandtemple;
+    if (r.rx < 7 || r.ry < 5)                                                                                      // 房間太小放不下推石區：舊的兩顆石頭
+      return { r, pen: null, plates: [[r.x - 2, r.y - 2], [r.x + 2, r.y - 2]], bs: [mk(r.x - 4, r.y), mk(r.x + 4, r.y)], reset: { x: r.x * TS + 8, y: (r.y + 3) * TS + 12 } };
+    const x0 = r.x - 5, y0 = r.y - 3, fl = map[r.y * MW + r.x], plates: number[][] = [], bs = [];   // fl：沿用這間房原本的地板
+    for (let y = y0 - 1; y <= y0 + 7; y++) for (let x = x0 - 1; x <= x0 + 11; x++) {
+      const edge = x < x0 || x > x0 + 10 || y < y0 || y > y0 + 6, c = edge ? (x === r.x && y === y0 + 7 ? '.' : '#') : lv[y - y0][x - x0];   // 外框是石柱，下面正中間留入口
+      map[y * MW + x] = c !== '#' ? fl : edge && y < y0 + 7 ? PILLAR : RWALL;   // 上左右三邊是柱廊；裡面的牆和最下面一排用矮的石牆（柱子畫得高，會擋住上面那格）
+      if (c === 'B') bs.push(mk(x, y)); if (c === 'o') plates.push([x, y]); }
+    return { r, pen: { x0, y0, x1: x0 + 10, y1: y0 + 6 }, plates, bs, reset: { x: (r.x + 2) * TS + 8, y: (r.y + 5) * TS + 8 } };   // 重置的石台在入口右邊的走道上
   },
   update(p, st, dt) {
     for (const b of st.bs) { if (b.t > 0) { b.t = Math.max(0, b.t - dt); const k = 1 - b.t / .22; b.x = (b.sx + (b.tx * TS + 8 - b.sx) * k); b.y = (b.sy + (b.ty * TS + 8 - b.sy) * k); } b.prop.x = b.x; b.prop.y = b.y; }
@@ -141,7 +156,7 @@ MECHS.boulders = {
         if (Math.abs(side) > .3) { const k = Math.sign(side) * Math.min(Math.abs(side), 70 * dt); moveEnt(pl, k * dy, -k * dx); }   // 吸到中線上（人可能卡牆，所以用 moveEnt）
         if (b.t > 0 || along > 18) continue;                                                                               // 還在滾 / 人還沒跟上：計時先不歸零
         b.push += dt; if (b.push < .15) continue; b.push = 0; const nx = b.tx + dx, ny = b.ty + dy;                       // 推 0.15 秒才動，免得擦過去就推走
-        if (floorAt(nx, ny) && !st.bs.some(o => o !== b && o.tx === nx && o.ty === ny)) { b.sx = b.x; b.sy = b.y; b.tx = nx; b.ty = ny; b.t = .22; sfx.hit(); burst(b.x, b.y + 4, 6, '#c8a060', 40); } } }
+        if (floorAt(nx, ny) && (!st.pen || (nx >= st.pen.x0 && nx <= st.pen.x1 && ny >= st.pen.y0 && ny <= st.pen.y1)) && !st.bs.some(o => o !== b && o.tx === nx && o.ty === ny)) { b.sx = b.x; b.sy = b.y; b.tx = nx; b.ty = ny; b.t = .22; sfx.hit(); burst(b.x, b.y + 4, 6, '#c8a060', 40); } } }
   },
   draw(p, st, vis, list) {
     const r = st.r; if (!vis(r.x * TS, r.y * TS, 120)) return;

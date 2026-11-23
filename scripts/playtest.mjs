@@ -64,6 +64,24 @@ const pageScript = async () => {
     const t0 = performance.now(); try { fn(); log.push('✓ ' + name); } catch (e) { fails.push(`✗ ${name}: ${e.stack.split('\n').slice(0, 4).join(' | ')}`); }
     times.push([name, performance.now() - t0]); };                     // 每個測試花多久：最後印出最慢的幾個
   const tp = (x, y) => { G.me.x = x; G.me.y = y; };
+  /* 推石：自己用 BFS 解一次（只在推石區裡推、人要走得到石頭後面），回傳 [[第幾顆, dx, dy], ...]；解不開回傳 null */
+  const solveBoulders = st => {
+    const P = st.pen, W = P.x1 - P.x0 + 1, H = P.y1 - P.y0 + 2, ent = (H - 1) * W + (st.r.x - P.x0);   // 多一排：入口那一格（人可以站，石頭不行）
+    const fl = (i, b) => { const x = i % W, y = i / W | 0; return y === H - 1 ? i === ent : await0.puz.floorAt(P.x0 + x, P.y0 + y) && !b.includes(i); };
+    const reach = (b, p0) => { const seen = new Set([p0]), q = [p0]; let mn = p0; while (q.length) { const c = q.pop(); if (c < mn) mn = c;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const x = c % W + dx, y = (c / W | 0) + dy; if (x < 0 || x >= W || y < 0 || y >= H) continue; const n = y * W + x; if (!seen.has(n) && fl(n, b)) { seen.add(n); q.push(n); } } } return { seen, mn }; };
+    const goal = st.plates.map(([x, y]) => (y - P.y0) * W + x - P.x0), b0 = st.bs.map(b => (b.ty - P.y0) * W + b.tx - P.x0), key = (b, m) => [...b].sort((a, c) => a - c) + '|' + m;
+    const q = [[b0, reach(b0, ent).mn, null]], seen = new Set([key(b0, q[0][1])]);
+    for (let h = 0; h < q.length && h < 400000; h++) { const [b, pm] = q[h]; if (goal.every(g => b.includes(g))) { const out = []; for (let n = q[h]; n[2]; n = n[2][0]) out.unshift(n[2][1]); return out; }
+      const { seen: rs } = reach(b, pm);
+      b.forEach((c, i) => { for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const x = c % W, y = c / W | 0, nx = x + dx, ny = y + dy; if (nx < 0 || nx >= W || ny < 0 || ny >= H - 1) continue;
+        const ni = ny * W + nx; if (!rs.has((y - dy) * W + x - dx) || !fl(ni, b)) continue; const nb = b.slice(); nb[i] = ni; const m = reach(nb, c).mn, k = key(nb, m); if (seen.has(k)) continue; seen.add(k); q.push([nb, m, [q[h], [i, dx, dy]]]); } }); }
+    return null;
+  };
+  /* 照解法推：人站到石頭後面、按住方向，等它滾完才推下一下（走真正的推石程式，不是直接改座標） */
+  const playBoulders = (st, sol) => { for (const [i, dx, dy] of sol) { const b = st.bs[i], tx = b.tx, ty = b.ty; tp(b.x - dx * 13, b.y - dy * 13); input.mx = dx; input.my = dy;
+    for (let f = 0; f < 60 && b.tx === tx && b.ty === ty; f++) step(1); input.mx = input.my = 0; step(16);
+    if (b.tx !== tx + dx || b.ty !== ty + dy) throw new Error('照解法推，石頭沒有往 ' + dx + ',' + dy + ' 滾一格（第 ' + i + ' 顆，在 ' + (tx - st.r.x) + ',' + (ty - st.r.y) + '）'); } };
 
   run('開始新遊戲', () => { startGame(false); step(30); });
 
@@ -1176,8 +1194,7 @@ const pageScript = async () => {
       tp(sx, sy); const x0 = G.me.x; step(10); if (Math.abs(G.me.x - x0) < 3) throw new Error('颳風沒有推人（往 ' + dir + ' 吹，只移動 ' + (G.me.x - x0).toFixed(1) + '）'); leave(p.d); out.push('強風'); }
     // 推石：把兩塊石頭推到壓力板
     { const p = P('sandtemple', 'boulders'), st = p.m.boulders, inp = imp0.inp; enter(p.d);
-      const push = (b, dx, dy, n) => { for (let i = 0; i < n; i++) { tp(b.x - dx * 15, b.y - dy * 15 + 2); input.mx = dx; input.my = dy; step(20); input.mx = input.my = 0; step(14); } };
-      const [b1, b2] = st.bs; push(b1, 1, 0, 2); push(b1, 0, -1, 2); push(b2, -1, 0, 2); push(b2, 0, -1, 2); step(3); void inp;
+      if (!st.pen) throw new Error('推石區沒有建起來（房間太小？）'); const sol = solveBoulders(st); if (!sol) throw new Error('推石關卡解不開'); playBoulders(st, sol); step(3); void inp;
       if (!Q.flags.has('puz:sandtemple:fire')) throw new Error('石頭推到壓力板上門沒開：' + st.bs.map(b => b.tx - st.r.x + ',' + (b.ty - st.r.y)).join(' ')); leave(p.d); out.push('推石'); }
     // 冷卻熔岩：敲冰晶 → 熔岩變地板 → 6 秒後變回來
     { const p = P('obsidian', 'cool'), st = p.m.cool; enter(p.d); const [tx, ty] = st.river[3]; use(st.cr[0].x, st.cr[0].y, '敲擊');
@@ -1221,12 +1238,15 @@ const pageScript = async () => {
     const enter = d => { tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2); G.enemies = []; G.me.hp = G.me.maxHp; };
     const leave = d => { G.enemies = []; G.me.dead = false; tp(d.exX, d.exY); step(1); imp0.input.enterDoor(); step(2); };
     enter(p.d);
+    const fl = (x, y) => await0.puz.floorAt(x, y) && x >= st.pen.x0 && x <= st.pen.x1 && y >= st.pen.y0 && y <= st.pen.y1;
+    let spot = null; for (let y = st.pen.y0 + 1; y < st.pen.y1 && !spot; y++) for (let x = st.pen.x0 + 1; x <= st.pen.x1 - 2; x++) if ([[0, 0], [1, 0], [2, 0], [-1, 0], [-1, -1], [-1, 1], [0, -1], [0, 1]].every(([a, c]) => fl(x + a, y + c) && !st.bs.some(o => o !== b && o.home[0] === x + a && o.home[1] === y + c))) { spot = [x, y]; break; }
+    if (!spot) throw new Error('推石區找不到一塊試手感的空地'); b.home0 = b.home; b.home = spot;   // 暫時把第一顆石頭的「原位」搬到空地，測完再換回來
     // [人跟石頭中線差幾 px, 搖桿 x, 搖桿 y]：手機上很少剛好對準、剛好水平
     for (const [oy, mx, my] of [[0, 1, 0], [-5, 1, 0], [6, 1, 0], [0, .9, .42], [0, .9, -.42], [4, .85, -.5], [0, .4, 0]]) {
       for (const o of st.bs) { o.tx = o.home[0]; o.ty = o.home[1]; o.x = o.tx * 16 + 8; o.y = o.ty * 16 + 8; o.t = 0; o.push = 0; }
-      step(1); tp(b.x - 16, b.y + 2 + oy); input.mx = mx; input.my = my; step(120); input.mx = input.my = 0; step(20);
+      step(1); tp(b.x - 16, b.y + oy); input.mx = mx; input.my = my; step(120); input.mx = input.my = 0; step(20);
       const moved = b.tx - b.home[0]; if (moved < 2 || b.ty !== b.home[1]) bad.push('差 ' + oy + 'px、搖桿 (' + mx + ',' + my + ') → 2 秒推了 ' + moved + ' 格' + (b.ty !== b.home[1] ? '、還歪到別排' : '')); }
-    for (const o of st.bs) { o.tx = o.home[0]; o.ty = o.home[1]; o.x = o.tx * 16 + 8; o.y = o.ty * 16 + 8; o.t = 0; } leave(p.d);
+    b.home = b.home0; delete b.home0; for (const o of st.bs) { o.tx = o.home[0]; o.ty = o.home[1]; o.x = o.tx * 16 + 8; o.y = o.ty * 16 + 8; o.t = 0; } leave(p.d);
     if (bad.length) throw new Error('推不動：' + bad.join('；'));
   });
 
@@ -1242,8 +1262,7 @@ const pageScript = async () => {
       else if (p.kind === 'simon') { use(p.stone.x, p.stone.y, '觸摸'); step(Math.ceil(p.seq.length * .85 * 60) + 10); for (const k of p.seq) { tp(p.stone.x, p.stone.y + 30); step(2); tp(p.plates[k].x, p.plates[k].y + 2); step(2); } }
       else if (p.kind === 'statues') { const n = p.stats.length, solve = (dep, off) => { if (off.every(o => o === 0)) return []; if (!dep) return null; for (let i = 0; i < n; i++) { const o2 = [...off]; o2[i] = (o2[i] + 1) % 4; o2[(i + 1) % n] = (o2[(i + 1) % n] + 1) % 4; const r = solve(dep - 1, o2); if (r) return [i, ...r]; } return null; };
         let mv = null; for (let k = 1; k <= 8 && !mv; k++) mv = solve(k, [...p.off]); if (!mv) throw new Error(name + '：解不開'); for (const i of mv) use(p.stats[i].x, p.stats[i].y, '轉動'); }
-      else if (p.kind === 'boulders') { const st = p.m.boulders, push = (b, dx, dy, n) => { for (let i = 0; i < n; i++) { tp(b.x - dx * 15, b.y - dy * 15 + 2); input.mx = dx; input.my = dy; step(20); input.mx = input.my = 0; step(14); } };
-        const [b1, b2] = st.bs; push(b1, 1, 0, 2); push(b1, 0, -1, 2); push(b2, -1, 0, 2); push(b2, 0, -1, 2); step(3); }
+      else if (p.kind === 'boulders') { const st = p.m.boulders, sol = solveBoulders(st); if (!sol) throw new Error(d.name + '的推石關卡解不開'); playBoulders(st, sol); step(3); }
       else if (p.kind === 'mirrors') { const st = p.m.mirrors; for (let m = 0; m < 32 && !Q.flags.has(p.fkey); m++) { st.ms.forEach((q, i) => q.m = (m >> i) & 1); step(1); } }
       else if (p.kind === 'cold3') { for (const b of p.m.cold3.braz) use(b.x, b.y, '點燃'); step(2); }
       else if (p.kind === 'webs3') { const w = PU.PUZZLES.find(q => q.d === d && q.m.webs); use(w.m.webs.tor[0].x, w.m.webs.tor[0].y, '取火'); const g = p.gate[1]; tp(g.x, g.y + (p.outD.side === 3 ? 24 : -24)); step(3); }
