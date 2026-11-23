@@ -11,7 +11,7 @@ import { asn, drawArrow, drawStar, drawWarp, fillArt } from './fx';
 import { camDt } from '../main';
 import type { Player } from '../types';
 import { bodyGone, deathFx } from './pfx';
-import { RIDE_Y, SEAT_X, WOLF_CX, drawWolf, wolfSeatDy, type WolfAnim } from '../art/starWolf';
+import { RIDE_Y, SEAT_X, WOLF_CX, drawWolf, wolfRideY, type WolfAnim } from '../art/starWolf';
 import { DROP_T, callProgress } from '../game/mount';
 
 /* ================= RENDER ================= */
@@ -123,14 +123,14 @@ function edgeMir(pl: Player, msw, dir) {
 }
 export function drawPlayer(pl: Player) {
   if (pl.dodge > 0 && !pl.dead && !pl.ride) return;                     // 瞬移中完全隱身（騎著星狼的衝刺看得到：狼往前撲）
-  const blink = pl.iframe > 0 && !pl.dodge && !pl.dash && pl.skillLock <= 0 && !(pl.blinkIn > 0) && Math.floor(G.time * 20) % 2 === 0;
+  const blink = pl.iframe > 0 && !pl.ride && !pl.dodge && !pl.dash && pl.skillLock <= 0 && !(pl.blinkIn > 0) && Math.floor(G.time * 20) % 2 === 0;
   const fade = pl.dead ? (bodyGone(pl) ? 0 : 1) : 1;                  // 倒下：身體交給碎裂特效去畫（pixelfx disintegrate）
   ctx.globalAlpha = fade;
-  const ride = !!pl.ride && !pl.dead, run: WolfAnim = !ride ? null : pl.dodge > 0 ? 'leap' : pl.moving ? pl.rideRun || 0 : null;
+  const ride = !!pl.ride && !pl.dead, run: WolfAnim = !ride ? null : pl.dodge > 0 || pl.moving ? pl.rideRun || 0 : null;   // 騎著衝刺：狼停在當下那一格滑出去（沒有另外的動作）
   drawShadow(pl.x, pl.y + 1, ride ? 22 : 12);
   if (ride) drawMount(pl, run);
   // 騎著：整個人抬到狼背上（跟著步伐一起騰空）；剛跳下來：從狼背落回地上
-  const rideY = ride ? RIDE_Y - wolfSeatDy(run) : pl.rideDrop > 0 ? RIDE_Y * pl.rideDrop / DROP_T : 0;
+  const rideY = ride ? wolfRideY(run) : pl.rideDrop > 0 ? RIDE_Y * pl.rideDrop / DROP_T : 0;
   const py = pl.y - rideY, seat = ride ? (SEAT_X - WOLF_CX) * HK * (pl.flip ? -1 : 1) : 0;
   const dir = pl.flip ? -1 : 1, spinA = pl.spin > 0 ? pl.face + (1 - pl.spin / .3) * TAU * dir : 0;
   const ap = heroAttackPose(pl), vs = Math.abs(Math.cos(pl.face));   // 面向上下時前傾減半（只分兩檔，姿勢圖不會無限增加）

@@ -17,7 +17,7 @@ import type { Player } from '../types';
    打倒狼王之後，巢穴裡的一匹星狼會載你（石碑：狼群曾經是看守森林的騎士）。測試場（?lab、?test）直接開。
    · 按住瞬移鍵 1 秒呼喚（腳下的圈畫滿；按下去的那一下照常瞬移）；騎著時按住 1 秒 = 讓星狼回去。電腦也可以按 R
    · 像法環一樣只能在野外騎：地城、城鎮、Boss 的結界裡叫不出來，騎著走進去會自動下來
-   · 跑得比走路快 1.7 倍；騎著按瞬移 = 星狼往前撲（距離是瞬移的 0.6 倍，一樣有無敵時間）
+   · 跑得比走路快 1.7 倍；騎著按瞬移 = 星狼往前衝一小段（距離是瞬移的 0.6 倍，一樣有無敵時間；狼停在當下那一格滑出去，人不會閃）
    · 騎著按攻擊 / 技能 / 喝藥 = 先跳下來，再做那個動作
    · 被打中就摔下來（按住呼喚到一半被打中也會中斷，要放開重按） */
 export const RIDE_SPD = 1.7, WOLF_DASH = .6, DROP_T = .18;
@@ -63,7 +63,7 @@ export function dismount(pl: Player, thrown = false) {
   if (!thrown) sfx.blink();
 }
 
-/* 騎著按瞬移：星狼往前撲（combat.ts 的 tryDodge 呼叫，代替瞬移的消失特效）。腳下踢起一團土 + 星屑 */
+/* 騎著按瞬移：星狼往前衝一小段（combat.ts 的 tryDodge 呼叫，代替瞬移的消失特效）。腳下踢起一團土 + 星屑 */
 export function wolfDashFx(pl: Player) {
   sfx.dodge(); const back = Math.atan2(-pl.dvy, -pl.dvx);
   for (let i = 0; i < 14; i++) { const a = back + rr(-.8, .8), s = rr(30, 90);
@@ -79,7 +79,7 @@ export function updateMount(pl: Player, dt: number) {
   if (!pl.ride) return;
   if (!hasWolf() || pl.dead || locked(pl)) { dismount(pl, true); return; }
   const why = rideBlock(pl); if (why) { dismount(pl); toast(why, '#c8b8ff'); return; }
-  if (pl.dodge > 0) { G.ghosts.push({ x:pl.x, y:pl.y, flip:pl.flip, life:.22, max:.22, col:'wolf' }); return; }   // 撲出去的殘影
+  if (pl.dodge > 0) { G.ghosts.push({ x:pl.x, y:pl.y, flip:pl.flip, life:.22, max:.22, col:'wolf', run:pl.rideRun || 0 }); return; }   // 衝刺的殘影
   if (pl.moving) { const m = Math.min(1, Math.hypot(input.mx, input.my));
     pl.rideRun = ((pl.rideRun || 0) + dt * STRIDE * (.5 + .5 * m)) % 1;
     if (Math.random() < dt * 30 * m) { const bx = pl.x + (pl.flip ? 1 : -1) * rr(3, 10);   // 腳下踢起的星屑，往後飄
@@ -113,7 +113,7 @@ function intro() {
   if (G.time - seenAt < 4) return;                                      // 等「強敵已擊敗」的橫幅先播完
   flags.add('starwolf');
   toast('巢穴深處走出一匹身上帶著星光的狼，在你面前低下了頭。', '#c8b8ff');
-  setTimeout(() => toast('在野外按住瞬移鍵呼喚星狼。騎著按瞬移 = 星狼往前撲，按住 1 秒讓牠回去', '#f1e7d0'), 1600);
+  setTimeout(() => toast('在野外按住瞬移鍵呼喚星狼。騎著按瞬移 = 星狼往前衝，按住 1 秒讓牠回去', '#f1e7d0'), 1600);
 }
 
 /* 電腦版下方的按鍵說明：解鎖後加一句 */
