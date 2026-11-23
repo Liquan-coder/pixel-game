@@ -14,7 +14,7 @@ import { openDoor } from './boss';
 import { merchant, placeMerchant } from '../ui/shop';
 import { CHESTS } from '../world/chests';
 import { DUNGEONS, dungeonAt, legacyDungeonAt } from '../world/dungeons';
-import { flags, loreRead, resetQuest } from './quest';
+import { flags, loreRead, marks, resetQuest } from './quest';
 import { sawFromExplored } from '../world/sight';
 
 /* ================= SAVE ================= */
@@ -28,7 +28,7 @@ export function lastSlot() { try { const n = Number(localStorage.getItem(LAST_KE
 export function serialize() {
   return { v:15, at:Date.now(), mats:G.me.mats, vit:G.me.vit, str:G.me.str, end:G.me.end, dex:G.me.dex, int:G.me.int, luk:G.me.luk, souls:G.me.souls, gold:G.me.gold, tears:G.me.tears, freePts:G.me.freePts, inv:G.me.inv, weapon:G.me.weapon, armor:G.me.armor, trinkets:G.me.trinkets,
     merchant: merchant ? { camp:merchant.camp, stock:merchant.stock } : null, rbDead: [...rbDead], potMax: G.potMax, bossDead: G.bossDead,
-    camps: CAMPS.filter(c => c.lit).map(c => c.id), lastCamp: G.lastCamp, pos: lastPos(), hp: Math.ceil(G.me.hp), pot: G.me.pot, lost: G.lost, uid: G.uid, map: packExplored(), mw: MW, chests: CHESTS.filter(c => c.opened).map(c => c.id), flags: [...flags], lore: [...loreRead], disc: [...discovered] };
+    camps: CAMPS.filter(c => c.lit).map(c => c.id), lastCamp: G.lastCamp, pos: lastPos(), hp: Math.ceil(G.me.hp), pot: G.me.pot, lost: G.lost, uid: G.uid, map: packExplored(), mw: MW, chests: CHESTS.filter(c => c.opened).map(c => c.id), flags: [...flags], marks: marks.map(m => [m.tx, m.ty]), lore: [...loreRead], disc: [...discovered] };
 }
 /* 最後站的位置：重開遊戲時回到這裡，不是回營火。死掉中 → 不記（會回營火）；在 Boss 區裡 → 記「最後一次站在 Boss 區外面」的地方 */
 function lastPos() { const p = G.me; if (p.dead) return null;
@@ -84,7 +84,7 @@ export function applySave(d) {
       for (let r = 1; r < 40 && !best; r++) for (let dy = -r; dy <= r && !best; dy++) for (let dx = -r; dx <= r; dx++) { const x = tx + dx, y = ty + dy;
         if (x > 0 && y > 0 && x < MW && y < MH && reachable[y * MW + x]) { best = [x, y]; break; } }
       if (best) { G.lost.x = best[0] * TS + 8; G.lost.y = best[1] * TS + 8; } } }
-  resetQuest(); for (const f of d.flags || []) flags.add(f); for (const l of d.lore || []) loreRead.add(l);
+  resetQuest(); for (const f of d.flags || []) flags.add(f); for (const m of d.marks || []) if (Array.isArray(m)) marks.push({ tx: m[0], ty: m[1] }); for (const l of d.lore || []) loreRead.add(l);
   if ((d.v || 0) < 14) sawFromExplored();                                // v14：地圖圖示改成「親眼看到才標」→ 舊存檔裡地形已經亮的點都算看過
   const opened = new Set(d.chests || []); for (const c of CHESTS) { c.opened = opened.has(c.id); c.foe = null; c.t = 2; }
   if ((d.v || 0) < 11) for (const dg of DUNGEONS) if (['silktwin', 'sandcrescent', 'darkmoon'].includes(dg.uq) && opened.has('d_' + dg.id) && !G.me.inv.some(it => it.uq === dg.uq) && G.me.weapon?.uq !== dg.uq)   // v11：蛛巢 / 沙埋神殿 / 霜墓的金箱多了獨特武器 → 已經開過的直接補進背包

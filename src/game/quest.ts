@@ -28,7 +28,10 @@ export const cores = () => CORES.filter(c => c.done(qc)).length, CORE_N = CORES.
 export function regionLook(r: number) { const RG = REGIONS[r], f = REGION_BOSS[r]; return f && f(qc) ? { amb: RG.amb * LIFT, tint: RG.tint } : RG; }
 export const rumorsKnown = () => RUMORS.filter(r => flags.has('rumor:' + r.id));
 export const rumorsOpen = () => rumorsKnown().filter(r => !r.done(qc));
-export function resetQuest() { flags.clear(); loreRead.clear(); coresBefore = null; }
+/* 地圖上的標記：玩家在大地圖上點一個地方 →「標記」。存在存檔裡（格子座標） */
+export const marks: { tx: number; ty: number }[] = [];
+export const MARK_MAX = 40;
+export function resetQuest() { flags.clear(); loreRead.clear(); marks.length = 0; coresBefore = null; }
 let hudKey = '', coresBefore: Set<string> | null = null;
 export function updateQuest() {
   if (!G.started) return;

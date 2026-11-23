@@ -12,7 +12,7 @@ import { calcStats, curEq, level, lvCost, recalc } from '../game/player';
 import { initAudio, sfx } from '../core/audio';
 import { placeAtCamp, restoreWorld } from '../game/playerUpdate';
 import { burst } from '../game/worldUpdate';
-import { centerMap, clearMapSel, mapPick, mv, onMapPick, renderBigMap, zoomAt, type MapPick } from '../render/map';
+import { centerMap, clearMapSel, mapPick, mv, onMapPick, renderBigMap, renderMini, setMapPick, zoomAt, type MapPick } from '../render/map';
 import { fightingRB, rbDead } from '../world/regionBoss';
 import { coinChip, hudIcon, openMenu, setMenu, soulChip, toast } from './hud';
 import { moveMerchant } from './shop';
@@ -21,7 +21,7 @@ import { save } from '../game/save';
 import { ATTRS, ATTR_BASE, ATTR_NAME, atkSplit, grade, reqOf, scaleOf, unmet } from '../data/attrs';
 import { HERO, HERO_W } from '../art/hero';
 import { drawWeapon } from '../art/weapon';
-import { navT, renderJournal, setNav } from '../game/quest';
+import { MARK_MAX, marks, navT, renderJournal, setNav } from '../game/quest';
 import { TS } from '../world/map';
 
 export function restAt(c) {
@@ -333,6 +333,9 @@ function renderMapFoot(p: MapPick | null) {                              // 點�
   const f = $('mapFoot'); f.hidden = !p; if (!p) return;
   const rg = REGIONS[reg[Math.floor(p.ty) * MW + Math.floor(p.tx)]];
   const navOn = navT && navT.key === p.kind + ':' + p.id, navB = p.kind === 'me' ? '' : '<button type="button" class="sec" data-nav>' + (navOn ? '取消導航' : '導航') + '</button>';   // 導航：角色旁邊出現箭頭指過去
+  if (p.kind === 'spot' || p.kind === 'mark') { const isM = p.kind === 'mark';   // 點了空地 → 可以插一面標記；點了標記 → 可以拔掉
+    f.innerHTML = '<span class="lvfoot"><b>' + p.name + '</b>' + (rg ? ' · ' + rg.name : '') + '<span class="gain">' + (isM ? '小地圖上也看得到這面旗子' : '插一面紅旗，記住想回來的地方（最多 ' + MARK_MAX + ' 面）') + '</span></span>' +
+      '<button type="button" class="sec" data-mapx>關閉</button>' + navB + (isM ? '<button type="button" class="sec" data-unmark>拔掉標記</button>' : '<button type="button" class="pri" data-mark>標記</button>'); return; }
   if (p.kind !== 'camp') { f.innerHTML = '<span class="lvfoot"><b>' + p.name + '</b>' + (rg && p.kind !== 'quest' ? ' · ' + rg.name : '') + (p.desc ? '<span class="gain">' + p.desc + '</span>' : '') + '</span><button type="button" class="sec" data-mapx>關閉</button>' + navB; return; }
   const c = CAMPS.find(c => c.id === p.id); if (!c) { f.hidden = true; return; }
   const blk = !c.lit ? '還沒點燃：走到那裡點燃後才能傳送' : travelBlock();
@@ -345,9 +348,13 @@ $('mapMenu').addEventListener('click', e => { const t = (e.target as HTMLElement
   else if (t.dataset.mt) { mapTab = t.dataset.mt; showMapTab(); }
   else if (t.dataset.mz) { if (t.dataset.mz === 'me') centerMap(); else zoomAt(mv.w / 2, mv.h / 2, mv.z * (t.dataset.mz === 'in' ? 1.5 : 1 / 1.5)); renderBigMap(); }
   else if (t.hasAttribute('data-mapx')) { clearMapSel(); renderMapFoot(null); renderBigMap(); }
+  else if (t.hasAttribute('data-mark')) { const p = mapPick(); if (!p) return; if (marks.length >= MARK_MAX) { toast('標記太多了，先拔掉幾面（最多 ' + MARK_MAX + ' 面）', '#ff8a7a'); return; }
+    marks.push({ tx: p.tx, ty: p.ty }); sfx.pick(); const m = { kind: 'mark', id: p.tx + ',' + p.ty, name: '你的標記', desc: '', tx: p.tx, ty: p.ty }; setMapPick(m); renderMapFoot(m); renderBigMap(); renderMini(); }
+  else if (t.hasAttribute('data-unmark')) { const p = mapPick(); if (!p) return; const i = marks.findIndex(m => m.tx === p.tx && m.ty === p.ty); if (i >= 0) marks.splice(i, 1);
+    if (navT && navT.key === 'mark:' + p.id) setNav(null); clearMapSel(); renderMapFoot(null); renderBigMap(); renderMini(); }
   else if (t.hasAttribute('data-nav')) { const p = mapPick(); if (!p) return; const key = p.kind + ':' + p.id;
     if (navT && navT.key === key) { setNav(null); renderMapFoot(p); return; }
-    setNav({ x: (p.tx + .5) * TS, y: (p.ty + .5) * TS, name: p.kind === 'rumor' ? '傳聞的地方' : p.name, key }); clearMapSel(); setMenu(null); }
+    setNav({ x: (p.tx + .5) * TS, y: (p.ty + .5) * TS, name: p.kind === 'rumor' ? '傳聞的地方' : p.kind === 'mark' ? '標記的地方' : p.kind === 'spot' ? '地圖上選的地方' : p.name, key }); clearMapSel(); setMenu(null); }
   else if (t.dataset.travel) { const c = CAMPS.find(c => c.id === t.dataset.travel); if (!c || !c.lit || travelBlock()) return;
     clearMapSel(); G.lastCamp = c.id; placeAtCamp(G.me, c.id); restoreWorld(); save(); setMenu(null); G.region = ''; sfx.level(); burst(G.me.x, G.me.y - 6, 14, '#f2c14e', 40); }
 });

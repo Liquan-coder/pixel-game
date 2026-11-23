@@ -4,7 +4,7 @@ import { OL } from '../art/sprite';
 import { CAMPS, MH, MW, WH, OPEN_REGIONS, REGIONS, SUBS, TOWNS, TS, discovered, explored } from '../world/map';
 import { mctx, miniBase } from '../world/minimap';
 import { merchant } from '../ui/shop';
-import { drawRumors, flags, navT, rumorsOpen } from '../game/quest';
+import { drawRumors, flags, marks, navT, rumorsOpen } from '../game/quest';
 import { STATUES, statueKnown, statueLit, ZONE_NAME, zoneOfReg } from '../world/statues';
 import { DUNGEONS, OLDZ, dungeonAt } from '../world/dungeons';
 import { POIS } from '../data/poi';
@@ -31,6 +31,8 @@ export function renderMini() {
   // Boss、寶箱不標：讓玩家自己去找
   if (merchant) { const mx = Math.floor(merchant.x / TS) - ox, my = Math.floor(merchant.y / TS) - oy; mctx.fillStyle = OL; mctx.fillRect(mx - 2, my - 2, 5, 5); mctx.fillStyle = '#5ae0b0'; mctx.fillRect(mx - 1, my - 1, 3, 3); }
   if (G.lost) { mctx.fillStyle = '#b49cff'; mctx.fillRect(Math.floor(G.lost.x / TS) - ox - 1, Math.floor(G.lost.y / TS) - oy - 1, 3, 3); }
+  for (const m of marks) if (dg ? inBox(dungeonBox(dg), m.tx, m.ty) : m.ty < WH) { const x = Math.floor(m.tx) - ox, y = Math.floor(m.ty) - oy;   // 自己的標記：紅色小點
+    mctx.fillStyle = OL; mctx.fillRect(x - 2, y - 2, 5, 5); mctx.fillStyle = '#ff5a4a'; mctx.fillRect(x - 1, y - 1, 3, 3); }
   drawRumors(mctx, 1, ox, oy);
   if (navT && !dg) navMini(navT.x / TS - ox, navT.y / TS - oy, px - ox, py - oy);
   mctx.fillStyle = Math.floor(G.uiTime * 4) % 2 ? '#ffffff' : '#7fdcff'; mctx.fillRect(px - ox - 1, py - oy - 1, 3, 3);
@@ -53,6 +55,7 @@ function navMini(x: number, y: number, mx: number, my: number) {
 /* ================= 世界地圖：拖曳平移、雙指 / 滾輪縮放、點營火快速傳送 =================
    mv = 地圖鏡頭：(x, y) = 畫面中心是哪一格，z = 每格幾個 CSS 像素 */
 const bigmap = $<HTMLCanvasElement>('bigmap'), bctx = bigmap.getContext('2d');
+const inBox = (b, tx: number, ty: number) => tx >= b.x0 && tx < b.x1 && ty >= b.y0 && ty < b.y1;
 export const mv = { x: 0, y: 0, z: 3, w: 0, h: 0 };
 /* 地圖能看的範圍（格）：平常是整張世界；在地城裡 = 只有這一座地城（多留 2 格邊） */
 let area = { x0: 0, y0: 0, x1: MW, y1: WH };                          // 野外只到 WH（下面那一條是地城區）
@@ -65,9 +68,9 @@ export function centerMap() {
 }
 const toScr = (tx: number, ty: number) => [(tx - mv.x) * mv.z + mv.w / 2, (ty - mv.y) * mv.z + mv.h / 2];
 const toTile = (sx: number, sy: number) => [(sx - mv.w / 2) / mv.z + mv.x, (sy - mv.h / 2) / mv.z + mv.y];
-function clampView() {                                               // 地圖比畫面小 → 置中；比畫面大 → 不能拖出邊界
-  mv.z = clamp(mv.z, zMin(), zMax); const hw = mv.w / 2 / mv.z, hh = mv.h / 2 / mv.z, A = area;
-  mv.x = A.x1 - A.x0 <= hw * 2 ? (A.x0 + A.x1) / 2 : clamp(mv.x, A.x0 + hw, A.x1 - hw); mv.y = A.y1 - A.y0 <= hh * 2 ? (A.y0 + A.y1) / 2 : clamp(mv.y, A.y0 + hh, A.y1 - hh); }
+function clampView() {                                               // 地圖外面的黑色也算地圖：畫面中心可以拖到地圖的任何一格（最邊邊的地方也能放大、拉到正中間），再出去就拖不動
+  mv.z = clamp(mv.z, zMin(), zMax); const A = area;
+  mv.x = clamp(mv.x, A.x0, A.x1); mv.y = clamp(mv.y, A.y0, A.y1); }
 export let mapSel: string | null = null;                                // 點了哪個營火（等確認傳送）
 /* 地圖上可以點的東西：點了下方會顯示名字和說明（營火還有傳送按鈕） */
 export type MapPick = { kind: string; id: string; name: string; desc: string; tx: number; ty: number };
@@ -95,6 +98,7 @@ export function renderBigMap() {
     const [x, y] = toScr(G.me.x / TS, G.me.y / TS), k = .5 + .5 * Math.sin(performance.now() / 160);
     g.strokeStyle = `rgba(127,220,255,${.35 + .45 * k})`; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 13 + 2 * k, 0, Math.PI * 2); g.stroke();
     for (const c of CAMPS) if (c.dg === dg.id && (c.lit || seen(c.tx, c.ty))) icon(c.lit ? 'camp' : 'campOff', { kind: 'camp', id: c.id, name: c.name, desc: '', tx: c.tx, ty: c.ty });   // 地城裡的營火：一樣可以點了傳送
+    drawMarks(g, b);
     icon('me', { kind: 'me', id: 'me', name: '你在這裡', desc: '在「' + dg.name + '」裡面', tx: G.me.x / TS - .5, ty: G.me.y / TS - .5 });
     drawPick(g, label); return;
   }
@@ -117,6 +121,7 @@ export function renderBigMap() {
     g.fillStyle = '#8a84a0'; g.fillRect(Math.round(x - k), Math.round(y + k * .4), Math.round(k * 2), Math.round(k * .8));
     g.fillStyle = lit ? '#ffe38a' : '#c8a8ff'; g.beginPath(); g.moveTo(x, y - k * 1.8); g.lineTo(x + k * .6, y - k * .6); g.lineTo(x, y + k * .3); g.lineTo(x - k * .6, y - k * .6); g.closePath(); g.fill();
     hits.push({ kind: 'statue', id: 's' + st.k, name: '星之神像', desc: lit ? ZONE_NAME[st.k] + ' · 已經點亮了' : '去那裡祈禱，' + ZONE_NAME[st.k] + '的地圖就會亮起來', tx: st.tx, ty: st.ty, x, y }); }
+  drawMarks(g, area);
   drawRumors(g, mv.z, mv.x - mv.w / 2 / mv.z, mv.y - mv.h / 2 / mv.z);   // 傳聞：模糊的虛線圈
   for (const r of rumorsOpen()) { const [x, y] = toScr(r.tx, r.ty); hits.push({ kind: 'rumor', id: r.id, name: '傳聞', desc: '「' + r.text + '」——' + r.src, tx: r.tx, ty: r.ty, x, y }); }
   if (navT) {                                                            // 導航目標：從你拉一條金色虛線過去 + 一閃一閃的標記
@@ -141,7 +146,22 @@ export function renderBigMap() {
     icon('me', { kind: 'me', id: 'me', name: '你在這裡', desc: '', tx: G.me.x / TS - .5, ty: G.me.y / TS - .5 }); }
   drawPick(g, label);
 }
+/* 自己的標記：一根紅色小旗子（旗桿底部 = 那一格的中心）。同時記下位置給「點一下」用 */
+function drawMarks(g: CanvasRenderingContext2D, b) {
+  for (const m of marks) { if (!inBox(b, m.tx, m.ty)) continue; const [x, y] = toScr(m.tx + .5, m.ty + .5), X = 0, Y = 0;
+    g.save(); g.translate(Math.round(x), Math.round(y)); g.scale(1.6, 1.6);                                                                   // 跟其他圖示差不多大
+    g.fillStyle = '#07060b'; g.fillRect(X - 2, Y - 16, 4, 17); g.beginPath(); g.moveTo(X + 1, Y - 17); g.lineTo(X + 13, Y - 11.5); g.lineTo(X + 1, Y - 6); g.closePath(); g.fill();   // 黑色外框
+    g.fillStyle = '#e8e0d0'; g.fillRect(X - 1, Y - 15, 2, 15);                                                                                    // 旗桿
+    g.fillStyle = '#ff5a4a'; g.beginPath(); g.moveTo(X + 1, Y - 15); g.lineTo(X + 10, Y - 11.5); g.lineTo(X + 1, Y - 8); g.closePath(); g.fill();   // 紅旗
+    g.fillStyle = '#ffb0a0'; g.fillRect(X + 1, Y - 15, 2, 2);
+    g.fillStyle = '#07060b'; g.beginPath(); g.ellipse(X, Y, 4, 2, 0, 0, Math.PI * 2); g.fill(); g.restore();
+    hits.push({ kind: 'mark', id: m.tx + ',' + m.ty, name: '你的標記', desc: '', tx: m.tx, ty: m.ty, x: x + 4, y: y - 12 }); }
+}
 function drawPick(g: CanvasRenderingContext2D, label) {                 // 選到的東西：白框 + 名字
+  if (pick && pick.kind === 'spot') { const [x, y] = toScr(pick.tx + .5, pick.ty + .5), k = .5 + .5 * Math.sin(performance.now() / 160);   // 點到空地：一個閃爍的白色準星
+    g.strokeStyle = '#07060b'; g.lineWidth = 4; g.beginPath(); g.arc(x, y, 8, 0, Math.PI * 2); g.stroke();
+    g.strokeStyle = `rgba(255,255,255,${.6 + .4 * k})`; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 8, 0, Math.PI * 2);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { g.moveTo(x + dx * 5, y + dy * 5); g.lineTo(x + dx * 12, y + dy * 12); } g.stroke(); return; }
   if (pick) { const h = hits.find(h => h.kind === pick.kind && h.id === pick.id);
     if (h) { g.strokeStyle = '#ffffff'; g.lineWidth = 2; g.strokeRect(Math.round(h.x - 14), Math.round(h.y - 14), 28, 28); label(h.name, h.x, h.y + 26, '#ffe38a', 12); } }
 }
@@ -166,10 +186,13 @@ export function zoomAt(sx: number, sy: number, z: number) {                // �
 }
 let onPick: (p: MapPick | null) => void = () => {};
 export function onMapPick(f: (p: MapPick | null) => void) { onPick = f; }
-function tapAt(sx: number, sy: number) {                                // 點到圖示（16px 內，選最近的）→ 下方顯示是什麼；點空白 → 取消
+function tapAt(sx: number, sy: number) {                                // 點到圖示（16px 內，選最近的）→ 下方顯示是什麼；點空地 → 選到那一格（可以標記、導航）
   let best = null, bd = 16; for (const h of hits) { const d = Math.hypot(h.x - sx, h.y - sy); if (d < bd) { bd = d; best = h; } }
-  pick = best ? { kind: best.kind, id: best.id, name: best.name, desc: best.desc, tx: best.tx, ty: best.ty } : null;
+  const [tx, ty] = toTile(sx, sy), T = [Math.floor(tx), Math.floor(ty)];
+  pick = best ? { kind: best.kind, id: best.id, name: best.name, desc: best.desc, tx: best.tx, ty: best.ty }
+    : inBox(area, T[0], T[1]) ? { kind: 'spot', id: T[0] + ',' + T[1], name: seen(T[0], T[1]) ? '這個地方' : '還沒去過的地方', desc: '', tx: T[0], ty: T[1] } : null;
   mapSel = pick && pick.kind === 'camp' ? pick.id : null; onPick(pick); renderBigMap();
 }
 export function clearMapSel() { mapSel = null; pick = null; }
+export function setMapPick(p: MapPick | null) { pick = p; mapSel = null; }
 export const mapPick = () => pick;

@@ -468,6 +468,25 @@ const pageScript = async () => {
     G.me.weapon = makeItem('sword', 0, 0); recalc(G.me);
   });
 
+  run('地圖標記：最左邊也能拉到畫面中間 → 點空地插旗 → 存檔還在 → 拔掉', () => {
+    const M = imp0.map, Q = await0.quest, cv = document.getElementById('bigmap'); setMenu(null); Q.marks.length = 0;
+    menus.toggleMap(); step(1);
+    const r = cv.getBoundingClientRect(), ev = (type, x, y, id = 1) => cv.dispatchEvent(new PointerEvent(type, { pointerId: id, clientX: r.left + x, clientY: r.top + y, bubbles: true }));
+    M.zoomAt(M.mv.w / 2, M.mv.h / 2, 8); M.mv.x = -50; M.mv.y = 200; M.renderBigMap();
+    if (M.mv.x !== 0) throw new Error('放大後地圖最左邊拉不到畫面中間（中心停在 ' + M.mv.x + '）');
+    M.mv.x = 2.5; M.mv.y = 200.5; M.renderBigMap();
+    ev('pointerdown', M.mv.w / 2, M.mv.h / 2, 3); ev('pointerup', M.mv.w / 2, M.mv.h / 2, 3);
+    const p = M.mapPick(); if (!p || p.kind !== 'spot' || p.tx !== 2 || p.ty !== 200) throw new Error('點空地沒有選到那一格：' + JSON.stringify(p));
+    document.querySelector('#mapFoot [data-mark]').click();
+    if (Q.marks.length !== 1 || !document.querySelector('#mapFoot [data-unmark]')) throw new Error('按「標記」沒有插旗');
+    const sv = JSON.parse(JSON.stringify(serialize())); Q.marks.length = 0; applySave(sv); if (Q.marks.length !== 1 || Q.marks[0].tx !== 2) throw new Error('標記沒有存進存檔');
+    menus.toggleMap(); menus.toggleMap(); step(1); M.zoomAt(M.mv.w / 2, M.mv.h / 2, 8); M.mv.x = 2.5; M.mv.y = 200.5; M.renderBigMap();
+    ev('pointerdown', M.mv.w / 2 + 4, M.mv.h / 2 - 12, 4); ev('pointerup', M.mv.w / 2 + 4, M.mv.h / 2 - 12, 4);
+    if (M.mapPick()?.kind !== 'mark') throw new Error('點旗子沒有選到標記：' + JSON.stringify(M.mapPick()));
+    document.querySelector('#mapFoot [data-unmark]').click(); if (Q.marks.length) throw new Error('拔不掉標記');
+    setMenu(null);
+  });
+
   run('世界地圖：拖曳、縮放、點營火快速傳送', () => {
     const M = imp0.map, cv = document.getElementById('bigmap'); setMenu(null);
     const dst = CAMPS.find(c => c.id === 'dawn'); dst.lit = true; for (const e of G.enemies) e.state = 'idle'; if (G.B) G.B.state = 'sleep'; tp(CAMPS[0].x, CAMPS[0].y + 16);
