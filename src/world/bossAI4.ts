@@ -3,7 +3,7 @@
    每一招打出去會記 e.act（給 render/bossAnim.ts 的動作用）。
 
    場地型（逼你抓閃避時機 → 完美閃避的用武之地）
-     wave      震波：砸地 → 一圈（二階段兩圈）往外擴的環，只能抓時機閃過去           { r 最遠, spd, W 環寬, n 幾圈 }          act: pound
+     wave      震波：砸地 → 一圈（二階段兩圈）往外擴的環，只能抓時機閃過去           { spd, W 環寬, n 幾圈 }（掃過整個場地） act: pound
      beam      掃射光束：細線鎖定起點 → 粗光束從一邊轉到另一邊                         { L, W, arc 掃多大, dur 掃幾秒 }         act: lash
      grid      網格：整個場地一排排光束（井字），二階段轉 45° 再一次                    { W, gap 線的間距, n 每邊幾條 }          act: plant
      meteor    追身落雷：在你腳下一個接一個落（每 gap 秒一個），要一直走                { n, gap, r, fall 落下要幾秒 }           act: plant
@@ -110,7 +110,7 @@ export function tickMore(e, dt: number) {
         o.r += o.spd * dt; if (o.r > o.R) return false;
         for (const pl of G.players) { if (pl.dead || o.hit.has(pl)) continue; const d = Math.hypot(pl.x - o.x, pl.y - o.y);
           if (Math.abs(d - o.r) < o.W / 2 + pl.r - DG) { o.hit.add(pl); if (hurtPlayer(pl, o.dmg, o.x, o.y, { stun: .3 })) hitSpark(pl.x, pl.y - 8, true, Math.atan2(pl.y - o.y, pl.x - o.x)); } }
-        if (Math.random() < .7) { const a = rr(0, TAU); burst(o.x + Math.cos(a) * o.r, o.y + Math.sin(a) * o.r, T.impact, 1); }
+        if (Math.random() < .7) { const a = rr(0, TAU), bx = o.x + Math.cos(a) * o.r, by = o.y + Math.sin(a) * o.r; if (Math.hypot(bx - o.cx, by - o.cy) < o.cR) burst(bx, by, T.impact, 1); }   // 火星只冒在場地裡
         return true; }
       case 'orbit': {                                                      // 繞著 Boss 轉的幾顆東西
         o.t -= dt; o.a += o.spd * dt; if (o.t <= 0) { for (const p of orbitPts(e, o)) burst(p[0], p[1], T.impact, 4); return false; }
@@ -161,7 +161,7 @@ export function moreStates(e, dt: number, dx: number, dy: number): boolean {
   switch (e.state) {
     case 'waveWind':                                                       // 震波：砸下去 → 一圈一圈往外擴
       if (e.t <= 0) { e.tele = null; const n = (o.n || 1) + (p2 ? 1 : 0);
-        for (let i = 0; i < n; i++) objs(e).push({ k: 'wave', x: e.x, y: e.y, r: 6, R: Math.min(o.r || 150, D.R * 1.6), spd: o.spd || 120, W: o.W || 10, delay: i * .5, dmg: dmgOf(e, o), hit: new Set() });
+        for (let i = 0; i < n; i++) objs(e).push({ k: 'wave', x: e.x, y: e.y, r: 6, R: D.R + Math.hypot(e.x - D.x, e.y - D.y), cx: D.x, cy: D.y, cR: D.R, spd: o.spd || 120, W: o.W || 10, delay: i * .5, dmg: dmgOf(e, o), hit: new Set() });
         hitNear(e.x, e.y, 24, dmgOf(e, o));                                 // 砸下去的那一點也會痛
         quakeFx(e.x, e.y, 40); burst(e.x, e.y, T.impact, 24); sfx.boom(); shake(6, .3); e.act = { k: 'pound', t0: G.time, aim: e.aim }; done(e, rr(.8, 1) * wk, dx, dy); }
       break;
@@ -252,12 +252,15 @@ export function drawMore(e) {
   if (e.state === 'stagger' && !e.mech) for (let k = 0; k < 3; k++) { const a = G.time * 5 + k / 3 * TAU; drawStar(e.x + Math.cos(a) * 12, e.y - 38 + Math.sin(a) * 3, 2.6, '#ffe38a'); }
   if (e.state === 'hold' && e.held) { const pl = e.held, x0 = e.x + Math.cos(e.aim) * 8, y0 = e.y - 12;   // 抓住：從 Boss 連到你身上的一條（蛙王就是舌頭）
     for (const [w, col] of [[4, C[0]], [2, C[1]]] as [number, string][]) { ctx.fillStyle = col; artPath(); artLine(x0, y0, pl.x, pl.y - 8, w); ctx.fill(); } drawOrb(pl.x, pl.y - 8, 3, C); }
+  if (e.state === 'waveWind') { const a0 = ctx.globalAlpha, q = 1 - e.t / (e.wt || 1);   // 震波・蓄力：地上一圈圈細細的漣漪往外跑 →「等一下會有一圈推過來」（跟砸地的實心圓不一樣）
+    for (let k = 0; k < 3; k++) { const u = (G.time * 1.6 + k / 3) % 1, r = 14 + u * 70; ctx.globalAlpha = (.25 + .45 * q) * (1 - u);
+      fillSpans(e.y - r - 2, e.y + r + 2, [{ sh: shEll(e.x, e.y, r + 1), sub: shEll(e.x, e.y, r - 1), col: C[2], a: 1 }]); } ctx.globalAlpha = a0; }
   if (e.state === 'guard') { const p = .6 + .4 * Math.sin(G.time * 20), a0 = ctx.globalAlpha; ctx.globalAlpha = .5 * p;   // 架招：身上一圈白光
     fillSpans(e.y - 30, e.y + 2, [{ sh: shEll(e.x, e.y - 14, 18, 1.2), sub: shEll(e.x, e.y - 14, 15, 1.2), col: '#ffffff', a: 1 }]); ctx.globalAlpha = a0; }
   for (const o of e.objs || []) {
-    if (o.k === 'wave' && o.delay <= 0) { const a0 = ctx.globalAlpha; ctx.globalAlpha = .9;   // 環：外圈顏色 + 中間一條亮線（地上的圓跟預警圈同一種畫法）
-      fillSpans(o.y - o.r - o.W, o.y + o.r + o.W, [{ sh: shEll(o.x, o.y, o.r + o.W / 2), sub: shEll(o.x, o.y, Math.max(0, o.r - o.W / 2)), col: C[1], a: .75 },
-        { sh: shEll(o.x, o.y, o.r + 1), sub: shEll(o.x, o.y, Math.max(0, o.r - 1)), col: C[2], a: 1 }]); ctx.globalAlpha = a0; }
+    if (o.k === 'wave' && o.delay <= 0) { ctx.save(); ctx.beginPath(); ctx.arc(o.cx, o.cy, o.cR, 0, TAU); ctx.clip();   // 環：只畫在場地圈裡面（碰到圈邊就消失，不會跑到外面）
+      ctx.globalAlpha = .9; fillSpans(o.y - o.r - o.W, o.y + o.r + o.W, [{ sh: shEll(o.x, o.y, o.r + o.W / 2), sub: shEll(o.x, o.y, Math.max(0, o.r - o.W / 2)), col: C[1], a: .75 },
+        { sh: shEll(o.x, o.y, o.r + 1), sub: shEll(o.x, o.y, Math.max(0, o.r - 1)), col: C[2], a: 1 }]); ctx.restore(); }
     else if (o.k === 'orbit') for (const [x, y] of orbitPts(e, o)) drawOrb(x, y, 4.4 + .5 * Math.sin(G.time * 12), C);
     else if (o.k === 'boom') { ctx.fillStyle = C[1]; artPath(); for (let k = 0; k < 3; k++) { const a = o.spin + k * TAU / 3; artLine(o.x, o.y, o.x + Math.cos(a) * 7, o.y + Math.sin(a) * 7, 2); } ctx.fill();
       drawOrb(o.x, o.y, 2.2, C); }

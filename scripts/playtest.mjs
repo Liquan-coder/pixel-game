@@ -756,7 +756,7 @@ const pageScript = async () => {
       if (b.state !== 'idle') throw new Error(m + ' 一直沒結束（' + b.state + '）');
       if (acts.join() !== want) throw new Error(m + ' 的出招紀錄不對：' + acts.join() + '，應該是 ' + want); };
     const mv = Object.fromEntries(B.moves.concat(B.p2).map(m => [m[0], m[2]]));
-    b.phase = 1; runMove('slam', mv.slam, 'slam'); runMove('lash', mv.lash, 'lash'); runMove('wave', mv.wave, 'pound'); runMove('rain', mv.rain, 'plant');
+    b.phase = 1; runMove('slam', mv.slam, 'slam'); runMove('lash', mv.lash, 'lash'); runMove('wave', mv.wave, 'pound'); if (!b.objs.some(o => o.k === 'wave') || b.objs.some(o => o.k === 'wave' && o.cR !== b.def.R)) throw new Error('震波的光環沒有限制在 Boss 戰的圈裡（會跑到圈外）'); runMove('rain', mv.rain, 'plant');
     runMove('donut', { r0: 48, r: 128, k: 1.4 }, 'plant');
     b.phase = 2; runMove('nova', mv.nova, 'nova');
     const rig = imp0.rig.rigOf(b.kind); if (!rig || !rig.limbs.arm || !rig.limbs.arm2 || !rig.spec.core) throw new Error('熔爐守護者的骨架沒拆好（錘子的手 / 左拳 / 熔爐）');
