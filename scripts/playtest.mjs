@@ -1169,6 +1169,20 @@ const pageScript = async () => {
     log.push('  ' + out.join('、'));
   });
 
+  run('推石手感：沒對準中線、搖桿有點斜、輕推，石頭也推得動', () => {
+    const PU = await0.puz, p = PU.PUZZLES.find(q => q.d.id === 'sandtemple' && q.kind === 'boulders'), st = p.m.boulders, b = st.bs[0], bad = [];
+    const enter = d => { tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2); G.enemies = []; G.me.hp = G.me.maxHp; };
+    const leave = d => { G.enemies = []; G.me.dead = false; tp(d.exX, d.exY); step(1); imp0.input.enterDoor(); step(2); };
+    enter(p.d);
+    // [人跟石頭中線差幾 px, 搖桿 x, 搖桿 y]：手機上很少剛好對準、剛好水平
+    for (const [oy, mx, my] of [[0, 1, 0], [-5, 1, 0], [6, 1, 0], [0, .9, .42], [0, .9, -.42], [4, .85, -.5], [0, .4, 0]]) {
+      for (const o of st.bs) { o.tx = o.home[0]; o.ty = o.home[1]; o.x = o.tx * 16 + 8; o.y = o.ty * 16 + 8; o.t = 0; o.push = 0; }
+      step(1); tp(b.x - 16, b.y + 2 + oy); input.mx = mx; input.my = my; step(120); input.mx = input.my = 0; step(20);
+      const moved = b.tx - b.home[0]; if (moved < 2 || b.ty !== b.home[1]) bad.push('差 ' + oy + 'px、搖桿 (' + mx + ',' + my + ') → 2 秒推了 ' + moved + ' 格' + (b.ty !== b.home[1] ? '、還歪到別排' : '')); }
+    for (const o of st.bs) { o.tx = o.home[0]; o.ty = o.home[1]; o.x = o.tx * 16 + 8; o.y = o.ty * 16 + 8; o.t = 0; } leave(p.d);
+    if (bad.length) throw new Error('推不動：' + bad.join('；'));
+  });
+
   run('每一個有門的解謎區都解得開（火盆、符文踏板、雕像、推石、鏡子、寒氣火盆、巨網、潛行、熔爐、月光花、牆中之眼、鑰匙、試煉、記憶石板、幽火、燈陣、冰磚）', () => {
     const PU = await0.puz, Q = await0.quest, out = {};
     const enter = d => { tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2); G.enemies = []; G.me.hp = G.me.maxHp; await0.status.clearStatus(G.me); };

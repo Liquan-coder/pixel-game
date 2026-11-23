@@ -132,12 +132,16 @@ MECHS.boulders = {
   update(p, st, dt) {
     for (const b of st.bs) { if (b.t > 0) { b.t = Math.max(0, b.t - dt); const k = 1 - b.t / .22; b.x = (b.sx + (b.tx * TS + 8 - b.sx) * k); b.y = (b.sy + (b.ty * TS + 8 - b.sy) * k); } b.prop.x = b.x; b.prop.y = b.y; }
     if (!p.gateOpen && st.plates.every(([x, y]) => st.bs.some(b => b.tx === x && b.ty === y && b.t <= 0))) { sfx.boom(); openGate(p); }
-    for (const pl of G.players) { if (pl.dead) continue; const m = Math.hypot(input.mx, input.my); if (m < .5) { for (const b of st.bs) b.push = 0; continue; }
+    /* 怎麼算「在推」：搖桿主要朝哪個方向（上下左右）→ 人在石頭的那一邊、貼著它（跟碰撞用同一個中心點）→ 推 0.15 秒就滾一格，按著不放會一格一格接著推。
+       石頭是圓的，撞上去本來會沿著表面滑開（偏 1px 就從旁邊溜走）→ 推的時候把人慢慢吸到石頭的中線上，像推箱子那樣 */
+    for (const pl of G.players) { if (pl.dead) continue; const m = Math.hypot(input.mx, input.my); if (m < .25) { for (const b of st.bs) b.push = 0; continue; }   // 搖桿輕推也算
       const ax = Math.abs(input.mx) > Math.abs(input.my), dx = ax ? Math.sign(input.mx) : 0, dy = ax ? 0 : Math.sign(input.my);
-      for (const b of st.bs) { if (b.t > 0) continue; const rx = b.x - pl.x, ry = b.y - (pl.y - 2), along = rx * dx + ry * dy, side = Math.abs(rx * dy - ry * dx);
-        if (along > 0 && along < 17 && side < 8) { b.push += dt; if (b.push > .25) { b.push = 0; const nx = b.tx + dx, ny = b.ty + dy;   // 推 0.25 秒才動，免得擦過去就推走
-          if (floorAt(nx, ny) && !st.bs.some(o => o !== b && o.tx === nx && o.ty === ny)) { b.sx = b.x; b.sy = b.y; b.tx = nx; b.ty = ny; b.t = .22; sfx.hit(); burst(b.x, b.y + 4, 6, '#c8a060', 40); } } }
-        else b.push = 0; } }
+      for (const b of st.bs) { const rx = b.tx * TS + 8 - pl.x, ry = b.ty * TS + 8 - pl.y, along = rx * dx + ry * dy, side = rx * dy - ry * dx;   // 用石頭「要去的格子」算：剛推完、還在滾的時候也算數
+        if (!(along > 0 && along < 30 && Math.abs(side) < 11)) { b.push = 0; continue; }
+        if (Math.abs(side) > .3) { const k = Math.sign(side) * Math.min(Math.abs(side), 70 * dt); moveEnt(pl, k * dy, -k * dx); }   // 吸到中線上（人可能卡牆，所以用 moveEnt）
+        if (b.t > 0 || along > 18) continue;                                                                               // 還在滾 / 人還沒跟上：計時先不歸零
+        b.push += dt; if (b.push < .15) continue; b.push = 0; const nx = b.tx + dx, ny = b.ty + dy;                       // 推 0.15 秒才動，免得擦過去就推走
+        if (floorAt(nx, ny) && !st.bs.some(o => o !== b && o.tx === nx && o.ty === ny)) { b.sx = b.x; b.sy = b.y; b.tx = nx; b.ty = ny; b.t = .22; sfx.hit(); burst(b.x, b.y + 4, 6, '#c8a060', 40); } } }
   },
   draw(p, st, vis, list) {
     const r = st.r; if (!vis(r.x * TS, r.y * TS, 120)) return;
