@@ -21,7 +21,7 @@ import type { Item } from '../types';
 export let merchant = null, shopTab = 'buy', shopSel = null, vendor = null;   // vendor = 現在打開的店（流浪商人或鎮上的鐵匠）
 const isW = it => slotOf(it) === 'weapon';
 const itemPrice = it => Math.round(6 * gearValue(it));
-const sellPrice = it => gearValue(it);                                  // 比分解換到的魂晶少一些
+const sellPrice = it => gearValue(it);                                  // 賣掉拿全部的金幣；分解（ui/menus.ts）拿魂晶 + 一半的金幣
 type Stock = { kind: string; price: number; left?: number; item?: Item; mat?: MatKey; sold?: boolean; pg?: number };
 const oreRow = (mat: MatKey, price: number, left: number): Stock => ({ kind: 'ore', mat, price, left, pg: REGION_MAT.indexOf(mat) });   // pg = 要先打倒哪個地區的地城守護者才會賣
 const shown = (o: Stock) => o.kind !== 'ore' || hasPage(o.pg);         // 素材：探索過那個地區的地城才擺出來（貨先產生好，打完地城回來就看得到）
@@ -170,7 +170,7 @@ function renderShop() {
     const it = G.me.inv.find(x => x.id === shopSel);
     body.innerHTML = (G.me.inv.length ? '<div class="baggrid">' + G.me.inv.map(x => '<button type="button" class="slot' + (shopSel === x.id ? ' sel' : '') + '" data-sid="' + x.id + '" style="border-color:' + RAR[x.rarity].c + '"><img alt="" src="' + ICON_URL[x.type] + '"><i style="color:' + RAR[x.rarity].c + '">' + badge(x) + '</i></button>').join('') + '</div>'
       : '<div class="empty">背包是空的。</div>') + (it ? '<div style="margin-top:8px">' + itemCard(it, slotOf(it) === 'trinket' || slotOf(it) === 'seal' ? null : G.me[slotOf(it)]) + '</div>' : '') +
-      '<p class="hintp">賣給商人拿金幣；在角色面板分解則是拿魂晶（數量比較多）。</p>';
+      '<p class="hintp">賣給商人拿全部的金幣；在角色面板分解則是拿魂晶，加上一半的金幣。</p>';
     setFoot(it ? '<button type="button" class="pri" data-sell="' + it.id + '">賣出（+' + sellPrice(it) + ' 金幣）</button>' : '', it && it.name);
   }
 }

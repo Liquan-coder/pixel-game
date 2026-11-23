@@ -196,7 +196,7 @@ function selEffect(it: Item) {
   const ls = effLines(effOf(it)); return ls.length ? line(ls.join('，')) : '';
 }
 let salvArm = 0;                                                         // 分解要按兩次（強化過 / 刻印 / 獨特的那種）：按過一次的那一件
-/* 批量分解：按住背包裡的東西 1 秒進入，之後點一下 = 勾 / 取消勾；右上角的按鈕一次分解勾起來的全部 */
+/* 批量分解：按住背包裡的東西 0.6 秒進入，之後點一下 = 勾 / 取消勾；右上角的按鈕一次分解勾起來的全部 */
 let batch: Set<number> | null = null, batchArm = false;
 const batchItems = () => batch ? G.me.inv.filter(it => batch.has(it.id)) : [];
 export function startBatch(id: number) { batch = new Set([id]); batchArm = false; G.selItem = null; salvArm = 0; renderInv(); }
@@ -229,11 +229,11 @@ export function renderInv() {
   // 右邊：背包（或素材清單）
   for (const b of document.querySelectorAll<HTMLElement>('#bagTabs button')) b.classList.toggle('on', b.dataset.f === bagFilter);
   // 右上角的按鈕：平常是空的；點了背包裡的東西 → 分解這一件；點了身上的防具 / 飾品 → 脫下；批量模式 → 分解勾起來的全部（武器不能空手，點武器不出現）
-  const sb = $('salvAll') as HTMLButtonElement, B = batchItems(), bs = B.reduce((a, it) => a + salvValue(it), 0), off = !batch && sel && sel.where === 'eq' && sel.slot !== 'weapon';
+  const sb = $('salvAll') as HTMLButtonElement, B = batchItems(), off = !batch && sel && sel.where === 'eq' && sel.slot !== 'weapon';
   sb.hidden = !batch && !bagIt && !off; sb.disabled = batch ? !B.length : !!off && !canUnequip(sel); sb.classList.toggle('salv', !off);
   sb.classList.toggle('arm', batch ? batchArm : !!bagIt && salvArm === bagIt.id);
-  sb.textContent = batch ? (!B.length ? '勾選要分解的' : batchArm ? '確定分解 ' + B.length + ' 件？' : '分解 ' + B.length + ' 件 +' + bs)
-    : off ? (canUnequip(sel) ? '脫下' : '背包滿了') : bagIt ? (salvArm === bagIt.id ? '確定分解？' : '分解 +' + salvValue(bagIt)) : '';
+  sb.innerHTML = batch ? (!B.length ? '勾選要分解的' : batchArm ? '確定分解 ' + B.length + ' 件？' : '分解 ' + B.length + ' 件 ' + gainHtml(B))
+    : off ? (canUnequip(sel) ? '脫下' : '背包滿了') : bagIt ? (salvArm === bagIt.id ? '確定分解？' : '分解 ' + gainHtml([bagIt])) : '';
   if (bagFilter === 'mat') { $('bagGrid').innerHTML = '<div class="matlist">' + MAT_KEYS.map(k => '<div class="matrow"><img alt="" src="' + ORE_URL[k] + '"><span style="color:' + MATS[k].c + '">' + MATS[k].n + '<small>' + MATS[k].d + '</small></span><b>' + (G.me.mats[k] || 0) + '</b></div>').join('') + '</div>'; return; }
   const list = G.me.inv.map((it, i) => ({ it, i })).filter(o => bagFilter === 'all' || slotOf(o.it) === bagFilter);
   const cells = list.map(({ it, i }) => '<button type="button" class="slot' + (G.selItem === it.id ? ' sel' : '') + (batch && batch.has(it.id) ? ' pick' : '') + (unmet(G.me, it).length ? ' bad' : '') + (sealOn(it) ? ' sl' : '') + '" data-i="' + i + '" style="border-color:' + RAR[it.rarity].c + '" aria-label="' + it.name + '"><img alt="" src="' + ICON_URL[it.type] + '">' + sealBadge(it) + '<i style="color:' + RAR[it.rarity].c + '">' + badge(it) + '</i></button>');
@@ -256,13 +256,16 @@ function dropTargets(sel, nSlots: number) {
 /* 武器右上角的小刻印：裝了哪種刻印（外框是那種刻印的顏色）。獨特武器的效果是本身的，不算 */
 const sealOn = (it: Item | null) => !!it && slotOf(it) === 'weapon' && !!it.fx && !it.uq;
 const sealBadge = (it: Item) => sealOn(it) ? '<img class="sealb" alt="" title="' + WFXD[it.fx].n + '刻印" src="' + ICON_URL.seal + '" style="border-color:' + WFXD[it.fx].c + '">' : '';
-const salvValue = it => Math.round(3 * gearValue(it) * (slotOf(it) === 'weapon' ? .5 : 1));
+const salvValue = it => Math.round(3 * gearValue(it) * (slotOf(it) === 'weapon' ? .5 : 1));   // 分解拿到的魂晶
+const salvGold = it => Math.round(gearValue(it) / 2);                   // 分解也拿一點金幣：賣給商人的一半（要全部的金幣就去賣）
+const salvSum = (L: Item[]) => ({ s: L.reduce((a, it) => a + salvValue(it), 0), g: L.reduce((a, it) => a + salvGold(it), 0) });
+const gainHtml = (L: Item[]) => { const { s, g } = salvSum(L); return '<span class="gain">' + hudIcon('魂晶') + '+' + s + ' ' + hudIcon('金幣') + '+' + g + '</span>'; };   // 右上角按鈕：魂晶 +18 金幣 +6
 const junk = (it: Item) => { const sl = slotOf(it); return (sl === 'weapon' || sl === 'armor') && it.rarity === 0 && !it.up; };   // 批量的「勾沒強化的」：沒強化、沒刻印的一般武器 / 防具
-/* 批量分解時左上角的卡：勾了幾件、能拿多少魂晶（最大的字）＋ 快速勾選 / 離開 */
+/* 批量分解時左上角的卡：勾了幾件、能拿多少魂晶和金幣（最大的字）＋ 快速勾選 / 離開 */
 function batchCard() {
-  const B = batchItems(), s = B.reduce((a, it) => a + salvValue(it), 0), b = (act: string, label: string) => '<button type="button" class="sact" data-act="' + act + '">' + label + '</button>';
+  const B = batchItems(), { s, g } = salvSum(B), b = (act: string, label: string) => '<button type="button" class="sact" data-act="' + act + '">' + label + '</button>';
   return '<div class="selcard batchcard"><div class="selmid"><div class="selname"><b>批量分解</b></div><div class="selsum">點背包裡的東西勾選 / 取消</div>' +
-    '<div class="bnums"><span>已選 <b>' + B.length + '</b> 件</span><span>可得 <b class="soul">' + s + '</b> 魂晶</span></div></div>' +
+    '<div class="bnums"><span>已選 <b>' + B.length + '</b> 件</span><span>魂晶 <b class="soul">+' + s + '</b></span><span>金幣 <b class="gold">+' + g + '</b></span></div></div>' +
     '<div class="sacts">' + b('bjunk', '勾沒強化的') + b('bclear', '全部取消') + b('bexit', '離開') + '</div></div>';
 }
 const precious = (it: Item) => !!(it.up || it.uq || it.ug || it.rarity >= 3);   // 分解前要再按一次確認
@@ -302,11 +305,11 @@ $('invMenu').addEventListener('click', e => {
   if (t.id === 'salvAll') {                                                           // 右上角的分解
     const gone = batch ? batchItems() : sel && sel.where === 'bag' ? [sel.it] : []; if (!gone.length) return;
     if (batch ? !batchArm : precious(gone[0]) && salvArm !== gone[0].id) { if (batch) batchArm = true; else salvArm = gone[0].id; renderInv(); return; }   // 先按一次確認
-    const s = gone.reduce((a, it) => a + salvValue(it), 0); G.me.inv = G.me.inv.filter(it => !gone.includes(it)); G.me.souls += s;
-    toast('分解 ' + gone.length + ' 件，獲得 ' + s + ' 魂晶', '#b49cff'); batch = null; batchArm = false; return done(); }
+    const { s, g } = salvSum(gone); G.me.inv = G.me.inv.filter(it => !gone.includes(it)); G.me.souls += s; G.me.gold += g;
+    toast('分解 ' + gone.length + ' 件，獲得 ' + s + ' 魂晶、' + g + ' 金幣', '#b49cff'); batch = null; batchArm = false; return done(); }
 });
-/* 按住背包裡的東西 1 秒 → 批量分解（那一件先勾起來）。手指移動、捲動、放開都會取消；按著的時候格子慢慢變紅 */
-const HOLD_MS = 1000;
+/* 按住背包裡的東西 0.6 秒 → 批量分解（那一件先勾起來）。手指移動、捲動、放開都會取消；按著的時候格子慢慢變紅 */
+const HOLD_MS = 600;
 let holdT = 0, holdX = 0, holdY = 0, holdFired = false;
 const bagEl = $('bagGrid'), holdEnd = () => { clearTimeout(holdT); bagEl.querySelector('.slot.hold')?.classList.remove('hold'); };
 bagEl.addEventListener('pointerdown', e => {
