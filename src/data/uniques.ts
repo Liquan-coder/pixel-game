@@ -77,7 +77,7 @@ export const UQSIG: Record<string, { n: string; d: string; cols: [string, string
   forgehammer:  { n: '鍛打', d: '打中會讓鎚子變燙（最多 6 層），燒到最熱時下一次砸地熔岩爆炸（攻擊力 160%，留下一片火海）', cols: ['#7a2a0a', '#ff6a2a', '#fff0a0'] },
   deepstaff:    { n: '深淵之眼', d: '法彈和火球會轉彎追蹤附近的敵人', cols: ['#1a0a30', '#6a3aa0', '#40e0c0'] },
   silktwin:     { n: '蛛網', d: '打中黏上蛛網 3 秒：敵人變慢，受到的傷害 +20%', cols: ['#3a2a4a', '#c8c8d8', '#ffffff'] },
-  sandcrescent: { n: '沙暴月', d: '月牙飛到最遠時捲起一陣沙暴（1.4 秒），把附近的敵人吸過去', cols: ['#6a4a1a', '#d8b870', '#fff0c8'] },
+  sandcrescent: { n: '沙暴月', d: '月牙砍到敵人就飛回來，在那裡捲起一陣沙暴（1.6 秒），把附近的敵人吸過去', cols: ['#6a4a1a', '#d8b870', '#fff0c8'] },
   darkmoon:     { n: '暗月', d: '月光劍浪經過的地方留下冷月光（2.5 秒），踩到的敵人變慢', cols: ['#23206e', '#8aa0ff', '#eef4ff'] },
   elfbow:       { n: '王之箭', d: '每第 6 箭多射一支金色大箭，第一次打中就分裂成 3 支', cols: ['#8a6a10', '#ffe08a', '#ffffff'] },
   elfrapier:    { n: '月痕', d: '連刺同一個敵人疊月痕（頭上的小月亮），5 層時月光爆發（攻擊力 150%，必定暴擊）', cols: ['#2a3a7a', '#a8c4ff', '#ffffff'] },

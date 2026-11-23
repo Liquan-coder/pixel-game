@@ -9,6 +9,7 @@ import { TAU } from '../core/util';
 import { HK, ctx } from '../core/canvas';
 import { artDot, artLine, artPath, drawLance, drawOrb, drawStar, drawWaveP, fillArt } from './fx';
 import { addLight } from './enemy';
+import { drawSandSpout } from './sand';
 
 const FIRE = ['#7a1a08', '#f07a32', '#ffe38a'], ICE = ['#2a4a78', '#a8dcff', '#ffffff'], GOLD = ['#7a4a1a', '#f2c14e', '#fff6d0'];
 const DEF: Record<string, string[]> = {
@@ -115,7 +116,8 @@ export function drawFall(m, q: number) {
 
 /** pillar / stuck / lash。回傳 true = 畫好了 */
 export function drawBossFx(f, k: number, L): boolean {
-  if (f.k === 'pillar') {                                                  // 從地上噴出的柱子：水柱、火柱、沙柱、鬼火
+  if (f.k === 'pillar' && f.sand) { drawSandSpout(f, k, L); return true; }   // 沙：一粒粒噴起來再落下（render/sand.ts），不畫成一根黃色的柱子
+  if (f.k === 'pillar') {                                                  // 從地上噴出的柱子：水柱、火柱、鬼火
     const up = k < .25 ? k / .25 : 1, fade = k > .55 ? (1 - k) / .45 : 1, H = f.r * 2.4 * up * (.6 + .4 * fade), W = f.r * .5 * (.7 + .3 * fade);
     if (H < 1) return true; const a0 = ctx.globalAlpha; ctx.globalAlpha = Math.min(1, fade * 1.4);
     fillArt(f.x - W - 2, f.y - H - 2, f.x + W + 2, f.y + 2, (px, py) => { const v = (f.y - py) / H; if (v < 0 || v > 1) return 0;

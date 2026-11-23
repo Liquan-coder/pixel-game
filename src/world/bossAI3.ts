@@ -47,11 +47,11 @@ function shoot(e, a, spd, dmg) { const T = TH(e);
 function strike(m) {                                                    // 落下 / 冒出來的一擊：圓裡的人受傷 + 這隻 Boss 自己的樣子
   const { x, y, r, dmg, cols } = m;
   for (const pl of G.players) if (Math.hypot(pl.x - x, pl.y - y) < r - DG && hurtPlayer(pl, dmg, x, y)) hitSpark(pl.x, pl.y - 8, true, -Math.PI / 2);
-  if (m.fall === 'pillar') G.fx.push({ k: 'pillar', x, y, r, cols, warm: m.warm, t: 0, d: .6 });
+  if (m.fall === 'pillar') G.fx.push({ k: 'pillar', x, y, r, cols, warm: m.warm, sand: m.impact === 'dust', t: 0, d: .6 });   // 沙王 / 沙巨人：沙泉
   else if (m.fall === 'spike') G.fx.push({ k: 'spike', x, y, r: r - 2, cols, t: 0, d: .5 });
   else if (m.fall === 'sword') G.fx.push({ k: 'stuck', x, y, cols, t: 0, d: 1.4 });
   if (m.fall !== 'pillar') quakeFx(x, y, r * .8);
-  G.fx.push({ k: 'warp', x, y, r0: 4, r1: r, th: 4, t: 0, d: .3, col: cols[1] });
+  if (!(m.fall === 'pillar' && m.impact === 'dust')) G.fx.push({ k: 'warp', x, y, r0: 4, r1: r, th: 4, t: 0, d: .3, col: cols[1] });   // 沙泉自己會往外噴一圈沙，不用光圈
   burst(x, y - 2, m.impact, 12);
 }
 function pickMove(e, d): Move {
@@ -100,7 +100,9 @@ export function extraStates(e, dt): boolean {
       e.t -= dt; const R2 = o.r * 2.6;
       for (const pl of G.players) { if (pl.dead || pl.dodge > 0) continue; const px = e.x - pl.x, py = e.y - pl.y, L = Math.hypot(px, py);
         if (L > 6 && L < R2) moveEnt(pl, px / L * (o.pull || 62) * dt, py / L * (o.pull || 62) * dt); }
-      if (Math.random() < .9) { const a = rr(0, TAU), r = rr(o.r, R2); G.parts.push({ x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r * .8, vx: -Math.cos(a) * r * 1.6, vy: -Math.sin(a) * r * 1.3, life: .5, max: .5, col: pick(colsOf(e)), star: rr(.6, 1.4), drag: 1 }); }
+      if (TH(e).impact === 'dust') for (let i = 0; i < 4; i++) { const a = rr(0, TAU), r = rr(o.r * .6, R2), sw = 1.1;   // 沙王 / 沙巨人：地上的沙被吸著繞圈流進去（一粒粒的沙，不是光點）
+        G.parts.push({ x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r * .8, vx: (-Math.cos(a) - Math.sin(a) * sw) * r * 1.5, vy: (-Math.sin(a) + Math.cos(a) * sw) * r * 1.1, life: .5, max: .5, col: pick(['#6a4a20', '#a07a3a', '#c8a060', '#e8d098']), s: 1, drag: 1 }); }
+      else if (Math.random() < .9) { const a = rr(0, TAU), r = rr(o.r, R2); G.parts.push({ x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r * .8, vx: -Math.cos(a) * r * 1.6, vy: -Math.sin(a) * r * 1.3, life: .5, max: .5, col: pick(colsOf(e)), star: rr(.6, 1.4), drag: 1 }); }
       if (e.t <= 0) { e.tele = null;
         for (const pl of G.players) if (Math.hypot(pl.x - e.x, pl.y - e.y) < o.r - DG && hurtPlayer(pl, dmgOf(e, o), e.x, e.y, { stun: .4 })) hitSpark(pl.x, pl.y - 8, true, Math.atan2(pl.y - e.y, pl.x - e.x));
         for (const dl of [0, .08, .16]) G.fx.push({ k: 'warp', x: e.x, y: e.y, r0: 6, r1: o.r + 6, th: 6, delay: dl, t: 0, d: .4 + dl, col: dl ? colsOf(e)[2] : D.aura[0] });

@@ -943,7 +943,11 @@ const pageScript = async () => {
     use('forgehammer'); { const e = mk('skel', 20, 0); hitN(e, 6); if (G.me.heat < 6) throw new Error('forgehammer：打 6 下沒有熱到最高：' + G.me.heat); G.me.atkCd = 0; C.tryAttack(G.me); step(30, { god: true }); ok('forgehammer', G.me.heat === 0, '最熱的時候砸地沒有爆炸'); }
     use('deepstaff'); { mk('skel', 60, 50); G.me.atkCd = 0; C.tryAttack(G.me); step(8, { god: true }); const b = G.projs.find(p => p.owner === 'p'); step(6, { god: true }); ok('deepstaff', b && b.vy > 20, '法彈沒有轉彎追蹤'); }
     use('silktwin'); { const e = mk('skel', 20, 0); damageEnemy(G.me, e, .01, G.me.x, G.me.y); ok('silktwin', e.webT > G.time, '沒有黏上蛛網'); }
-    use('sandcrescent'); { const e = mk('slime', 140, 0); e.stun = 0; G.me.combo = 1; G.me.comboT = 1; G.me.atkCd = 0; C.tryAttack(G.me); const x0 = e.x; step(90, { god: true }); ok('sandcrescent', e.x < x0 - 2 || e.hp < 1e6, '月牙沒有捲起沙暴'); }
+    use('sandcrescent'); { const e = mk('slime', 60, 0); const f = mk('slime', 100, 30); G.me.combo = 1; G.me.comboT = 1; G.me.atkCd = 0; C.tryAttack(G.me);   // 砍到第一隻就回頭，沙暴捲在那隻腳下，把旁邊那隻吸過去
+      let m = null; for (let i = 0; i < 40 && !(m && m.hit.size); i++) { step(1, { god: true }); m = G.projs.find(p => p.kind === 'boom'); }
+      step(2, { god: true }); m = G.projs.find(p => p.kind === 'boom'); ok('sandcrescent', m && m.back, '月牙砍到敵人沒有立刻回頭');
+      const st = G.fx.find(x => x.k === 'sstorm'); ok('sandcrescent', st && Math.hypot(st.o.x - e.x, st.o.y - e.y) < 12, '沙暴沒有捲在被砍到的敵人腳下');
+      const d0 = Math.hypot(f.x - e.x, f.y - e.y); step(60, { god: true }); ok('sandcrescent', Math.hypot(f.x - e.x, f.y - e.y) < d0 - 10, '沙暴沒有把旁邊的敵人吸過去'); }
     use('darkmoon'); { const e = mk('skel', 50, 0); e.stun = 0; G.me.skillCd = 0; C.trySkill(G.me); step(40, { god: true }); ok('darkmoon', e.slowT > 0 || e.spd0 != null, '月光劍浪沒有留下冷月光'); }
     use('elfbow'); { mk('skel', 90, 0); let royal = false; for (let i = 0; i < 6; i++) { G.me.atkCd = 0; C.tryAttack(G.me); step(20, { god: true }); if (G.projs.some(p => p.royal)) royal = true; } ok('elfbow', royal, '第 6 箭沒有王之箭'); }
     use('elfrapier'); { const e = mk('skel', 20, 0); hitN(e, 4); const h = e.hp; G.me.crit = 0; const n0 = G.nums.length; hitN(e, 1); ok('elfrapier', G.nums.slice(n0).some(n => n.big) && h - e.hp > G.me.atkPow, '5 層月痕沒有爆發'); }

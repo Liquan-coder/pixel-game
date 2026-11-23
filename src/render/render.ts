@@ -31,6 +31,7 @@ import { drawAltar } from '../world/ending';
 import { drawSecrets } from '../world/secrets';
 import { camDt } from '../main';
 import { drawPfx } from './pfx';
+import { drawSandstorm } from './sand';
 import { drawLost, drawLostBeam } from './lostMark';
 
 export const view = { x: 0, y: 0 };                                  // 畫面左上角在世界的哪裡（給 HTML 介面對齊用）
@@ -159,16 +160,7 @@ export function render() {
     else if (f.k === 'cres') drawCrescent(f, k);
     else if (f.k === 'sorb') { if (f.o.done) { f.t = f.d; continue; } const o = f.o, p = 1 + .15 * Math.sin(G.time * 20);   // 噬魂的魂（game/weaponFx.ts）：紅色光球（紫色會跟魂晶搞混）
       ctx.globalAlpha = 1; drawOrb(o.x, o.y, (f.r || 4) * p, f.cols || ['#4a0a14', '#e0283a', '#ff9aa4', '#ffffff']); addLight(L, o.x, o.y, f.lr || 40, f.lw || 1); }   // 也用來畫燈魂、螢火蟲（game/signatures.ts：cols / r / 光的顏色）
-    else if (f.k === 'sstorm') { const o = f.o; if (o.done) { f.t = f.d; continue; }   // 沙王的月牙刀的沙暴（game/signatures.ts）：地上的影子 + 漏斗形沙柱 + 一團團繞著轉的沙塵雲
-      const q = Math.min(1, o.age / .2, o.t / .3), H = 42, W0 = 7, W1 = 30;  // 漏斗：底部半寬 W0、頂部半寬 W1、高 H
-      ctx.globalAlpha = .25 * q; ctx.fillStyle = '#8a6a3a'; ctx.beginPath(); ctx.ellipse(o.x, o.y, 38, 14, 0, 0, TAU); ctx.fill();   // 地上的影子
-      ctx.globalAlpha = .28 * q; ctx.fillStyle = '#c8a060'; ctx.beginPath(); ctx.moveTo(o.x - W0, o.y); ctx.lineTo(o.x - W1, o.y - H); ctx.lineTo(o.x + W1, o.y - H); ctx.lineTo(o.x + W0, o.y); ctx.closePath(); ctx.fill();   // 半透明的沙柱
-      const hash = (n: number) => { const v = Math.sin(n * 12.9898) * 43758.5453; return v - Math.floor(v); };   // 每團固定的亂數（不會每幀亂跳）
-      for (let k = 0; k < 36; k++) {                                     // 一團團旋轉的沙塵雲：各自從不同角度、不同高度出發，慢慢往上飄，越高轉得越大圈
-        const u = (hash(k) + G.time * (.45 + hash(k + 50) * .3)) % 1, h = u * H, rad = (W0 + (W1 - W0) * u) * (.75 + hash(k + 90) * .35), a = G.time * (6 - u * 2) + hash(k + 20) * TAU, front = Math.sin(a);
-        const x = o.x + Math.cos(a) * rad, y = o.y - h + front * rad * .25, r = 2.5 + u * 3;
-        ctx.globalAlpha = q * (front > -.2 ? .9 : .4) * Math.min(1, (1 - u) * 4); drawOrb(x, y, r, k % 3 ? ['#6a4a20', '#b89050', '#d8b870', '#f0e0a8'] : ['#6a4a20', '#d8b870', '#f0e0a8', '#fff8e0']); }
-      addLight(L, o.x, o.y - 14, 60 * q, 4); }
+    else if (f.k === 'sstorm') { if (f.o.done) { f.t = f.d; continue; } drawSandstorm(f.o); }   // 沙王的月牙刀的沙暴（game/signatures.ts）：一粒粒沙子捲成的漏斗（render/sand.ts）
     else if (f.k === 'wghost') { const sp = SPR[f.kind]; if (sp && sp.wn) { const w = sp.w, h = sp.h; ctx.globalAlpha = .5 * (1 - k); ctx.drawImage(f.flip ? sp.wf : sp.wn, snapF(f.x - w / 2), snapF(f.y + 2 - h), w, h); } }   // 白色半透明的殘影（狼牙雙刃的狼影）
     else if (f.k === 'zap') { const fl = Math.floor(G.time * 30) % 2 ? 1 : .8, th = f.thin ? .55 : 1;   // 閃電（game/weaponFx.ts 的雷鳴）：淡黃光暈 + 黃 + 白芯，一閃一閃；f.br = 分岔
       const line = (P, s) => { artPath(); for (let i = 1; i < P.length; i++) artLine(P[i - 1][0], P[i - 1][1], P[i][0], P[i][1], Math.max(1, Math.round(s))); ctx.fill(); };
