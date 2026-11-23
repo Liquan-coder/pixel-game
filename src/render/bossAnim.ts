@@ -4,7 +4,7 @@
      2. 出手（AI 打出去的那一格會記 e.act = { k, t0, aim }）：很快、一格到位，不要慢慢轉
      3. 收招（G.time - e.act.t0）：停在打完的姿勢一下，再慢慢回到站姿 → 這段就是玩家反擊的空檔
    姿勢 = 身體（位移 / 前傾 / 抬高）+ 武器（角度 / 沿著武器方向滑動）。武器繞著手轉（art/bossRig.ts 拆好的三層）。
-   新增一隻 Boss 的動作：照 docs/boss-anim-sop.md，在 POSE 加一個函式。 */
+   新增一隻 Boss 的動作：照 docs/Boss製作指南.md，在 POSE 加一個函式。 */
 import { G } from '../core/state';
 import { HK, ctx, snapF } from '../core/canvas';
 import { TAU, clamp } from '../core/util';

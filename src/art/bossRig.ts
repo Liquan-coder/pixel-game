@@ -5,7 +5,7 @@
      arm2 另一隻手（例：提燈的手）：繞自己的肩膀轉
      hang 吊在手上的東西（例：燈）：跟著 arm2 的手走，自己像鐘擺一樣晃
    拆掉的地方如果被身體包住（例：劍擋在腳前面），patch 會用旁邊的顏色補起來，不然武器一動腳上就破一個洞。
-   新增一隻：在 RIG 加一筆，然後到 render/bossAnim.ts 寫牠的動作（流程見 docs/boss-anim-sop.md）。 */
+   新增一隻：在 RIG 加一筆，然後到 render/bossAnim.ts 寫牠的動作（流程見 docs/Boss製作指南.md）。 */
 import { BOSS_ART } from './bossArt';
 import { makeHD } from './monsters';
 import { rotGrid } from './sprite';
