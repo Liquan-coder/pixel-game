@@ -23,11 +23,11 @@ function flush(B: Bins, q: number) {
 
 /** 沙暴：o = { x, y, age, t }（t = 剩下幾秒）。漏斗高 H、底部半寬 W0、頂部半寬 W1 */
 export function drawSandstorm(o, _L?) {
-  const q = Math.min(1, o.age / .2, o.t / .35), H = 58, W0 = 6, W1 = 36, T = G.time, B = newBins();
-  for (let k = 0; k < 110; k++) {                                        // 地上：一圈被風掃著跑的沙（扁扁的橢圓，每顆拖一條尾巴）
-    const r = 8 + hash(k + 300) * 38, a = T * (3 - r * .035) + hash(k + 310) * TAU, c = hash(k + 320) < .5 ? 0 : 1;
-    for (let j = 0; j < 3; j++) { const aj = a - j * .1; grain(B, Math.max(0, c - (j > 1 ? 1 : 0)), r > 36 || j ? 0 : 1, o.x + Math.cos(aj) * r, o.y + Math.sin(aj) * r * .32, 3); } }
-  for (let k = 0; k < 460; k++) {                                        // 漏斗：每顆沙從底部繞著轉、一路往上捲，越高圈越大
+  const q = Math.min(1, o.age / .2, o.t / .35), H = 38, W0 = 4, W1 = 22, T = G.time, B = newBins();
+  for (let k = 0; k < 50; k++) {                                         // 地上：一圈被風掃著跑的沙（扁扁的橢圓，每顆拖一條尾巴）
+    const r = 6 + hash(k + 300) * 22, a = T * (3 - r * .035) + hash(k + 310) * TAU, c = hash(k + 320) < .5 ? 0 : 1;
+    for (let j = 0; j < 3; j++) { const aj = a - j * .1; grain(B, Math.max(0, c - (j > 1 ? 1 : 0)), r > 24 || j ? 0 : 1, o.x + Math.cos(aj) * r, o.y + Math.sin(aj) * r * .32, 2); } }
+  for (let k = 0; k < 240; k++) {                                        // 漏斗：每顆沙從底部繞著轉、一路往上捲，越高圈越大
     const u = (hash(k) + T * (.55 + hash(k + 50) * .35)) % 1, h = u * H;
     const edge = 1 - .4 * hash(k + 90) ** 2;                             // 大部分貼在漏斗外緣（輪廓才清楚），少數在裡面
     let rad = (W0 + (W1 - W0) * u ** .8) * edge; if (u > .85) rad *= 1 + (u - .85) * 3;   // 到頂了往外甩出去
@@ -35,11 +35,11 @@ export function drawSandstorm(o, _L?) {
     if (fade < .15) continue;
     const at = (aa: number) => [o.x + Math.cos(aa) * rad, o.y - h + Math.sin(aa) * rad * .3];
     const front = Math.sin(a), c = front > .35 ? (hash(k + 7) < .3 ? 4 : 3) : front > -.35 ? 2 : (hash(k + 7) < .5 ? 0 : 1);   // 前面亮、後面暗 → 看得出是一個會轉的立體漏斗
-    const al = fade < .5 ? 0 : front > -.35 ? 2 : 1, s = hash(k + 33) < .35 ? 4 : 3;
+    const al = fade < .5 ? 0 : front > -.35 ? 2 : 1, s = hash(k + 33) < .35 ? 3 : 2;
     const [x, y] = at(a); grain(B, c, al, x, y, s);
-    for (let j = 1; j <= 2; j++) { const [tx, ty] = at(a - j * .13); grain(B, Math.max(0, c - j), Math.max(0, al - j), tx, ty, s - 1); }   // 後面拖兩顆、越來越淡 → 一條條被風捲著跑的沙線
+    for (let j = 1; j <= 2; j++) { const [tx, ty] = at(a - j * .13); grain(B, Math.max(0, c - j), Math.max(0, al - j), tx, ty, Math.max(1, s - 1)); }   // 後面拖兩顆、越來越淡 → 一條條被風捲著跑的沙線
   }
-  flush(B, q); ctx.globalAlpha = 1;
+  flush(B, q * .8); ctx.globalAlpha = 1;   // 整體淡一點：月牙刀的招牌是配角，不要蓋過打擊感
 }
 
 /** 沙泉：f = { x, y, r }，k = 0 → 1（約 0.6 秒）。沙從中間噴上去、往外散、落回地上變成一圈沙 */

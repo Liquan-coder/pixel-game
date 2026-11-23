@@ -107,7 +107,7 @@ function web(e: Enemy) { const fresh = !(e.webT > G.time); e.webT = G.time + 3; 
 function sandstorm(pl: Player, x: number, y: number) {
   const n: Ent = { k: 'sand', pl, x, y, t: 1.6, age: 0, tick: 0 }; ents.push(n);
   G.fx.push({ k: 'sstorm', o: n, t: 0, d: 99 });                         // 小龍捲風本體（render/sand.ts：一粒粒沙子捲成的漏斗）
-  parts(x, y - 4, 28, ['#6a4a20', '#a07a3a', '#c8a060', '#e8d098'], 120, { s: 1, drag: 2 }); H.shake(2, .15); sfx.wind();   // 捲起來的一瞬間往外噴一圈沙（不畫光圈）
+  parts(x, y - 4, 12, ['#6a4a20', '#a07a3a', '#c8a060', '#e8d098'], 80, { s: 1, drag: 2 }); H.shake(2, .15); sfx.wind();   // 捲起來的一瞬間往外噴一圈沙（不畫光圈）
 }
 /* 精靈王的長弓「王之箭」：每第 6 箭多射一支金色大箭，第一次打中就分裂成 3 支 */
 const ROYALC = ['#8a6a10', '#ffe08a', '#ffffff'];
@@ -231,7 +231,7 @@ export function sigTick(dt: number) {
       if (n.t <= 0) ents.splice(i, 1); }
     else if (n.k === 'sand') {                                           // 沙暴：把附近的小怪往中間吸，每 0.3 秒刮一下
       n.age += dt;
-      for (let s = 0; s < 6; s++) { const a = rr(0, TAU), r = rr(8, 46), h = rr(0, 30); G.parts.push({ x: n.x + Math.cos(a) * r, y: n.y - h + Math.sin(a) * r * .35, vx: -Math.sin(a) * 120, vy: Math.cos(a) * 40 - 20, life: .35, max: .35, col: pick(['#d8b870', '#b89850', '#f0e0a8', '#8a6a3a']), s: Math.random() < .3 ? 2 : 1, drag: 2 }); }   // 捲起來的沙塵、碎石
+      for (let s = 0; s < 2; s++) { const a = rr(0, TAU), r = rr(6, 28), h = rr(0, 20); G.parts.push({ x: n.x + Math.cos(a) * r, y: n.y - h + Math.sin(a) * r * .35, vx: -Math.sin(a) * 120, vy: Math.cos(a) * 40 - 20, life: .35, max: .35, col: pick(['#d8b870', '#b89850', '#f0e0a8', '#8a6a3a']), s: Math.random() < .3 ? 2 : 1, drag: 2 }); }   // 捲起來的沙塵、碎石
       for (const e of H.targets(pl)) { if (e.boss || e.hp <= 0) continue; const dx = n.x - e.x, dy = n.y - e.y, d = Math.hypot(dx, dy); if (d < 56 && d > 4) { moveEnt(e, dx / d * 85 * dt, dy / d * 85 * dt);
         if (Math.random() < dt * 20) G.parts.push({ x: e.x + rr(-5, 5), y: e.y - rr(2, 12), vx: dx / d * 90, vy: dy / d * 50, life: .25, max: .25, col: '#f0e0a8', s: 1 }); } }   // 被吸過去的怪身上拖著沙
       n.tick -= dt; if (n.tick <= 0) { n.tick = .3; H.aoe(pl, n.x, n.y, 40, .2, { proc: true, kb: 0 }); }
