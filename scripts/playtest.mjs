@@ -792,6 +792,13 @@ const pageScript = async () => {
     imp0.title.pickSlot(); step(2); if (!G.started || !document.getElementById('title').hidden) throw new Error('從標題畫面繼續失敗');
   });
 
+  run('自動暫停：切出去（畫面被蓋住）→ 自動打開暫停選單', () => {
+    setMenu(null); step(2); if (G.paused) throw new Error('暫停沒關掉');
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange'));
+    delete document.hidden; const ok = G.paused && !document.getElementById('pauseMenu').hidden; setMenu(null); step(2);
+    if (!ok) throw new Error('切出去沒有自動暫停');
+  });
+
   run('隔著牆：打不到怪、怪也打不到你', () => {
     const M = await0.map, D = imp0.dg, d = D.DUNGEONS[0];
     tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2);

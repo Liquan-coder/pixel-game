@@ -65,3 +65,12 @@ $('pauseMenu').addEventListener('input', e => {
   SET.vol = +t.value; $('volTxt').textContent = t.value; applySettings();
 });
 $('pauseMenu').addEventListener('change', e => { if ((e.target as HTMLElement).id === 'volIn') { initAudio(); sfx.pick(); } });   // 放開滑桿時響一聲，聽聽看多大聲
+/* 自動暫停：切出去（滑開通知中心 / 控制中心、切到別的 App、鎖螢幕）或把手機轉直 → 直接打開暫停選單，回來時不會已經被打了好幾下 */
+function autoPause() { if (G.started && !G.me.dead && !openMenu) openPause(); }
+document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
+window.addEventListener('pagehide', autoPause);
+if (('ontouchstart' in window) || matchMedia('(pointer: coarse)').matches) {   // 只有手機（電腦版點到別的視窗不暫停；手機滑開通知中心只會觸發 blur）。不用 core/canvas 的 isTouch：這裡載入時它還沒初始化（循環 import）
+  window.addEventListener('blur', autoPause);
+  const portrait = () => { if (innerHeight > innerWidth) autoPause(); };
+  window.addEventListener('resize', portrait); window.addEventListener('orientationchange', portrait);
+}
