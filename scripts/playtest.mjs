@@ -921,6 +921,16 @@ const pageScript = async () => {
     Object.assign(G.me, { weapon: keep.w, armor: keep.a, end: keep.end, str: keep.str }); recalc(G.me); G.me.st = G.me.maxSt;
   });
 
+  run('暴擊傷害：每種武器不一樣（短刀 ×2.4、戰鎚 ×1.6）', () => {
+    const E = await0.enemies, I = await0.items; setMenu(null); G.enemies = []; const keep = G.me.weapon;
+    const avg = (crit) => { G.me.crit = crit; const e = E.makeEnemy('skel', 1, G.me.x + 14, G.me.y, { alive: true, timer: 0 }); e.hp = e.maxHp = 1e9; e.stun = 99; e.dmg = 0; G.enemies = [e];
+      let s = 0; for (let i = 0; i < 40; i++) { const h = e.hp; G.me.critNext = 0; G.me.counterT = 0; G.me.dodgeAtkT = 0; damageEnemy(G.me, e, 1, G.me.x, G.me.y, { proc: true }); s += h - e.hp; } G.enemies = []; return s / 40; };
+    for (const [t, m] of [['dagger', 2.4], ['hammer', 1.6]]) { G.me.weapon = I.makeWeapon(t); recalc(G.me);
+      if (G.me.critMul !== m) throw new Error(t + '：暴擊傷害應該是 ×' + m + '，現在 ×' + G.me.critMul);
+      const r = avg(100) / avg(0); if (Math.abs(r - m) > .12) throw new Error(t + '：暴擊打出來是普通的 ' + r.toFixed(2) + ' 倍，應該是 ' + m); }
+    G.me.weapon = keep; recalc(G.me);
+  });
+
   run('獨特武器的招牌：16 把各自的能力都會觸發', () => {
     const E = await0.enemies, C = await0.cb, I = await0.items, out = []; setMenu(null); G.enemies = [];
     { const camp = CAMPS.find(c => c.id === 'start'), open = (x, y) => [-60, -30, 0, 30, 60].every(dx => [-30, 0, 30].every(dy => !await0.coll.collides(x + dx, y + dy, G.me.r + 2)));

@@ -18,7 +18,7 @@ import { coinChip, hudIcon, openMenu, setMenu, soulChip, toast } from './hud';
 import { moveMerchant } from './shop';
 import { restockSmiths } from '../world/towns';
 import { save } from '../game/save';
-import { ATTRS, ATTR_BASE, ATTR_NAME, atkSplit, grade, reqOf, scaleOf, unmet } from '../data/attrs';
+import { ATTRS, ATTR_BASE, ATTR_NAME, atkSplit, critGrade, critMulOf, grade, reqOf, scaleOf, unmet } from '../data/attrs';
 import { HERO, HERO_W } from '../art/hero';
 import { drawWeapon } from '../art/weapon';
 import { MARK_MAX, marks, navT, renderJournal, setNav } from '../game/quest';
@@ -94,7 +94,7 @@ export function itemCard(it, cmp?, cls = '') {
     main = '攻擊 ' + A.base + ' <span class="bn">+ ' + A.bonus + '</span>' + (B ? dv(A.total, B.total) : '') + ' <small style="color:var(--muted)">· ' + W.trait + '</small>';
     const affs = Object.keys(it.aff || {}).map(k => '＋' + it.aff[k] + AFFIX[k].u + ' ' + AFFIX[k].n);
     tail = (affs.length ? '<div class="aff">' + affs.join('　') + '</div>' : '') +
-      '<div class="scal">加成 ' + Object.keys(S).map(k => ATTR_NAME[k] + ' ' + grade(S[k])).join(' · ') + '</div>' +
+      '<div class="scal">加成 ' + Object.keys(S).map(k => ATTR_NAME[k] + ' ' + grade(S[k])).join(' · ') + '　暴擊傷害 <b>' + Math.round(critMulOf(it) * 100) + '%</b> ' + critGrade(critMulOf(it)) + '</div>' +   // 暴擊傷害看武器（data/attrs.ts 的 WCRIT）
       (U && UQSIG[it.uq] ? '<div class="sk">招牌 <b style="color:' + UQSIG[it.uq].cols[1] + '">' + UQSIG[it.uq].n + '</b>：' + UQSIG[it.uq].d + '</div>' :   // 獨特武器：招牌能力（不裝刻印）
        fx ? '<div class="sk">刻印 <b style="color:' + WFXD[fx].c + '">' + WFXD[fx].n + '</b>：' + WFXD[fx].d + '</div>' : '<div class="sk" style="color:var(--muted)">沒有刻印（村莊的鐵匠可以把刻印敲上去）</div>') +
       '<div class="sk">技能 <b>' + W.sn + '</b>：' + W.sd + '</div>' + (U ? '<div class="sk lore">' + U.lore + '<br><small>來源：' + U.from + '</small></div>' : ''); }
@@ -119,7 +119,7 @@ function statRows(now, nxt) {                                           // 屬�
   const rows: [string, any, ((v: number) => string)?][] = [['體力', 'maxSt'],
     ['減傷', 'defRed', pct], ['暴擊', 'crit', v => v + '%'], ['吸血', 'ls', pct], ['攻速', 'aspd', v => '+' + Math.round((v - 1) * 100) + '%'], ['冷卻縮短', 'cdr', pct]];   // 兩欄：左 體力 / 暴擊 / 攻速，右 減傷 / 吸血 / 冷卻
   return rows.map(([n, k, f]) => { if (typeof k !== 'string' || !(k in now)) return '<span>' + n + '</span><b>' + k + '</b>';
-    const fmt = f || (v => String(v)), a = now[k], b = nxt ? nxt[k] : a, d = b - a;
+    const fmt0 = f || (v => String(v)), cm = (nxt || now).critMul, fmt = k === 'crit' && cm ? (v => fmt0(v) + '<small> ×' + cm + '</small>') : fmt0, a = now[k], b = nxt ? nxt[k] : a, d = b - a;   // 暴擊後面附上這把武器的暴擊傷害（×2.4）
     const pctK = k === 'ls' || k === 'aspd' || k === 'cdr' || k === 'defRed', dd = pctK ? Math.round(Math.abs(d) * 100) + '%' : Math.round(Math.abs(d));
     return '<span>' + n + '</span><b>' + fmt(b) + (nxt && Math.abs(d) > 1e-6 ? ' <span class="' + (d > 0 ? 'up' : 'down') + '">' + (d > 0 ? '▲' : '▼') + dd + '</span>' : '') + '</b>'; }).join('');
 }
@@ -158,9 +158,9 @@ function eqWith(it: Item) {
 /* 左上的「選中物品」卡：圖示、名字、一行重點（換上後的變化）。沒有按鈕：裝備 = 點發亮的欄位、取消 = 再點一次、分解 = 右上角的按鈕 */
 function statDiff(now, nx) {                                            // 換上後變了什麼：攻擊 +5、暴擊 +3%
   const out = [], pct = (k: string) => k === 'ls' || k === 'aspd' || k === 'cdr' || k === 'defRed';
-  for (const [n, k] of [['生命', 'maxHp'], ['攻擊', 'atk'], ['防禦', 'def'], ['體力', 'maxSt'], ['暴擊', 'crit'], ['減傷', 'defRed'], ['吸血', 'ls'], ['攻速', 'aspd'], ['冷卻', 'cdr']]) {
+  for (const [n, k] of [['生命', 'maxHp'], ['攻擊', 'atk'], ['防禦', 'def'], ['體力', 'maxSt'], ['暴擊', 'crit'], ['暴擊傷害', 'critMul'], ['減傷', 'defRed'], ['吸血', 'ls'], ['攻速', 'aspd'], ['冷卻', 'cdr']]) {
     const d = nx[k] - now[k]; if (Math.abs(d) < 1e-6) continue;
-    const v = pct(k) ? Math.round(Math.abs(d) * 100) + '%' : k === 'crit' ? Math.abs(d) + '%' : String(Math.round(Math.abs(d)));
+    const v = pct(k) || k === 'critMul' ? Math.round(Math.abs(d) * 100) + '%' : k === 'crit' ? Math.abs(d) + '%' : String(Math.round(Math.abs(d)));
     out.push('<span class="' + (d > 0 ? 'up' : 'down') + '">' + n + ' ' + (d > 0 ? '+' : '−') + v + '</span>'); }
   if (Math.abs(nx.load - now.load) > 1e-6) { const up = nx.load > now.load, tc = nx.loadTier !== now.loadTier;      // 負重：變重是紅字；換段直接寫出效果
     out.push('<span class="' + (up ? 'down' : 'up') + '">負重 ' + (up ? '+' : '−') + fmtW(Math.abs(nx.load - now.load)) + (tc ? '（' + LOAD_TIERS[now.loadTier].n + ' → ' + LOAD_TIERS[nx.loadTier].n + '：' + LOAD_TIERS[nx.loadTier].d + '）' : '') + '</span>'); }

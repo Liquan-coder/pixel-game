@@ -31,6 +31,15 @@ export const WSCALE: Record<string, Partial<Record<AttrKey, number>>> = {
   crescent: { dex: .6, str: .45 }, twinblade: { dex: .8, str: .3 }, darkmoon: { str: .55, int: .6 },
   elfbow: { dex: .8, int: .3 }, elfrapier: { dex: .9, int: .25 }, elfblades: { dex: 1 },
 };
+/* 暴擊傷害：每種武器不一樣。快、準的武器（短刀、細劍、太刀）暴擊打得特別痛 → 適合堆暴擊率；重武器、法杖暴擊比較普通。
+   例：暴擊率 30%、短刀 ×2.4 → 平均每下 ×1.42；同樣 30% 拿戰鎚 ×1.6 → 平均 ×1.18。字母給玩家看：S ≥ 2.3、A ≥ 2.1、B ≥ 1.9、C ≥ 1.75、D 其他 */
+export const WCRIT: Record<string, number> = {
+  dagger: 2.4, rapier: 2.3, elfrapier: 2.3, katana: 2.2, elfblades: 2.2, wolfblade: 2.1,
+  twinblade: 2, crescent: 2, bow: 2, elfbow: 2, spear: 1.9,
+  sword: 1.8, scythe: 1.8, darkmoon: 1.8, greatsword: 1.7, axe: 1.7, hammer: 1.6, staff: 1.6,
+};
+export const critMulOf = (it: Item | null) => (it && WCRIT[it.type]) || 1.8;
+export const critGrade = (m: number) => m >= 2.3 ? 'S' : m >= 2.1 ? 'A' : m >= 1.9 ? 'B' : m >= 1.75 ? 'C' : 'D';
 export const grade = (c: number) => c >= 1 ? 'S' : c >= .75 ? 'A' : c >= .5 ? 'B' : c >= .3 ? 'C' : c > 0 ? 'D' : '-';
 
 /* 武器需求：每種武器固定（不會因為在哪裡撿到而改變，強化也不會提高需求）。
