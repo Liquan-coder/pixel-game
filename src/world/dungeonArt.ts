@@ -28,40 +28,26 @@ const STONE5 = ['#1e1a26', '#2e2a36', '#4a4558', '#6a6478', '#8e88a0'];   // 古
 const TORCH_POST = sculpt(10, 40, [{ sh: SH.box(5, 22, 2, 18, 3), ramp: ['#2e1c0e', '#4a3018', '#6a4626', '#86603a'], grp: 1 }, { sh: SH.ell(5, 6, 4, 3), ramp: ['#2a2834', '#4a4858', '#7a788a'], grp: 2 }]);
 const MIST = { cave: '#b8b2c8', grotto: '#9ad0e8', crypt: '#c8b8e8' } as Record<string, string>;
 const regAtT = (tx: number, ty: number) => reg[ty * MW + tx];
-/* ---- 傳送門：一圈立著的石環，裡面是旋轉的藍白光 ----
-   (x, y) = 腳下（玩家站上去的位置）；open = 0~1，打開的動畫（從一個點長大成整圈） */
-const PCOL = ['#ffffff', '#c8e8ff', '#7ab8ff', '#3a5a9a'];
-export function drawPortal(x: number, y: number, open = 1) {
-  const s = Math.max(0, Math.min(1, open)), e = 1 - (1 - s) ** 3, cx = x, cy = y - 15, RX = 10 * e, RY = 14 * e, t = G.time;
-  if (e <= 0) return;
-  ctx.globalAlpha = .55; ctx.fillStyle = '#0c0a14'; ctx.beginPath(); ctx.ellipse(snapF(cx), snapF(y + 1), 14 * e, 4.5 * e, 0, 0, Math.PI * 2); ctx.fill();   // 地上的石台
-  ctx.globalAlpha = .35 + .15 * Math.sin(t * 3); ctx.strokeStyle = PCOL[2]; ctx.lineWidth = .7; ctx.beginPath(); ctx.ellipse(snapF(cx), snapF(y + 1), 12.5 * e, 3.8 * e, 0, 0, Math.PI * 2); ctx.stroke();
-  ctx.globalAlpha = 1;
-  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, RY); g.addColorStop(0, 'rgba(255,255,255,.95)'); g.addColorStop(.35, 'rgba(170,215,255,.75)'); g.addColorStop(.8, 'rgba(70,110,200,.55)'); g.addColorStop(1, 'rgba(30,40,90,.4)');
-  ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(snapF(cx), snapF(cy), RX, RY, 0, 0, Math.PI * 2); ctx.fill();                   // 門裡的光
-  ctx.save(); ctx.beginPath(); ctx.ellipse(cx, cy, RX, RY, 0, 0, Math.PI * 2); ctx.clip();
-  for (let arm = 0; arm < 3; arm++) for (let k = 0; k < 14; k++) {                                       // 三條旋臂往中心捲進去
-    const u = k / 14, a = t * 2.2 + arm * 2.094 + u * 4.2, r = 1 - u;
-    ctx.globalAlpha = .25 + .55 * u; ctx.fillStyle = u > .7 ? PCOL[0] : PCOL[1];
-    ctx.fillRect(snapF(cx + Math.cos(a) * RX * r * .95), snapF(cy + Math.sin(a) * RY * r * .95), HKP, HKP); }
-  ctx.restore(); ctx.globalAlpha = 1;
-  ctx.lineWidth = 2.6; ctx.strokeStyle = '#2a2638'; ctx.beginPath(); ctx.ellipse(snapF(cx), snapF(cy), RX + 1.2, RY + 1.2, 0, 0, Math.PI * 2); ctx.stroke();   // 石環
-  ctx.lineWidth = 1; ctx.strokeStyle = '#5a5470'; ctx.beginPath(); ctx.ellipse(snapF(cx), snapF(cy), RX + 1.9, RY + 1.9, 0, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
-  ctx.lineWidth = .8; ctx.strokeStyle = PCOL[1]; ctx.globalAlpha = .7 + .3 * Math.sin(t * 4); ctx.beginPath(); ctx.ellipse(snapF(cx), snapF(cy), RX + .2, RY + .2, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
-  for (let k = 0; k < 6; k++) { const a = t * 1.3 + k * 1.047, px = cx + Math.cos(a) * (RX + 1.2), py = cy + Math.sin(a) * (RY + 1.2);   // 石環上一圈會轉的符文光點
-    ctx.fillStyle = k % 2 ? PCOL[0] : PCOL[1]; ctx.fillRect(snapF(px - .5), snapF(py - .5), 1, 1); }
-  if (e >= 1 && Math.random() < .5) G.parts.push({ x: cx + rr(-RX, RX), y: y - rr(0, 3), vx: rr(-4, 4), vy: -rr(14, 34), life: rr(.6, 1.1), max: 1.1, col: pick(PCOL.slice(0, 3)), star: rr(.5, 1.3), drag: 1 });
+/* ---- 地城裡的出口（入口房 + 打倒 Boss 後的大廳）：跟外面的入口長得一樣 = 洞口 / 石門 + 一整面白霧，兩邊立著火把
+   (x, y) = 腳下（玩家站上去的位置）；op = 0~1，大廳那座升起來的動畫（從地底往上冒、霧慢慢亮起來） */
+function exitGate(d: any, x: number, y: number, op: number, list, L, addLight) {
+  const crypt = d.style === 'crypt' || d.style === 'ruin', sp = crypt ? CRYPT_SP : CAVE_SP, e = 1 - (1 - op) ** 3, rise = (1 - e) * 14;
+  list.push({ y: y - 2, f: () => {
+    ctx.save(); ctx.beginPath(); ctx.rect(x - 40, y - 60, 80, 61); ctx.clip();                     // 升起來時：地面以下的部分不畫
+    drawShadow(x, y + 1, 22 * e); if (op >= .4) fogHalo(x, y - 6, crypt ? 13.2 : 10.8, .16 * (op - .4) / .6); drawArtSprite(sp, x, y + rise); ctx.restore();   // 光暈在石頭後面、淡一點
+    if (op >= .4) drawFog(x, y, crypt, x * .013, false); } });
+  if (op >= 1) for (const s of [-1, 1]) { const tx = x + s * 22, ty = y + 6;                     // 兩邊的火把（升好了才點起來）
+    list.push({ y: ty, f: () => { drawArtSprite(TORCH_POST, tx, ty); flame(tx, ty - 12, 4, x + s); } }); addLight(L, tx, ty - 14, 40 + Math.sin(G.time * 9 + s) * 2, 1); }
+  if (op > .4) addLight(L, x, y - 6, (13 + Math.sin(G.time * 3)) * op, 5);                     // 霧門的白光：只照亮霧本身（地城裡很暗，光太大會把整座石門洗白）
 }
 const HKP = 2 / 3;
 const portalT = new Map<string, number>();                                                        // Boss 大廳的傳送門第一次被看到的時間 → 打開的動畫
 /* ---- 霧門：洞口整面蓋著一層白霧 + 往上飄的白色光點（像艾爾登法環的霧門），一看就知道「這裡進得去」 ----
    shape = 洞口的形狀：cave = 拱形（半橢圓 + 下面一塊），crypt = 長方形石門 */
-function drawFog(ex: number, ey: number, crypt: boolean, seed: number) {
+function drawFog(ex: number, ey: number, crypt: boolean, seed: number, halo = true) {   // halo = false：外圈的白色光暈另外畫（地城裡的出口畫在石頭後面，不然在暗的地方會把整個洞口蓋掉）
   const t = G.time, W = crypt ? 4.8 : 6, H = crypt ? 13.2 : 10.8, top = ey - H, pulse = .5 + .5 * Math.sin(t * 2 + seed);
   const path = (grow = 0) => { ctx.beginPath(); if (crypt) ctx.rect(ex - W - grow, top - grow, (W + grow) * 2, H + grow); else { ctx.ellipse(ex, top + W, W + grow, W + grow, 0, Math.PI, 0); ctx.rect(ex - W - grow, top + W, (W + grow) * 2, H - W); } };
-  const halo = ctx.createRadialGradient(ex, ey - H * .5, 0, ex, ey - H * .5, H * 1.5);                   // 洞口外面一圈白色光暈
-  halo.addColorStop(0, 'rgba(255,255,255,' + (.35 + .1 * pulse) + ')'); halo.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = halo; ctx.fillRect(ex - H * 1.5, ey - H * 2, H * 3, H * 2 + 2);
+  if (halo) fogHalo(ex, ey, H, .35 + .1 * pulse);                                                 // 洞口外面一圈白色光暈
   ctx.save(); path(); ctx.clip();
   const g = ctx.createLinearGradient(0, top, 0, ey); g.addColorStop(0, 'rgba(236,242,255,.72)'); g.addColorStop(1, 'rgba(255,255,255,.95)');
   ctx.globalAlpha = .88 + .12 * pulse; ctx.fillStyle = g; ctx.fillRect(ex - W, top, W * 2, H);          // 一整面白霧
@@ -70,6 +56,12 @@ function drawFog(ex: number, ey: number, crypt: boolean, seed: number) {
   ctx.restore(); ctx.globalAlpha = 1;
   ctx.strokeStyle = '#ffffff'; ctx.lineWidth = .7; ctx.globalAlpha = .6 + .4 * pulse; path(.3); ctx.stroke(); ctx.globalAlpha = 1;   // 霧的邊緣亮一圈
   for (let n = 0; n < 2; n++) if (Math.random() < .6) G.parts.push({ x: ex + rr(-W, W), y: ey - rr(0, H), vx: rr(-7, 7), vy: -rr(8, 28), life: rr(.9, 1.8), max: 1.8, col: pick(['#ffffff', '#ffffff', '#eef2ff']), star: rr(.6, 1.6), drag: .6 });   // 白色光點從霧裡飄出來
+}
+
+function fogHalo(ex: number, ey: number, H: number, a: number) {
+  const g = ctx.createRadialGradient(ex, ey - H * .5, 0, ex, ey - H * .5, H * 1.5);
+  g.addColorStop(0, 'rgba(255,255,255,' + a + ')'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g; ctx.fillRect(ex - H * 1.5, ey - H * 2, H * 3, H * 2 + 2);
 }
 
 /* 尖岩 / 方尖碑頂端：一團紫光 + 往上淡掉的光柱 + 一直往上飄的紫色光點。比岩丘高，從四面八方遠遠就看得到。打完地城就熄掉 */
@@ -189,11 +181,9 @@ export function drawDoors(vis, list, L, addLight) {
           if (f) { ctx.fillRect(snapF(x - 4), snapF(y - 2), 3, 1); ctx.fillRect(snapF(x + 1), snapF(y - 2), 3, 1); } else { ctx.fillRect(snapF(x - 4), snapF(y), 3, 1); ctx.fillRect(snapF(x + 1), snapF(y), 3, 1); } }
       } });
       if (!done) addLight(L, ex, ey - 8, (crypt ? 34 : 30) + Math.sin(G.time * 3) * 2, 5); }                      // 洞口的白光（霧門）
-    if (d.exX !== undefined && vis(d.exX, d.exY, 60)) { const px = d.exX, py = d.exY + 4;            // 出口：一圈傳送門
-      list.push({ y: py - 6, f: () => drawPortal(px, py) }); addLight(L, px, py - 14, 46 + Math.sin(G.time * 3) * 3, 2); }
-    if (d.portal && vis(d.portal[0], d.portal[1], 60) && dungeonHooks.cleared(d)) { const [px, py] = d.portal;   // Boss 倒下 → 大廳中央打開一圈傳送門
-      if (!portalT.has(d.id)) { portalT.set(d.id, G.time); for (let i = 0; i < 30; i++) G.parts.push({ x: px + rr(-3, 3), y: py - 15 + rr(-3, 3), vx: rr(-60, 60), vy: rr(-60, 60), life: rr(.4, .8), max: .8, col: pick(PCOL), star: rr(.8, 2), drag: 3 }); }
-      const op = Math.max(0, Math.min(1, (G.time - portalT.get(d.id)) / 1.2));                   // 0 → 1：1.2 秒內從一個點長成整圈
-      list.push({ y: py + 4 - 6, f: () => drawPortal(px, py + 4, op) }); addLight(L, px, py - 10, Math.max(1, op * (46 + Math.sin(G.time * 3) * 3)), 2); }
+    if (d.exX !== undefined && vis(d.exX, d.exY, 60)) exitGate(d, d.exX, d.exY + 4, 1, list, L, addLight);   // 出口：跟外面的入口同一種霧門
+    if (d.portal && vis(d.portal[0], d.portal[1], 60) && dungeonHooks.cleared(d)) { const [px, py] = d.portal;   // Boss 倒下 → 大廳中央升起一座霧門
+      if (!portalT.has(d.id)) { portalT.set(d.id, G.time); for (let i = 0; i < 30; i++) G.parts.push({ x: px + rr(-3, 3), y: py - 8 + rr(-3, 3), vx: rr(-60, 60), vy: rr(-60, 60), life: rr(.4, .8), max: .8, col: pick(['#ffffff', '#eef2ff', '#c8c8d8']), star: rr(.8, 2), drag: 3 }); }
+      exitGate(d, px, py + 4, Math.max(0, Math.min(1, (G.time - portalT.get(d.id)) / 1.2)), list, L, addLight); }   // 0 → 1：1.2 秒內從地上升起來
   }
 }
