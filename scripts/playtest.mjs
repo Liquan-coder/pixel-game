@@ -783,8 +783,8 @@ const pageScript = async () => {
     G.me.st = 0; G.me.stDelay = 0; step(30); const stHeavy = G.me.st;
     G.me.weapon = I.makeWeapon('dagger', 0); G.me.armor = null; recalc(G.me); G.me.st = 0; G.me.stDelay = 0; step(30);
     if (!(stHeavy < G.me.st * .8)) throw new Error('超重體力沒有回得比較慢：' + stHeavy.toFixed(1) + ' vs ' + G.me.st.toFixed(1));
-    G.me.end = 30; recalc(G.me); G.me.weapon = I.makeWeapon('hammer', 0); G.me.armor = I.makeArmor('chain'); recalc(G.me);
-    if (G.me.loadTier > 1) throw new Error('耐力 30 拿戰鎚 + 鎖甲還是太重：' + G.me.load + '/' + G.me.loadCap);
+    G.me.end = 35; recalc(G.me); G.me.weapon = I.makeWeapon('hammer', 0); G.me.armor = I.makeArmor('chain'); recalc(G.me);
+    if (G.me.loadTier > 1) throw new Error('耐力 35 拿戰鎚 + 鎖甲還是太重：' + G.me.load + '/' + G.me.loadCap);
     Object.assign(G.me, { weapon: keep.w, armor: keep.a, end: keep.end, str: keep.str }); recalc(G.me); G.me.st = G.me.maxSt;
   });
 

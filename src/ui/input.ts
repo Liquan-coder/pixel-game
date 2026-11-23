@@ -25,7 +25,7 @@ window.addEventListener('contextmenu', releaseAll);                       // 右
 document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
 /* 手機：用「螢幕上現在真的有哪些手指」對帳。每根手指的 target 是它一開始按下去的元素，
    所以搖桿還以為有人按著、可是沒有任何一根手指是從搖桿區按下去的 → 那根手指早就離開了（放開的事件被吃掉）→ 放開 */
-const BTNS = ['bAtk', 'bSkill', 'bDodge', 'bPot', 'bMount'], BTN_KEY = { bAtk: 'atk', bSkill: 'skill', bDodge: 'dodge', bPot: 'pot', bMount: 'mount' };
+const BTNS = ['bAtk', 'bSkill', 'bDodge', 'bPot'], BTN_KEY = { bAtk: 'atk', bSkill: 'skill', bDodge: 'dodge', bPot: 'pot' };
 function syncTouches(e: TouchEvent) {
   const on = (el: HTMLElement) => { for (let i = 0; i < e.touches.length; i++) { const t = e.touches[i].target; if (t instanceof Node && el.contains(t)) return true; } return false; };
   if (joy.active && !on(joyZone)) resetJoy();
