@@ -75,7 +75,8 @@
 ## 省 token
 - 讀進對話的東西會一直留著，之後每一輪都要重送，所以**從源頭讓輸出變小**：
   - 截圖只看局部就用小尺寸：`node scripts/look.mjs a.png "<JS>" 640 360 1`（預設 1280×720 大約 4 倍 token）。美術要看細節才用大圖。
-  - 大檔案用 `grep` / 讀指定行數，不要整個讀；`src/art/bossArt.ts` 這種自動產生的檔案不要讀。
+  - 讀檔先 `grep -n` 找到行號，再用 Read 的 `offset` / `limit` 只讀那一段；不要整個讀。`src/art/bossArt.ts` 這種自動產生的檔案不要讀。
+  - 這次對話已經讀過、自己也剛改過的檔案不要重讀（Edit 失敗才需要），要確認就 `git diff` 那幾行。
 - **交給 subagent、只回報結論**：完整 playtest、一次要讀好幾個超過 500 行的檔案、只是要找東西在哪裡。美術截圖不要交出去（要自己看）。
 - **常常有好幾個 session 同時在改這個資料夾。** commit 時只 `git add` 自己改的檔案，也要確認它 import 的東西不是只存在別人還沒 commit 的檔案裡。push 前先在乾淨的 worktree 裡 build 一次 HEAD：
   `git worktree add --detach <暫存>/clean HEAD` → 連結 `node_modules` → `npx tsc --noEmit && npx vite build`
