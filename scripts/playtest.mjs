@@ -921,13 +921,19 @@ const pageScript = async () => {
     G.me.weapon = keep; G.me.str = G.me.dex = G.me.int = 5; recalc(G.me); G.enemies = []; G.projs = []; G.me.sigShield = 0; G.me.hp = G.me.maxHp;
   });
 
-  run('星狼（坐騎）：打倒狼王才叫得出來、按住瞬移 1 秒呼喚、跑得比較快、騎著瞬移 = 往前撲、按攻擊跳下來、被打摔下來、城鎮 / 地城騎不進去', () => {
+  run('星狼（坐騎）：打倒狼王才叫得出來、按住瞬移 1 秒呼喚（不會先閃一下，短按放開才瞬移）、跑得比較快、騎著瞬移 = 往前撲、按攻擊跳下來、被打摔下來、城鎮 / 地城騎不進去', () => {
     const MT = imp0.mount, Q = await0.quest, M = await0.map, keep = G.bossDead, keepLab = G.lab; setMenu(null); G.enemies = []; G.lab = false;
     const camp = CAMPS.find(c => c.id === 'start'); tp(camp.x, camp.y + 16); G.me.ride = false; G.me.rideT = 0; step(2);
-    const hold = n => { held.dodge = true; step(n); held.dodge = false; step(1); };
+    // 像真的按鍵一樣：按下去那一格 pressed + held，按住 n 格再放開；回傳這段時間有沒有瞬移
+    const hold = n => { let dodged = false; pressed.dodge = true; held.dodge = true; for (let i = 0; i < n; i++) { step(1); if (G.me.dodge > 0 && !G.me.ride) dodged = true; } held.dodge = false; step(1); if (G.me.dodge > 0 && !G.me.ride) dodged = true; step(20); return dodged; };
     G.bossDead = false; hold(140); if (G.me.ride) throw new Error('還沒打倒狼王就叫得出星狼');
-    G.bossDead = true; Q.flags.delete('starwolf'); hold(40); if (G.me.ride) throw new Error('只按住 0.6 秒就叫出來了（要 1 秒）');
-    hold(65); if (!G.me.ride) throw new Error('按住瞬移鍵 1 秒沒有叫出星狼');
+    G.bossDead = true; Q.flags.delete('starwolf'); tp(camp.x, camp.y + 16); G.me.st = G.me.maxSt;
+    // 有星狼之後瞬移改成放開才發動：短按 → 放開那一下閃；按住呼喚 → 不會先閃一下
+    pressed.dodge = true; held.dodge = true; step(1); if (G.me.dodge > 0) throw new Error('有星狼之後，瞬移鍵一按下去就閃了（要放開才閃）');
+    step(4); held.dodge = false; step(1); if (!(G.me.dodge > 0)) throw new Error('短按瞬移鍵放開沒有瞬移'); step(30);
+    tp(camp.x, camp.y + 16); G.me.st = G.me.maxSt;
+    if (hold(40)) throw new Error('按住呼喚星狼的時候先瞬移了一下'); if (G.me.ride) throw new Error('只按住 0.6 秒就叫出來了（要 1 秒）');
+    if (hold(65)) throw new Error('按住呼喚星狼的時候先瞬移了一下'); if (!G.me.ride) throw new Error('按住瞬移鍵 1 秒沒有叫出星狼');
     hold(35); if (!G.me.ride) throw new Error('騎著按住 0.5 秒就下來了（要 1 秒）'); hold(70); if (G.me.ride) throw new Error('騎著按住 1 秒沒有讓星狼回去'); hold(65);
     step(250); if (!Q.flags.has('starwolf')) throw new Error('第一次見到星狼的提示沒有出現');
     // 速度：找一個 140 px 內沒有障礙的方向，走路 vs 騎狼各跑 30 格

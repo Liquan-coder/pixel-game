@@ -17,7 +17,7 @@ import { burst, shake } from './worldUpdate';
 import { STARC } from '../render/fx';
 import { flashHp, hideBanner, showArea, toast } from '../ui/hud';
 import { save } from './save';
-import { CALL_SHOW, RIDE_SPD, dismount, toggleMount, updateMount } from './mount';
+import { CALL_SHOW, RIDE_SPD, dismount, hasWolf, toggleMount, updateMount } from './mount';
 import type { Player } from '../types';
 
 /* ================= PLAYER UPDATE ================= */
@@ -118,7 +118,18 @@ export function updatePlayer(pl: Player, dt) {
     else { pl.chargeHold += dt; if (drawBow ? pl.atkCd <= 0 && !busy(pl) : pl.chargeHold > .22 && !busy(pl) && pl.st > 0) { pl.charging = true; pl.charge = 0; pl.chargeLv = 0; } }   // 蓄力弓一按就開始拉
   }
   }
-  if (pressed.dodge) { tryDodge(pl); if (pl.dodge > 0) rollOut(pl); }
+  /* 瞬移：還沒有星狼 → 一按就閃。有星狼之後「按住 = 呼喚」，所以改成放開才閃（跟攻擊的點一下 / 按住同一個道理）：
+     很快放開（呼喚的圈還沒出來）→ 瞬移；按到圈出來了 → 這次是在呼喚，放開也不閃 */
+  const dodgeNow = () => { tryDodge(pl); if (pl.dodge > 0) rollOut(pl); };
+  if (!hasWolf()) { pl.dodgeArm = false; if (pressed.dodge) dodgeNow(); }
+  else {
+    if (pressed.dodge) { pl.dodgeArm = true; pl.dodgeHold = 0; }
+    if (pl.dodgeArm) {
+      if (pl.dead || locked(pl)) pl.dodgeArm = false;
+      else if (held.dodge || keys.dodge) { pl.dodgeHold += dt; if (pl.dodgeHold >= CALL_SHOW) pl.dodgeArm = false; }
+      else { pl.dodgeArm = false; dodgeNow(); }                       // 放開了
+    }
+  }
   if (pressed.skill) trySkill(pl);
   if (pressed.pot) tryPot(pl);
 

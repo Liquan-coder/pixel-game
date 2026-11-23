@@ -81,8 +81,9 @@ export interface Player {
 
   // 星狼（坐騎，game/mount.ts）
   ride?: boolean;                     // 正騎著
-  rideT?: number;                     // 按住瞬移鍵呼喚：已經按住幾秒（滿 2 秒叫出來）
+  rideT?: number;                     // 按住瞬移鍵呼喚：已經按住幾秒（滿 1 秒叫出來）
   callLock?: boolean;                 // 叫完 / 被打斷：要先放開瞬移鍵才會重新數
+  dodgeArm?: boolean; dodgeHold?: number;   // 有星狼之後瞬移改成放開才發動：按下去了、還沒決定是瞬移還是呼喚 / 已經按住幾秒
   rideIn?: number;                    // 剛騎上：星狼從白光裡浮現還剩幾秒
   rideDrop?: number;                  // 剛跳下來：人從狼背落到地上還剩幾秒
   rideRun?: number;                   // 奔跑步伐進度 0～1（挑奔跑動畫的哪一格）

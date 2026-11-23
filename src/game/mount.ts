@@ -21,7 +21,7 @@ import type { Player } from '../types';
    · 騎著按攻擊 / 技能 / 喝藥 = 先跳下來，再做那個動作
    · 被打中就摔下來（按住呼喚到一半被打中也會中斷，要放開重按） */
 export const RIDE_SPD = 1.7, WOLF_DASH = .6, DROP_T = .18;
-export const CALL_T = 1, OFF_T = 1, CALL_SHOW = .15;                     // 按住幾秒叫出來 / 騎著按住幾秒讓牠回去 / 按住多久才開始畫圈（短按只是瞬移）
+export const CALL_T = 1, OFF_T = 1, CALL_SHOW = .22;                     // 按住幾秒叫出來 / 騎著按住幾秒讓牠回去 / 按住多久才開始畫圈（比這個短就放開 = 瞬移，跟攻擊的蓄力門檻一樣）
 const STRIDE = 2.4;                                                      // 全速時每秒跑幾個步伐（render 用 rideRun 挑奔跑的哪一格）
 
 export const hasWolf = () => G.bossDead || !!G.lab;                     // 狼王倒下就解鎖（舊存檔打過狼王的也算）；開發用的測試場 / 測試版（?lab、?test）直接開
