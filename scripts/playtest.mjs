@@ -789,7 +789,7 @@ const pageScript = async () => {
     use('darkmoon'); { const e = mk('skel', 50, 0); e.stun = 0; G.me.skillCd = 0; C.trySkill(G.me); step(40, { god: true }); ok('darkmoon', e.slowT > 0 || e.spd0 != null, '月光劍浪沒有留下冷月光'); }
     use('elfbow'); { mk('skel', 90, 0); let royal = false; for (let i = 0; i < 6; i++) { G.me.atkCd = 0; C.tryAttack(G.me); step(20, { god: true }); if (G.projs.some(p => p.royal)) royal = true; } ok('elfbow', royal, '第 6 箭沒有王之箭'); }
     use('elfrapier'); { const e = mk('skel', 20, 0); hitN(e, 4); const h = e.hp; G.me.crit = 0; const n0 = G.nums.length; hitN(e, 1); ok('elfrapier', G.nums.slice(n0).some(n => n.big) && h - e.hp > G.me.atkPow, '5 層月痕沒有爆發'); }
-    use('elfblades'); { const e = mk('skel', 20, 0); let flew = false; for (let i = 0; i < 20 && !flew; i++) { G.me.flyT = 0; damageEnemy(G.me, e, .01, G.me.x, G.me.y); step(2); if (G.fx.some(f => f.k === 'sorb' && f.cols && f.cols[1] === '#c8f060')) flew = true; } ok('elfblades', flew, '沒有放出螢火蟲'); }
+    use('elfblades'); { const e = mk('skel', 20, 0); let flew = false; for (let i = 0; i < 20 && !flew; i++) { G.me.flyT = 0; damageEnemy(G.me, e, .01, G.me.x, G.me.y); step(2); if (G.fx.some(f => f.k === 'sorb' && f.cols && f.cols[1] === '#f0f060')) flew = true; } ok('elfblades', flew, '沒有放出螢火蟲'); }
     log.push('  招牌：' + [...new Set(out)].length + ' / 16');
     G.me.weapon = keep; G.me.str = G.me.dex = G.me.int = 5; recalc(G.me); G.enemies = []; G.projs = []; G.me.sigShield = 0; G.me.hp = G.me.maxHp;
   });

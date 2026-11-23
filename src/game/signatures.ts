@@ -74,11 +74,11 @@ function firePatch(pl: Player, x: number, y: number) {
   if (count(pl, 'fire') >= 5) { const old = ents.find(n => n.pl === pl && n.k === 'fire'); if (old) old.t = 0; }
   ents.push({ k: 'fire', pl, x, y, t: 2.5, tick: .25 }); ring(x, y, 18, '#ff8a2a', .25);
 }
-/* 霜鬃巨鎚「冰柱」：砸地時周圍竄出一圈冰柱 */
+/* 霜鬃巨鎚「冰柱」：砸地時，砸地點前方竄出半圈冰柱（5 叢） */
 const ICEC = ['#1a3a5a', '#4a8ac8', '#9ae0ff', '#f0faff'];
 function iceSpikes(pl: Player, cx: number, cy: number) {
-  for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + rr(-.2, .2), sx = cx + Math.cos(a) * 26, sy = cy + Math.sin(a) * 18;
-    G.fx.push({ k: 'spike', x: sx, y: sy, r: 14, t: 0, d: .6, cols: ICEC }); H.aoe(pl, sx, sy, 12, .35, { proc: true, stun: .3 });
+  for (let i = 0; i < 5; i++) { const a = pl.face + (i - 2) * .85 + rr(-.12, .12), sx = cx + Math.cos(a) * 28, sy = cy + Math.sin(a) * 19;   // 砸地點前方的半圈（不會長在自己身上）
+    G.fx.push({ k: 'spike', x: sx, y: sy, r: 10, t: 0, d: .6, cols: ICEC }); H.aoe(pl, sx, sy, 12, .35, { proc: true, stun: .3 });
     parts(sx, sy - 6, 4, ['#ffffff', '#9ae0ff'], 50); }
   sfx.freeze();
 }
@@ -125,8 +125,8 @@ function moonBurst(pl: Player, e: Enemy) {
   parts(e.x, e.y - 8, 18, ['#ffffff', '#c8e0ff', '#a8c4ff'], 110); sfx.perfect();
 }
 /* 螢火雙刀「螢火」：打中有機會放出螢火蟲（最多 8 隻），先飄一下，再衝向附近的怪 */
-const FLYC = ['#3a5a10', '#c8f060', '#f8ffc0', '#ffffff'];
-function firefly(pl: Player, e: Enemy) { const n: Ent = { k: 'fly', pl, x: e.x + rr(-4, 4), y: e.y - 10, t: 0, vx: rr(-40, 40), vy: -rr(30, 60), ph: rr(0, 9) }; ents.push(n); orb(n, FLYC, 1.8, 6, 22); }
+const FLYC = ['#5a5a10', '#f0f060', '#ffffc8', '#ffffff'];                 // 亮黃綠（太綠會跟草地混在一起）
+function firefly(pl: Player, e: Enemy) { const n: Ent = { k: 'fly', pl, x: e.x + rr(-4, 4), y: e.y - 10, t: 0, vx: rr(-40, 40), vy: -rr(30, 60), ph: rr(0, 9) }; ents.push(n); orb(n, FLYC, 2.6, 4, 30); }
 
 /* ================= combat.ts 呼叫的 ================= */
 /* 打中前：回傳要不要改成暴擊、傷害倍率 */
@@ -222,7 +222,7 @@ export function sigTick(dt: number) {
         if (!n.tgt || n.t > 2.5) { n.done = true; ents.splice(i, 1); continue; }
         const dx = n.tgt.x - n.x, dy = n.tgt.y - 8 - n.y, d = Math.hypot(dx, dy); n.x += dx / d * 260 * dt; n.y += dy / d * 260 * dt;
         if (d < 8) { n.done = true; ents.splice(i, 1); H.damage(pl, n.tgt, .4, n.x, n.y + 6, PROC); parts(n.x, n.y, 8, ['#c8f060', '#f8ffc0', '#ffffff'], 70); } }
-      if (Math.random() < dt * 20) G.parts.push({ x: n.x, y: n.y, vx: 0, vy: 0, life: .25, max: .25, col: '#c8f060', star: .8 }); }
+      if (Math.random() < dt * 30) G.parts.push({ x: n.x, y: n.y, vx: 0, vy: 0, life: .3, max: .3, col: pick(['#f0f060', '#ffffc8']), star: 1 }); }
   }
 }
 export function clearSig() { ents.length = 0; }
