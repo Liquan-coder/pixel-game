@@ -1027,7 +1027,9 @@ const pageScript = async () => {
       let m = null; for (let i = 0; i < 40 && !(m && m.hit.size); i++) { step(1, { god: true }); m = G.projs.find(p => p.kind === 'boom'); }
       step(2, { god: true }); m = G.projs.find(p => p.kind === 'boom'); ok('sandcrescent', m && m.back, '月牙砍到敵人沒有立刻回頭');
       const st = G.fx.find(x => x.k === 'sstorm'); ok('sandcrescent', st && Math.hypot(st.o.x - e.x, st.o.y - e.y) < 12, '沙暴沒有捲在被砍到的敵人腳下');
-      const d0 = Math.hypot(f.x - e.x, f.y - e.y); step(60, { god: true }); ok('sandcrescent', Math.hypot(f.x - e.x, f.y - e.y) < d0 - 10, '沙暴沒有把旁邊的敵人吸過去'); }
+      const d0 = Math.hypot(f.x - e.x, f.y - e.y); step(60, { god: true }); ok('sandcrescent', Math.hypot(f.x - e.x, f.y - e.y) < d0 - 10, '沙暴沒有把旁邊的敵人吸過去');
+      use('sandcrescent'); G.fx = G.fx.filter(x => x.k !== 'sstorm'); G.me.combo = 1; G.me.comboT = 1; G.me.atkCd = 0; C.tryAttack(G.me); step(70, { god: true });   // 沒砍到東西 → 不會有沙暴
+      ok('sandcrescent', !G.fx.some(x => x.k === 'sstorm'), '月牙沒砍到東西也捲起了沙暴'); }
     use('darkmoon'); { const e = mk('skel', 50, 0); e.stun = 0; G.me.skillCd = 0; C.trySkill(G.me); step(40, { god: true }); ok('darkmoon', e.slowT > 0 || e.spd0 != null, '月光劍浪沒有留下冷月光'); }
     use('elfbow'); { mk('skel', 90, 0); let royal = false; for (let i = 0; i < 6; i++) { G.me.atkCd = 0; C.tryAttack(G.me); step(20, { god: true }); if (G.projs.some(p => p.royal)) royal = true; } ok('elfbow', royal, '第 6 箭沒有王之箭'); }
     use('elfrapier'); { const e = mk('skel', 20, 0); hitN(e, 4); const h = e.hp; G.me.crit = 0; const n0 = G.nums.length; hitN(e, 1); ok('elfrapier', G.nums.slice(n0).some(n => n.big) && h - e.hp > G.me.atkPow, '5 層月痕沒有爆發'); }

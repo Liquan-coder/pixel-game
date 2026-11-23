@@ -21,25 +21,24 @@ function flush(B: Bins, q: number) {
     ctx.globalAlpha = q * AL[a]; ctx.fillStyle = SAND[c]; artPath(); for (let i = 0; i < P.length; i += 3) artDot(P[i], P[i + 1], P[i + 2]); ctx.fill(); }
 }
 
-/** 沙暴：o = { x, y, age, t }（t = 剩下幾秒）。漏斗高 H、底部半寬 W0、頂部半寬 W1 */
+/** 沙暴：o = { x, y, age, t }（t = 剩下幾秒）。貼著地面的一大片旋轉的沙（不是龍捲風）：
+    沙粒排成 3 條往中間捲的旋臂（像漩渦），從外圈一路被吸到中間（越裡面轉越快），只微微離地 → 看得出「把東西往中間吸」。
+    R = 半徑（吸的範圍是 56，畫面上小一點） */
 export function drawSandstorm(o, _L?) {
-  const q = Math.min(1, o.age / .2, o.t / .35), H = 38, W0 = 4, W1 = 22, T = G.time, B = newBins();
-  for (let k = 0; k < 50; k++) {                                         // 地上：一圈被風掃著跑的沙（扁扁的橢圓，每顆拖一條尾巴）
-    const r = 6 + hash(k + 300) * 22, a = T * (3 - r * .035) + hash(k + 310) * TAU, c = hash(k + 320) < .5 ? 0 : 1;
-    for (let j = 0; j < 3; j++) { const aj = a - j * .1; grain(B, Math.max(0, c - (j > 1 ? 1 : 0)), r > 24 || j ? 0 : 1, o.x + Math.cos(aj) * r, o.y + Math.sin(aj) * r * .32, 2); } }
-  for (let k = 0; k < 240; k++) {                                        // 漏斗：每顆沙從底部繞著轉、一路往上捲，越高圈越大
-    const u = (hash(k) + T * (.55 + hash(k + 50) * .35)) % 1, h = u * H;
-    const edge = 1 - .4 * hash(k + 90) ** 2;                             // 大部分貼在漏斗外緣（輪廓才清楚），少數在裡面
-    let rad = (W0 + (W1 - W0) * u ** .8) * edge; if (u > .85) rad *= 1 + (u - .85) * 3;   // 到頂了往外甩出去
-    const a = T * (8 - u * 3) + hash(k + 20) * TAU, fade = Math.min(1, (1 - u) * 5, u * 10);   // 頂端散掉、底部剛捲起來
-    if (fade < .15) continue;
-    const at = (aa: number) => [o.x + Math.cos(aa) * rad, o.y - h + Math.sin(aa) * rad * .3];
-    const front = Math.sin(a), c = front > .35 ? (hash(k + 7) < .3 ? 4 : 3) : front > -.35 ? 2 : (hash(k + 7) < .5 ? 0 : 1);   // 前面亮、後面暗 → 看得出是一個會轉的立體漏斗
-    const al = fade < .5 ? 0 : front > -.35 ? 2 : 1, s = hash(k + 33) < .35 ? 3 : 2;
-    const [x, y] = at(a); grain(B, c, al, x, y, s);
-    for (let j = 1; j <= 2; j++) { const [tx, ty] = at(a - j * .13); grain(B, Math.max(0, c - j), Math.max(0, al - j), tx, ty, Math.max(1, s - 1)); }   // 後面拖兩顆、越來越淡 → 一條條被風捲著跑的沙線
+  const q = Math.min(1, o.age / .2, o.t / .35), R = 46, T = G.time, B = newBins(), ARMS = 3;
+  for (let k = 0; k < 480; k++) {
+    const u = (hash(k) + T * (.4 + hash(k + 50) * .25)) % 1;            // 0 = 剛從外圈進來，1 = 被吸到中間
+    const rr0 = (1 - u) ** .85, r = R * rr0 * (.9 + hash(k + 90) * .2);
+    const arm = k % ARMS, a = arm * TAU / ARMS + (1 - rr0) * 2.6 + T * 3 + (hash(k + 20) - .5) * .7;   // 旋臂：越往裡面扭得越多；同一條臂上有一點寬度
+    const x0 = Math.cos(a), y0 = Math.sin(a), h = u * u * 6 * (.5 + hash(k + 60));   // 越靠近中間捲得越高一點（最多離地幾個像素）
+    const fade = Math.min(1, u * 6, (1 - u) * 4); if (fade < .15) continue;   // 外圈剛出現、中間消失
+    const x = o.x + x0 * r, y = o.y - h + y0 * r * .34;
+    const c = y0 > .3 ? (hash(k + 7) < .35 ? 3 : 2) : y0 > -.3 ? (hash(k + 7) < .5 ? 2 : 1) : (hash(k + 7) < .5 ? 0 : 1);   // 前面（靠近鏡頭）亮、後面暗
+    const al = fade < .45 ? 1 : 2;
+    grain(B, c, al, x, y, hash(k + 33) < .35 ? 3 : 2);
+    const a2 = a - .14; grain(B, Math.max(0, c - 1), 1, o.x + Math.cos(a2) * r, o.y - h + Math.sin(a2) * r * .34, 2);   // 拖一顆淡的 → 一條條被風掃過的沙線
   }
-  flush(B, q * .8); ctx.globalAlpha = 1;   // 整體淡一點：月牙刀的招牌是配角，不要蓋過打擊感
+  flush(B, q * .9); ctx.globalAlpha = 1;
 }
 
 /** 沙泉：f = { x, y, r }，k = 0 → 1（約 0.6 秒）。沙從中間噴上去、往外散、落回地上變成一圈沙 */

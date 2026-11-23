@@ -103,7 +103,7 @@ function erupt(pl: Player, cx: number, cy: number) {
 /* 巢母雙頭刀「蛛網」：打中黏上蛛網 3 秒：變慢、受到的傷害 +20% */
 function web(e: Enemy) { const fresh = !(e.webT > G.time); e.webT = G.time + 3; slow(e, 3, .55);   // 網本身畫在 render/enemy.ts 的 drawWeb
   if (fresh) { e.webT0 = G.time; e.webR = rr(0, TAU); ring(e.x, e.y - 8, 18, '#f0f0f8', .22); parts(e.x, e.y - 8, 14, ['#ffffff', '#f0f0f8', '#c8c8d8'], 70); } }
-/* 沙王的月牙刀「沙暴月」：月牙砍到敵人就回頭，在那裡捲起一陣沙暴（1.6 秒），把附近的怪吸過去（沒砍到 → 飛到最遠回頭時捲） */
+/* 沙王的月牙刀「沙暴月」：月牙砍到敵人就回頭，在那隻腳下捲起一片貼地的沙暴（1.6 秒），把附近的怪吸過去（沒砍到就沒有） */
 function sandstorm(pl: Player, x: number, y: number) {
   const n: Ent = { k: 'sand', pl, x, y, t: 1.6, age: 0, tick: 0 }; ents.push(n);
   G.fx.push({ k: 'sstorm', o: n, t: 0, d: 99 });                         // 小龍捲風本體（render/sand.ts：一粒粒沙子捲成的漏斗）
@@ -193,9 +193,9 @@ export function sigProj(p: any, dt: number) {
       const a = cur + Math.max(-7 * dt, Math.min(7 * dt, d)); p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; }
     if (Math.random() < .7) G.parts.push({ x: p.x + rr(-2, 2), y: p.y + rr(-2, 2), vx: 0, vy: 0, life: .35, max: .35, col: pick(['#2a1040', '#6a3aa0', '#40e0c0']), star: rr(.6, 1.4) }); }
   else if (k === 'elfbow' && p.royal && p.hit && p.hit.size > 0) splitRoyal(p);
-  else if (k === 'sandcrescent' && p.kind === 'boom' && !p.sand && (p.back || p.hit.size > 0)) {   // 砍到敵人就立刻回頭、在那裡捲起沙暴（沒砍到 → 飛到最遠回頭時才捲）
+  else if (k === 'sandcrescent' && p.kind === 'boom' && !p.sand && p.hit.size > 0) {   // 砍到敵人：去程就立刻回頭；沙暴捲在被砍到的那隻腳下（一道月牙只捲一次，沒砍到就沒有）
     p.sand = true; if (!p.back) p.age = Math.max(p.age || 0, p.ret);   // 讓 boomMotion 下一幀就開始回程
-    let x = p.x, y = p.y + 7; if (!p.back) for (const e of p.hit) { x = e.x; y = e.y; break; }   // 沙暴捲在被砍到的那隻腳下
+    let x = p.x, y = p.y + 7; for (const e of p.hit) { x = e.x; y = e.y; break; }
     sandstorm(p.by, x, y); }
   else if (k === 'darkmoon' && p.kind === 'wave') { if (p.mlx == null || Math.hypot(p.x - p.mlx, p.y - p.mly) > 16) { p.mlx = p.x; p.mly = p.y; ents.push({ k: 'moon', pl: p.by, x: p.x, y: p.y + 7, t: 2.5 }); } }
 }
@@ -229,9 +229,9 @@ export function sigTick(dt: number) {
       if (Math.random() < dt * 40) G.parts.push({ x: n.x + rr(-14, 14), y: n.y - rr(0, 6), vx: rr(-6, 6), vy: -rr(25, 55), life: rr(.3, .55), max: .55, col: pick(['#ff6a2a', '#ffb040', '#ffe08a', '#c0301a']), star: rr(.7, 1.6), drag: 1 });
       n.tick -= dt; if (n.tick <= 0) { n.tick = .5; for (const e of H.targets(pl)) if (e.hp > 0 && Math.hypot(e.x - n.x, e.y - n.y) < 18 + e.r) H.damage(pl, e, .15, n.x, n.y - 6, { proc: true, kb: 0 }); }
       if (n.t <= 0) ents.splice(i, 1); }
-    else if (n.k === 'sand') {                                           // 沙暴：把附近的小怪往中間吸，每 0.3 秒刮一下
+    else if (n.k === 'sand') {                                           // 沙暴：把附近的小怪往中間吸，每 0.3 秒刮一下（揚起的沙貼著地面、繞著轉、往中間吸）
       n.age += dt;
-      for (let s = 0; s < 2; s++) { const a = rr(0, TAU), r = rr(6, 28), h = rr(0, 20); G.parts.push({ x: n.x + Math.cos(a) * r, y: n.y - h + Math.sin(a) * r * .35, vx: -Math.sin(a) * 120, vy: Math.cos(a) * 40 - 20, life: .35, max: .35, col: pick(['#d8b870', '#b89850', '#f0e0a8', '#8a6a3a']), s: Math.random() < .3 ? 2 : 1, drag: 2 }); }   // 捲起來的沙塵、碎石
+      for (let s = 0; s < 2; s++) { const a = rr(0, TAU), r = rr(14, 48), h = rr(0, 4); G.parts.push({ x: n.x + Math.cos(a) * r, y: n.y - h + Math.sin(a) * r * .35, vx: -Math.sin(a) * 90 - Math.cos(a) * 40, vy: (Math.cos(a) * 90 - Math.sin(a) * 40) * .35 - 6, life: .35, max: .35, col: pick(['#d8b870', '#b89850', '#f0e0a8', '#8a6a3a']), s: Math.random() < .3 ? 2 : 1, drag: 2 }); }   // 捲起來的沙塵、碎石
       for (const e of H.targets(pl)) { if (e.boss || e.hp <= 0) continue; const dx = n.x - e.x, dy = n.y - e.y, d = Math.hypot(dx, dy); if (d < 56 && d > 4) { moveEnt(e, dx / d * 85 * dt, dy / d * 85 * dt);
         if (Math.random() < dt * 20) G.parts.push({ x: e.x + rr(-5, 5), y: e.y - rr(2, 12), vx: dx / d * 90, vy: dy / d * 50, life: .25, max: .25, col: '#f0e0a8', s: 1 }); } }   // 被吸過去的怪身上拖著沙
       n.tick -= dt; if (n.tick <= 0) { n.tick = .3; H.aoe(pl, n.x, n.y, 40, .2, { proc: true, kb: 0 }); }
