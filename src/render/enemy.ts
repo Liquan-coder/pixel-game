@@ -28,6 +28,7 @@ export function drawEnemy(e) {
   if (e.boss && G.B && G.B.phase === 2 && sp.eye) { const X = snapF(-sp.w / 2), Y = snapF(-sp.h), ex = (e.flip ? sp.aw - sp.eye[0] - 3 : sp.eye[0]) * HK;
     ctx.fillStyle = '#ff3b3b'; ctx.globalAlpha = .5 + .5 * Math.sin(G.time * 12); ctx.fillRect(X + ex - HK, Y + (sp.eye[1] - 1) * HK, HK * 5, HK * 3); ctx.globalAlpha = 1; }
   ctx.restore();
+  if (e.webT > G.time && e.hp > 0) drawWeb(e, sp);                      // 巢母雙頭刀「蛛網」：整隻怪被一張白色蛛網罩住
   if (e.iceT) { if (e.iceT > G.time && e.hp > 0) drawIceCrystal(e.x, e.y + 2, G.time - (e.iceT0 || 0), e.iceT - G.time);   // 寒霜刻印凍住了（art/iceCrystal.ts）
     else { e.iceT = 0; iceShatter(e.x, e.y + 2); sfx.iceBreak(); } }                                           // 時間到 / 被打死：冰晶碎掉
   const hpBar = !e.boss && (e.hp < e.maxHp || e.elite), top = e.iceT > G.time ? Math.min(e.y - sp.h, e.y + 1 - iceTop()) : e.y - sp.h;   // 被凍住：血條、圖示移到冰晶上面
@@ -38,6 +39,24 @@ export function drawEnemy(e) {
   }
   if (e.hp > 0) sealIcons(e, top - (hpBar ? 6 : 3));
 }
+/* 蛛網：8 根放射的絲 + 3 圈（每圈往中心垂一點），兩條絲黏到地上。剛黏上時從大張縮回來，最後 0.6 秒慢慢淡掉。
+   先畫一層深色的影子（往下偏 1 細像素），雪地、白色的怪身上也看得到 */
+function drawWeb(e, sp) {
+  const age = G.time - (e.webT0 ?? e.webT - 3), left = e.webT - G.time, grow = Math.min(1, age / .16), sc = 1 + .6 * (1 - grow) ** 2;
+  const R = Math.max(7, Math.min(16, Math.max(sp.w, sp.h) * .6)) * sc, cx = e.x, cy = e.y + 2 - sp.h * .5, N = 8, rot = (e.webR ??= Math.random() * TAU_W);
+  const spoke = (i: number, f: number) => { const a = rot + i * TAU_W / N, w = 1 + .12 * Math.sin(i * 2.7 + rot * 5); return [cx + Math.cos(a) * R * f * w, cy + Math.sin(a) * R * f * w * .9]; };
+  const lines = (dy: number) => { artPath();
+    for (let i = 0; i < N; i++) { const [x, y] = spoke(i, 1); artLine(cx, cy + dy, x, y + dy, 1); }
+    for (const f of [.34, .64, 1]) for (let i = 0; i < N; i++) { const [x0, y0] = spoke(i, f), [x1, y1] = spoke(i + 1, f), mx = (x0 + x1) / 2 + (cx - (x0 + x1) / 2) * .14, my = (y0 + y1) / 2 + (cy - (y0 + y1) / 2) * .14;   // 每段往中心垂一點
+      artLine(x0, y0 + dy, mx, my + dy, 1); artLine(mx, my + dy, x1, y1 + dy, 1); }
+    for (const s of [-1, 1]) { const [x, y] = spoke(s > 0 ? 1 : 3, 1); artLine(x, y + dy, cx + s * R * .9, e.y + 2 + dy, 1); } };   // 黏到地上的兩條絲
+  const a = Math.min(1, left / .6) * (.55 + .45 * grow);
+  ctx.globalAlpha = a * .55; ctx.fillStyle = '#1e1a2a'; lines(HK); ctx.fill();
+  ctx.globalAlpha = a * .92; ctx.fillStyle = '#f4f4fc'; lines(0); ctx.fill();
+  const u = (G.time * 1.4) % 1, [gx, gy] = spoke(Math.floor(G.time * 1.4) % N, u);   // 一顆亮點沿著絲往外滑（看得出是黏黏亮亮的絲）
+  ctx.globalAlpha = a; ctx.fillStyle = '#ffffff'; ctx.fillRect(asn(gx - HK), asn(gy - HK), HK * 2, HK * 2); ctx.globalAlpha = 1;
+}
+const TAU_W = Math.PI * 2;
 /* 刻印累積：跟主角被打中時頭上的圖示一樣（game/status.ts 的 buildIcon）——血滴 = 出血、雪花 = 凍傷、閃電 = 雷鳴，從下往上亮，快滿會閃；
    火焰 = 燃燒還剩幾秒。累積跟主角一樣會隨時間退：2 秒沒再累積就開始掉，掉到 0 就不見 */
 function sealIcons(e, bottom: number) {

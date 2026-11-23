@@ -101,7 +101,8 @@ function erupt(pl: Player, cx: number, cy: number) {
   firePatch(pl, cx, cy); G.hitStop = Math.max(G.hitStop, .08); H.shake(7, .3); sfx.boom();
 }
 /* 巢母雙頭刀「蛛網」：打中黏上蛛網 3 秒：變慢、受到的傷害 +20% */
-function web(e: Enemy) { const fresh = !(e.webT > G.time); e.webT = G.time + 3; slow(e, 3, .55); if (fresh) parts(e.x, e.y - 8, 8, ['#f0f0f8', '#c8c8d8'], 40); }
+function web(e: Enemy) { const fresh = !(e.webT > G.time); e.webT = G.time + 3; slow(e, 3, .55);   // 網本身畫在 render/enemy.ts 的 drawWeb
+  if (fresh) { e.webT0 = G.time; e.webR = rr(0, TAU); ring(e.x, e.y - 8, 18, '#f0f0f8', .22); parts(e.x, e.y - 8, 14, ['#ffffff', '#f0f0f8', '#c8c8d8'], 70); } }
 /* 沙王的月牙刀「沙暴月」：月牙飛到最遠、要回頭的時候捲起一陣沙暴（1.4 秒），把附近的怪吸過去 */
 function sandstorm(pl: Player, x: number, y: number) {
   const n: Ent = { k: 'sand', pl, x, y, t: 1.6, age: 0, tick: 0 }; ents.push(n);
