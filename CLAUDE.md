@@ -9,7 +9,7 @@
 | `npm run dev` | 開發伺服器 http://localhost:5173/（`--host`，手機可以用區網 IP 連） |
 | `npm run typecheck` | 只檢查型別 |
 | `npm run build` | 型別檢查 + 打包（CI 跑的就是這個） |
-| `npm run playtest` | headless Chrome 自動試玩，幾乎所有程式路徑都會跑過（完整約 2 分鐘，最後印出最慢的測試）。只跑一部分：`ONLY='地城\|機關' npm run playtest` |
+| `npm run playtest` | headless Chrome 自動試玩，幾乎所有程式路徑都會跑過（完整約 2 分鐘）。完整跑只印失敗和總結，`VERBOSE=1` 印全部。只跑一部分：`ONLY='地城\|機關' npm run playtest`（會印全部） |
 | `npm run balance` | 每個地區的生存 / 擊殺數字，超出目標範圍會標 ✗ |
 | `npm run shots -- <資料夾>` | 用幾種手機尺寸截 UI 畫面 |
 | `node scripts/look.mjs a.png "<JS>"` | 開遊戲 → 執行一段 JS → 截圖（JS 裡可以用 `await imp('core/state')`） |
@@ -59,7 +59,19 @@
 
 ## Git 和部署
 - push 到 `main` → GitHub Actions 自動 build → 部署到 GitHub Pages。
-- 流程：改完 → playtest + build 通過 → commit → 請使用者在 localhost:5173 試玩 → 使用者說 OK 才 push。
+- 流程：改完 → 測試（見下面）+ build 通過 → commit → 請使用者在 localhost:5173 試玩 → 使用者說 OK 才 push。
+- **playtest 跑多少看改了什麼**：
+  | 改了什麼 | 要跑 |
+  |---|---|
+  | 只有美術、文字、UI 排版 | 不跑 playtest，build + 一張截圖 |
+  | 一個系統（Boss、地城、某把武器…） | `ONLY='<相關的測試>'` |
+  | 共用規則（戰鬥、存檔、地圖生成、`calcStats`）或 push 一大批 | 完整跑一次（同一個任務不要跑兩次） |
+
+## 省 token
+- 讀進對話的東西會一直留著，之後每一輪都要重送，所以**從源頭讓輸出變小**：
+  - 截圖只看局部就用小尺寸：`node scripts/look.mjs a.png "<JS>" 640 360 1`（預設 1280×720 大約 4 倍 token）。美術要看細節才用大圖。
+  - 大檔案用 `grep` / 讀指定行數，不要整個讀；`src/art/bossArt.ts` 這種自動產生的檔案不要讀。
+- **交給 subagent、只回報結論**：完整 playtest、一次要讀好幾個超過 500 行的檔案、只是要找東西在哪裡。美術截圖不要交出去（要自己看）。
 - **常常有好幾個 session 同時在改這個資料夾。** commit 時只 `git add` 自己改的檔案，也要確認它 import 的東西不是只存在別人還沒 commit 的檔案裡。push 前先在乾淨的 worktree 裡 build 一次 HEAD：
   `git worktree add --detach <暫存>/clean HEAD` → 連結 `node_modules` → `npx tsc --noEmit && npx vite build`
 - `docs/` 在 .gitignore 裡：設計筆記寫在那裡，但**永遠不要 commit**（不要 `git add -f`）。

@@ -1125,7 +1125,10 @@ await send('Runtime.evaluate', { expression: 'window.__ONLY = ' + JSON.stringify
 const r = await send('Runtime.evaluate', { expression: `(${pageScript})()`, awaitPromise: true, returnByValue: true });
 if (r.result.exceptionDetails) console.log('TEST CRASH', r.result.exceptionDetails.exception?.description);
 const { log = [], fails = [] } = r.result.result?.value || {};
-console.log(log.join('\n'));
+// 完整跑的時候 log 很長（很佔 AI 的 token），只印最後的總結；ONLY= 只跑一部分或 VERBOSE=1 才印全部
+const quiet = !process.env.ONLY && !process.env.VERBOSE;
+const sumAt = log.findIndex(l => l.startsWith('\n總共 '));
+console.log(quiet ? `（通過的項目省略 ${sumAt < 0 ? log.length : sumAt} 行，要看全部用 VERBOSE=1）` + (sumAt < 0 ? '' : '\n' + log.slice(sumAt).join('\n')) : log.join('\n'));
 console.log(fails.length ? '\n失敗:\n' + fails.join('\n') : '\n全部通過');
 console.log('頁面錯誤:', pageErrors.length ? pageErrors : '無');
 if (process.argv[3]) {                                              // 第二個參數 = 截圖存檔路徑（可省略）
