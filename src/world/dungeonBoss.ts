@@ -59,9 +59,12 @@ export const DBOSS: Record<string, DBossDef> = {
   drowned: { name: '深淵水鬼', sub: '鎖鏈從水底一路響了上來', lv: 75, hp: 6400, spd: 40, ring: ['#4ad0c0', '#ffffff'], aura: ['#1a6a6a', '#7ff0e0', '#ffffff'], cols: ['#0e2828', '#4fd0c0', '#d8fff8'], proj: 'bolt',
     moves: [['fan', 3, { n: 5, spread: .9, spd: 160, k: .9 }], ['pools', 2, { n: 3, r: 28, t: 4, k: .4, cols: ['#0e2828', '#22544e', '#8cc8b0'] }], ['lash', 2, { L: 160, W: 16, k: 1.4 }]],
     p2: [['nova', 2, { n: 14, spd: 140, k: .8 }], ['summon', 1, { n: 2, max: 3 }]] },
+  // 近衛隊長・殘燈：骷髏劍士，右手長劍、左手提燈。劍：大步突刺、下劈、二階段「劈、撩、刺」連段；只踏步突進一次（不會連衝三次）。
+  // 燈：甩燈噴出火星（扇射）、甩出燈油在地上燒（毒池）、二階段舉燈讓燈火往外炸一圈（甜甜圈）。舉劍叫醒近衛。動作在 render/bossAnim.ts
   captain: { name: '近衛隊長・殘燈', sub: '「誰？報上名來。」', lv: 42, hp: 3600, spd: 56, ring: ['#f2c14e', '#ffffff'], aura: ['#c0862c', '#ffe38a', '#ffffff'], cols: GOLD, proj: 'claw',
-    moves: [['combo', 3, { L: 120, W: 24, spd: 360, k: 1.1 }], ['sweep', 2, { r: 60, half: 1.2, k: 1.3 }], ['fan', 2, { n: 3, spread: .5, spd: 180, k: 1 }]],
-    p2: [['summon', 1, { n: 3, max: 4 }], ['rain', 2, { n: 7, r: 22, k: 1.1, cols: BONE }]] },
+    moves: [['thrust', 3, { L: 86, W: 14, k: 1.2, step: 22 }], ['sweep', 3, { r: 60, half: 1.2, k: 1.3 }], ['fan', 2, { n: 3, spread: .5, spd: 180, k: 1 }], ['charge', 1, { L: 140, W: 22, spd: 330, k: 1.2, wind: 1.3, minD: 90 }]],
+    p2: [['chain', 3, { seq: [['sweep', { r: 60, half: 1.2, k: 1.2 }], ['sweep', { r: 60, half: 1.2, k: 1.2, rev: true }], ['thrust', { L: 92, W: 14, k: 1.3, step: 24 }]] }],
+      ['pools', 2, { n: 3, r: 24, t: 4, k: .4, cols: ['#5a1408', '#f07a32', '#ffd04a'] }], ['summon', 1, { n: 3, max: 4 }]] },
   forgeguard: { name: '熔爐守護者', sub: '熔爐重新點火了', lv: 55, hp: 5200, spd: 26, ring: ['#ff8a3a', '#fff0a0'], aura: ['#ff6a2a', '#ffb040', '#fff0a0'], cols: F, proj: 'ember',
     moves: [['slam', 3, { r: 64, k: 1.5 }], ['lash', 2, { L: 170, W: 22, k: 1.3, trail: F }], ['rain', 2, { n: 8, r: 24, k: 1.1, cols: F }]],
     p2: [['nova', 2, { n: 14, spd: 140, k: .8 }], ['summon', 1, { n: 2, max: 3 }]] },
@@ -89,7 +92,7 @@ const EXTRA: Record<string, [Move[], Move[]]> = {
   broodmother: [[HOMING(4, .8)], [PULL(50)]], rootheart: [[PULL(58)], [HOMING(4)]],     scorpion: [[], [DONUT(42, 118)]],
   sandking: [[PULL(56)], [CROSS(), HOMING(4)]], salamander: [[], [DONUT()]],          magmaworm: [[PULL(56)], [DONUT()]],
   icequeen: [[HOMING(3)], [DONUT(), CROSS()]], frostknight: [[DONUT(46, 120)], []], toadking: [[PULL(56, 1.4)], [HOMING(4)]],
-  drowned: [[PULL(58)], [HOMING(4), DONUT()]], captain: [[CROSS(160, 1.3)], [DONUT()]],  forgeguard: [[DONUT(48, 128, 1.4)], [CROSS(), PULL(60)]],
+  drowned: [[PULL(58)], [HOMING(4), DONUT()]], captain: [[], [DONUT()]],  forgeguard: [[DONUT(48, 128, 1.4)], [CROSS(), PULL(60)]],
   starwarden: [[CROSS(190), HOMING(4)], [PULL(60), DONUT(46, 130)]],
   mothqueen: [[DONUT(44, 120)], [HOMING(4, .8)]],
 };

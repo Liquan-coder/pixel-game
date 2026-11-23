@@ -3,6 +3,7 @@
    招式：
    charge 衝撞（直線預警 → 往前衝，撞到就受傷；trail = 身後留下一灘；wind = 預警秒數倍率；minD = 太近不衝）  combo 連續三次衝撞
    thrust 刺（拿長兵器的：往後收 → 往前刺一條短直線，身體往前踏 step）
+   sweep 的 rev = 反手（上撩）：只影響動作，範圍一樣
    chain  連段：seq 裡的招一招接一招，後面的預警縮短（例：刺、刺、橫掃）。比 combo 合理：拿武器的就該用武器連段
    ※ 每一招打出去的瞬間會記 e.act = { k, t0, aim }，render/bossAnim.ts 用它畫「出招後的收招動作」
    slam   砸地（自己周圍一圈）        leap  跳到你頭上砸下來（落點一圈；pool = 落地留一灘）
@@ -190,7 +191,7 @@ AI.dgn = (e, dt, d, dx, dy) => {
       e.t -= dt; if (e.t > .2) { e.aim = Math.atan2(dy, dx); e.flip = dx < 0; e.tele = [{ k: 'sector', r: o.r, a: e.aim, half: o.half }]; }
       if (e.t <= 0) { e.tele = null;
         for (const pl of G.players) { const pd = Math.hypot(pl.x - e.x, pl.y - e.y); if (pd < o.r - DG && angDiff(Math.atan2(pl.y - e.y, pl.x - e.x), e.aim) < o.half - DG / Math.max(pd, 20) && hurtPlayer(pl, dmgOf(e, o), e.x, e.y)) hitSpark(pl.x, pl.y - 8, true, e.aim); }
-        sweepFx(e, o); e.act = { k: 'sweep', t0: G.time, aim: e.aim, half: o.half };
+        sweepFx(e, o); e.act = { k: 'sweep', t0: G.time, aim: e.aim, half: o.half, rev: o.rev };
         if (o.wave && p2) for (let i = 0; i < o.wave; i++) shoot(e, e.aim + (i - (o.wave - 1) / 2) * .4, o.wspd || 150, dmgOf(e, { k: o.wk || .8 }));   // 二階段：橫掃順勢甩出寒氣
         sfx.swing(); shake(3, .12); done(e, rr(.6, .9) * wk, dx, dy); }
       break;
@@ -217,7 +218,7 @@ AI.dgn = (e, dt, d, dx, dy) => {
         e.act = { k: 'lash', t0: G.time, aim: e.aim }; sfx.swing(); shake(3, .12); done(e, rr(.6, .9) * wk, dx, dy); }
       break;
     case 'fanWind':
-      e.t -= dt; if (e.t <= 0) { e.tele = null; for (const a of e.shots) shoot(e, a, o.spd, dmgOf(e, o));
+      e.t -= dt; if (e.t <= 0) { e.tele = null; for (const a of e.shots) shoot(e, a, o.spd, dmgOf(e, o)); e.act = { k: 'toss', t0: G.time, aim: e.aim };
         G.fx.push({ k: 'warp', x: e.x, y: e.y - 12, r0: 8, r1: 30, th: 3, t: 0, d: .25, col: colsOf(e)[1] }); burst(e.x, e.y - 12, TH(e).impact, 6); sfx.fire(); e.state = 'idle'; e.t = rr(.6, .9) * wk; }
       break;
     case 'novaWind':
@@ -228,7 +229,7 @@ AI.dgn = (e, dt, d, dx, dy) => {
       e.t -= dt; if (e.t <= 0) { e.act = { k: 'plant', t0: G.time, aim: e.aim }; e.state = 'idle'; e.t = rr(.5, .8) * wk; }
       break;
     case 'poolWind':
-      e.t -= dt; if (e.t <= 0) { e.tele = null; for (const q of e.cpts) pool(e, q.x, q.y, o.r, o.t + (p2 ? 1 : 0), Math.round(base(e) * o.k), o.cols || colsOf(e)); sfx.skill(); e.state = 'idle'; e.t = rr(.6, .9) * wk; }
+      e.t -= dt; if (e.t <= 0) { e.tele = null; for (const q of e.cpts) pool(e, q.x, q.y, o.r, o.t + (p2 ? 1 : 0), Math.round(base(e) * o.k), o.cols || colsOf(e)); sfx.skill(); e.act = { k: 'toss', t0: G.time, aim: e.aim }; e.state = 'idle'; e.t = rr(.6, .9) * wk; }
       break;
     case 'sinkWind':                                                     // 鑽進地底
       e.t -= dt; if (e.t <= 0) { e.state = 'under'; e.t = 1.1; } break;
