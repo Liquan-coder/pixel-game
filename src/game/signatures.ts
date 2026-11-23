@@ -103,7 +103,11 @@ function erupt(pl: Player, cx: number, cy: number) {
 /* 巢母雙頭刀「蛛網」：打中黏上蛛網 3 秒：變慢、受到的傷害 +20% */
 function web(e: Enemy) { const fresh = !(e.webT > G.time); e.webT = G.time + 3; slow(e, 3, .55); if (fresh) parts(e.x, e.y - 8, 8, ['#f0f0f8', '#c8c8d8'], 40); }
 /* 沙王的月牙刀「沙暴月」：月牙飛到最遠、要回頭的時候捲起一陣沙暴（1.4 秒），把附近的怪吸過去 */
-function sandstorm(pl: Player, x: number, y: number) { ents.push({ k: 'sand', pl, x, y, t: 1.4, tick: 0 }); ring(x, y, 40, '#d8b870', .35); sfx.ignite(); }
+function sandstorm(pl: Player, x: number, y: number) {
+  const n: Ent = { k: 'sand', pl, x, y, t: 1.6, age: 0, tick: 0 }; ents.push(n);
+  G.fx.push({ k: 'sstorm', o: n, t: 0, d: 99 });                         // 小龍捲風本體（render.ts 畫：地上的影子 + 四條往上捲的沙臂）
+  ring(x, y, 48, '#d8b870', .4); parts(x, y - 6, 20, ['#d8b870', '#b89850', '#f0e0a8'], 120, { s: 1, drag: 2 }); H.shake(2, .15); sfx.wind();
+}
 /* 精靈王的長弓「王之箭」：每第 6 箭多射一支金色大箭，第一次打中就分裂成 3 支 */
 const ROYALC = ['#8a6a10', '#ffe08a', '#ffffff'];
 function royalArrow(pl: Player) {
@@ -208,10 +212,12 @@ export function sigTick(dt: number) {
       n.tick -= dt; if (n.tick <= 0) { n.tick = .5; for (const e of H.targets(pl)) if (e.hp > 0 && Math.hypot(e.x - n.x, e.y - n.y) < 18 + e.r) H.damage(pl, e, .15, n.x, n.y - 6, { proc: true, kb: 0 }); }
       if (n.t <= 0) ents.splice(i, 1); }
     else if (n.k === 'sand') {                                           // 沙暴：把附近的小怪往中間吸，每 0.3 秒刮一下
-      for (let s = 0; s < 3; s++) { const a = G.time * 9 + s * TAU / 3 + rr(-.3, .3), r = rr(6, 38); G.parts.push({ x: n.x + Math.cos(a) * r, y: n.y - 6 + Math.sin(a) * r * .5, vx: -Math.sin(a) * 90, vy: Math.cos(a) * 45, life: .3, max: .3, col: pick(['#d8b870', '#b89850', '#f0e0a8']), s: 1, drag: 2 }); }
-      for (const e of H.targets(pl)) { if (e.boss || e.hp <= 0) continue; const dx = n.x - e.x, dy = n.y - e.y, d = Math.hypot(dx, dy); if (d < 52 && d > 4) moveEnt(e, dx / d * 80 * dt, dy / d * 80 * dt); }
+      n.age += dt;
+      for (let s = 0; s < 6; s++) { const a = rr(0, TAU), r = rr(8, 46), h = rr(0, 30); G.parts.push({ x: n.x + Math.cos(a) * r, y: n.y - h + Math.sin(a) * r * .35, vx: -Math.sin(a) * 120, vy: Math.cos(a) * 40 - 20, life: .35, max: .35, col: pick(['#d8b870', '#b89850', '#f0e0a8', '#8a6a3a']), s: Math.random() < .3 ? 2 : 1, drag: 2 }); }   // 捲起來的沙塵、碎石
+      for (const e of H.targets(pl)) { if (e.boss || e.hp <= 0) continue; const dx = n.x - e.x, dy = n.y - e.y, d = Math.hypot(dx, dy); if (d < 56 && d > 4) { moveEnt(e, dx / d * 85 * dt, dy / d * 85 * dt);
+        if (Math.random() < dt * 20) G.parts.push({ x: e.x + rr(-5, 5), y: e.y - rr(2, 12), vx: dx / d * 90, vy: dy / d * 50, life: .25, max: .25, col: '#f0e0a8', s: 1 }); } }   // 被吸過去的怪身上拖著沙
       n.tick -= dt; if (n.tick <= 0) { n.tick = .3; H.aoe(pl, n.x, n.y, 40, .2, { proc: true, kb: 0 }); }
-      if (n.t <= 0) ents.splice(i, 1); }
+      if (n.t <= 0) { n.done = true; ents.splice(i, 1); } }
     else if (n.k === 'moon') {                                           // 暗月光：月光劍浪經過的地方留下冷光，踩到的怪變慢
       if (Math.random() < dt * 10) G.parts.push({ x: n.x + rr(-10, 10), y: n.y - rr(0, 4), vx: 0, vy: -rr(5, 15), life: .6, max: .6, col: pick(['#8aa0ff', '#c8d8ff', '#eef4ff']), star: rr(.5, 1.1) });
       for (const e of G.enemies) if (e.hp > 0 && Math.hypot(e.x - n.x, e.y - n.y) < 14 + e.r) slow(e, .5, .5);

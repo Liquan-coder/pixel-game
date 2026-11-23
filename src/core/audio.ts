@@ -56,6 +56,7 @@ export const sfx = {
   thunder: () => { noiseHit(.3, .22, 3000); tone(1800, .08, 'square', .03, -1500); tone(90, .35, 'sawtooth', .06, -50, .04); noiseHit(.25, .14, 400); },   // 落雷：「啪」一聲 + 低低的轟
   noSt: () => { tone(160, .1, 'square', .03, -40); },                                                                            // 體力不夠瞬移：悶悶的一聲
   perfect: () => { [1568, 2093, 2637].forEach((f, i) => tone(f, .18, 'triangle', .035, 0, i * .035)); noiseHit(.12, .06, 6000); },   // 完美閃避：清亮的「叮鈴」
+  wind: () => { noiseHit(.3, .16, 700); noiseHit(.3, .1, 2200); tone(180, .6, 'sawtooth', .02, 120); },                       // 沙暴：「呼——」
   splash: () => { noiseHit(.3, .14, 1800); tone(300, .2, 'sine', .03, -150); },                                             // 潮汐：水浪
   block: () => { tone(1320, .12, 'square', .03, -300); tone(660, .18, 'triangle', .04, 0, .02); noiseHit(.08, .1, 4000); },   // 近衛之盾擋下：「鏘」
   soulTake: () => { tone(660, .12, 'sine', .035, 500); tone(990, .16, 'sine', .025, 400, .06); },                                 // 靈魂被吸進武器
