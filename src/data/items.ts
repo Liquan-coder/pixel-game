@@ -83,7 +83,7 @@ export const KIND = {
 /* ================= 武器 =================
    攻擊力 = 武器的基礎攻擊（每種武器固定）× 強化倍率。沒有品階、沒有隨機詞綴：
    一把 +0 長劍不管在哪裡撿到都一樣強，要變強就拿素材去鐵匠那裡強化（+1 ～ +10，見 data/forge.ts）。
-   想要出血、燃燒…… 就裝「刻印」（可以拆下來換到別把）。獨特武器（data/uniques.ts）有固定的效果，不能裝刻印。 */
+   想要出血、燃燒…… 就請村莊的鐵匠把「刻印」敲到武器上（一把一次，敲上去就拆不下來，見 data/forge.ts 的 stampSeal）。獨特武器（data/uniques.ts）有固定的效果，不能裝刻印。 */
 export const UP_MAX = 10;
 export const upMult = (up: number) => 1 + .32 * (up || 0);               // +10 ≈ 4.2 倍
 export const wBase = (it: Item) => it.uq && UQ[it.uq] ? UQ[it.uq].base : WT[it.type].base;
@@ -99,7 +99,7 @@ export function makeUnique(key: string, up = 0): Item {
   const U = UQ[key];
   return refreshWeapon({ id: G.uid++, slot:'weapon', type: U.type, ilvl: 0, rarity: 4, up, aff: { ...U.aff }, name: U.name, uq: key });
 }
-/** 讀檔時補齊：舊的獨特武器對回編號；一般武器拿掉隨機詞綴（刻印保留，之後可以拆下來） */
+/** 讀檔時補齊：舊的獨特武器對回編號；一般武器拿掉隨機詞綴（刻印保留） */
 export function fixWeapon(it: Item) {
   if (!WT[it.type]) return it;
   const k = it.uq || UQ_BY_NAME[it.name];
@@ -107,15 +107,10 @@ export function fixWeapon(it: Item) {
   else { it.aff = {}; if (it.fx && !WFXD[it.fx]) delete it.fx; it.rarity = it.fx ? 3 : 0; it.name = wName(it.type, it.fx); }
   return refreshWeapon(it);
 }
-/** 把刻印裝到一般武器上（原本的刻印變回道具，回傳它；沒有就回傳 null） */
-export function attachSeal(w: Item, seal: Item): Item | null {
-  if (w.uq || seal.slot !== 'seal') return null;
-  const old = w.fx ? makeSeal(w.fx) : null;
-  w.fx = seal.fx; w.rarity = 3; w.name = wName(w.type, w.fx); return old;
-}
-export function detachSeal(w: Item): Item | null {
-  if (w.uq || !w.fx) return null;
-  const s = makeSeal(w.fx); delete w.fx; w.rarity = 0; w.name = wName(w.type); return s;
+/** 把刻印刻到一般武器上（永久，拆不下來）。獨特武器、已經有刻印的武器 → 不動，回傳 false。要花素材的版本是 data/forge.ts 的 stampSeal */
+export function attachSeal(w: Item, seal: Item) {
+  if (w.uq || w.fx || seal.slot !== 'seal') return false;
+  w.fx = seal.fx; w.rarity = 3; w.name = wName(w.type, w.fx); return true;
 }
 /** 舊名稱相容：makeItem(type, 強化等級, 稀有度) → 稀有度不再有意義 */
 export const makeItem = (type: string, up: number, _rarity?: number) => makeWeapon(type, up);

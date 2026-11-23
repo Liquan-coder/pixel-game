@@ -348,15 +348,25 @@ const pageScript = async () => {
     G.me.weapon = makeItem('sword', 0, 0); recalc(G.me);
   });
 
-  run('裝備新制：刻印拆裝、飾品欄、防具強化、效果、舊存檔換算', () => {
+  run('裝備新制：刻印（鐵匠敲上去、拆不下來）、飾品欄、防具強化、效果、舊存檔換算', () => {
     const I = ITEMS, F = await0.forge, P = PLAYER; setMenu(null);
-    // 刻印：裝上 → 武器有效果；拆下 → 變回道具
-    G.me.weapon = makeItem('sword', 0, 0); G.me.inv = [I.makeSeal('bleed')]; recalc(G.me);
+    // 刻印：背包裡不能自己裝；鐵匠花星砂敲上去（按兩次）→ 武器有效果、改名；之後拆不下來、也不能換
+    G.me.weapon = makeItem('sword', 0, 0); G.me.inv = [I.makeSeal('bleed'), I.makeSeal('burn')]; recalc(G.me);
     const slot = k => document.querySelector('#invMenu [data-eq="' + k + '"]');   // 中間的裝備欄（選了東西之後點它 = 放進去）
-    menus.toggleInv(); G.selItem = G.me.inv[0].id; menus.renderInv(); slot('weapon').click();
-    if (G.me.weapon.fx !== 'bleed' || G.me.inv.length) throw new Error('刻印沒有裝上：' + JSON.stringify(G.me.weapon));
-    G.selItem = G.me.weapon.id; menus.renderInv(); document.querySelector('#cInfo [data-act="unseal"]').click();   // 選著有刻印的武器 → 左上的選中卡有「拆下刻印」
-    if (G.me.weapon.fx || G.me.inv[0]?.fx !== 'bleed') throw new Error('刻印沒有拆下來');
+    menus.toggleInv(); G.selItem = G.me.inv[0].id; menus.renderInv();
+    if (document.querySelector('#cInfo [data-act="equip"]')) throw new Error('背包裡的刻印還有「裝上」按鈕');
+    slot('weapon').click(); if (G.me.weapon.fx) throw new Error('點武器欄還是自己裝上了刻印');
+    setMenu(null); const C = F.SEAL_COST; G.me.mats = { [C.mat]: C.n + 1 };
+    shop.openShop(await0.towns.NPCS.find(n => n.smith)); document.querySelector('#sealTab').click(); document.querySelector('#shopMenu [data-sw="' + G.me.weapon.id + '"]').click();
+    const go = () => document.querySelector('#shopMenu [data-stamp]');
+    go().click(); if (G.me.weapon.fx) throw new Error('「敲上去」按一次就敲了（應該要再按一次確認）');
+    go().click();
+    if (G.me.weapon.fx !== 'bleed' || G.me.weapon.name !== '血棘長劍' || G.me.inv.length !== 1 || G.me.mats[C.mat] !== 1) throw new Error('鐵匠沒有把刻印敲上去：' + G.me.weapon.name + ' 背包 ' + G.me.inv.length + ' 星砂 ' + G.me.mats[C.mat]);
+    if (document.querySelector('#shopMenu [data-sw="' + G.me.weapon.id + '"]:not([disabled])')) throw new Error('已經刻過的武器在鐵匠那裡還能選');
+    if (I.attachSeal(G.me.weapon, G.me.inv[0]) || G.me.weapon.fx !== 'bleed') throw new Error('已經有刻印的武器還能換刻印');
+    G.me.mats = {}; const w2 = makeItem('axe', 0, 0); if (F.stampSeal(G.me, w2, G.me.inv[0]) || w2.fx) throw new Error('沒有星砂也能刻');
+    setMenu(null); menus.toggleInv(); G.selItem = G.me.weapon.id; menus.renderInv();
+    if (document.querySelector('#cInfo [data-act="unseal"]')) throw new Error('有刻印的武器還有「拆下刻印」');
     // 飾品：一開始 2 格，第 3 件要換掉一件
     const rb0 = [...RB.rbDead], bd0 = G.bossDead; RB.rbDead.clear(); G.bossDead = false;   // 還沒打倒主線 Boss → 2 格
     if (menus.tSlots() !== 2) throw new Error('一開始飾品欄應該是 2 格：' + menus.tSlots());

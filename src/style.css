@@ -481,6 +481,8 @@ button.fneed{width:100%;text-align:left;font-family:var(--font)}
 .fneed:not(.lack) b{color:var(--r1)}
 .fgo{margin-top:auto;padding:10px;font-size:15px;border:2px solid var(--line);background:var(--panel2);color:var(--muted)}
 .fgo:not(:disabled){background:#3a2e1c;border-color:var(--gold);color:var(--gold);box-shadow:0 0 12px #f2c14e33}
+.fgo.arm:not(:disabled){background:#3a1d24;border-color:var(--hp);color:#ffb0b8;box-shadow:0 0 12px #ff5a6444}   /* 刻印：按第一次之後變紅，再按一次才真的敲 */
+.sealfx{font-size:12px;line-height:1.4;color:#ffe9a8;align-self:stretch}   /* 刻印分頁：選中的刻印效果 */
 @media (max-width:600px){.fgrid{grid-template-columns:1fr}.phr .chip{padding:3px 6px;font-size:12px}}
 @media (max-height:500px){.sico{width:34px;height:34px}.selcard{padding:4px 6px}.fbig{width:60px;height:60px}.fbig img{width:48px;height:48px}.fleft{gap:6px;padding:6px}}
 .cbag{container-type:inline-size}

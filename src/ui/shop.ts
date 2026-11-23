@@ -1,10 +1,10 @@
 import { G } from '../core/state';
 import { $, clamp, pick, ri } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
-import { COIN_SP, DROP_WEAPONS, UP_MAX, ICON_URL, MERCH_SP, RAR, SLOTN, armorStats, gearValue, itemName, makeArmor, makeSeal, makeTrinket, makeWeapon, slotOf } from '../data/items';
+import { COIN_SP, DROP_WEAPONS, UP_MAX, ICON_URL, WT, MERCH_SP, RAR, SLOTN, armorStats, gearValue, itemName, makeArmor, makeSeal, makeTrinket, makeWeapon, slotOf } from '../data/items';
 import { A_UP_MAX, ARMOR_BASIC, ARMOR_BUILD, ARMOR_REGION, TRINKET_KEYS } from '../data/gear';
-import { FX_KEYS } from '../game/weaponFx';
-import { MATS, ORE_URL, PAGES, PAGE_URL, REGION_MAT, atkAt, canUpgrade, doUpgrade, hasPage, maxUp, upCost } from '../data/forge';
+import { FX_KEYS, WFXD } from '../game/weaponFx';
+import { MATS, ORE_URL, PAGES, PAGE_URL, REGION_MAT, SEAL_COST, atkAt, canStamp, canUpgrade, doUpgrade, hasPage, maxUp, stampSeal, upCost } from '../data/forge';
 import type { MatKey } from '../data/forge';
 import { recalc } from '../game/player';
 import { atkSplit } from '../data/attrs';
@@ -58,7 +58,7 @@ export function drawMerchant() {
   drawShadow(m.x, m.y + 1, 14); drawArtSprite(MERCH_SP, m.x, m.y + 3 - bob);
   if (nearMerchant() || Math.floor(G.time * 1.5) % 3 === 0) { const sp = COIN_SP[Math.floor(G.time * 8) % 4]; ctx.drawImage(sp, snapF(m.x - sp.width * HK / 2), snapF(m.y - 24 + Math.sin(G.time * 4)), sp.width * HK, sp.height * HK); }
 }
-export function openShop(v?) { vendor = v || merchant; if (!vendor.stock) vendor.stock = rollSmith(vendor.lv); $('shopName').textContent = vendor.name || '流浪商人'; shopTab = vendor.smith ? 'forge' : 'buy'; shopSel = null; renderShop(); setMenu('shop'); }   // 鐵匠一打開就是「強化」（大多數人來找鐵匠就是要強化）
+export function openShop(v?, tab?: string) { vendor = v || merchant; if (!vendor.stock) vendor.stock = rollSmith(vendor.lv); $('shopName').textContent = vendor.name || '流浪商人'; shopTab = tab || (vendor.smith ? 'forge' : 'buy'); shopSel = null; renderShop(); setMenu('shop'); }   // 鐵匠一打開就是「強化」（大多數人來找鐵匠就是要強化）
 function shopRow(icon, name, sub, price, col, key, dis) {
   return '<button type="button" class="shoprow' + (shopSel === key ? ' sel' : '') + '" data-s="' + key + '"' + (dis ? ' disabled' : '') + '><img alt="" src="' + ICON_URL[icon] + '"><span style="color:' + (col || 'var(--text)') + '">' + name + '<small>' + sub + '</small></span><b class="pr">' + price + '</b></button>';
 }
@@ -117,9 +117,40 @@ function renderForge(body: HTMLElement) {
     N.map(n => '<button type="button" class="fneed' + (n.ok ? '' : ' lack') + (n === cur ? ' on' : '') + '" data-clue="' + n.k + '"><img alt="" src="' + n.icon + '"><span style="color:' + n.col + '">' + n.name + '</span><b>' + n.val + '</b></button>').join('') +
     '</div><button type="button" class="pri fgo" data-forge="' + sel.id + '"' + (lack ? ' disabled' : '') + '>' + why + '</button></div></div>';
 }
+/* ---- 鐵匠的「刻印」分頁：先選一把武器 → 再選背包裡的一種刻印 → 花星砂敲上去。
+   敲上去就永遠拆不下來（也不能換），所以按鈕要按兩次 ---- */
+let sealPick = '', sealArm = false;                                     // 選了哪一種刻印（fx）、「敲上去」按過一次了沒
+const sealWeapons = () => [G.me.weapon, ...G.me.inv.filter(isW)].filter(w => w && !w.uq);   // 獨特武器不能刻，不列出來
+function renderSeal(body: HTMLElement) {
+  const seals: Item[] = [], cnt: Record<string, number> = {};          // 背包裡的刻印，同一種只列一次（×2）
+  for (const it of G.me.inv) if (slotOf(it) === 'seal' && WFXD[it.fx]) { if (!cnt[it.fx]) seals.push(it); cnt[it.fx] = (cnt[it.fx] || 0) + 1; }
+  const list = sealWeapons(), sel = list.find(w => w.id === shopSel && canStamp(w)) || null, C = SEAL_COST, M = MATS[C.mat], have = G.me.mats[C.mat] || 0;
+  setFoot('', '');
+  if (!sel) {                                                            // 第一層：選武器
+    shopSel = null; sealPick = ''; sealArm = false;
+    const rows = list.map(w => { const ok = canStamp(w);
+      return '<button type="button" class="shoprow" data-sw="' + w.id + '"' + (ok ? '' : ' disabled') + '><img alt="" src="' + ICON_URL[w.type] + '"><span style="color:' + RAR[w.rarity].c + '">' + itemName(w) + (w === G.me.weapon ? ' <small style="display:inline">（裝備中）</small>' : '') +
+        '<small>' + (ok ? '還沒有刻印' : '已經刻著' + WFXD[w.fx].n + '，拆不下來') + '</small></span><b class="pr' + (ok && seals.length ? ' fok' : ' fno') + '">' + (!ok ? '已刻' : seals.length ? '可以刻' : '沒有刻印') + '</b></button>'; });
+    body.innerHTML = '<div class="shoplist">' + (rows.join('') || '<div class="empty">沒有可以刻的武器。</div>') + '</div>' +
+      '<p class="hintp">鐵匠會把刻印敲進武器裡：武器換上新的名字，之後<b>永遠拆不下來</b>，也不能換別的刻印。每次要 ' + M.n + ' ×' + C.n + '（身上 ' + have + '）。獨特武器不能刻。' +
+      (seals.length ? '' : '<br>背包裡現在沒有刻印。') + '</p>';
+    return;
+  }
+  const pick = seals.find(s => s.fx === sealPick) || seals[0] || null; sealPick = pick ? pick.fx : '';   // 第二層：這把武器要刻哪一種
+  const F = pick && WFXD[pick.fx], lack = !pick ? '背包裡沒有刻印' : have < C.n ? M.n + '不夠' : '';
+  body.innerHTML = '<div class="fgrid"><div class="fleft"><div class="fhead"><button type="button" class="sbtn" data-sback>‹ 換一把</button><span style="color:' + RAR[sel.rarity].c + '">' + itemName(sel) + '</span></div>' +
+    '<div class="fbig"><img alt="" src="' + ICON_URL[sel.type] + '"></div>' +
+    '<div class="fpill">' + sel.name + (F ? '<i>▶</i><b style="color:' + F.c + '">' + F.pre + WT[sel.type].name + '</b>' : '') + '</div>' +
+    (F ? '<div class="sealfx"><b style="color:' + F.c + '">' + F.n + '</b>：' + F.d + '</div>' : '') + '</div>' +
+    '<div class="fright"><div class="fneedh">選一種刻印</div><div class="fneeds">' +
+    (seals.map(s => '<button type="button" class="fneed' + (s === pick ? ' on' : '') + '" data-spick="' + s.fx + '"><img alt="" src="' + ICON_URL.seal + '"><span style="color:' + WFXD[s.fx].c + '">' + s.name + '</span><b>' + (cnt[s.fx] > 1 ? '×' + cnt[s.fx] : '') + (s === pick ? ' ✓' : '') + '</b></button>').join('') || '<div class="empty">背包裡沒有刻印。</div>') +
+    '</div><div class="fneedh">需要</div><div class="fneeds"><div class="fneed' + (have >= C.n ? '' : ' lack') + '"><img alt="" src="' + ORE_URL[C.mat] + '"><span style="color:' + M.c + '">' + M.n + '</span><b>' + have + ' / ' + C.n + '</b></div></div>' +
+    '<button type="button" class="pri fgo' + (sealArm ? ' arm' : '') + '" data-stamp="' + sel.id + '"' + (lack ? ' disabled' : '') + '>' + (lack || (sealArm ? '確定？敲上去就拆不下來' : '敲上去')) + '</button></div></div>';
+}
 function renderShop() {
   $('shopGold').innerHTML = coinChip(G.me.gold);
-  $('forgeTab').hidden = !vendor.smith; if (!vendor.smith && shopTab === 'forge') shopTab = 'buy';
+  $('forgeTab').hidden = $('sealTab').hidden = !vendor.smith; if (!vendor.smith && (shopTab === 'forge' || shopTab === 'seal')) shopTab = 'buy';
+  if (shopTab === 'seal') { for (const b of document.querySelectorAll<HTMLElement>('#shopMenu .tabs button')) b.classList.toggle('on', b.dataset.stab === shopTab); renderSeal($('shopBody')); return; }
   if (shopTab === 'forge') { for (const b of document.querySelectorAll<HTMLElement>('#shopMenu .tabs button')) b.classList.toggle('on', b.dataset.stab === shopTab); renderForge($('shopBody')); return; }
   for (const b of document.querySelectorAll<HTMLElement>('#shopMenu .tabs button')) b.classList.toggle('on', b.dataset.stab === shopTab);
   const body = $('shopBody');
@@ -152,6 +183,14 @@ $('shopMenu').addEventListener('click', e => {
   if (t.dataset.fw) { shopSel = +t.dataset.fw; clueK = ''; renderShop(); $('shopBody').scrollTop = 0; return; }
   if (t.hasAttribute('data-fback')) { shopSel = null; clueK = ''; renderShop(); return; }
   if (t.dataset.clue) { clueK = t.dataset.clue; renderShop(); return; }
+  if (t.dataset.sw) { shopSel = +t.dataset.sw; sealPick = ''; sealArm = false; renderShop(); $('shopBody').scrollTop = 0; return; }   // 刻印分頁
+  if (t.hasAttribute('data-sback')) { shopSel = null; renderShop(); return; }
+  if (t.dataset.spick) { sealPick = t.dataset.spick; sealArm = false; renderShop(); return; }
+  if (t.dataset.stamp) { const w = sealWeapons().find(w => w.id === +t.dataset.stamp), s = G.me.inv.find(x => slotOf(x) === 'seal' && x.fx === sealPick);
+    if (!w || !s) return;
+    if (!sealArm) { sealArm = true; renderShop(); return; }                          // 第一次按：只是確認
+    sealArm = false; if (!stampSeal(G.me, w, s)) return;
+    if (w === G.me.weapon) recalc(G.me); sfx.level(); toast('鐵匠把' + s.name + '敲進了武器：「' + itemName(w) + '」', WFXD[w.fx].c); shopSel = null; renderShop(); save(); return; }
   if (t.dataset.forge) { const w = forgeList().find(w => w.id === +t.dataset.forge); if (!w || !doUpgrade(G.me, w)) return;
     if (w === G.me.weapon || w === G.me.armor) recalc(G.me); justUp = w.id; sfx.level(); toast('強化成功：' + itemName(w), '#f2c14e'); renderShop(); save(); return; }
   if (t.dataset.buy !== undefined) { const o = vendor.stock[+t.dataset.buy]; if (!o || G.me.gold < o.price) return; const price = o.price;   // 先記下價格：藥水上限買完會漲價，扣的要是買的那一刻的價格

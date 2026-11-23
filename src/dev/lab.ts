@@ -2,12 +2,15 @@
    打開 http://localhost:5173/?lab 就直接進遊戲，不用從頭玩：
    · 主角打不死、體力 / 藥水無限
    · 跟 ?test 一樣全開：地圖、地名、營火（可以傳送）、背包有全部武器、星狼、4 格飾品欄
-   · 畫面上方一排按鈕：換刻印、換武器、叫怪（一群小怪 / 精英 / 打不死的沙包 / 會打人的沙包）、傳送到任一隻 Boss 的結界外面（那隻 Boss 會復活、血補滿）、換流派飾品
+   · 畫面上方一排按鈕：換刻印、換武器、叫怪（一群小怪 / 精英 / 打不死的沙包 / 會打人的沙包）、傳送到任一隻 Boss 的結界外面（那隻 Boss 會復活、血補滿）、換流派飾品、鐵匠（直接打開刻印分頁）
    · **不會存檔**（G.lab = true 時 game/save.ts 的 save / clearSave 什麼都不做），你的存檔格完全不動
    只有開發模式（npm run dev）才會載入這個檔案（main.ts 用 import.meta.env.DEV 判斷），上線的版本裡沒有它。 */
 import { G } from '../core/state';
 import { rr } from '../core/util';
-import { WT, makeWeapon } from '../data/items';
+import { WT, makeSeal, makeWeapon } from '../data/items';
+import { SEAL_COST } from '../data/forge';
+import { NPCS } from '../world/towns';
+import { openShop } from '../ui/shop';
 import { WFXD, fxOf } from '../game/weaponFx';
 import { makeEnemy } from '../game/enemies';
 import { recalc } from '../game/player';
@@ -61,6 +64,13 @@ function setBuild(k: string) { G.me.trinkets[0] = k && UG[k] ? makeUniqueGear(k)
 /* 會打人的沙包：練完美閃避（攻擊打到前一瞬間瞬移）、存怒氣 */
 function brute() { const [x, y] = near(50); const e = add('skel', x, y); e.maxHp = e.hp = 300; e.dmg = 6; bags.add(e); }
 function sandbag() { const [x, y] = near(55); const e = add('golem', x, y); e.maxHp = e.hp = 300; e.dmg = 1; bags.add(e); }   // 血量正常（出血爆的 15% 才是真的大小），每一幀補滿
+/* 鐵匠：背包補上每種刻印各一個、一把沒刻印的長劍、夠用的星砂，然後打開鐵匠的「刻印」分頁 */
+function smith() {
+  for (const [k] of SEALS) if (k && !G.me.inv.some(it => it.slot === 'seal' && it.fx === k) && G.me.inv.length < 24) G.me.inv.push(makeSeal(k));
+  if (G.me.inv.length < 24) G.me.inv.push(makeWeapon('sword'));
+  G.me.mats[SEAL_COST.mat] = Math.max(G.me.mats[SEAL_COST.mat] || 0, SEAL_COST.n * 10);
+  openShop(NPCS.find(n => n.smith), 'seal');
+}
 function clearFoes() { G.enemies = []; }                              // 全部清掉（野外的怪走遠再回來會自己長回來）
 /* ---- 去 Boss 前：選一隻 Boss → 牠復活（打倒過也會回來、血補滿）→ 傳送到牠的結界外面（不會直接開打） ----
    從 Boss 站的位置沿著能走的地板往外找（廣度優先），第一個走出結界的位置就是落點
@@ -122,6 +132,8 @@ function panel() {
   <select class="b" tabindex="-1">${BUILDS.map(([k, n]) => `<option value="${k}">${n}</option>`).join('')}</select>
   <select tabindex="-1" class="boss"><option value="">去 Boss 前…</option>${(() => { const L = bossList(), G2 = ['主線 Boss', '區域 Boss', '地城 Boss'];
     return G2.map(g => `<optgroup label="${g}">` + L.filter(b => b.group === g).map(b => `<option value="${b.id}">${b.name}</option>`).join('') + '</optgroup>').join(''); })()}</select>
+  <span class="sep"></span>
+  <button type="button" tabindex="-1" data-a="smith">鐵匠・刻印</button>
   <button type="button" tabindex="-1" data-a="min" class="keep">－</button>`;
   document.body.appendChild(bar);
   const stop = (ev: Event) => ev.stopPropagation();                    // 點按鈕不要變成搖桿 / 攻擊
@@ -130,7 +142,7 @@ function panel() {
     const b = (ev.target as HTMLElement).closest('button'); if (!b) return; b.blur();
     if (b.dataset.fx !== undefined && !G.me.weapon.uq) setWeapon(G.me.weapon.type, b.dataset.fx);   // 獨特武器不能裝刻印
     const a = b.dataset.a;
-    if (a === 'pack') pack(); else if (a === 'elite') elite(); else if (a === 'bag') sandbag(); else if (a === 'brute') brute(); else if (a === 'clear') clearFoes();
+    if (a === 'pack') pack(); else if (a === 'elite') elite(); else if (a === 'bag') sandbag(); else if (a === 'brute') brute(); else if (a === 'clear') clearFoes(); else if (a === 'smith') smith();
     else if (a === 'min') { bar.classList.toggle('min'); b.textContent = bar.classList.contains('min') ? '＋' : '－'; }
   });
   const sel = bar.querySelector<HTMLSelectElement>('select.w'); sel.addEventListener('change', () => { setWeapon(sel.value, fxOf(G.me.weapon) || ''); sel.blur(); });

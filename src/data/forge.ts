@@ -18,7 +18,7 @@
    所以要選一把來養；同時期的刻印武器會比較好升（中期刻印 +6、獨特 +4 左右）。鍛造圖的限制一樣（+3 要星屑篇……）。 */
 import { tier } from './levels';
 import { SH, sculpt } from '../art/monsters';
-import { RAR, UP_MAX, WT, refreshWeapon, upMult, wBase } from './items';
+import { RAR, UP_MAX, WT, attachSeal, refreshWeapon, upMult, wBase } from './items';
 import { A_UP_MAX } from './gear';
 import type { Item, Player } from '../types';
 
@@ -105,4 +105,15 @@ export function migrateWeapon(it: Item) {
   const old = (1 + .13 * ((it.ilvl || 1) - 1)) * (RAR[it.rarity]?.m || 1);
   it.up = Math.max(0, Math.min(UP_MAX, Math.round((old - 1) / .32))); it.ilvl = 0; it.slot = 'weapon';
   return refreshWeapon(it);
+}
+
+/* ---- 刻印：鐵匠把刻印敲到一般武器上，之後永遠拆不下來（「長劍」→「血棘長劍」）----
+   要花一點星砂。獨特武器不能刻；已經有刻印的武器也不能再刻（不能換掉） */
+export const SEAL_COST: { mat: MatKey; n: number } = { mat: 'mat1', n: 5 };
+export const canStamp = (w: Item | null) => !!w && isWeapon(w) && !w.uq && !w.fx;
+/** 把背包裡的刻印敲到武器 w 上（扣星砂、刻印道具用掉）。成功回傳 true */
+export function stampSeal(pl: Player, w: Item, seal: Item) {
+  const i = pl.inv.indexOf(seal);
+  if (!canStamp(w) || !seal || seal.slot !== 'seal' || i < 0 || (pl.mats[SEAL_COST.mat] || 0) < SEAL_COST.n) return false;
+  pl.inv.splice(i, 1); pl.mats[SEAL_COST.mat] -= SEAL_COST.n; attachSeal(w, seal); return true;
 }
