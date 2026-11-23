@@ -793,11 +793,11 @@ const pageScript = async () => {
     menus.restAt(CAMPS[0]); setMenu(null); step(2, { god: true });
   });
 
-  run('地城的規模：每座 3 個營火、2 個以上寶箱（不算 Boss 的）、3 個解謎區、格局都不一樣；在地城營火休息 → 死掉在地城裡重生；舊存檔站在舊地城 → 放到新地城入口', () => {
+  run('地城的規模：每座 3 個營火（捷徑型 2 個）、2 個以上寶箱（不算 Boss 的）、3 個解謎區、格局都不一樣；在地城營火休息 → 死掉在地城裡重生；舊存檔站在舊地城 → 放到新地城入口', () => {
     const D = imp0.dg, M = await0.map, CH = await0.chests, PU = await0.puz, out = [], shapes = new Set();
     for (const d of D.DUNGEONS) { const cs = M.CAMPS.filter(c => c.dg === d.id), ch = CH.CHESTS.filter(c => D.dungeonAt(c.x, c.y) === d && c.id !== 'd_' + d.id);
-      const st = PU.PUZZLES.filter(p => p.d === d && p.at !== 'secret');
-      if (cs.length !== 3) throw new Error(d.name + '：營火不是 3 個（' + cs.length + '）');
+      const st = PU.PUZZLES.filter(p => p.d === d && p.at !== 'secret' && p.at !== 'short'), nc = d.kind === 'shortcut' ? 2 : 3;
+      if (cs.length !== nc) throw new Error(d.name + '：營火不是 ' + nc + ' 個（' + cs.length + '）');
       for (const c of cs) { if (D.dungeonAt(c.x, c.y) !== d) throw new Error(d.name + '：營火不在地城裡'); const s0 = { x: G.me.x, y: G.me.y }; imp0.pu.placeAtCamp(G.me, c.id); if (await0.coll.collides(G.me.x, G.me.y, G.me.r)) throw new Error(c.name + '：傳送過來會卡在牆裡'); tp(s0.x, s0.y); }
       if (ch.length < 2) throw new Error(d.name + '：寶箱少於 2 個（' + ch.length + '）');
       if (st.length !== 3 || new Set(st.map(p => p.room)).size !== 3 || new Set(st.map(p => p.at)).size !== 3) throw new Error(d.name + '：解謎區不是 3 個不同的房間');
@@ -818,6 +818,28 @@ const pageScript = async () => {
     if (!G.lost || D.dungeonAt(G.lost.x, G.lost.y) !== g2) throw new Error('掉在舊地城裡的魂晶沒有搬到新地城');
     G.lost = null; G.lastCamp = 'start'; M.CAMPS.forEach(c => { if (c.dg) c.lit = false; }); imp0.pu.placeAtCamp(G.me, 'start'); imp0.pu.restoreWorld(); step(2);
     log.push('  ' + out.join('、'));
+  });
+
+  run('地城類型：五種都有；探索型有環路、戰鬥型是大房間、捷徑門只能從裡面拉開，拉開後從入口走得到門的另一頭', () => {
+    const D = imp0.dg, PU = await0.puz, Q = await0.quest, M = await0.map, out = [];
+    const kinds = new Set(D.DUNGEONS.map(d => d.kind)); for (const k of ['combat', 'explore', 'puzzle', 'shortcut', 'story']) if (!kinds.has(k)) throw new Error('沒有' + k + '型的地城');
+    for (const d of D.DUNGEONS) { const L = d.lay;
+      if (d.kind === 'explore' && !L.loops) throw new Error(d.name + '（探索型）沒有環路');
+      if (d.kind === 'combat' && L.path.some(i => L.rooms[i].role === 'path' && L.rooms[i].rx < 6)) throw new Error(d.name + '（戰鬥型）主路有小房間');
+      if ((d.kind === 'shortcut') !== !!L.short) throw new Error(d.name + '：捷徑和類型對不上'); }
+    // 捷徑門：入口那一側 → 只能「查看」；另一頭 → 「拉開」→ 門升起、旗標存起來；關著時兩邊不通（只隔一道門）
+    for (const d of D.DUNGEONS.filter(d => d.kind === 'shortcut')) { const S = d.lay.short, p = PU.PUZZLES.find(p => p.d === d && p.at === 'short'), far = Math.sign(S.far.y - S.room.y);
+      if (!p || p.gate.length < 2) throw new Error(d.name + '：捷徑沒有鐵柵門'); Q.flags.delete(p.fkey); step(2); G.enemies = [];
+      tp(S.door.x * 16 + 8, (S.door.y - far * 2) * 16 + 8); step(1); let it = imp0.input.interactTarget();
+      if (!it || it.btn !== '查看') throw new Error(d.name + '：從入口那一側看捷徑門，應該只能查看（' + (it && it.btn) + '）');
+      tp(S.door.x * 16 + 8, (S.door.y + far * 2) * 16 + 8); step(1); it = imp0.input.interactTarget();
+      if (!it || it.btn !== '拉開') throw new Error(d.name + '：從另一頭拉不開捷徑門'); it.run(); step(90);
+      if (!Q.flags.has(p.fkey) || p.gate.some(g => g.prop.r > 0)) throw new Error(d.name + '：拉開後門沒有升起');
+      const walk = () => { tp(S.door.x * 16 + 8, (S.door.y - far * 2) * 16 + 8); step(1); input.my = far; step(50, { god: true }); input.my = 0; return Math.sign(G.me.y - S.door.y * 16 - 8) === far; };   // 從入口那一側真的走過去（有碰撞）
+      if (!walk()) throw new Error(d.name + '：捷徑門拉開了還是走不過去');
+      Q.flags.delete(p.fkey); step(90); if (walk()) throw new Error(d.name + '：捷徑門關著也走得過去'); out.push(d.name); }
+    G.enemies = []; tp(D.DUNGEONS[0].exX, D.DUNGEONS[0].exY); step(1); imp0.input.enterDoor(); step(2);
+    log.push('  捷徑門：' + out.join('、'));
   });
 
   run('地城前院：每個野外洞口都有雕像 / 旗子 / 符文石，雕像擋路', () => {

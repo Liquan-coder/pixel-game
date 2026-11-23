@@ -166,7 +166,7 @@ export function restoreWorld() {                                       // 營火
   G.projs = []; G.drops = G.drops.filter(d => d.item.rarity >= 2); respawnAll(); resetBoss(); resetRegionBosses();
 }
 export function placeAtCamp(pl: Player, id) {
-  const c = CAMPS.find(c => c.id === id) || CAMPS[0];
+  const c = CAMPS.find(c => c.id === id) || (typeof id === 'string' && id.startsWith('dg_') && CAMPS.find(c => c.id === id.replace(/_\d+$/, '_0'))) || CAMPS[0];   // 地城營火拿掉了（捷徑型沒有最後一個）→ 回那座地城的入口營火
   pl.x = c.x; pl.y = c.y + 16;
   if (collides(pl.x, pl.y, pl.r)) pl.y = c.y - 16;
   if (pl === G.me) { cam.x = pl.x - LW / 2; cam.y = pl.y - LH / 2; }   // 鏡頭只跟著「我」

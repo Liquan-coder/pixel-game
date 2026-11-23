@@ -4,9 +4,24 @@
    2. 主路上：入口房（營火）→ 陷阱房（解謎區一）→ 中途營火 → … → 守護者前營火 → Boss 大廳前的謎題房（解謎區三）→ Boss 大廳
    3. 寶庫：主路後半段岔出去一間謎題房（解謎區二），解開 → 鐵柵門升起，後面是放金箱的寶物房
    4. 岔路：幾條 1～3 間的死路，最裡面放銀箱（地底遺跡的第一條是金箱）；其中一間可能有隱藏的牆
-   房間之間是 3 格寬的直通道（洞窟會在中段長出凹凸）。鐵柵門一定擋在「上下方向」的通道上（門是一排橫的鐵條）。 */
+   房間之間是 3 格寬的直通道（洞窟會在中段長出凹凸）。鐵柵門一定擋在「上下方向」的通道上（門是一排橫的鐵條）。
+   地城的類型（KINDS）會改上面的數字：主路多長、房間多大、岔路幾條、有沒有環路 / 捷徑、營火幾個、怪多少 */
 import { CLIFF, GROUND, LAVA, MW, PILLAR, RFLOOR, RWALL, TS, WATER, BRIDGE, glows, map } from './map';
-import type { Dungeon } from './dungeons';
+import type { DKind, Dungeon } from './dungeons';
+
+/* 每種地城的格局參數（一般地城；地底遺跡格子比較多，主路 +3～4、岔路 +2）
+   minL / maxL = 主路幾間、br = 想要幾條岔路（至少 brMin 條）、brLen = 一條岔路最多幾間
+   loops = 加幾條環路（相鄰兩間本來不通 → 打通；不會跨過陷阱房，也不碰謎題房 / 寶物房）
+   mob = 每間房的怪多幾隻（負的 = 少幾隻）、arena = 主路的房間是大競技場
+   short = 捷徑：主路後段繞回入口旁邊（正上 / 正下方），中間一道只能從裡面打開的鐵柵門；中途營火拿掉（捷徑就是你的營火） */
+export interface KindCfg { name: string; minL: number; maxL: number; br: number; brMin: number; brLen: number; loops: number; mob: number; arena?: boolean; short?: boolean }
+export const KINDS: Record<DKind, KindCfg> = {
+  combat:   { name: '戰鬥型', minL: 9,  maxL: 12, br: 2, brMin: 1, brLen: 2, loops: 0, mob: 1, arena: true },
+  explore:  { name: '探索型', minL: 10, maxL: 13, br: 5, brMin: 4, brLen: 4, loops: 2, mob: 0 },
+  puzzle:   { name: '謎題型', minL: 10, maxL: 14, br: 2, brMin: 2, brLen: 3, loops: 0, mob: -1 },
+  shortcut: { name: '捷徑型', minL: 11, maxL: 15, br: 3, brMin: 2, brLen: 3, loops: 0, mob: 0, short: true },
+  story:    { name: '劇情型', minL: 12, maxL: 15, br: 2, brMin: 1, brLen: 2, loops: 0, mob: -1 },
+};
 
 export interface LDoor { x: number; y: number; side: 0 | 1 | 2 | 3; to: number }   // 門 = 房間外面第一格（通道的中線）；side：0 東、1 南、2 西、3 北；to = 通到哪間（-1 = Boss 大廳）
 export interface LRoom { x: number; y: number; rx: number; ry: number; role: Role; doors: LDoor[]; ci: number; cj: number }
@@ -15,6 +30,8 @@ export interface Station { room: LRoom; inD: LDoor; outD: LDoor }               
 export interface Layout {
   rooms: LRoom[]; hall: LRoom; path: number[]; camps: number[]; ends: number[]; treasure: number;
   trap: Station; vault: Station; boss: Station; corr: Set<number>;
+  loops: number;                                                             // 打通了幾條環路
+  short?: { room: LRoom; door: LDoor; far: LRoom };                          // 捷徑：入口那一側的房間、鐵柵門在它的哪個門、另一頭（從那邊才打得開）
 }
 export const CW = 20, CH = 16, HB = 18;                                      // 一格多大、上面放 Boss 大廳那一條多高
 export const gridOf = (d: Dungeon) => d.style === 'ruin' ? { C: 6, Rg: 6 } : { C: 5, Rg: 5 };
@@ -22,7 +39,7 @@ export const slotSize = (d: Dungeon) => { const { C, Rg } = gridOf(d); return { 
 const D4 = [[1, 0], [0, 1], [-1, 0], [0, -1]];                              // 跟 side 的編號一樣：東南西北
 
 /* ---- 1. 在格子上排房間（只決定哪一格是什麼，還沒挖地圖）---- */
-interface Plan { C: number; Rg: number; path: number[][]; t: number; camps: number[]; vault: number[][]; pa: number; branches: { at: number; cells: number[][] }[] }
+interface Plan { C: number; Rg: number; path: number[][]; t: number; camps: number[]; vault: number[][]; pa: number; branches: { at: number; cells: number[][] }[]; loops: number[][][]; short: number[] | null }
 function shuffle<T>(a: T[], R: () => number) { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; }
 function findPath(C: number, Rg: number, s: number[], g: number[], minL: number, maxL: number, R: () => number) {
   const seen = new Set<number>(), path: number[][] = []; let budget = 40000;
@@ -36,7 +53,7 @@ function findPath(C: number, Rg: number, s: number[], g: number[], minL: number,
   return dfs(s[0], s[1]) ? path : null;
 }
 function plan(d: Dungeon, R: () => number, vertTrap: boolean): Plan {
-  const { C, Rg } = gridOf(d), ruin = d.style === 'ruin', minL = ruin ? 13 : 10, maxL = ruin ? 19 : 15;
+  const { C, Rg } = gridOf(d), ruin = d.style === 'ruin', K = KINDS[d.kind], minL = K.minL + (ruin ? 3 : 0), maxL = K.maxL + (ruin ? 4 : 0);
   for (let attempt = 0; attempt < 400; attempt++) {
     const e = Math.floor(R() * C), far = [...Array(C).keys()].filter(c => Math.abs(c - e) >= 2), h = far.length ? far[Math.floor(R() * far.length)] : (e + 2) % C;
     const path = findPath(C, Rg, [e, Rg - 1], [h, 0], minL, maxL, R); if (!path) continue;
@@ -45,8 +62,13 @@ function plan(d: Dungeon, R: () => number, vertTrap: boolean): Plan {
     const tc = [] as number[]; for (let k = 2; k <= Math.floor(L * .5); k++) { const [a, b] = [path[k - 1], path[k + 1]], [i, j] = path[k];
       if (!vertTrap || (a[0] === i && b[0] === i && Math.abs(a[1] - b[1]) === 2)) tc.push(k); }
     if (!tc.length) continue; const t = tc[Math.floor(R() * tc.length)];
-    let mid = Math.round((t + L - 2) / 2); if (mid === t) mid++; if (mid >= L - 2) continue;
-    const camps = [0, mid, L - 2];
+    // 捷徑型：主路後段某一間（s）剛好在入口 / 第二間（q）的正上或正下方 → 兩間之間打通，中間一道鐵柵門
+    let short: number[] | null = null;
+    if (K.short) { const sc = [] as number[][];
+      for (let s = Math.max(t + 3, Math.ceil(L * .55)); s <= L - 2; s++) for (let q = 0; q <= 1; q++) if (path[s][0] === path[q][0] && Math.abs(path[s][1] - path[q][1]) === 1) sc.push([s, q]);
+      if (!sc.length) continue; short = sc[Math.floor(R() * sc.length)]; }
+    let mid = Math.round((t + (short ? short[0] : L - 2)) / 2); if (mid === t) mid++; if (mid >= (short ? short[0] : L - 2)) continue;
+    const camps = short ? [0, mid] : [0, mid, L - 2];
     // 寶庫：主路後半段（陷阱房之後）的某一間，旁邊空著一格（謎題房），謎題房的正上 / 正下方再空一格（寶物房）
     const vc = [] as number[][]; for (let k = t + 1; k <= L - 2; k++) { const [i, j] = path[k];
       for (const [di, dj] of D4) { const a = i + di, b = j + dj; if (!free(a, b)) continue;
@@ -54,14 +76,24 @@ function plan(d: Dungeon, R: () => number, vertTrap: boolean): Plan {
     if (!vc.length) continue; const [pa, va, vb, ta, tb] = vc[Math.floor(R() * vc.length)];
     used.add(vb * C + va); used.add(tb * C + ta);
     // 岔路（死路，最裡面放寶箱）
-    const branches: { at: number; cells: number[][] }[] = [], want = ruin ? 5 : 3;
+    const branches: { at: number; cells: number[][] }[] = [], want = K.br + (ruin ? 2 : 0);
     for (let n = 0, tries = 0; n < want && tries < 60; tries++) { const k = 1 + Math.floor(R() * (L - 2)); if (k === t || k === L - 1) continue;
-      let [ci, cj] = path[k]; const cells: number[][] = [], len = 1 + Math.floor(R() * 3);
+      let [ci, cj] = path[k]; const cells: number[][] = [], len = 1 + Math.floor(R() * K.brLen);
       for (let s = 0; s < len; s++) { const opts = D4.map(([di, dj]) => [ci + di, cj + dj]).filter(([a, b]) => free(a, b)); if (!opts.length) break;
         const [a, b] = opts[Math.floor(R() * opts.length)]; cells.push([a, b]); used.add(b * C + a); ci = a; cj = b; }
       if (cells.length) { branches.push({ at: k, cells }); n++; } }
-    if (branches.length < (ruin ? 3 : 2)) continue;
-    return { C, Rg, path, t, camps, vault: [[va, vb], [ta, tb]], pa, branches };
+    if (branches.length < K.brMin + (ruin ? 1 : 0)) continue;
+    // 環路：相鄰、本來不通的兩間打通。兩間要在陷阱房的同一邊（不然可以繞過陷阱房），入口、陷阱房、Boss 前的謎題房、寶庫兩間都不碰
+    const loops: number[][][] = [];
+    if (K.loops) { const seg = new Map<number, number>(), key = (i: number, j: number) => j * C + i, linked = new Set<string>();
+      const edge = (a: number[], b: number[]) => { const x = key(a[0], a[1]), y = key(b[0], b[1]); linked.add(Math.min(x, y) + ',' + Math.max(x, y)); };
+      path.forEach(([i, j], k) => { if (k > 0) edge(path[k - 1], path[k]); if (k !== 0 && k !== t && k !== L - 1) seg.set(key(i, j), k < t ? 0 : 1); });
+      for (const b of branches) { let prev = path[b.at]; for (const c of b.cells) { edge(prev, c); prev = c; seg.set(key(c[0], c[1]), b.at < t ? 0 : 1); } }
+      const cand = [] as number[][][];
+      for (const [k, sg] of seg) { const i = k % C, j = Math.floor(k / C);
+        for (const [di, dj] of [[1, 0], [0, 1]]) { const k2 = key(i + di, j + dj); if (i + di >= C || j + dj >= Rg || seg.get(k2) !== sg || linked.has(k + ',' + k2)) continue; cand.push([[i, j], [i + di, j + dj]]); } }
+      loops.push(...shuffle(cand, R).slice(0, K.loops)); if (!loops.length) continue; }
+    return { C, Rg, path, t, camps, vault: [[va, vb], [ta, tb]], pa, branches, loops, short };
   }
   throw new Error('地城格局排不出來：' + d.id);
 }
@@ -81,13 +113,17 @@ export function carveLayout(d: Dungeon, R: () => number, vertTrap: boolean): Lay
   const pathIdx = P.path.map(([i, j], k) => {
     const role: Role = k === 0 ? 'entry' : k === P.t ? 'trap' : k === L - 1 ? 'boss' : P.camps.includes(k) ? 'camp' : 'path';
     return role === 'trap' || role === 'boss' ? mk(i, j, role, big, 5, false) : role === 'entry' || role === 'camp' ? mk(i, j, role, 5, 4, role !== 'entry')
+      : KINDS[d.kind].arena ? mk(i, j, role, 6 + Math.floor(R() * 2), 4 + Math.floor(R() * 2))        // 戰鬥型：主路是大競技場
       : mk(i, j, role, 4 + Math.floor(R() * 3), 3 + Math.floor(R() * 2)); });
   const vIdx = mk(P.vault[0][0], P.vault[0][1], 'vault', big, 5, false), tIdx = mk(P.vault[1][0], P.vault[1][1], 'treasure', 4, 3);
   const ends: number[] = [], edges: number[][] = [];
   for (let k = 1; k < L; k++) edges.push([pathIdx[k - 1], pathIdx[k]]);
   edges.push([pathIdx[P.pa], vIdx], [vIdx, tIdx]);
+  const roomAt = (c: number[]) => at.get(c[1] * P.C + c[0]);
   for (const b of P.branches) { let prev = pathIdx[b.at]; b.cells.forEach(([i, j], s) => { const last = s === b.cells.length - 1;
     const k = mk(i, j, last ? 'end' : 'branch', last ? 4 : 3 + Math.floor(R() * 3), last ? 3 : 3 + Math.floor(R() * 2)); edges.push([prev, k]); prev = k; if (last) ends.push(k); }); }
+  for (const [a, b] of P.loops) edges.push([roomAt(a), roomAt(b)]);
+  const shortE = P.short ? [pathIdx[P.short[1]], pathIdx[P.short[0]]] : null; if (shortE) edges.push(shortE);   // [入口那一側, 裡面那一側]
   const bossR = rooms[pathIdx[L - 1]], hrx = ruin ? 13 : 11;
   const hall: LRoom = { x: Math.max(X0 + hrx + 2, Math.min(X0 + W - hrx - 3, bossR.x)), y: Y0 + 2 + 7, rx: hrx, ry: 7, role: 'hall', doors: [], ci: bossR.ci, cj: -1 };
   // 房間
@@ -125,6 +161,7 @@ export function carveLayout(d: Dungeon, R: () => number, vertTrap: boolean): Lay
   if (!built) for (const r of rooms) for (let k = 0; k < 3; k++) { const gx = r.x + Math.round((R() - .5) * r.rx * 2), gy = r.y + Math.round((R() - .5) * r.ry * 2);   // 洞窟裡的發光蘑菇 = 光源
     if (map[gy * MW + gx] === floor) glows.push({ tx: gx, ty: gy, x: gx * TS + 4 + R() * 8, y: gy * TS + 6 + R() * 6, ph: R() * 10 }); }
   const st = (ri: number, from: number, to: number): Station => { const r = rooms[ri]; return { room: r, inD: r.doors.find(q => q.to === from), outD: r.doors.find(q => q.to === to) }; };
-  return { rooms, hall, path: pathIdx, camps: P.camps.map(k => pathIdx[k]), ends, treasure: tIdx, corr,
+  const short = shortE ? { room: rooms[shortE[0]], door: rooms[shortE[0]].doors.find(q => q.to === shortE[1]), far: rooms[shortE[1]] } : undefined;
+  return { rooms, hall, path: pathIdx, camps: P.camps.map(k => pathIdx[k]), ends, treasure: tIdx, corr, loops: P.loops.length, short,
     trap: st(pathIdx[P.t], pathIdx[P.t - 1], pathIdx[P.t + 1]), vault: st(vIdx, pathIdx[P.pa], tIdx), boss: st(pathIdx[L - 1], pathIdx[L - 2], -1) };
 }

@@ -26,7 +26,7 @@ export let slot = 0;                                                     // 現�
 export function setSlot(n: number) { slot = n; try { localStorage.setItem(LAST_KEY, String(n)); } catch (e) {} }
 export function lastSlot() { try { const n = Number(localStorage.getItem(LAST_KEY)); return n >= 0 && n < SLOTS ? n : 0; } catch (e) { return 0; } }
 export function serialize() {
-  return { v:15, at:Date.now(), mats:G.me.mats, vit:G.me.vit, str:G.me.str, end:G.me.end, dex:G.me.dex, int:G.me.int, luk:G.me.luk, souls:G.me.souls, gold:G.me.gold, tears:G.me.tears, freePts:G.me.freePts, inv:G.me.inv, weapon:G.me.weapon, armor:G.me.armor, trinkets:G.me.trinkets,
+  return { v:16, at:Date.now(), mats:G.me.mats, vit:G.me.vit, str:G.me.str, end:G.me.end, dex:G.me.dex, int:G.me.int, luk:G.me.luk, souls:G.me.souls, gold:G.me.gold, tears:G.me.tears, freePts:G.me.freePts, inv:G.me.inv, weapon:G.me.weapon, armor:G.me.armor, trinkets:G.me.trinkets,
     merchant: merchant ? { camp:merchant.camp, stock:merchant.stock } : null, rbDead: [...rbDead], potMax: G.potMax, bossDead: G.bossDead,
     camps: CAMPS.filter(c => c.lit).map(c => c.id), lastCamp: G.lastCamp, pos: lastPos(), hp: Math.ceil(G.me.hp), pot: G.me.pot, lost: G.lost, uid: G.uid, map: packExplored(), mw: MW, chests: CHESTS.filter(c => c.opened).map(c => c.id), flags: [...flags], marks: marks.map(m => [m.tx, m.ty]), lore: [...loreRead], disc: [...discovered] };
 }
@@ -37,6 +37,7 @@ function lastPos() { const p = G.me; if (p.dead) return null;
 /** 讀檔後把人放回去：存的位置還走得到就放那裡，不然回最後休息的營火 */
 export function placeFromSave(d) {
   const p = d && d.pos, tx = p ? Math.floor(p.x / TS) : -1, ty = p ? Math.floor(p.y / TS) : -1;
+  if (p && d.v < 16 && d.v >= 13 && dungeonAt(p.x, p.y)) { const dg = dungeonAt(p.x, p.y); G.me.x = dg.inX; G.me.y = dg.inY; cam.x = G.me.x - LW / 2; cam.y = G.me.y - LH / 2; return; }   // v16：地城分類型、格局重排 → 站在地城裡的人放到入口
   if (p && d.v < 13 && legacyDungeonAt(tx, ty)) { const dg = legacyDungeonAt(tx, ty); G.me.x = dg.inX; G.me.y = dg.inY; cam.x = G.me.x - LW / 2; cam.y = G.me.y - LH / 2; return; }   // v13：地城搬家了 → 站在舊地城裡的人放到新地城的入口
   if (p && d.v >= 12 && tx > 0 && ty > 0 && tx < MW && ty < MH && !collides(p.x, p.y, G.me.r) && !inBossZone(p.x, p.y)) {
     G.me.x = p.x; G.me.y = p.y; cam.x = p.x - LW / 2; cam.y = p.y - LH / 2; return; }
@@ -77,6 +78,7 @@ export function applySave(d) {
     d.chests = (d.chests || []).map((id: string) => { const m = /^c(\d+)_(\d+)$/.exec(id); return m && plainsOld(+m[1], +m[2]) ? 'c' + m[1] + '_' + (+m[2] + PY) : id; });
   }
   /* v13：地城搬到地圖下面、格局重排 → 掉在舊地城裡的魂晶放到新地城的入口 */
+  if (G.lost && (d.v || 0) < 16 && (d.v || 0) >= 13) { const dg = dungeonAt(G.lost.x, G.lost.y); if (dg) { G.lost.x = dg.inX; G.lost.y = dg.inY + 20; } }   // v16：掉在地城裡的魂晶 → 放到入口
   if (G.lost && (d.v || 0) < 13) { const dg = legacyDungeonAt(Math.floor(G.lost.x / TS), Math.floor(G.lost.y / TS)); if (dg) { G.lost.x = dg.inX; G.lost.y = dg.inY + 20; } }
   /* v10：地形改過（山、零散的樹和石頭），掉在地上的魂晶可能剛好被蓋住 → 移到旁邊最近走得到的地方 */
   if (G.lost && reachable && !dungeonAt(G.lost.x, G.lost.y)) { const tx = Math.floor(G.lost.x / TS), ty = Math.floor(G.lost.y / TS);

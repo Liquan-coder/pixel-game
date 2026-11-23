@@ -10,6 +10,7 @@
      statues  轉動雕像：四座雕像圍著祭壇，目光（光線）要全部聚在祭壇上。相鄰的雕像連在一起：轉一座，下一座也會跟著轉
      （其他：巨網、推石、寒氣火盆、潛行、熔爐、鏡子、月光花 → puz2.ts / puz3.ts；牆中之眼、持鑰的守衛、試煉、記憶石板、引路幽火、燈陣拉桿、滑冰石塊 → puz5.ts）
    secret（有的地城有）：某條死路的牆有裂痕，砍一下就碎，後面藏著金箱（像艾爾登法環的幻影牆）
+   short（捷徑型地城）：主路後段繞回入口旁邊，中間一道鐵柵門只能從裡面拉開（像黑暗靈魂的捷徑門），旗標 'puz:地城:short'
    一個解謎區 = PUZZLES 裡的一筆（Puz）。解開的狀態存在 quest 的 flags（Boss 前 'puz:地城:fire'、寶庫 'puz:地城:vault'、牆 'puz:地城:wall'），
    每幀對一次，讀檔 / 開新遊戲時門和牆自動變成對的樣子。 */
 import { tier } from '../data/levels';
@@ -31,7 +32,7 @@ import { showBanner, toast } from '../ui/hud';
 import { save } from '../game/save';
 import type { Player } from '../types';
 
-export type At = 'trap' | 'vault' | 'boss' | 'secret';
+export type At = 'trap' | 'vault' | 'boss' | 'secret' | 'short';
 type Sym = 'moon' | 'sun' | 'star' | 'eye';
 const SYMS: Sym[] = ['moon', 'sun', 'star', 'eye'];
 const SYM_COL: Record<Sym, string> = { moon: '#8ac8ff', sun: '#ffb040', star: '#ffe38a', eye: '#c88aff' };
@@ -150,6 +151,10 @@ export function setupPuzzles() {
       const M = MECHS[kind]; if (M) p.m[kind] = M.setup(p, r, R);            // 其他檔案的機關
       PUZZLES.push(p);
     }
+    // ---- 捷徑的鐵柵門：門在入口那一側房間的門口；站在另一頭（far 那一側）才拉得開 ----
+    if (lay.short?.door) { const S = lay.short, p = mkPuz('short', 'shortcut', S.room, null, S.door); p.fkey = 'puz:' + id + ':short';
+      for (let tx = S.door.x - 1; tx <= S.door.x + 1; tx++) if (floor(tx, S.door.y)) { const prop = { x: tx * TS + 8, y: S.door.y * TS + 8, r: 9 }; PROPS.push(prop); p.gate.push({ x: prop.x, y: prop.y, prop }); }
+      PUZZLES.push(p); }
     // ---- 隱藏的牆：死路房四邊找一邊，牆後面 3×3 都是實心的 → 挖一個小房間放金箱 ----
     if (cfg.secret) {
       const W0 = d.style === 'crypt' || d.style === 'ruin' ? RWALL : CLIFF, fl0 = W0 === RWALL ? RFLOOR : GROUND, p = mkPuz('secret', 'secret', lay.rooms[lay.ends[0]], null, null);
@@ -240,6 +245,10 @@ function showing(p: Puz): number { if (p.show <= 0) return -1; const t = p.seq.l
 /* ---- 互動（ui/interact.ts） ---- */
 export function puzzleTarget(pl: Player): { btn: string; text: string; run: () => void } | null {
   for (const p of PUZZLES) {
+    if (p.at === 'short' && !p.gateOpen && p.gate.length) { const g = p.gate[1] || p.gate[0], far = Math.sign(p.d.lay.short.far.y - p.room.y);   // far：另一頭在門的上面（-1）還是下面（1）
+      if (Math.abs(pl.x - g.x) < 26 && Math.abs(pl.y - g.y) < 36) return (pl.y - g.y) * far > 0
+        ? { btn: '拉開', text: '拉開鐵柵門', run: () => { flags.add(p.fkey); p.gateOpen = true; p.gateT = 0; sfx.level(); shake(4, .5); showBanner('捷徑打開了', '這裡通往入口', 2400); save(); } }
+        : { btn: '查看', text: '查看鐵柵門', run: () => toast('鐵柵門從另一邊閂住了。門縫裡吹出來的風，是從地城深處來的。', '#e8dcff') }; }
     for (const k in p.m) { const t = MECHS[k].target?.(p, p.m[k], pl); if (t) return t; }
     if (!p.gateOpen) {
       for (const b of p.braz) if (!b.lit && Math.hypot(b.x - pl.x, b.y - pl.y) < 22) return { btn: '點燃', text: '點燃火盆', run: () => light(p, b, pl) };

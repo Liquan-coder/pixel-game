@@ -14,15 +14,23 @@ import { G } from '../core/state';
 import { mulberry32 } from '../core/util';
 import { BIGT, BRIDGE, CAMPS, CLIFF, CRATE, GRAVE, GROUND, LAVA, MH, MW, PILLAR, PROPS, RFLOOR, ROAD, ROCK, RWALL, STAIRS, TREE, TS, WALKABLE, WATER, WH, map, reg, spawns } from './map';
 import { POIS } from '../data/poi';
-import { carveLayout, slotSize, type Layout, type LRoom } from './dungeonLayout';
+import { KINDS, carveLayout, slotSize, type Layout, type LRoom } from './dungeonLayout';
 import type { Player } from '../types';
 
 export const DREG = 7;                                                   // 地城的地區編號（REGIONS[7]）
 export const DZONE = { x0: 0, y0: WH, x1: MW - 1, y1: MH - 1 };           // 地城區：地圖最下面那一條（大地圖不畫）
 /* v12 以前地城蓋在東南邊的海上（這一塊）。現在空著，但一樣填滿岩石：野外生成（gen 的 busy、terrain 的 nearSub）照舊避開這裡 → 野外跟以前一模一樣 */
 export const OLDZ = { x0: 266, y0: 500, x1: 636, y1: 674 };
+/* 地城的類型：每座地城不只是換皮，格局本身就不一樣（參數在 world/dungeonLayout.ts 的 KINDS）
+   combat   戰鬥型：主路短、房間是大競技場、怪多、岔路少
+   explore  探索型：岔路多又長，還有繞回來的環路（不是一條直線走到底）
+   puzzle   謎題型：怪很少，重點是機關
+   shortcut 捷徑型：沒有中途營火；主路繞一大圈回到入口旁邊，那裡有一道只能從裡面打開的鐵柵門（捷徑）
+   story    劇情型：主路長、怪少 */
+export type DKind = 'combat' | 'explore' | 'puzzle' | 'shortcut' | 'story';
 export interface Dungeon {
   id: string; name: string; style: 'cave' | 'crypt' | 'grotto' | 'ruin';
+  kind: DKind;                                                            // 地城的類型：決定格局長怎樣（world/dungeonLayout.ts 的 KINDS）
   ent: [number, number];                                                  // 野外入口：山壁正面那一格（玩家站在它下面一格）；地底遺跡 = 地上的石階那一格
   stairs?: boolean;                                                       // 入口是建築物裡的石階（地底遺跡）
   liquid?: 'lava' | 'water';                                              // 石窟的暗河換成熔岩；地底遺跡有了這個才會有一條河（熔岩 / 水）
@@ -42,49 +50,49 @@ export interface Dungeon {
 }
 export const DUNGEONS: Dungeon[] = [
   // ---- 翠風平原 ----
-  { id: 'moss', name: '苔石洞窟', style: 'cave', ent: [66, 462], lv: 8, kinds: ['spiderM', 'batC'], boss: 'snail', sig: 'mosscloak', uq: 'mossfang',
+  { id: 'moss', name: '苔石洞窟', kind: 'explore', style: 'cave', ent: [66, 462], lv: 8, kinds: ['spiderM', 'batC'], boss: 'snail', sig: 'mosscloak', uq: 'mossfang',
     lore: { title: '洞窟深處的刻痕', text: '「牙齒長了苔的那隻狼，是第一個聞到星星味道的。」' } },
-  { id: 'barrow', name: '無名古墓', style: 'crypt', ent: [172, 576], lv: 10, kinds: ['ghoulB', 'wraithB'], boss: 'warden', sig: 'barrowlamp', uq: 'barrowblade',
+  { id: 'barrow', name: '無名古墓', kind: 'story', style: 'crypt', ent: [172, 576], lv: 10, kinds: ['ghoulB', 'wraithB'], boss: 'warden', sig: 'barrowlamp', uq: 'barrowblade',
     lore: { title: '古墓的墓誌銘', text: '「這裡葬著一位無名的劍士。他守的不是墓，是一盞永遠不能熄的燈。」' } },
-  { id: 'grotto', name: '潮音石窟', style: 'grotto', ent: [226, 484], lv: 12, kinds: ['crabT', 'frogG'], boss: 'tidecrab', sig: 'tideshell', uq: 'tidespear',
+  { id: 'grotto', name: '潮音石窟', kind: 'puzzle', style: 'grotto', ent: [226, 484], lv: 12, kinds: ['crabT', 'frogG'], boss: 'tidecrab', sig: 'tideshell', uq: 'tidespear',
     lore: { title: '石窟裡的貝殼', text: '「把耳朵貼上去，能聽見海浪——還有一首很久以前的搖籃曲。」' } },
   // ---- 迷霧森林 ----
-  { id: 'nest', name: '蛛巢洞窟', style: 'cave', ent: [240, 395], lv: 20, kinds: ['spiderF', 'batF'], boss: 'broodmother', sig: 'silkmail', uq: 'silktwin',
+  { id: 'nest', name: '蛛巢洞窟', kind: 'combat', style: 'cave', ent: [240, 395], lv: 20, kinds: ['spiderF', 'batF'], boss: 'broodmother', sig: 'silkmail', uq: 'silktwin',
     lore: { title: '蛛網上的字', text: '「巢母從來不出洞。牠在等一個會唱歌的人，來把網上的星星摘走。」' } },
-  { id: 'roots', name: '樹根地穴', style: 'crypt', ent: [345, 322], lv: 22, kinds: ['ghoulR', 'wraithR'], boss: 'rootheart', sig: 'rootheart',
+  { id: 'roots', name: '樹根地穴', kind: 'shortcut', style: 'crypt', ent: [345, 322], lv: 22, kinds: ['ghoulR', 'wraithR'], boss: 'rootheart', sig: 'rootheart',
     lore: { title: '根上刻的名字', text: '「古樹把死去的守林人收進根裡。他們的名字，一年一年長進了木頭。」' } },
   // ---- 骸骨荒地 ----
-  { id: 'windcave', name: '風蝕岩窟', style: 'cave', ent: [28, 150], lv: 30, kinds: ['beetleS', 'batS'], boss: 'scorpion', sig: 'sandeye',
+  { id: 'windcave', name: '風蝕岩窟', kind: 'explore', style: 'cave', ent: [28, 150], lv: 30, kinds: ['beetleS', 'batS'], boss: 'scorpion', sig: 'sandeye', uq: 'scorpfang',
     lore: { title: '岩壁上的風痕', text: '「風在這裡刻了一千年，刻出來的是一隻眼睛。它還在看著天空。」' } },
-  { id: 'sandtemple', name: '沙埋神殿', style: 'crypt', ent: [168, 112], lv: 32, kinds: ['ghoulS', 'wraithS'], boss: 'sandking', sig: 'sandwrap', uq: 'sandcrescent',
+  { id: 'sandtemple', name: '沙埋神殿', kind: 'puzzle', style: 'crypt', ent: [168, 112], lv: 32, kinds: ['ghoulS', 'wraithS'], boss: 'sandking', sig: 'sandwrap', uq: 'sandcrescent',
     lore: { title: '神殿的祭文', text: '「沙之王向星星祈求永生。星星答應了，可是忘了告訴他，永生是很長很長的寂寞。」' } },
   // ---- 熔岩高地 ----
-  { id: 'lavatube', name: '熔岩隧道', style: 'cave', ent: [232, 42], lv: 42, kinds: ['spiderL', 'impL'], boss: 'salamander', sig: 'magmacore',
+  { id: 'lavatube', name: '熔岩隧道', kind: 'shortcut', style: 'cave', ent: [232, 42], lv: 42, kinds: ['spiderL', 'impL'], boss: 'salamander', sig: 'magmacore',
     lore: { title: '燒焦的筆記', text: '「隧道會呼吸。每吐一口氣，牆上的熔岩就亮一次。我想它是在數日子。」' } },
-  { id: 'obsidian', name: '黑曜石窟', style: 'grotto', liquid: 'lava', ent: [402, 100], lv: 45, kinds: ['crabL', 'beetleL'], boss: 'magmaworm', sig: 'obsidianmail',
+  { id: 'obsidian', name: '黑曜石窟', kind: 'puzzle', style: 'grotto', liquid: 'lava', ent: [402, 100], lv: 45, kinds: ['crabL', 'beetleL'], boss: 'magmaworm', sig: 'obsidianmail',
     lore: { title: '黑曜石上的倒影', text: '「在黑曜石裡看見的不是自己，是星墜之夜的天空。」' } },
   // ---- 霜寒雪原 ----
-  { id: 'icecave', name: '冰晶洞窟', style: 'cave', ent: [620, 122], lv: 55, kinds: ['spiderI', 'batI'], boss: 'icequeen', sig: 'icering',
+  { id: 'icecave', name: '冰晶洞窟', kind: 'explore', style: 'cave', ent: [620, 122], lv: 55, kinds: ['spiderI', 'batI'], boss: 'icequeen', sig: 'icering',
     lore: { title: '冰裡的歌', text: '「冰晶女王只會唱一首歌，那是她小時候，一個戴尖帽的人教她的。」' } },
-  { id: 'frostcrypt', name: '霜墓', style: 'crypt', ent: [470, 40], lv: 58, kinds: ['ghoulI', 'wraithI'], boss: 'frostknight', sig: 'frostplate', uq: 'darkmoon',
+  { id: 'frostcrypt', name: '霜墓', kind: 'story', style: 'crypt', ent: [470, 40], lv: 58, kinds: ['ghoulI', 'wraithI'], boss: 'frostknight', sig: 'frostplate', uq: 'darkmoon',
     lore: { title: '騎士的誓言', text: '「直到光回來為止，我不會倒下。」墓碑上的字，被冰封得像昨天才刻的。' } },
   // ---- 幽影沼澤 ----
-  { id: 'rotcave', name: '腐根洞窟', style: 'cave', ent: [425, 445], lv: 68, kinds: ['frogP', 'beetleP'], boss: 'toadking', sig: 'rotleather',
+  { id: 'rotcave', name: '腐根洞窟', kind: 'combat', style: 'cave', ent: [425, 445], lv: 68, kinds: ['frogP', 'beetleP'], boss: 'toadking', sig: 'rotleather',
     lore: { title: '黏糊糊的石碑', text: '「蛙王吞下了一小塊星星。從那天起，牠每天晚上都在叫，叫得整片沼澤都睡不著。」' } },
-  { id: 'sunkgrotto', name: '沉沒石窟', style: 'grotto', ent: [622, 300], lv: 70, kinds: ['crabP', 'wraithP'], boss: 'drowned', sig: 'drownpearl',
+  { id: 'sunkgrotto', name: '沉沒石窟', kind: 'shortcut', style: 'grotto', ent: [622, 300], lv: 70, kinds: ['crabP', 'wraithP'], boss: 'drowned', sig: 'drownpearl',
     lore: { title: '水底的鎖鏈', text: '「沉下去的人不是被拖下去的。是他自己鎖住了自己，好讓珍珠不被水沖走。」' } },
   // ---- 地底遺跡（大型） ----
-  { id: 'undercroft', name: '王城地下墓所', style: 'ruin', stairs: true, ent: [100, 104], lv: 38, kinds: ['ghoulK', 'wraithK', 'batK'], boss: 'captain', sig: 'lastcrown', uq: 'royalguard',
+  { id: 'undercroft', name: '王城地下墓所', kind: 'combat', style: 'ruin', stairs: true, ent: [100, 104], lv: 38, kinds: ['ghoulK', 'wraithK', 'batK'], boss: 'captain', sig: 'lastcrown', uq: 'royalguard',
     desc: '古王城內城裡往下的石階。王都的近衛隊在地底守著什麼',
     lore: { title: '近衛隊的點名簿', text: '「點名：一百二十人。到：一百二十人。命令：守住地底之門，直到星星回來。」' } },
-  { id: 'forgeruin', name: '熔爐地底遺跡', style: 'ruin', stairs: true, liquid: 'lava', mirror: true, ent: [380, 163], lv: 50, kinds: ['impF', 'beetleF', 'spiderB'], boss: 'forgeguard', sig: 'forgeplate', uq: 'forgehammer',
+  { id: 'forgeruin', name: '熔爐地底遺跡', kind: 'puzzle', style: 'ruin', stairs: true, liquid: 'lava', mirror: true, ent: [380, 163], lv: 50, kinds: ['impF', 'beetleF', 'spiderB'], boss: 'forgeguard', sig: 'forgeplate', uq: 'forgehammer',
     desc: '古代熔爐裡往下的石階。地底傳來打鐵的聲音',
     lore: { title: '熔爐的設計圖', text: '「容器的要求：能裝下一顆星星，而且永遠不會碎。」設計圖的角落寫著：失敗了七次。' } },
-  { id: 'temple', name: '沉沒神殿地底', style: 'ruin', stairs: true, liquid: 'water', ent: [534, 458], lv: 75, kinds: ['frogT', 'wraithT', 'ghoulT'], boss: 'starwarden', sig: 'wardenveil', uq: 'deepstaff',
+  { id: 'temple', name: '沉沒神殿地底', kind: 'story', style: 'ruin', stairs: true, liquid: 'water', ent: [534, 458], lv: 75, kinds: ['frogT', 'wraithT', 'ghoulT'], boss: 'starwarden', sig: 'wardenveil', uq: 'deepstaff',
     desc: '沉沒神殿裡往下的石階。看守星星的人曾經住在這裡',
     lore: { title: '看守者的日記', text: '「我把七顆星星關進了七個身體。等她回來，她會知道該怎麼做。」' } },
   // ---- 精靈王國（放在最後：前面的地城區塊位置不變）----
-  { id: 'mothwood', name: '螢月禁林', style: 'cave', ent: [380, 478], lv: 50, kinds: ['mothE', 'wraithE', 'elfShade'], boss: 'mothqueen', sig: 'mothcloak', uq: 'elfblades',
+  { id: 'mothwood', name: '螢月禁林', kind: 'story', style: 'cave', ent: [380, 478], lv: 50, kinds: ['mothE', 'wraithE', 'elfShade'], boss: 'mothqueen', sig: 'mothcloak', uq: 'elfblades',
     desc: '螢火林岩壁上的洞口。精靈說，裡面的月亮從來不會落下',
     lore: { title: '禁林入口的告示', text: '「王命：任何人不得進入。」底下用小刀刻了一行字：「月蛾吃掉了我們的光。王知道，但王不說。」' } },
 ];
@@ -202,13 +210,13 @@ export function carveDungeons(roomSpawn: (d: Dungeon, tx: number, ty: number, ki
     const { rooms, hall } = lay, entry = rooms[lay.path[0]];
     d.inX = entry.x * TS + 8; d.inY = (entry.y - 1) * TS + 8; d.exX = entry.x * TS + 8; d.exY = (entry.y + 3) * TS + 8;
     map[(entry.y + 3) * MW + entry.x] = floor; map[(entry.y - 1) * MW + entry.x] = floor;
-    // 營火：入口房（傳送門旁邊）、主路中段、Boss 大廳前那間謎題房的前一間
+    // 營火：入口房（傳送門旁邊）、主路中段、Boss 大廳前那間謎題房的前一間（捷徑型只有前兩個：捷徑代替最後一個營火）
     lay.camps.forEach((ri, k) => { const r = rooms[ri], tx = r.x + (k === 0 ? 3 : 0), ty = r.y + (k === 0 ? 1 : 0);
       for (let y = ty - 1; y <= ty + 1; y++) for (let x = tx - 1; x <= tx + 1; x++) if (map[y * MW + x] === CLIFF || map[y * MW + x] === RWALL || map[y * MW + x] === PILLAR) map[y * MW + x] = floor;
       CAMPS.push({ id: 'dg_' + d.id + '_' + k, name: d.name + '・' + CAMP_N[k] + '營火', tx, ty, lit: false, x: tx * TS + 8, y: ty * TS + 10, dg: d.id }); });
     // 小怪：一般的路、岔路；入口、營火房、解謎區、寶物房不放
     for (const r of rooms) { if (r.role !== 'path' && r.role !== 'branch' && r.role !== 'end') continue;
-      const n = 1 + (r.rx * r.ry >= 16 ? 1 : 0) + (R() < .5 ? 1 : 0);
+      const n = Math.max(0, 1 + (r.rx * r.ry >= 16 ? 1 : 0) + (R() < .5 ? 1 : 0) + KINDS[d.kind].mob);   // 地城類型：戰鬥型多一隻、謎題型 / 劇情型少一隻
       for (let k = 0; k < n; k++) for (let t = 0; t < 12; t++) { const x = r.x + Math.round((R() - .5) * r.rx * 1.6), y = r.y + Math.round((R() - .5) * r.ry * 1.6); if (map[y * MW + x] !== floor) continue;
         roomSpawn(d, x, y, d.kinds[Math.floor(R() * d.kinds.length)], d.lv + (R() < .4 ? 2 : 0)); break; } }
     d.bossAt = [hall.x, hall.y + 1, Math.min(hall.rx, hall.ry) - .5];        // Boss 的結界：大廳中央，半徑比房間小一點
