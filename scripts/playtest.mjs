@@ -165,6 +165,7 @@ const pageScript = async () => {
   run('選單：角色/地圖/營火/商店', () => {
     menus.toggleInv(); step(2);
     for (const b of document.querySelectorAll('#invMenu button')) { b.click(); step(1); }
+    document.querySelector('#bagTabs [data-f="all"]').click();   // 最後一顆是「材料」分頁 → 切回「全部」，不然後面的背包測試打開會停在材料（只有完整跑才會壞）
     menus.toggleInv(); menus.toggleMap(); renderBigMap(); step(2); menus.toggleMap();
     menus.restAt(CAMPS[0]); step(2);
     const lv0 = G.me.vit + G.me.str, s0 = G.me.souls = 100000;
@@ -357,7 +358,7 @@ const pageScript = async () => {
     const drop = () => { const d = { x: G.me.x, y: G.me.y, z: 0, vz: 0, vx: 0, vy: 0, item: I.makeWeapon('axe'), t: 0, warned: false }; G.drops.push(d); return d; };
     if (!WU.pickUp(G.me, drop()) || G.me.inv.length !== 100) throw new Error('第 100 件撿不起來');
     if (WU.pickUp(G.me, drop()) || G.me.inv.length !== 100) throw new Error('背包滿 100 件了還撿得起來');
-    G.me.inv = G.me.inv.slice(0, 3); menus.toggleInv(); if (document.querySelectorAll('#bagGrid .slot').length !== 100) throw new Error('只有 3 件時，背包沒有畫出 100 格：' + document.querySelectorAll('#bagGrid .slot').length);
+    G.me.inv = G.me.inv.slice(0, 3); menus.toggleInv(); document.querySelector('#bagTabs [data-f="all"]').click(); if (document.querySelectorAll('#bagGrid .slot').length !== 100) throw new Error('只有 3 件時，背包沒有畫出 100 格：' + document.querySelectorAll('#bagGrid .slot').length);
     setMenu(null); G.me.inv = Array.from({ length: 100 }, () => I.makeWeapon('sword'));
     menus.toggleInv(); if (document.getElementById('invCount').textContent !== '100/100') throw new Error('標題沒寫 100/100：' + document.getElementById('invCount').textContent);
     if (document.querySelectorAll('#bagGrid .slot[data-i]').length !== 100) throw new Error('背包格子沒畫出 100 件');
@@ -367,7 +368,7 @@ const pageScript = async () => {
   run('分解：點一件 → 右上角分解（魂晶 + 金幣）；按住 0.6 秒 → 批量分解；點身上的裝備 → 脫下', () => {
     const I = ITEMS, sb = () => document.querySelector('#salvAll'); setMenu(null);
     G.me.inv = [I.makeWeapon('axe'), I.makeWeapon('sword', 2), I.makeArmor('chain'), I.makeSeal('bleed')]; G.me.souls = 0; G.me.gold = 0;
-    menus.toggleInv();
+    menus.toggleInv(); document.querySelector('#bagTabs [data-f="all"]').click();
     if (!sb().hidden) throw new Error('沒選東西時，右上角的分解應該是空的');
     G.selItem = G.me.inv[0].id; menus.renderInv();
     if (document.querySelector('#cInfo .sacts')) throw new Error('選中卡還有按鈕（裝備 / 分解 / 取消）');
