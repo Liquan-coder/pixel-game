@@ -485,7 +485,7 @@ const pageScript = async () => {
     if (G.lastCamp !== 'dawn') throw new Error('最後休息的營火沒有更新');
   });
 
-  run('地城：進入 → 寶箱被封印 → 打倒 Boss → 招牌裝備 + 金箱 → 休息後 Boss 不再出現 → 離開', () => {
+  run('地城：進入 → 寶箱被封印 → 打倒 Boss → 獨特武器 + 金箱的招牌裝備 → 休息後 Boss 不再出現 → 離開', () => {
     const D = imp0.dg, CH = await0.chests, Q = await0.quest; setMenu(null);
     const vit0 = G.me.vit; G.me.vit = 80; recalc(G.me); G.me.hp = G.me.maxHp;           // 30 級地城的怪會一擊打倒 1 級角色 → 測試時先把生命加高
     for (const d of D.DUNGEONS) {
@@ -506,9 +506,9 @@ const pageScript = async () => {
       if (!boss.dead) throw new Error(d.id + '：Boss 沒死');
       step(1, { god: true }); if (!document.getElementById('bossBar').hidden) throw new Error(d.id + '：Boss 死了血條還在');
       if (!Q.flags.has('dgn:' + d.id)) throw new Error(d.id + '：打倒 Boss 沒有記錄');
-      const sig = G.drops.slice(k0).find(x => x.item.ug === d.sig); if (!sig) throw new Error(d.id + '：Boss 沒掉招牌裝備 ' + d.sig);
+      const sig = G.drops.slice(k0).find(x => d.uq ? x.item.uq === d.uq : x.item.ug === d.sig); if (!sig) throw new Error(d.id + '：Boss 沒掉' + (d.uq ? '獨特武器 ' + d.uq : '招牌裝備 ' + d.sig));   // 有獨特武器的地城：Boss 掉武器、金箱是招牌裝備
       const n0 = G.drops.length; tp(chest.x, chest.y + 6); CH.openChest(G.me, chest); step(3);
-      const got = d.uq ? G.drops.slice(n0).find(x => x.item.uq === d.uq) : { item: { name: '黃金寶箱' } }; if (!chest.opened || !got) throw new Error(d.id + '：最深處的寶箱沒打開 / 沒拿到 ' + d.uq);
+      const got = d.uq ? G.drops.slice(n0).find(x => x.item.ug === d.sig) : { item: { name: '黃金寶箱' } }; if (!chest.opened || !got) throw new Error(d.id + '：最深處的寶箱沒打開 / 沒拿到 ' + d.sig);
       menus.restAt(CAMPS[0]); setMenu(null); G.projs = []; step(2, { god: true });
       if (RB.rbs.some(e => e.id === 'dg_' + d.id)) throw new Error(d.id + '：休息後 Boss 又出現了');
       const viaPortal = D.DUNGEONS.indexOf(d) % 2 === 1;                    // 一半的地城從 Boss 大廳的傳送門離開，一半走入口的傳送門
@@ -518,6 +518,11 @@ const pageScript = async () => {
       log.push('  ' + d.name + '：' + boss.def.name + ' → ' + sig.item.name + (d.uq ? ' + ' + got.item.name : ''));
       G.drops = [];
     }
+    { const nest = D.DUNGEONS.find(x => x.id === 'nest'), sv = JSON.parse(JSON.stringify(serialize())), ch = CH.CHESTS.find(c => c.id === 'd_nest');   // 舊存檔（v14）：Boss 已經打倒（當時掉招牌裝備）、金箱還沒開 → 金箱照舊給獨特武器
+      sv.v = 14; sv.flags = [...new Set([...sv.flags, 'dgn:nest'])].filter(f => !f.startsWith('oldchest:')); sv.chests = sv.chests.filter(id => id !== 'd_nest'); applySave(sv);
+      const n0 = G.drops.length; tp(ch.x, ch.y + 6); CH.openChest(G.me, ch); step(3);
+      if (!G.drops.slice(n0).some(x => x.item.uq === nest.uq)) throw new Error('舊存檔：Boss 已經打倒、金箱沒開 → 金箱沒有照舊給獨特武器');
+      Q.flags.delete('oldchest:d_nest'); }
     G.drops = []; G.me.vit = vit0; recalc(G.me);
   });
 

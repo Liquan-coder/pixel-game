@@ -45,9 +45,9 @@ export function genChests(reach: Uint8Array) {
     [545, 152, 1, 58], [470, 182, 1, 55], [612, 70, 2, 62], [500, 104, 0, 52],                                                      // 雪原
     [455, 342, 2, 70], [522, 300, 1, 68], [610, 260, 1, 70], [534, 462, 1, 72]]) {                                                 // 沼澤
     const p = near(x, y); if (p) add(p[0], p[1], tier, lv, false); }
-  // 地城：寶物房 / 死路的寶箱 + 最深處的金箱（獨特武器，要先打倒守護者）。地城裡面走路到不了起點，所以直接放
+  // 地城：寶物房 / 死路的寶箱 + 最深處的金箱（要先打倒守護者）。有獨特武器的地城：武器是 Boss 直接掉，金箱裡是招牌防具 / 飾品；沒有的 = 一般的黃金寶箱
   for (const d of DUNGEONS) { if (!d.bossChest) continue;
-    CHESTS.push({ id: 'd_' + d.id, tx: d.bossChest[0], ty: d.bossChest[1], x: d.bossChest[0] * TS + 8, y: d.bossChest[1] * TS + 10, tier: 2, lv: d.lv + 2, mimic: false, opened: false, t: 0, uq: d.uq, need: 'dgn:' + d.id });
+    CHESTS.push({ id: 'd_' + d.id, tx: d.bossChest[0], ty: d.bossChest[1], x: d.bossChest[0] * TS + 8, y: d.bossChest[1] * TS + 10, tier: 2, lv: d.lv + 2, mimic: false, opened: false, t: 0, ug: d.uq ? d.sig : undefined, need: 'dgn:' + d.id });
     for (const [x, y, t] of d.sideChests) add(x, y, t, d.lv + (t === 2 ? 4 : 1), false); }   // 寶物房的金箱、死路的銀箱（world/dungeons.ts）
   // 月泉湖心的小島（精靈王國）：精靈細劍。旁邊有精英「月泉的劍聖」守著
   CHESTS.push({ id: 'c_elfspring', tx: 334, ty: 432, x: 334 * TS + 8, y: 432 * TS + 10, tier: 2, lv: 50, mimic: false, opened: false, t: 0, uq: 'elfrapier' });
@@ -84,6 +84,8 @@ function giveLoot(c: Chest, pl: Player) {
   dropGold(c.x, c.y, Math.round([20 + t * 4, 40 + t * 8, 80 + t * 15][T] * rr(.85, 1.15)));
   dropSouls(c.x, c.y, Math.round([t * 5, t * 10, t * 20][T]), pl);
   dropMat(c.x, c.y, oreForLevel(lv), c.wild ? 1 : 2 + T, pl); if (T === 2) dropMat(c.x, c.y, oreForLevel(lv + 12), 1, pl);   // 野外寶箱只給一顆   // 黃金寶箱多一顆下一級的素材（一個地區差不多 12 級 = tier +5）
+  const oldDg = flags.has('oldchest:' + c.id) && DUNGEONS.find(d => 'd_' + d.id === c.id);   // 舊規則打倒的 Boss（當時掉的是招牌裝備）→ 金箱照舊給獨特武器（game/save.ts v15）
+  if (oldDg && oldDg.uq) { const it = makeUnique(oldDg.uq); dropItem(it, c.x, c.y); showBanner('獲得傳說武器', it.name, 2600); sfx.epic(); return; }
   if (c.ug) { const it = makeUniqueGear(c.ug); dropItem(it, c.x, c.y); showBanner('獲得', it.name, 2600); sfx.epic(); return; }   // 密室：固定的流派飾品（world/secrets.ts）
   if (c.uq) { const it = makeUnique(c.uq); dropItem(it, c.x, c.y); showBanner('獲得傳說武器', it.name, 2600); sfx.epic(); return; }   // 地城最深處：固定的獨特武器
   const q = Math.random(), cap = c.wild ? WILD_CAP : 4;

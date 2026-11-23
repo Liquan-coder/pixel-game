@@ -7,8 +7,8 @@
    三個解謎區（陷阱房、寶庫的謎題房、Boss 大廳前的謎題房，機關在 world/puzzles.ts）、幾條放寶箱的死路。
    - 小怪：每座地城有自己專屬的小怪（data/items.ts 的 KIND，art/dungeonMonsters.ts），野外不會出現
    - Boss：真正的 Boss（自己的圖、會換招、有預警、二階段），走進大廳的結界就開打。定義在 world/dungeonBoss.ts
-     打倒後記在 quest 的 flags（'dgn:編號'）→ 不會再出現、金箱解開封印；Boss 一定掉一件「招牌裝備」（sig，data/uniques.ts 的 UG）
-   地底遺跡（style: 'ruin'）：格子比較多（6×6），岔路比較多，最深處的金箱是獨特武器。
+     打倒後記在 quest 的 flags（'dgn:編號'）→ 不會再出現、金箱解開封印；Boss 一定掉獨特武器（uq），最深處的金箱是「招牌裝備」（sig，data/uniques.ts 的 UG）；沒有 uq 的地城反過來：Boss 掉招牌裝備、金箱是一般的黃金寶箱
+   地底遺跡（style: 'ruin'）：格子比較多（6×6），岔路比較多，Boss 掉獨特武器。
    新增地城：在 DUNGEONS 加一筆、PUZ 加一筆，區塊會自動排好。 */
 import { G } from '../core/state';
 import { mulberry32 } from '../core/util';
@@ -29,8 +29,8 @@ export interface Dungeon {
   mirror?: boolean;                                                       // （舊）地底遺跡左右鏡像；現在每座的格局本來就不一樣，沒有用到
   lv: number; kinds: string[];                                            // 專屬小怪
   boss: string;                                                           // world/dungeonBoss.ts 的 DBOSS 編號
-  sig: string;                                                            // Boss 一定掉的招牌裝備（data/uniques.ts 的 UG）
-  uq?: string;                                                            // 最深處金箱裡的獨特武器（沒有 = 一般的黃金寶箱）
+  sig: string;                                                            // 招牌裝備（data/uniques.ts 的 UG）：有 uq → 在金箱裡；沒有 → Boss 掉
+  uq?: string;                                                            // Boss 掉的獨特武器（有的話金箱裡是招牌裝備；沒有 = Boss 掉招牌裝備、金箱是一般的黃金寶箱）
   lore: { title: string; text: string };                                  // 地城裡的石碑
   desc?: string;                                                          // 地圖上點了顯示的說明
   // 算出來的：

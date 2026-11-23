@@ -26,7 +26,7 @@ export let slot = 0;                                                     // 現�
 export function setSlot(n: number) { slot = n; try { localStorage.setItem(LAST_KEY, String(n)); } catch (e) {} }
 export function lastSlot() { try { const n = Number(localStorage.getItem(LAST_KEY)); return n >= 0 && n < SLOTS ? n : 0; } catch (e) { return 0; } }
 export function serialize() {
-  return { v:14, at:Date.now(), mats:G.me.mats, vit:G.me.vit, str:G.me.str, end:G.me.end, dex:G.me.dex, int:G.me.int, luk:G.me.luk, souls:G.me.souls, gold:G.me.gold, tears:G.me.tears, freePts:G.me.freePts, inv:G.me.inv, weapon:G.me.weapon, armor:G.me.armor, trinkets:G.me.trinkets,
+  return { v:15, at:Date.now(), mats:G.me.mats, vit:G.me.vit, str:G.me.str, end:G.me.end, dex:G.me.dex, int:G.me.int, luk:G.me.luk, souls:G.me.souls, gold:G.me.gold, tears:G.me.tears, freePts:G.me.freePts, inv:G.me.inv, weapon:G.me.weapon, armor:G.me.armor, trinkets:G.me.trinkets,
     merchant: merchant ? { camp:merchant.camp, stock:merchant.stock } : null, rbDead: [...rbDead], potMax: G.potMax, bossDead: G.bossDead,
     camps: CAMPS.filter(c => c.lit).map(c => c.id), lastCamp: G.lastCamp, pos: lastPos(), hp: Math.ceil(G.me.hp), pot: G.me.pot, lost: G.lost, uid: G.uid, map: packExplored(), mw: MW, chests: CHESTS.filter(c => c.opened).map(c => c.id), flags: [...flags], lore: [...loreRead], disc: [...discovered] };
 }
@@ -89,6 +89,7 @@ export function applySave(d) {
   const opened = new Set(d.chests || []); for (const c of CHESTS) { c.opened = opened.has(c.id); c.foe = null; c.t = 2; }
   if ((d.v || 0) < 11) for (const dg of DUNGEONS) if (['silktwin', 'sandcrescent', 'darkmoon'].includes(dg.uq) && opened.has('d_' + dg.id) && !G.me.inv.some(it => it.uq === dg.uq) && G.me.weapon?.uq !== dg.uq)   // v11：蛛巢 / 沙埋神殿 / 霜墓的金箱多了獨特武器 → 已經開過的直接補進背包
     G.me.inv.push(makeUnique(dg.uq));
+  if ((d.v || 0) < 15) for (const dg of DUNGEONS) if (dg.uq && flags.has('dgn:' + dg.id) && !opened.has('d_' + dg.id)) flags.add('oldchest:d_' + dg.id);   // v15：Boss 改掉獨特武器、金箱改成招牌裝備 → 舊規則下已經拿過招牌裝備、還沒開的金箱照舊給武器
   if (G.bossDead) openDoor();
   if (d.merchant && CAMPS.some(c => c.id === d.merchant.camp && c.lit) && Array.isArray(d.merchant.stock) && d.v >= 6) placeMerchant(d.merchant.camp, d.merchant.stock);   // v6 以前的貨是舊武器 → 重新進貨
   else placeMerchant(d.merchant && CAMPS.some(c => c.id === d.merchant.camp && c.lit) ? d.merchant.camp : CAMPS.find(c => c.id === G.lastCamp && !c.dg) ? G.lastCamp : 'start');   // 商人不待在地城裡

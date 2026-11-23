@@ -109,13 +109,13 @@ export const REXTRA: Record<string, Move[]> = {
   sandgiant: [PULL(58), DONUT(46, 130)], slagmother: [DONUT(46, 124), HOMING(3)], frostwyrm: [CROSS(190, 1.3), DONUT(48, 140)], toxqueen: [PULL(58), HOMING(4)],
 };
 
-/* 把每座地城的 Boss 放進 RBDEF（id = 'dg_' + 地城編號）。打倒 → flags 'dgn:編號'（金箱解封、不再出現）+ 招牌裝備 */
+/* 把每座地城的 Boss 放進 RBDEF（id = 'dg_' + 地城編號）。打倒 → flags 'dgn:編號'（金箱解封、不再出現）+ 獨特武器（沒有的地城 = 招牌裝備） */
 export function registerDungeonBosses() {
   for (const d of DUNGEONS) { const B = DBOSS[d.boss]; if (!B || !d.bossAt) continue;
     const [tx, ty, tr] = d.bossAt;
     RBDEF['dg_' + d.id] = { id: 'dg_' + d.id, name: B.name, short: B.name.split('・')[0], sub: B.sub, tx, ty, tr, lv: B.lv, hp: B.hp, kind: 'db_' + d.boss, ai: 'dgn', boss: B, theme: THEME[d.boss], dg: d.id,
       adds: d.kinds, ring: B.ring, aura: B.aura, souls: Math.round(tier(B.lv) * 45), gold: Math.round(tier(B.lv) * 18), star: B.lv >= 50,
-      x: tx * TS + 8, y: ty * TS + 8, R: tr * TS, reward: () => makeUniqueGear(d.sig) };
+      x: tx * TS + 8, y: ty * TS + 8, R: tr * TS, reward: () => d.uq ? makeUnique(d.uq) : makeUniqueGear(d.sig) };   // 有獨特武器的地城：Boss 直接掉武器（金箱裡是招牌裝備）
   }  registerElfKing();
 }
 /* 精靈王：王座中庭的中間（world/elfland.ts 的精靈王城）。打倒 → 精靈弓（rbDead 'elfking'） */
