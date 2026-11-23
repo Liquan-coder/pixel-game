@@ -34,13 +34,15 @@ function nearestTarget(pl: Player, maxD) { let best = null, bd = maxD; for (cons
 function autoFace(pl: Player, maxD) { const t = nearestTarget(pl, maxD); if (t) pl.face = Math.atan2(t.y - pl.y, t.x - pl.x); pl.aimLock = .3; updFlip(pl); }
 export function updFlip(pl: Player) { const c = Math.cos(pl.face); if (c < -.1) pl.flip = true; else if (c > .1) pl.flip = false; }
 function spendSt(pl: Player, v) { pl.st = Math.max(0, pl.st - v); pl.stDelay = .55; }
+/* 保證暴擊（完美閃避、守光騎士的誓言、居合、背刺…）至少 ×1.8：重武器的暴擊傷害比較低，但這些是「打得好」的獎勵，不該因為拿重武器變小。隨機暴擊才完全照武器 */
+const sureMul = (pl: Player) => Math.max(1.8, pl.critMul || 1.8);
 function calcDmg(pl: Player, mult, cb = 0) {                                   // cb = 額外暴擊率（細劍連刺）
   let v = (pl.atkPow || pl.weapon.atk) * mult * rr(.9, 1.1);           // atkPow = 武器攻擊 × 能力值加成（recalc 算好的）
   const T = pl.tfx || {};
   if (T.lowHp && pl.hp < pl.maxHp * .35) v *= 1 + T.lowHp / 100;            // 飾品：低血量時加攻
   if (T.dodgeAtk && G.time < (pl.dodgeAtkT || 0)) { v *= 1 + T.dodgeAtk / 100; pl.dodgeAtkT = 0; }   // 飾品：瞬移後的下一擊
   const ctr = T.counter && G.time < (pl.counterT || 0); if (ctr) { v *= 1 + T.counter / 100; pl.counterT = 0; }   // 反擊之誓：被打中後的下一擊
-  const crit = ctr || forcedCrit(pl) || Math.random() * 100 < pl.crit + cb; if (crit) v *= pl.critMul || 1.8;   // forcedCrit：完美閃避後的下一擊（game/builds.ts）；暴擊傷害看武器（data/attrs.ts 的 WCRIT）
+  const sure = ctr || forcedCrit(pl), crit = sure || Math.random() * 100 < pl.crit + cb; if (crit) v *= sure ? sureMul(pl) : pl.critMul || 1.8;   // forcedCrit：完美閃避後的下一擊（game/builds.ts）；暴擊傷害看武器（data/attrs.ts 的 WCRIT）
   return { v: Math.max(1, Math.round(v)), crit };
 }
 export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: number, opts: { heavy?: boolean; stun?: number; crit?: boolean; heal?: number; proc?: boolean; cb?: number; kb?: number } = {}) {
@@ -52,8 +54,8 @@ export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: 
   if (e.immune) { G.fx.push({ k:'warp', x:e.x, y:e.y - 14, r0:16, r1:26, th:2, t:0, d:.2, col:'#ffffff' }); sfx.hit(); return; }   // 護盾：打不進去
   let { v, crit } = calcDmg(pl, mult, opts.cb || 0);
   v = Math.max(1, Math.round(v * gapDealt(level(pl), e.lv || 0) * (e.mStun > 0 ? 1.5 : 1)));   // 等級差（見 bossTuning.ts）；Boss 露出破綻時 ×1.5
-  if (opts.crit && !crit) { crit = true; v = Math.round(v * (pl.critMul || 1.8)); }      // 居合：一定暴擊
-  { const sg = sigPre(pl, e, !!opts.proc); if (sg.crit && !crit) { crit = true; v = Math.round(v * (pl.critMul || 1.8)); } if (sg.mul !== 1) v = Math.round(v * sg.mul); }   // 獨特武器：背刺、蛛網易傷（game/signatures.ts）
+  if (opts.crit && !crit) { crit = true; v = Math.round(v * sureMul(pl)); }      // 居合：一定暴擊
+  { const sg = sigPre(pl, e, !!opts.proc); if (sg.crit && !crit) { crit = true; v = Math.round(v * sureMul(pl)); } if (sg.mul !== 1) v = Math.round(v * sg.mul); }   // 獨特武器：背刺、蛛網易傷（game/signatures.ts）
   if (opts.heal) { if (G.time - (pl.healT0 || -9) > .6) { pl.healT0 = G.time; pl.healN = 0; }   // 鐮刀收割：打中一隻回一點血，一次技能最多算 3 隻
     if (pl.healN < 3) { pl.healN++; pl.hp = Math.min(pl.maxHp, pl.hp + Math.round(pl.maxHp * opts.heal * (e.boss ? .5 : 1))); } }
   v = buildHit(pl, e, v, crit, !!opts.proc);                           // 流派：怒氣、吸血、暴擊減冷卻（game/builds.ts）
