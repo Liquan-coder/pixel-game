@@ -1396,7 +1396,9 @@ const pageScript = async () => {
         for (const [dx, dy] of moves) { tp(b.x - dx * 15, b.y - dy * 15 + 2); input.mx = dx; input.my = dy; step(20); input.mx = input.my = 0; for (let t = 0; t < 200 && (b.vx || b.vy); t++) step(1); step(2); } }
       else if (p.kind === 'shortcut') { const g = p.gate[1] || p.gate[0], far = Math.sign(p.d.lay.short.far.y - p.room.y);   // 捷徑的鐵柵門：只能從另一頭（far）拉開
         tp(g.x, g.y - far * 20); step(1); const it = imp0.input.interactTarget(); if (it && it.btn === '拉開') throw new Error(name + '：從入口那一側就拉得開捷徑門');
-        use(g.x, g.y, '拉開'); }
+        let got = null; for (const dy of [16, 20, 24, 12, 28]) { const y = g.y + far * dy; if (await0.coll.collides(g.x, y, 5)) continue;   // 站到門的另一頭（far 那一側）
+          tp(g.x, y); step(1); const t = imp0.input.interactTarget(); got = t ? t.btn + '/' + t.text : '沒有'; if (t && t.btn === '拉開') { t.run(); break; } }
+        if (!p.gateOpen) throw new Error(name + '：從另一頭拉不開捷徑門（互動：' + got + '，far=' + far + '）'); }
       else throw new Error(name + '：測試不知道怎麼解');
       if (!Q.flags.has(p.fkey)) throw new Error(name + '：照正確的方法做了，門沒開'); step(90);
       if (p.gate.some(g => await0.coll.collides(g.x, g.y, 5))) throw new Error(name + '：門開了還擋路');
