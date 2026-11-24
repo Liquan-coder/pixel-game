@@ -5,9 +5,8 @@ import { ANIM, HAND_R, HSY, REACH, STYLE, WLEN } from '../art/hero';
 import { BEH, RAR, WT } from '../data/items';
 import { ACLS } from '../data/gear';
 import { rbs, regionBossDie } from '../world/regionBoss';
-import { input, level } from './player';
+import { input } from './player';
 import { applyFx, type FX } from './status';
-import { gapDealt, gapTaken } from './bossTuning';
 import { canSee, collides, moveEnt } from './collision';
 import { sfx } from '../core/audio';
 import { killEnemy } from './enemies';
@@ -55,7 +54,7 @@ export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: 
   if (e.obj) { objHit(e); return; }                                      // Boss 機制的物件：每下 -1（world/bossMech.ts）
   if (e.immune) { G.fx.push({ k:'warp', x:e.x, y:e.y - 14, r0:16, r1:26, th:2, t:0, d:.2, col:'#ffffff' }); sfx.hit(); return; }   // 護盾：打不進去
   let { v, crit } = calcDmg(pl, mult, opts.cb || 0);
-  v = Math.max(1, Math.round(v * gapDealt(level(pl), e.lv || 0) * (e.mStun > 0 ? 1.5 : 1)));   // 等級差（見 bossTuning.ts）；Boss 露出破綻時 ×1.5
+  v = Math.max(1, Math.round(v * (e.mStun > 0 ? 1.5 : 1)));   // Boss 露出破綻時 ×1.5（沒有等級差：越級難是因為怪的血、傷害和招式，不是你打不痛）
   if (opts.crit && !crit) { crit = true; v = Math.round(v * sureMul(pl)); }      // 居合：一定暴擊
   { const sg = sigPre(pl, e, !!opts.proc); if (sg.crit && !crit) { crit = true; v = Math.round(v * sureMul(pl)); } if (sg.mul !== 1) v = Math.round(v * sg.mul); }   // 獨特武器：背刺、蛛網易傷（game/signatures.ts）
   if (opts.heal) { if (G.time - (pl.healT0 || -9) > .6) { pl.healT0 = G.time; pl.healN = 0; }   // 鐮刀收割：打中一隻回一點血，一次技能最多算 3 隻
@@ -661,7 +660,7 @@ export function hurtPlayer(pl: Player, v, sx, sy, extra?: FX) {
     pl.iframe = .25; G.nums.push({ x:pl.x, y:pl.y - 28, txt:'MISS', col:'#c8e8ff', t:0, d:.7 }); G.ghosts.push({ x:pl.x + Math.sign(pl.x - sx || 1) * 5, y:pl.y, flip:pl.flip, life:.25, max:.25 }); sfx.dodge(); return false; }
   const C = G.hitCtx, T = pl.tfx || {}, res = (T['res_' + G.region] || 0) / 100, guard = (T.guard || 0) / 100;   // 地區抗性、飾品減傷
   const armor = !!(pl.swing && pl.swing.armor);                          // 大劍 / 暗月大劍揮劍中 = 霸體：受傷 ×0.6、不會被擊退
-  v = Math.max(1, Math.round(v * (G.dmgMul || 1) * gapTaken(C ? C.lv : 0, level(pl)) * (1 - (pl.defRed || 0)) * (1 - res) * (1 - guard) * (armor ? .6 : 1)));   // 等級差、防禦
+  v = Math.max(1, Math.round(v * (G.dmgMul || 1) * (1 - (pl.defRed || 0)) * (1 - res) * (1 - guard) * (armor ? .6 : 1)));   // 防禦
   pl.hp -= v; pl.hurt = .3; pl.iframe = .4; playerHurt(pl, v);       // playerHurt：反傷流的怒氣
   if (pl.ride || pl.rideT > 0) dismount(pl, true);                       // 騎著被打中：從星狼背上摔下來
   if (T.counter) pl.counterT = G.time + 2;                               // 反擊之誓：接下來 2 秒的下一擊必定暴擊

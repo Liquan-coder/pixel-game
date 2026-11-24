@@ -14,7 +14,6 @@ export const BOSS_HP = 1.6;
 /* ---- Boss 給的魂晶倍率（區域 / 地城 Boss 都算，world/regionBoss.ts 的 regionBossDie）。1 = 表上寫的數字；.6 = 打王不會一次跳好幾級 ---- */
 export const BOSS_SOULS = .6;
 
-export { gapDealt, gapTaken } from '../data/levels';                 // 等級差的公式放在 data/levels.ts（刻印效果也要用，放這裡會 import 繞一圈）
 
 export const BOSS_K = 1;                                                 // 整體倍率：1 = 跟地城 Boss 一樣痛（.85 = 穿好裝的人能扛 6 下左右，npm run balance）
 export const BOSS_REF = 34;                                              // 主線 Boss 招式的「標準一擊」大約是 34

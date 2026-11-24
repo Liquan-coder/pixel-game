@@ -25,30 +25,39 @@ for (const [name, L, wUp, aUp, nT, bossLv] of TIERS) {
   gear(true); const g = { hp: pl.maxHp, dr: Math.round(pl.defRed * 100), atk: Math.round(avg()), mob: Math.ceil(pl.maxHp / hit(Math.max(B.blade.dmg(L), B.heavy.dmg(L), B.lunge.dmg(L)))), boss: Math.ceil(pl.maxHp / hit(bossRaw)),
     kill: +(B.blade.hp(L) / (avg() / I.WT.sword.cd / pl.aspd)).toFixed(1), bossT: Math.round(bossHp / (avg() / I.WT.sword.cd / pl.aspd * .5)) };   // kill = 一直砍幾秒砍死一隻骷髏；打 Boss 大概一半的時間在出手
   gear(false); const n = { hp: pl.maxHp, boss: Math.ceil(pl.maxHp / hit(bossRaw)) };
-  // 低 20 級（= 以前的 8 級；能力值少 20 點、其他一樣穿好裝）：等級差讓 Boss 打更痛、你打牠更不痛（bossTuning.ts 的 gapTaken / gapDealt）
+  // 低 20 級（能力值少 20 點、其他一樣穿好裝）。沒有等級差懲罰：難是因為你的血和攻擊比較少
   const pts2 = Math.max(0, pts - 20); pl.vit = 5 + Math.round(pts2 * .35); pl.str = 5 + Math.round(pts2 * .4); pl.end = 5 + (pts2 - Math.round(pts2 * .35) - Math.round(pts2 * .4)); gear(true);
-  const u = { boss: Math.ceil(pl.maxHp / hit(bossRaw * BT.gapTaken(bossLv, lvOf()))), bossT: Math.round(bossHp / (avg() * BT.gapDealt(lvOf(), bossLv) / I.WT.sword.cd / pl.aspd * .5)) };
+  const u = { boss: Math.ceil(pl.maxHp / hit(bossRaw)), bossT: Math.round(bossHp / (avg() / I.WT.sword.cd / pl.aspd * .5)) };
   out.push({ name, L, wUp, aUp, nT, bossRaw: Math.round(bossRaw), g, n, u });
 }
 // 越級打王：30 級、出血細劍 +2（敏捷流）、骸骨荒地的好裝，去打每一個地區的 Boss（細劍每刺同一隻暴擊率 +12%，算平均 +36%）
-const FX = await imp('game/weaponFx'), BTD = BT.gapDealt, lv30 = 30, pts = lv30 - 1, rush = [];
+const FX = await imp('game/weaponFx'), lv30 = 30, pts = lv30 - 1, rush = [];
 pl.vit = 5 + Math.round(pts * .35); pl.dex = 5 + Math.round(pts * .4); pl.end = 5 + (pts - Math.round(pts * .35) - Math.round(pts * .4)); pl.str = pl.int = pl.luk = 5;
 pl.weapon = I.makeWeapon('rapier', 2); I.attachSeal(pl.weapon, I.makeSeal('bleed'));
 pl.armor = I.makeArmor('hunter', 3); pl.trinkets = ['iron', 'life', 'might'].map(k => I.makeTrinket(k)).concat([null]); P.recalc(pl);
 const hit = (raw) => Math.max(1, Math.round(raw * (1 - pl.defRed)));
 for (const [name, , , , , bossLv] of TIERS) {
-  const hp = { 15: 950, 25: 1700, 35: 2600, 52: 4200, 62: 5600, 75: 7000 }[bossLv] * BT.BOSS_HP, gap = BTD(lv30, bossLv), c = Math.min(1, (pl.crit + 36) / 100);
+  const hp = { 15: 950, 25: 1700, 35: 2600, 52: 4200, 62: 5600, 75: 7000 }[bossLv] * BT.BOSS_HP, c = Math.min(1, (pl.crit + 36) / 100);
   const hps = pl.aspd / I.WT.rapier.cd, B = I.WT.rapier.cd / FX.SPD_REF;
-  const normal = pl.atkPow * gap * (1 + c * ((pl.critMul || 1.8) - 1));
-  const popEvery = 100 / ((22 + 15 * c) * B), pop = Math.max(pl.atkPow * .6, Math.min(hp * .02, pl.atkPow * 3)) * gap;   // 跟 weaponFx.ts 的 pop 一樣
+  const normal = pl.atkPow * (1 + c * ((pl.critMul || 1.8) - 1));
+  const popEvery = 100 / ((22 + 15 * c) * B), pop = Math.max(pl.atkPow * .6, Math.min(hp * .02, pl.atkPow * 3));   // 跟 weaponFx.ts 的 pop 一樣
   const dps = (normal + pop / popEvery) * hps;
-  rush.push({ name, bossLv, t: Math.round(hp / (dps * .5)), bleedPct: Math.round(pop / popEvery / normal * 100), hits: Math.ceil(pl.maxHp / hit(38 * BT.bossMul(bossLv) * BT.gapTaken(bossLv, lv30))) });
+  rush.push({ name, bossLv, t: Math.round(hp / (dps * .5)), bleedPct: Math.round(pop / popEvery / normal * 100), hits: Math.ceil(pl.maxHp / hit(38 * BT.bossMul(bossLv))) });
 }
-return { out, rush };`;
+// 刀數（遊戲平衡性.md）：長劍、照文件的強化進度。怪 = 地區中間的等級；初見 = 地區最低等級、接近 = 中間 +1、回頭 = 地區最高 +12 級 +3
+const REG = [['翠風平原', 1, 12, 0, ['slime', 'lunge']], ['迷霧森林', 12, 25, 2, ['ranged', 'lunge', 'heavy']], ['骸骨荒地', 25, 37, 4, ['blade', 'heavy']], ['熔岩高地', 37, 50, 5, ['slime', 'blade', 'heavy']], ['霜寒雪原', 50, 62, 7, ['slime', 'lunge', 'heavy']], ['幽影沼澤', 62, 75, 8, ['ranged', 'blade', 'heavy']]], knife = [];
+for (const [name, lo, hi, up, behs] of REG) { const mid = Math.round((lo + hi) / 2), r = { name, mid, behs, rows: {} };
+  for (const [tag, L, u] of [['初見', lo, up], ['接近', mid, up + 1], ['回頭', hi + 12, up + 3]]) {
+    const p2 = Math.max(0, L - 1); pl.vit = 5 + Math.round(p2 * .35); pl.str = 5 + Math.round(p2 * .4); pl.end = 5 + (p2 - Math.round(p2 * .35) - Math.round(p2 * .4)); pl.dex = pl.int = pl.luk = 5;
+    pl.weapon = I.makeWeapon('sword', Math.min(10, u)); pl.armor = null; pl.trinkets = [null, null, null, null]; P.recalc(pl);
+    const a = pl.atkPow * (1 + pl.crit / 100 * ((pl.critMul || 1.8) - 1));
+    r.rows[tag] = behs.map(b => Math.ceil(I.BEH[b].hp(mid) / a)).concat([Math.ceil(I.BEH[behs.includes('blade') ? 'blade' : 'lunge'].hp(mid) * 4 / a)]); }
+  knife.push(r); }
+return { out, rush, knife };`;
 const look = join(process.cwd(), 'scripts', 'look.mjs'), png = join(mkdtempSync(join(tmpdir(), 'bal-')), 'x.png');
 const raw = execFileSync('node', [look, png, js, '480', '300', '1'], { encoding: 'utf8' }).trim().split('\n').filter(l => l.startsWith('{"out"')).pop();
 if (!raw) throw new Error("balance：遊戲裡的計算沒有回傳結果（看上面 look.mjs 的錯誤）");
-const { out: rows, rush } = JSON.parse(raw);
+const { out: rows, rush, knife } = JSON.parse(raw);
 const ok = (v, [a, b]) => (v >= a && v <= b ? '  ' : '✗ ') + v;
 console.log('目標：好裝被小怪打 ' + TARGET.mobGear.join('~') + ' 下死、被 Boss 打 ' + TARGET.bossGear.join('~') + ' 下死；沒裝被 Boss 打 ' + TARGET.bossNaked.join('~') + ' 下死；一直砍 ' + TARGET.mobKill.join('~') + ' 秒砍死小怪；打 Boss ' + TARGET.bossTime.join('~') + ' 秒\n');
 console.log(['地區', '等級', '武器', '防具', '飾品', '生命', '減傷', '一刀', '小怪幾下死', 'Boss一擊', 'Boss幾下死', '沒裝Boss幾下死', '砍死小怪秒數', '打Boss幾秒', '低20級:Boss幾下死', '低20級:打幾秒'].join('\t'));
@@ -56,3 +65,9 @@ for (const r of rows) console.log([r.name, r.L, '+' + r.wUp, '+' + r.aUp, r.nT, 
 console.log('\n越級打王：30 級、出血細劍 +2，打每個地區的 Boss（目標：比自己高 20 級以上的王要打很久、被打 2~3 下就死）');
 console.log(['地區', 'Boss等級', '打Boss幾秒', '出血比普通攻擊多幾%', 'Boss幾下死'].join('\t'));
 for (const r of rush) console.log([r.name, r.bossLv, r.t, '+' + r.bleedPct + '%', r.hits].join('\t'));
+// 遊戲平衡性.md 的刀數目標：弱小怪（史萊姆）任何時候 2~3；普通怪初見 4~6、回頭 2~3；遠程 3~5；重型 7~10（回頭 4~6）；精英 12~20（回頭 6~12）
+const KT = { 初見: { slime: [2, 3], lunge: [4, 6], blade: [4, 6], ranged: [3, 5], heavy: [7, 10], el: [12, 20] }, 接近: { slime: [2, 3], lunge: [4, 6], blade: [4, 6], ranged: [3, 5], heavy: [7, 10], el: [12, 20] }, 回頭: { slime: [1, 3], lunge: [2, 3], blade: [2, 3], ranged: [2, 3], heavy: [4, 6], el: [6, 12] } };
+const BN = { slime: '史萊姆', lunge: '衝刺怪', blade: '劍士', ranged: '遠程', heavy: '重型', el: '精英' };
+console.log('\n幾刀砍死（遊戲平衡性.md）：長劍、照文件的強化進度（+1~3 平原森林、+4~6 荒地熔岩、+7~8 雪原沼澤），沒穿裝；怪 = 地區中間的等級');
+for (const k of knife) { console.log(k.name + '（怪 ' + k.mid + ' 級）');
+  for (const tag of ['初見', '接近', '回頭']) console.log('  ' + tag + '\t' + k.behs.concat(['el']).map((b, i) => BN[b] + ' ' + ok(k.rows[tag][i], KT[tag][b])).join('\t')); }

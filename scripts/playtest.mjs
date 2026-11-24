@@ -54,7 +54,7 @@ const pageScript = async () => {
       if (opts.god && G.me) { G.me.hp = G.me.maxHp; G.me.st = G.me.maxSt; }
       if (opts.atkEvery && i % opts.atkEvery === 0) pressed.atk = true;
       update(1 / 60); if (i % 10 === 9 || i === n - 1) { render(); updateHUD(); }   // 畫面每 10 格畫一次（測試看不到畫面，畫太勤只是拖慢）；最後一格一定畫
-      if (opts.god && G.me && G.me.dead) { G.me.dead = false; G.me.hp = G.me.maxHp; }   // 無敵：等級差讓高等怪一下就打死 1 級的測試角色 → 倒下就馬上扶起來（不然會重生回營火）
+      if (opts.god && G.me && G.me.dead) { G.me.dead = false; G.me.hp = G.me.maxHp; }   // 無敵：高等怪一下就打死 1 級的測試角色 → 倒下就馬上扶起來（不然會重生回營火）
       for (const k in pressed) pressed[k] = false;
     }
     renderMini();
@@ -646,10 +646,11 @@ const pageScript = async () => {
     ST.clearStatus(G.me); G.me.hp = G.me.maxHp; step(2); if (!document.getElementById('statusRow').hidden) throw new Error('狀態解除了 HUD 還在');
   });
 
-  run('等級差：低等打高等怪比較痛、比較難打', () => {
-    const BT = await0.bt;
-    if (!(BT.gapTaken(50, 25) > 1.3 && BT.gapTaken(25, 50) < 1 && BT.gapTaken(0, 5) === 1)) throw new Error('被打的倍率不對');   // 等級尺度 ×2.5：差 25 級 = 以前差 10 級
-    if (!(BT.gapDealt(25, 50) < .8 && BT.gapDealt(50, 25) > 1)) throw new Error('打怪的倍率不對');
+  run('沒有等級差懲罰：打 80 級和 1 級的怪，同一刀傷害一樣', () => {   // 越級難是因為怪的血、傷害、招式（遊戲平衡性.md），不是你打不痛
+    const E = await0.enemies; setMenu(null); const c0 = G.me.crit; G.me.crit = -100;
+    const hitOn = (lv) => { const e = E.makeEnemy('skel', lv, G.me.x + 14, G.me.y, { alive: true, timer: 0 }); e.hp = e.maxHp = 1e9; e.stun = 99; e.dmg = 0; G.enemies = [e];
+      let s = 0; for (let i = 0; i < 40; i++) { G.me.critNext = 0; G.me.counterT = 0; const h = e.hp; damageEnemy(G.me, e, 1, G.me.x, G.me.y, { proc: true }); s += h - e.hp; } G.enemies = []; return s / 40; };   // 每刀有 ±10% 浮動 → 平均 40 刀
+    const a = hitOn(1), b = hitOn(80); G.me.crit = c0; if (Math.abs(a - b) > a * .06) throw new Error('打 1 級平均 ' + a.toFixed(1) + '、打 80 級 ' + b.toFixed(1) + '：還有等級差');
   });
 
   run('Boss 機制：時間到沒打完 → 剩幾個物件就回幾 × 5% 血、沒有破綻；物件碎掉會炸', () => {
@@ -1025,16 +1026,15 @@ const pageScript = async () => {
     setMenu(null); G.me.souls = s0; G.me.weapon = keep.w; G.me.luk = keep.luk; recalc(G.me);
   });
 
-  run('越級打王：出血對 Boss 是 2% 最大血量（最多攻擊力 ×3），也吃等級差', () => {
-    const E = await0.enemies, I = await0.items, BT = await0.bt; setMenu(null); G.enemies = []; const keep = G.me.weapon;
+  run('越級打王：出血對 Boss 是 2% 最大血量，最多攻擊力 ×3', () => {
+    const E = await0.enemies, I = await0.items; setMenu(null); G.enemies = []; const keep = G.me.weapon;
     G.me.weapon = I.makeWeapon('rapier'); I.attachSeal(G.me.weapon, I.makeSeal('bleed')); recalc(G.me);
     const e = E.makeEnemy('skel', 80, G.me.x + 14, G.me.y, { alive: true, timer: 0 }); e.boss = true; e.lv = 80; e.hp = e.maxHp = 100000; e.stun = 99; e.dmg = 0; G.enemies = [e];
     e.bleedB = 99.9; const n0 = G.nums.length; damageEnemy(G.me, e, .01, G.me.x, G.me.y);
     const t = G.nums.slice(n0).find(n => /^出血/.test(n.txt)); if (!t) throw new Error('出血沒有發作');
-    const want = Math.round(Math.max(G.me.atkPow * .6, Math.min(2000, G.me.atkPow * 3)) * BT.gapDealt(PLAYER.level(G.me), 80));
-    if (Number(t.txt.split(' ')[1]) !== want) throw new Error('出血打 Boss 應該是 min(2%, 攻擊力 ×3) × 等級差 = ' + want + '，現在 ' + t.txt);
-    if (!(want < 1000)) throw new Error('低等級打 80 級的王，出血還是太痛：' + want);
-    if (!(BT.gapDealt(30, 52) < .6 && BT.gapTaken(52, 30) > 1.5)) throw new Error('30 級打 52 級的王，等級差太小：打牠 ×' + BT.gapDealt(30, 52).toFixed(2) + '、被打 ×' + BT.gapTaken(52, 30).toFixed(2));
+    const want = Math.round(Math.max(G.me.atkPow * .6, Math.min(2000, G.me.atkPow * 3)));
+    if (Number(t.txt.split(' ')[1]) !== want) throw new Error('出血打 Boss 應該是 min(2%, 攻擊力 ×3) = ' + want + '，現在 ' + t.txt);
+    if (!(want <= G.me.atkPow * 3)) throw new Error('出血超過攻擊力 ×3：' + want);
     G.enemies = []; G.me.weapon = keep; recalc(G.me);
   });
 

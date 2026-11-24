@@ -9,10 +9,6 @@ import { UQ } from '../data/uniques';
 import { WT } from '../data/items';
 import { BUILD_DECAY, BUILD_HOLD } from '../data/ailments';
 import { healMul } from '../data/attrs';
-import { gapDealt } from '../data/levels';
-import { level } from './player';
-/* 刻印的傷害也吃等級差（跟普通攻擊一樣，bossTuning.ts）：等級太低的時候，出血 / 寒霜 / 燃燒不能拿來越級打王 */
-const gp = (pl: Player, e: Enemy) => gapDealt(level(pl), e.lv || 0);
 
 export const WFXD: Record<string, { n: string; c: string; d: string; pre: string }> = {
   bleed: { n: '出血', c: '#ff5a64', pre: '血棘', d: '連續命中會累積出血，滿了爆發「最大生命 15%」的傷害（Boss 5%）' },
@@ -118,11 +114,11 @@ function build(pl: Player, e: Enemy, fx: string, inc: number, pow: number, canSp
   if (e[k] < 100) return; e[k] = 0; pop(pl, e, fx, pow); if (canSpread) spread(pl, e, fx, pow);
 }
 function pop(pl: Player, e: Enemy, fx: string, pow: number) {
-  if (fx === 'bleed') { const d = Math.round(Math.max(pow * .6, Math.min(e.maxHp * (e.boss ? .02 : .15), pow * 3)) * gp(pl, e)); num(e, '出血 ' + d, WFXD.bleed.c); bleedPop(e); rawHit(pl, e, d, WFXD.bleed.c); }   // Boss 2% 最大血量、小怪 15%，但最多攻擊力 ×3（以前 Boss 5% 沒上限：攻擊力很低的出血細劍也能磨死高等的王）
-  else if (fx === 'frost') { const d = Math.round(pow * 1.5 * gp(pl, e)); if (!e.boss) e.stun = Math.max(e.stun || 0, ICE_SECS(e)); num(e, '凍傷 ' + d, WFXD.frost.c); freezePop(e); rawHit(pl, e, d, WFXD.frost.c); }
+  if (fx === 'bleed') { const d = Math.round(Math.max(pow * .6, Math.min(e.maxHp * (e.boss ? .02 : .15), pow * 3))); num(e, '出血 ' + d, WFXD.bleed.c); bleedPop(e); rawHit(pl, e, d, WFXD.bleed.c); }   // Boss 2% 最大血量、小怪 15%，但最多攻擊力 ×3（以前 Boss 5% 沒上限：攻擊力很低的出血細劍也能磨死高等的王）
+  else if (fx === 'frost') { const d = Math.round(pow * 1.5); if (!e.boss) e.stun = Math.max(e.stun || 0, ICE_SECS(e)); num(e, '凍傷 ' + d, WFXD.frost.c); freezePop(e); rawHit(pl, e, d, WFXD.frost.c); }
   else if (fx === 'shock') thunder(pl, e, pow * .5);
 }
-function ignite(pl: Player, e: Enemy, pow: number) { if (!(e.burnT > 0)) ignitePop(e); e.burnT = 3; e.burnD = Math.max(1, Math.round(pow * .2 * gp(pl, e))); e.burnBy = pl; }
+function ignite(pl: Player, e: Enemy, pow: number) { if (!(e.burnT > 0)) ignitePop(e); e.burnT = 3; e.burnD = Math.max(1, Math.round(pow * .2)); e.burnBy = pl; }
 /* 異常流（瘟疫之瓶，飾品 spread）：發作的那隻把同一種刻印傳給附近最多 4 隻 —— 一道刻印顏色的細線連過去 */
 function spread(pl: Player, e: Enemy, fx: string, pow: number) {
   const v = pl.tfx && pl.tfx.spread; if (!v || fx === 'shock') return;   // 雷鳴本來就會跳到旁邊，不另外傳染

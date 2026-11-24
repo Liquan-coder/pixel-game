@@ -27,7 +27,7 @@ import { updatePuzzles } from '../world/puzzles';
 import { updateSecrets } from '../world/secrets';
 
 /* ================= WORLD UPDATE ================= */
-/* 剛射出去的子彈記住是誰射的（G.hitCtx），打中人的時候才算得出等級差和異常狀態 */
+/* 剛射出去的子彈記住是誰射的（G.hitCtx），打中人的時候才知道要上什麼異常狀態 */
 export function tagProjs(n0: number) { for (let i = n0; i < G.projs.length; i++) if (G.projs[i].owner === 'e' && G.projs[i].hc === undefined) G.projs[i].hc = G.hitCtx; }
 function updateProjectiles(dt) {
   for (let i = G.projs.length - 1; i >= 0; i--) {
@@ -235,7 +235,7 @@ export function update(dt) {
   for (const pl of G.players) updatePlayer(pl, dt);
   const near = e => G.players.some(pl => Math.abs(e.x - pl.x) < 520 && Math.abs(e.y - pl.y) < 380);   // 只更新任何玩家附近的怪
   for (let i = G.enemies.length - 1; i >= 0; i--) { const e = G.enemies[i]; if (!near(e)) continue;
-    const n0 = G.projs.length; G.hitCtx = e.hc || null; updateEnemy(e, dt); tagProjs(n0); }   // hitCtx = 等級差 + 異常狀態（game/combat.ts 的 hurtPlayer）
+    const n0 = G.projs.length; G.hitCtx = e.hc || null; updateEnemy(e, dt); tagProjs(n0); }   // hitCtx = 異常狀態（game/combat.ts 的 hurtPlayer）
   G.hitCtx = null;
   tickWeaponFx(dt, targets(G.me));
   tickBuilds(dt);
