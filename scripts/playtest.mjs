@@ -638,13 +638,15 @@ const pageScript = async () => {
   });
 
   run('仇恨：隔著牆的怪不會追你，也不會擋住互動', () => {
-    const E = await0.enemies, M = await0.map, D = imp0.dg, d = D.DUNGEONS[0];
-    tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2);
-    const px = G.me.x, py = G.me.y; let wall = null;                     // 找一個離玩家 50~100px、中間隔著牆的位置
-    for (let r = 50; r <= 190 && !wall; r += 6) for (let a = 0; a < 6.28 && !wall; a += .2) { const x = px + Math.cos(a) * r, y = py + Math.sin(a) * r, i = Math.floor(y / 16) * M.MW + Math.floor(x / 16);
-      const open = [-1, 0, 1].every(oy => [-1, 0, 1].every(ox => M.WALKABLE(M.map[i + oy * M.MW + ox])));   // 周圍一圈都是地板：怪不會被牆推到看得到的地方
-      if (open && !canSee(Math.floor(x / 16) * 16 + 8, Math.floor(y / 16) * 16 + 2, px, py - 6)) wall = [Math.floor(x / 16) * 16 + 8, Math.floor(y / 16) * 16 + 8]; }
-    if (!wall) throw new Error('找不到隔著牆的位置');
+    const E = await0.enemies, M = await0.map, D = imp0.dg; let d = null, wall = null, px = 0, py = 0;
+    for (const dd of D.DUNGEONS) {                                       // 地城格局各不相同（戰鬥型入口是大競技場）→ 一座一座試，找得到隔著牆的位置為止
+      tp(dd.ent[0] * 16 + 8, (dd.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2); px = G.me.x; py = G.me.y;
+      for (let r = 50; r <= 190 && !wall; r += 6) for (let a = 0; a < 6.28 && !wall; a += .2) { const x = px + Math.cos(a) * r, y = py + Math.sin(a) * r, i = Math.floor(y / 16) * M.MW + Math.floor(x / 16);   // 離玩家 50~190px、中間隔著牆
+        const open = [-1, 0, 1].every(oy => [-1, 0, 1].every(ox => M.WALKABLE(M.map[i + oy * M.MW + ox])));   // 周圍一圈都是地板：怪不會被牆推到看得到的地方
+        if (open && !canSee(Math.floor(x / 16) * 16 + 8, Math.floor(y / 16) * 16 + 2, px, py - 6)) wall = [Math.floor(x / 16) * 16 + 8, Math.floor(y / 16) * 16 + 8]; }
+      if (wall) { d = dd; break; }
+      tp(dd.exX, dd.exY); step(1); imp0.input.enterDoor(); step(2); }
+    if (!wall) throw new Error('每座地城都找不到隔著牆的位置');
     const e = E.makeEnemy('wolf', 1, wall[0], wall[1], { alive: true, timer: 0 }); e.see = 200; G.enemies = [e]; step(10, { god: true });
     if (e.state !== 'idle') throw new Error('隔著牆的怪看到你了：' + e.state + ' e=' + Math.round(e.x - G.me.x) + ',' + Math.round(e.y - G.me.y) + ' start=' + Math.round(wall[0] - px) + ',' + Math.round(wall[1] - py) + ' see=' + canSee(e.x, e.y - 6, G.me.x, G.me.y - 6) + ' me=' + Math.round(G.me.x - px) + ',' + Math.round(G.me.y - py) + ' dead=' + G.me.dead);
     e.state = 'chase'; step(150, { god: true });
@@ -1355,6 +1357,9 @@ const pageScript = async () => {
         while (q.length) { const [x, y] = q.shift(); for (const [dx, dy] of D4) { if (!free(x - dx, y - dy)) continue; let nx = x, ny = y; while (free(nx + dx, ny + dy)) { nx += dx; ny += dy; } const k = nx + ',' + ny; if ((nx !== x || ny !== y) && !prev.has(k)) { prev.set(k, [x, y, dx, dy]); q.push([nx, ny]); } } }
         const moves = []; let k = st.goal.tx + ',' + st.goal.ty; if (!prev.has(k)) throw new Error(name + '：冰磚推不到冰紋上'); while (prev.get(k)) { const [x, y, dx, dy] = prev.get(k); moves.unshift([dx, dy]); k = x + ',' + y; }
         for (const [dx, dy] of moves) { tp(b.x - dx * 15, b.y - dy * 15 + 2); input.mx = dx; input.my = dy; step(20); input.mx = input.my = 0; for (let t = 0; t < 200 && (b.vx || b.vy); t++) step(1); step(2); } }
+      else if (p.kind === 'shortcut') { const g = p.gate[1] || p.gate[0], far = Math.sign(p.d.lay.short.far.y - p.room.y);   // 捷徑的鐵柵門：只能從另一頭（far）拉開
+        tp(g.x, g.y - far * 20); step(1); const it = imp0.input.interactTarget(); if (it && it.btn === '拉開') throw new Error(name + '：從入口那一側就拉得開捷徑門');
+        use(g.x, g.y, '拉開'); }
       else throw new Error(name + '：測試不知道怎麼解');
       if (!Q.flags.has(p.fkey)) throw new Error(name + '：照正確的方法做了，門沒開'); step(90);
       if (p.gate.some(g => await0.coll.collides(g.x, g.y, 5))) throw new Error(name + '：門開了還擋路');

@@ -40,12 +40,12 @@ MECHS.eyes = {
   setup(p, r, R) {
     const lay = p.d.lay, cand = shuf(lay.rooms.filter(q => q.role === 'path' || q.role === 'branch' || q.role === 'end'), R), picked: Room[] = [];
     const far = (q: Room) => Math.min(Math.hypot(q.x - r.x, q.y - r.y) * .6, ...picked.map(o => Math.hypot(q.x - o.x, q.y - o.y)));
-    while (picked.length < 3 && cand.length) { cand.sort((a, b) => far(b) - far(a)); picked.push(cand.shift()); }
     const eyes = [] as any[];
-    for (const q of picked) for (const x of shuf([...Array(q.rx * 2 - 1).keys()].map(k => q.x - q.rx + 1 + k), R)) {
-      let y = q.y; if (!floorAt(x, y)) continue; while (y > q.y - q.ry - 2 && floorAt(x, y - 1)) y--;               // 這一行最上面的地板
-      if (!isWall(x, y - 1) || !isWall(x - 1, y - 1) || !isWall(x + 1, y - 1) || !isWall(x, y - 2) || lay.corr.has(key(x, y - 1))) continue;
-      eyes.push({ tx: x, ty: y - 1, x: x * TS + 8, y: (y - 1) * TS + 9, i: eyes.length }); break; }
+    while (eyes.length < 3 && cand.length) { cand.sort((a, b) => far(b) - far(a)); const q = cand.shift();   // 挑離得遠的房間；房間裡找不到能放眼睛的牆（例如推石區的柱廊）→ 換下一間，一定湊滿 3 隻（石板寫的是三隻）
+      for (const x of shuf([...Array(q.rx * 2 - 1).keys()].map(k => q.x - q.rx + 1 + k), R)) {
+        let y = q.y; if (!floorAt(x, y)) continue; while (y > q.y - q.ry - 2 && floorAt(x, y - 1)) y--;               // 這一行最上面的地板
+        if (!isWall(x, y - 1) || !isWall(x - 1, y - 1) || !isWall(x + 1, y - 1) || !isWall(x, y - 2) || lay.corr.has(key(x, y - 1))) continue;
+        eyes.push({ tx: x, ty: y - 1, x: x * TS + 8, y: (y - 1) * TS + 9, i: eyes.length }); picked.push(q); break; } }
     return { r, eyes, mural: plaque(r), last: null };
   },
   update(p, st) {
