@@ -1038,6 +1038,19 @@ const pageScript = async () => {
     G.enemies = []; G.me.weapon = keep; recalc(G.me);
   });
 
+  run('精英怪：紅色、打倒後坐營火 / 讀檔都不會再出現，一定掉一件裝備', () => {
+    const E = await0.enemies, Q = await0.quest, sp = await0.map.spawns.find(o => o.elite && o.once); setMenu(null);
+    if (!sp || !sp.once.startsWith('elite:')) throw new Error('野外的精英怪沒有 once 標記');
+    const x0 = G.me.x, y0 = G.me.y; E.respawnAll(); tp(sp.x, sp.y + 40); E.streamSpawns(); step(2, { god: true });
+    const e = sp.ent; if (!e || !e.elite) throw new Error('走近了精英怪沒有出現：' + sp.ename);
+    const d0 = G.drops.length; E.killEnemy(e, G.me);
+    if (!Q.flags.has(sp.once)) throw new Error('打倒精英怪沒有記下來');
+    if (!G.drops.slice(d0).some(d => d.item)) throw new Error('精英怪沒有掉裝備');
+    E.respawnAll(); E.streamSpawns(); step(2, { god: true }); if (sp.ent || G.enemies.some(o => o.sp === sp)) throw new Error('坐營火後精英怪又出現了');
+    sp.alive = true; sp.timer = 0; E.streamSpawns(); step(2, { god: true }); if (sp.ent) throw new Error('讀檔後（生成點是活的）精英怪又出現了');
+    Q.flags.delete(sp.once); E.respawnAll(); G.drops.length = d0; tp(x0, y0); step(2);
+  });
+
   run('獨特武器的招牌：17 把各自的能力都會觸發', () => {
     const E = await0.enemies, C = await0.cb, I = await0.items, out = []; setMenu(null); G.enemies = [];
     { const camp = CAMPS.find(c => c.id === 'start'), open = (x, y) => [-60, -30, 0, 30, 60].every(dx => [-30, 0, 30].every(dy => !await0.coll.collides(x + dx, y + dy, G.me.r + 2)));

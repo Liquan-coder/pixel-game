@@ -200,7 +200,7 @@ export function genWorld() {
   });
   for (const [kind, lv, tx, ty, name] of ELITES) {
     let x = tx, y = ty; for (let k = 0; k < 40 && !WALKABLE(map[I(x, y)]); k++) { x = tx + Math.floor(R2() * 7) - 3; y = ty + Math.floor(R2() * 7) - 3; }
-    spawns.push({ tx:x, ty:y, x:x * TS + 8, y:y * TS + 8, kind, lv, elite:true, ename:name, alive:false, timer:0 });
+    spawns.push({ tx:x, ty:y, x:x * TS + 8, y:y * TS + 8, kind, lv, elite:true, ename:name, once:'elite:' + name, alive:false, timer:0 });   // once：打倒一次就永遠不見（game/enemies.ts）
   }
   /* 精靈王國：放在最後、用自己的亂數 → 其他地區的怪物位置跟以前一模一樣 */
   const R3 = mulberry32(8106), T = ELF_SPAWN; let n = 0, tries = 0;
@@ -215,7 +215,7 @@ export function genWorld() {
   }
   for (const [kind, lv, tx, ty, name] of ELF_ELITES) {
     let x = tx, y = ty; for (let k = 0; k < 40 && !WALKABLE(map[I(x, y)]); k++) { x = tx + Math.floor(R3() * 7) - 3; y = ty + Math.floor(R3() * 7) - 3; }
-    spawns.push({ tx:x, ty:y, x:x * TS + 8, y:y * TS + 8, kind, lv, elite:true, ename:name, alive:false, timer:0 });
+    spawns.push({ tx:x, ty:y, x:x * TS + 8, y:y * TS + 8, kind, lv, elite:true, ename:name, once:'elite:' + name, alive:false, timer:0 });   // once：打倒一次就永遠不見（game/enemies.ts）
   }
 }
 /* 精英怪（有名字、比較強、打倒後要休息才會復活）：[種類, 等級, x, y, 名字] */

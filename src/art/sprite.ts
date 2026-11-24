@@ -12,16 +12,16 @@ export function makeSprite(rows, pal, s = 1) {
         g.fillStyle = solid || col; g.fillRect((flip ? w - 1 - x : x) * s, y * s, s, s); } }
     return c;
   };
-  return { w: w * s, h: h * s, n: mk(false), f: mk(true), wn: mk(false, '#ffffff'), wf: mk(true, '#ffffff'), gn: mk(false, '#f2c14e'), gf: mk(true, '#f2c14e'), pn: mk(false, '#9a7cff'), pf: mk(true, '#9a7cff') };
+  return { w: w * s, h: h * s, n: mk(false), f: mk(true), wn: mk(false, '#ffffff'), wf: mk(true, '#ffffff'), gn: mk(false, '#f2c14e'), gf: mk(true, '#f2c14e'), pn: mk(false, '#9a7cff'), pf: mk(true, '#9a7cff'), rn: mk(false, '#ff3a3a'), rf: mk(true, '#ff3a3a') };
 }
-export function drawSprite(sp, x, y, flip, white, gold) {
+export function drawSprite(sp, x, y, flip, white, gold: boolean | 'red') {   // gold：外框（true = 金色，'red' = 紅色，精英怪用）
   if (sp.hd) {                                                          // 高解析怪物：用細像素畫，再縮放到世界大小
     const w = sp.w, h = sp.h, X = snapF(x - w / 2), Y = snapF(y - h);
-    if (gold) { const gi = flip ? sp.gf : sp.gn, o = HK * 2; for (const [dx, dy] of [[-o, 0], [o, 0], [0, -o], [0, o]]) ctx.drawImage(gi, X + dx, Y + dy, w, h); }
+    if (gold) { const gi = gold === 'red' ? (flip ? sp.rf : sp.rn) : flip ? sp.gf : sp.gn, o = HK * 2; for (const [dx, dy] of [[-o, 0], [o, 0], [0, -o], [0, o]]) ctx.drawImage(gi, X + dx, Y + dy, w, h); }
     ctx.drawImage(white ? (flip ? sp.wf : sp.wn) : (flip ? sp.f : sp.n), X, Y, w, h); return;
   }
   const X = Math.round(x - sp.w / 2), Y = Math.round(y - sp.h);
-  if (gold) { const gi = flip ? sp.gf : sp.gn; ctx.drawImage(gi, X - 1, Y); ctx.drawImage(gi, X + 1, Y); ctx.drawImage(gi, X, Y - 1); ctx.drawImage(gi, X, Y + 1); }
+  if (gold) { const gi = gold === 'red' ? (flip ? sp.rf : sp.rn) : flip ? sp.gf : sp.gn; ctx.drawImage(gi, X - 1, Y); ctx.drawImage(gi, X + 1, Y); ctx.drawImage(gi, X, Y - 1); ctx.drawImage(gi, X, Y + 1); }
   ctx.drawImage(white ? (flip ? sp.wf : sp.wn) : (flip ? sp.f : sp.n), X, Y);
 }
 /* ---- heroine (traced from the reference art) + weapons ---- */

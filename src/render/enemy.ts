@@ -1,5 +1,5 @@
 import { G } from '../core/state';
-import { clamp, rr } from '../core/util';
+import { clamp, pick, rr } from '../core/util';
 import { HK, ctx, snapF } from '../core/canvas';
 import { OL, drawSprite } from '../art/sprite';
 import { SPR } from '../art/monsters';
@@ -20,24 +20,34 @@ export function drawEnemy(e) {
   if (e.rb && drawRigged(e, white)) { if (e.hp > 0) sealIcons(e, e.y - sp.h - 3); return; }   // 有骨架的 Boss：身體和武器分開畫、出招會動（render/bossAnim.ts）
   const J = enemyJuice(e, sp), bob = !(e.boss || e.rb) ? 0 : e.beh === 'slime' ? Math.round(Math.abs(Math.sin(e.anim * 5)) * 2) : (e.state === 'chase' || e.state === 'idle') ? Math.floor(e.anim * 6) % 2 : 0;
   drawShadow(e.x, e.y + 1, sp.w * .7 * Math.max(.55, 1 - J.lift * .04));   // 跳起來時影子變小
+  if (e.elite && e.hp > 0) eliteAura(e, sp);                              // 精英怪：腳下的紅光 + 往上飄的火星
   if (e.stun > 0) { ctx.fillStyle = '#f2c14e'; const a = G.time * 8; ctx.fillRect(Math.round(e.x + Math.cos(a) * 6), Math.round(e.y - sp.h - 3), 2, 2); ctx.fillRect(Math.round(e.x - Math.cos(a) * 6), Math.round(e.y - sp.h - 3), 2, 2); }
   ctx.save(); ctx.translate(snapF(e.x + J.shiver), snapF(e.y + 2 - bob - (e.z || 0) - J.lift));   // 以腳底為中心變形
   if (J.rot) ctx.rotate(J.rot);
   ctx.transform(J.sx, 0, -J.lean, J.sy, 0, 0);
-  drawSprite(J.pose && sp.atk?.[J.pose] || (J.wf >= 0 && sp.walk ? sp.walk[J.wf] : sp), 0, 0, e.flip, white, e.elite && Math.floor(G.time * 4) % 4 !== 0);   // 跑動中 → 換成第 wf 張走路圖
+  if (e.elite) ctx.scale(ELITE_S, ELITE_S);                               // 精英怪大一號（以腳底為中心放大）
+  drawSprite(J.pose && sp.atk?.[J.pose] || (J.wf >= 0 && sp.walk ? sp.walk[J.wf] : sp), 0, 0, e.flip, white, e.elite ? 'red' : false);   // 跑動中 → 換成第 wf 張走路圖；精英怪一直有紅色外框
   if (e.boss && G.B && G.B.phase === 2 && sp.eye) { const X = snapF(-sp.w / 2), Y = snapF(-sp.h), ex = (e.flip ? sp.aw - sp.eye[0] - 3 : sp.eye[0]) * HK;
     ctx.fillStyle = '#ff3b3b'; ctx.globalAlpha = .5 + .5 * Math.sin(G.time * 12); ctx.fillRect(X + ex - HK, Y + (sp.eye[1] - 1) * HK, HK * 5, HK * 3); ctx.globalAlpha = 1; }
   ctx.restore();
   if (e.webT > G.time && e.hp > 0) drawWeb(e, sp);                      // 巢母雙頭刀「蛛網」：整隻怪被一張白色蛛網罩住
   if (e.iceT) { if (e.iceT > G.time && e.hp > 0) drawIceCrystal(e.x, e.y + 2, G.time - (e.iceT0 || 0), e.iceT - G.time);   // 寒霜刻印凍住了（art/iceCrystal.ts）
     else { e.iceT = 0; iceShatter(e.x, e.y + 2); sfx.iceBreak(); } }                                           // 時間到 / 被打死：冰晶碎掉
-  const hpBar = !e.boss && (e.hp < e.maxHp || e.elite), top = e.iceT > G.time ? Math.min(e.y - sp.h, e.y + 1 - iceTop()) : e.y - sp.h;   // 被凍住：血條、圖示移到冰晶上面
+  const hpBar = !e.boss && (e.hp < e.maxHp || e.elite), sh = sp.h * (e.elite ? ELITE_S : 1), top = e.iceT > G.time ? Math.min(e.y - sh, e.y + 1 - iceTop()) : e.y - sh;   // 被凍住：血條、圖示移到冰晶上面
   if (hpBar) {
     const w = e.elite ? 22 : 14, y = Math.round(top - 3);
-    ctx.fillStyle = OL; ctx.fillRect(Math.round(e.x - w / 2 - 1), y - 1, w + 2, 3);
-    ctx.fillStyle = e.elite ? '#f2c14e' : '#d8434e'; ctx.fillRect(Math.round(e.x - w / 2), y, Math.max(1, Math.round(w * e.hp / e.maxHp)), 1);
+    ctx.fillStyle = e.elite ? '#ff5a5a' : OL; ctx.fillRect(Math.round(e.x - w / 2 - 1), y - 1, w + 2, 3);   // 精英怪：紅框
+    if (e.elite) { ctx.fillStyle = '#3a0a10'; ctx.fillRect(Math.round(e.x - w / 2), y, w, 1); }             // 扣掉的部分是暗紅色（看得出還剩多少）
+    ctx.fillStyle = e.elite ? '#ffd0d0' : '#d8434e'; ctx.fillRect(Math.round(e.x - w / 2), y, Math.max(1, Math.round(w * e.hp / e.maxHp)), 1);
   }
   if (e.hp > 0) sealIcons(e, top - (hpBar ? 6 : 3));
+}
+/* 精英怪：比一般的大一號、紅色外框、腳下一圈會呼吸的紅光，身上一直冒紅色的火星（死掉了就不會再出現，game/enemies.ts） */
+const ELITE_S = 1.2;
+function eliteAura(e, sp) {
+  const p = .5 + .5 * Math.sin(G.time * 3 + (e.anim || 0)), R = sp.w * .55 * ELITE_S + 2 + p * 1.5, cy = e.y + 1;
+  fillSpans(cy - R, cy + R, [{ sh: shEll(e.x, cy, R, .4), col: '#a01822', a: .18 + .14 * p }, { sh: shEll(e.x, cy, R, .4), sub: shEll(e.x, cy, R - HK * 2, .4), col: '#ff5a5a', a: .35 + .3 * p }]);
+  if (Math.random() < .2) G.parts.push({ x: e.x + rr(-sp.w * .45, sp.w * .45), y: e.y - rr(0, sp.h * .7), vx: rr(-4, 4), vy: -rr(12, 28), life: rr(.4, .8), max: .8, col: pick(['#ff3a3a', '#ff8a6a', '#8a1a22']), star: rr(.5, 1.1), drag: 1 });
 }
 /* 蛛網：8 根放射的絲 + 3 圈（每圈往中心垂一點），兩條絲黏到地上。剛黏上時從大張縮回來，最後 0.6 秒慢慢淡掉。
    先畫一層深色的影子（往下偏 1 細像素），雪地、白色的怪身上也看得到 */

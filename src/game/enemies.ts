@@ -40,7 +40,7 @@ const ACT_X = 600, ACT_Y = 440, OFF_X = 900, OFF_Y = 680;
 export function streamSpawns() {
   let drop = false;
   for (const sp of spawns) {
-    if (!sp.alive) continue;
+    if (!sp.alive || (sp.once && flags.has(sp.once))) continue;         // 打倒過的精英怪 / 守護者：讀檔後也不會再出現
     let nearX = Infinity, nearY = Infinity; for (const pl of G.players) { const dx = Math.abs(sp.x - pl.x), dy = Math.abs(sp.y - pl.y); if (dx + dy < nearX + nearY) { nearX = dx; nearY = dy; } }
     if (!sp.ent) { if (nearX < ACT_X && nearY < ACT_Y) { sp.ent = makeEnemy(sp.kind, sp.lv, sp.x, sp.y, sp); if (sp.hp) sp.ent.hp = Math.min(sp.hp, sp.ent.maxHp); G.enemies.push(sp.ent); } }   // 被打過的怪重新出現時，血還是剩那樣
     else if (sp.ent.dead) sp.ent = null;
@@ -86,7 +86,7 @@ export function updateEnemy(e, dt) {
       if (e.t <= 0) { e.t = rr(1.5, 3.5); const a = rr(0, TAU), r = rr(8, 40); e.wx = e.hx + Math.cos(a) * r; e.wy = e.hy + Math.sin(a) * r; }
       stepToward(e, e.wx, e.wy, e.spd * .35, dt);
       if (!e.tgt.dead && d < e.aggro && canSee(e.x, e.y - 6, e.tgt.x, e.tgt.y - 6)) { e.state = 'chase'; e.blind = 0; G.nums.push({ x:e.x, y:e.y - 20, txt:'!', col:'#ffd04a', t:0, d:.6 });
-        if (e.elite && !e.announced) { e.announced = true; toast('精英敵人：' + e.ename, '#f2c14e'); } }
+        if (e.elite && !e.announced) { e.announced = true; toast('精英敵人：' + e.ename, ELITE_C); } }
       break;
     case 'chase':
       e.blind = canSee(e.x, e.y - 6, e.tgt.x, e.tgt.y - 6) ? 0 : (e.blind || 0) + dt;   // 被牆擋住看不到你超過 2 秒 → 放棄，走回家
@@ -126,6 +126,7 @@ export function updateEnemy(e, dt) {
       break;
   }
 }
+export const ELITE_C = '#ff5a5a';                                   // 精英怪的顏色（外框、血條、名字）
 export function killEnemy(e, by) {                                     // by = 打死它的玩家
   const i = G.enemies.indexOf(e); if (i >= 0) G.enemies.splice(i, 1);
   if (e.sp) { e.sp.alive = false; e.sp.ent = null; e.sp.hp = 0; e.sp.timer = e.elite ? Infinity : 45; }
@@ -138,11 +139,13 @@ export function killEnemy(e, by) {                                     // by = �
   /* 掉落：小怪主要給魂晶、礦石、藥水；武器很少（主要從地城、Boss、寶箱拿） */
   if (e.sp || e.elite) { const luk = by ? soft(by.luk) : 0, n = e.elite ? 2 + (Math.random() < .5 ? 1 : 0) : Math.random() < .25 + .008 * luk ? 1 : 0;   // 強化素材：這個地區的素材（幸運越高越常掉）
     if (n) dropMat(e.x, e.y, oreForLevel(e.lv), n, by);
-    if (e.elite && Math.random() < .04) dropMat(e.x, e.y, 'umat', 1, by); }   // 精英怪：4% 掉一顆黯星石（獨特武器強化）
+    if (e.elite && Math.random() < .25) dropMat(e.x, e.y, 'umat', 1, by); }   // 精英怪：25% 掉一顆黯星石（獨特武器強化）。以前 4%，但那時候坐營火就會復活、可以一直刷
   if (by && by.pot < G.potMax && Math.random() < (e.elite ? .6 : e.sp ? .07 : 0)) dropPot(e.x, e.y, by);                          // 藥水：只有喝過才會掉（補一瓶）
-  if (e.sp && e.sp.once && !flags.has(e.sp.once)) { flags.add(e.sp.once); showBanner('守護者倒下了', e.ename + ' · 最深處的寶箱解開了封印', 2800); dropMat(e.x, e.y, oreForLevel(e.lv), 2, by); save(); }
-  if (e.elite) { toast('擊敗了 ' + e.ename, '#f2c14e'); const q = Math.random();
-    if (q < .15) dropItem(randomLoot(e.lv, q < .05 ? 3 : 2, 'weapon'), e.x, e.y); else if (q < .45) dropItem(randomLoot(e.lv, q < .25 ? 3 : 2, 'gear'), e.x, e.y); }
+  if (e.sp && e.sp.once && !flags.has(e.sp.once)) { flags.add(e.sp.once);
+    if (e.sp.once.startsWith('elite:')) save();                         // 野外的精英怪：記下來，以後不會再出現
+    else { showBanner('守護者倒下了', e.ename + ' · 最深處的寶箱解開了封印', 2800); dropMat(e.x, e.y, oreForLevel(e.lv), 2, by); save(); } }
+  if (e.elite) { toast('擊敗了 ' + e.ename, ELITE_C); const q = Math.random();   // 精英怪只打得到一次 → 一定掉一件裝備（30% 武器），三成是稀有的
+    dropItem(randomLoot(e.lv, Math.random() < .3 ? 3 : 2, q < .3 ? 'weapon' : 'gear'), e.x, e.y); }
   else if (e.sp) { const q = Math.random(), r = Math.random(), rarity = r < .03 ? 3 : r < .13 ? 2 : r < .4 ? 1 : 0;
     if (q < .015) dropItem(randomLoot(e.lv, rarity, 'weapon'), e.x, e.y); else if (q < .04) dropItem(randomLoot(e.lv, rarity, 'gear'), e.x, e.y); }
 }
