@@ -656,20 +656,25 @@ const pageScript = async () => {
   });
 
   run('地城的小地圖：只揭開沿著地板走 10 步以內的地方，牆後面的路不會先出現', () => {
-    const M = await0.map, D = imp0.dg, I = (x, y) => y * M.MW + x; let hidden = 0, where = '';
-    for (const d of D.DUNGEONS) {                                        // 一座一座試：入口是大競技場的看不出牆有沒有擋住 → 至少要有一座揭開時被牆擋住
-      tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2);
-      const px = Math.floor(G.me.x / 16), py = Math.floor(G.me.y / 16);
-      for (let y = py - 20; y <= py + 20; y++) for (let x = px - 20; x <= px + 20; x++) M.explored[I(x, y)] = 0;
-      revealHere(); let far = 0, h = 0;
-      for (let y = py - 20; y <= py + 20; y++) for (let x = px - 20; x <= px + 20; x++) { const fl = M.WALKABLE(M.map[I(x, y)]), r2 = (x - px) ** 2 + (y - py) ** 2;
-        if (M.explored[I(x, y)] && fl && r2 > 132) far++;                 // 走 10 步 + 順便畫的旁邊一圈（直線最遠約 11.4 格）
-        if (!M.explored[I(x, y)] && fl && r2 <= 64 && !await0.coll.canSee(x * 16 + 8, y * 16 + 2, G.me.x, G.me.y - 6)) h++; }   // 8 格內、隔著牆（要繞路）的地板沒揭開 = 對
-      if (!M.explored[I(px, py)]) throw new Error(d.name + '：站的地方沒有揭開'); if (far) throw new Error(d.name + '：揭開了 11.5 格以外的地板（' + far + ' 格）');
-      tp(d.exX, d.exY); step(1); imp0.input.enterDoor(); step(2);
-      if (h) { hidden = h; where = d.name; break; } }
-    if (!hidden) throw new Error('每座地城入口都看不出牆有擋住揭開');
-    log.push('  ' + where + '：8 格內隔著牆、還沒揭開的地板 ' + hidden + ' 格');
+    const M = await0.map, D = imp0.dg, d = D.DUNGEONS[0], I = (x, y) => y * M.MW + x, fl = (x, y) => M.WALKABLE(M.map[I(x, y)]);
+    tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2);
+    const walk = (sx, sy) => { const dist = new Map([[I(sx, sy), 0]]), q = [[sx, sy]];   // 從 (sx, sy) 沿著地板走，每格要幾步（最多 14 步）
+      for (let h = 0; h < q.length; h++) { const [x, y] = q[h], k = dist.get(I(x, y)); if (k >= 14) continue;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (!fl(nx, ny) || dist.has(I(nx, ny))) continue; dist.set(I(nx, ny), k + 1); q.push([nx, ny]); } }
+      return dist; };
+    let P = null, Q = null;                                              // 找一對地板：直線只差 2~3 格，中間隔著牆，要走 12 步以上（或走不到）
+    for (let y = d.y0 + 1; y < d.y0 + d.h - 1 && !P; y += 2) for (let x = d.x0 + 1; x < d.x0 + d.w - 1 && !P; x += 2) { if (!fl(x, y)) continue; const dist = walk(x, y);
+      for (let oy = -3; oy <= 3 && !P; oy++) for (let ox = -3; ox <= 3 && !P; ox++) { const r2 = ox * ox + oy * oy; if (r2 < 4 || r2 > 9 || !fl(x + ox, y + oy)) continue;
+        const k = dist.get(I(x + ox, y + oy)); if (k === undefined || k >= 12) { P = [x, y]; Q = [x + ox, y + oy]; } } }
+    if (!P) throw new Error(d.name + '：找不到隔著牆的兩格地板');
+    tp(P[0] * 16 + 8, P[1] * 16 + 8);
+    for (let y = P[1] - 20; y <= P[1] + 20; y++) for (let x = P[0] - 20; x <= P[0] + 20; x++) M.explored[I(x, y)] = 0;
+    revealHere(); let far = 0;
+    for (let y = P[1] - 20; y <= P[1] + 20; y++) for (let x = P[0] - 20; x <= P[0] + 20; x++) if (M.explored[I(x, y)] && fl(x, y) && (x - P[0]) ** 2 + (y - P[1]) ** 2 > 132) far++;   // 走 10 步 + 順便畫的旁邊一圈（直線最遠約 11.4 格）
+    if (!M.explored[I(P[0], P[1])]) throw new Error('地城裡站的地方沒有揭開'); if (far) throw new Error('地城裡揭開了 11.5 格以外的地板（' + far + ' 格）');
+    if (M.explored[I(Q[0], Q[1])]) throw new Error('牆後面的路先出現在地圖上了：站在 ' + P + '，隔著牆的 ' + Q + ' 也揭開了');
+    log.push('  站在 ' + P + '，隔著牆 ' + Math.round(Math.hypot(Q[0] - P[0], Q[1] - P[1]) * 10) / 10 + ' 格的 ' + Q + ' 沒有揭開');
+    tp(d.exX, d.exY); step(1); imp0.input.enterDoor(); step(2);
   });
 
   run('異常狀態：冰凍 / 暈眩不能動、狂按掙脫、中毒扣血、出血爆發、目盲、封印', () => {
