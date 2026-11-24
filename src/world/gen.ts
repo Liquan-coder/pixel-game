@@ -165,7 +165,7 @@ export function genWorld() {
   reachable = reach;
   heights();                                                            // 山的高度（tileArt 畫山峰用）                                                   // main.ts 會用它來放寶箱
   // 怪物
-  const R2 = mulberry32(99);
+  const s0 = spawns.length, R2 = mulberry32(99);
   const grid = new Map<number, any[]>(), gk = (tx, ty) => ((tx >> 3) << 12) | (ty >> 3);   // 8×8 格一桶，查「附近有沒有怪」比較快
   const near = (tx, ty, d) => { for (let gy = (ty - d) >> 3; gy <= (ty + d) >> 3; gy++) for (let gx = (tx - d) >> 3; gx <= (tx + d) >> 3; gx++) for (const s of grid.get((gx << 12) | gy) || []) if (Math.hypot(s.tx - tx, s.ty - ty) < d) return true; return false; };
   const put = sp => { spawns.push(sp); const k = gk(sp.tx, sp.ty); (grid.get(k) || grid.set(k, []).get(k)).push(sp); };
@@ -216,8 +216,13 @@ export function genWorld() {
   for (const [kind, lv, tx, ty, name] of ELF_ELITES) {
     let x = tx, y = ty; for (let k = 0; k < 40 && !WALKABLE(map[I(x, y)]); k++) { x = tx + Math.floor(R3() * 7) - 3; y = ty + Math.floor(R3() * 7) - 3; }
     spawns.push({ tx:x, ty:y, x:x * TS + 8, y:y * TS + 8, kind, lv, elite:true, ename:name, once:'elite:' + name, alive:false, timer:0 });   // once：打倒一次就永遠不見（game/enemies.ts）
-  }
+  }  /* 野外的怪少三成（去營火升級再走回來，路上不會一直被擋）：上面照舊生成，亂數順序不變 → 精英怪、精靈王國、其他東西的位置都不動；
+     最後再用另一組亂數拿掉 30% 的一般怪 */
+  const R4 = mulberry32(4242); let k = s0;
+  for (let i = s0; i < spawns.length; i++) if (spawns[i].elite || R4() >= FIELD_THIN) spawns[k++] = spawns[i];
+  spawns.length = k;
 }
+const FIELD_THIN = .3;                                                  // 野外一般怪拿掉的比例
 /* 精英怪（有名字、比較強、打倒後要休息才會復活）：[種類, 等級, x, y, 名字] */
 const ELITES = [
   ['slime',8,64,532,'湖畔巨史萊姆'],['wolf',12,206,516,'風車丘狼首'],['wolf',10,70,472,'落石坡狼王'],['wolf',15,92,366,'野狼頭目'],['slime',12,94,329,'窪地的老史萊姆'],

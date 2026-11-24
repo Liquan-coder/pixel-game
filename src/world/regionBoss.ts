@@ -93,6 +93,15 @@ function startRB(e) {
   showBanner(e.def.name, e.def.sub, 2200); sfx.howl(); shake(5, .6);
   G.fx.push({ k:'warp', x:e.def.x, y:e.def.y, r0:e.def.R * .2, r1:e.def.R, th:4, sy:1, t:0, d:.6, col:e.def.ring[1] });
 }
+/* 結界也擋小怪：Boss 叫出來的小怪關在結界裡；其他小怪（野外、地城的）擋在外面，不會追著玩家進來、也不會被打飛進去。
+   打倒的 Boss 結界就沒了，不擋 */
+export function fenceMobs() {
+  for (const b of rbs) { if (b.dead) continue; const d = b.def;
+    for (const e of G.enemies) { if (e.rb || e.boss || e.dying) continue;
+      const dx = e.x - d.x, dy = e.y - d.y; if (Math.abs(dx) > d.R + 40 || Math.abs(dy) > d.R + 40) continue;
+      if (e.rbAdd === d.id) { keepIn(e, d, e.r + 2); continue; }
+      const L = Math.hypot(dx, dy), m = d.R + e.r + 2; if (L < m && L > 0) { e.x = d.x + dx / L * m; e.y = d.y + dy / L * m; } } }
+}
 // 結界：把在結界裡（或剛好在邊上）的玩家關在裡面；離很遠的隊友不會被吸進來
 function keepPlayersIn(d) { for (const pl of G.players) if (Math.hypot(pl.x - d.x, pl.y - d.y) < d.R + 20) keepIn(pl, d, pl.r + 2); }
 export function updateRegionBosses(dt) {

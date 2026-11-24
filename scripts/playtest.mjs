@@ -577,6 +577,17 @@ const pageScript = async () => {
     G.drops = []; G.coins = [];
   });
 
+  run('結界擋小怪：野外的怪進不去，Boss 叫出來的出不去', () => {
+    const b = RB.rbs.find(b => !b.dead && b.def.R > 40); if (!b) throw new Error('找不到還活著的區域 Boss');
+    const d = b.def, E = await0.enemies, keep = G.enemies; G.enemies = G.enemies.filter(e => e.rb);
+    const w = E.makeEnemy('wolf', 5, d.x + 10, d.y, null), a = E.makeEnemy('slime', 5, d.x + d.R + 30, d.y, null); a.rbAdd = d.id; G.enemies.push(w, a);
+    step(2); const dw = Math.hypot(w.x - d.x, w.y - d.y), da = Math.hypot(a.x - d.x, a.y - d.y);
+    log.push('  結界半徑 ' + d.R + '：野狼離中心 ' + Math.round(dw) + '、Boss 的小怪 ' + Math.round(da));
+    G.enemies = keep.filter(e => e !== w && e !== a);
+    if (dw < d.R) throw new Error('野外的怪留在結界裡：' + Math.round(dw));
+    if (da > d.R) throw new Error('Boss 叫出來的怪跑出結界：' + Math.round(da));
+  });
+
   run('存檔 → 讀檔', () => {
     save(); const s = loadSave(); if (!s) throw new Error('沒有存檔');
     const before = JSON.stringify(serialize());

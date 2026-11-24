@@ -7,7 +7,7 @@ import { HK, LH, LW, ctx, snapF } from '../core/canvas';
 import { COIN_SP, ICON, INV_MAX, RAR, SOUL_SP } from '../data/items';
 import { MATS, ORE_SP, ORE_TO_MAT } from '../data/forge';
 import { BLOCKP, TS, spawns } from '../world/map';
-import { updateRegionBosses } from '../world/regionBoss';
+import { fenceMobs, updateRegionBosses } from '../world/regionBoss';
 import { tileAt } from '../world/gen';
 import { cam } from './player';
 import { moveEnt } from './collision';
@@ -242,7 +242,7 @@ export function update(dt) {
   sigTick(dt);                                                           // 獨特武器：燈魂、螢火蟲、火海、沙暴、暗月光（game/signatures.ts）                                                        // 流派：殘影爆炸、怒氣、後搖中按的瞬移（game/builds.ts）
   updatePuzzles(dt);                                                     // 地城的機關（world/puzzles.ts）
   updateSecrets(dt);                                                     // 精靈王城的城門、密室（world/secrets.ts）
-  updateNPCs(); updateQuest(); updateBoss(dt); updateRegionBosses(dt); separate(); updateProjectiles(dt); updateDrops(dt); updateSpawns(dt);
+  updateNPCs(); updateQuest(); updateBoss(dt); updateRegionBosses(dt); separate(); fenceMobs(); updateProjectiles(dt); updateDrops(dt); updateSpawns(dt);
   for (let i = G.fx.length - 1; i >= 0; i--) { G.fx[i].t += dt; if (G.fx[i].t >= G.fx[i].d) G.fx.splice(i, 1); }
   for (let i = G.ghosts.length - 1; i >= 0; i--) { G.ghosts[i].life -= dt; if (G.ghosts[i].life <= 0) G.ghosts.splice(i, 1); }
   for (let i = G.parts.length - 1; i >= 0; i--) { const p = G.parts[i]; p.life -= dt; if (p.life <= 0) { G.parts.splice(i, 1); continue; } p.x += p.vx * dt; p.y += p.vy * dt; if (p.g) p.vy += p.g * dt; if (p.drag) { const q = Math.exp(-p.drag * dt); p.vx *= q; p.vy *= q; } }
