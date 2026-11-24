@@ -33,7 +33,7 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .bar i{position:absolute;left:0;top:0;bottom:0;width:100%;background:var(--hp);box-shadow:inset 0 2px 0 #ffffff40}
 .bar.st{height:8px}
 .bar.st i{background:var(--st)}
-.bar.st.empty{animation:stEmpty .4s}                               /* 體力不夠瞬移：體力條閃紅（game/builds.ts） */
+.bar.st.empty{animation:stEmpty .4s}                               /* 體力不夠翻滾：體力條閃紅（game/builds.ts） */
 @keyframes stEmpty{0%,50%{box-shadow:0 0 0 2px #ff4a4a,0 0 8px #ff4a4a}100%{box-shadow:none}}
 /* 異常狀態：生命條下面一排小標籤（冰凍 1、中毒 4…） */
 #statusRow{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px}

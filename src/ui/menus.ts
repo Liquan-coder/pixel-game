@@ -50,7 +50,7 @@ function attrLine(p, k: AttrKey) {
     vit: ['生命 +' + Math.round(22 * s), '回血 +' + pc(P.heal)],
     end: ['體力 +' + Math.round(8 * s), '防禦 +' + Math.round(.5 * s), '反擊 +' + pc(P.retal)],
     str: [atk, '蓄力 +' + pc(P.charge), '蓄滿一擊 +' + pc(P.chargeDmg)],
-    dex: [atk, '攻速 +' + pc(Math.min(15, .6 * s)), '瞬移體力 −' + pc(P.dodgeSave)],
+    dex: [atk, '攻速 +' + pc(Math.min(15, .6 * s)), '翻滾體力 −' + pc(P.dodgeSave)],
     int: [atk, '冷卻 −' + pc(Math.min(15, .6 * s)), '刻印 +' + pc(P.fxBuild)],
     luk: ['暴擊率 +' + Math.round(P.crit * 10) / 10 + '%', '掉素材 +' + pc(.8 * s)] };   // 幸運也會讓暴擊更痛，但不寫出來
   return L[k].filter(Boolean).join('・');

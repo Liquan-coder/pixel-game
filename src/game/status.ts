@@ -2,12 +2,12 @@
    怪物 / Boss 打中你的時候，除了扣血，還可能讓你中這些狀態：
 
    累積型（像艾爾登法環：被打中會累積，滿了才發作；不被打就慢慢退掉）
-     frost 凍傷 → 滿 100：冰凍，整個人被冰塊包住 1.1 秒不能動（狂按攻擊 / 瞬移可以提早掙脫）+ 扣 8% 生命
+     frost 凍傷 → 滿 100：冰凍，整個人被冰塊包住 1.1 秒不能動（狂按攻擊 / 翻滾可以提早掙脫）+ 扣 8% 生命
      bleed 出血 → 滿 100：一口氣扣 15% 生命
    持續型（中了就持續幾秒，再被打中會重新計時）
-     poison 中毒：每秒扣 1.2% 生命        burn 燃燒：每秒扣 3% 生命（瞬移可以把火滾掉一半）
+     poison 中毒：每秒扣 1.2% 生命        burn 燃燒：每秒扣 3% 生命（翻滾可以把火滾掉一半）
      stun   暈眩：頭上轉星星，不能動也不能出手（暈完有 1.5 秒不會再被暈，不會被連續暈死）
-     slow   緩速：走路變慢             root  纏繞：腳被纏住不能走、不能瞬移（狂按可以提早掙脫），但可以攻擊
+     slow   緩速：走路變慢             root  纏繞：腳被纏住不能走、不能翻滾（狂按可以提早掙脫），但可以攻擊
      silence 封印：不能用技能           blind 目盲：畫面周圍變暗，只看得到身邊
 
    用法：hurtPlayer(pl, 傷害, x, y, { frost: 30, stun: .5 }) —— 這一下有打中（不是無敵時間）才會中狀態。 */
@@ -68,7 +68,7 @@ export function tickStatus(pl: Player, dt: number): boolean {
 }
 
 export const locked = (pl: Player) => !!pl.sx && (pl.sx.frozen > 0 || pl.sx.stun > 0);       // 冰凍 / 暈眩：完全不能動
-export const rooted = (pl: Player) => !!pl.sx && pl.sx.root > 0;                                // 纏繞：不能走、不能瞬移
+export const rooted = (pl: Player) => !!pl.sx && pl.sx.root > 0;                                // 纏繞：不能走、不能翻滾
 export const silenced = (pl: Player) => !!pl.sx && pl.sx.silence > 0;
 export const moveMul = (pl: Player) => pl.sx && pl.sx.slow > 0 ? .55 : 1;
 /* 被冰住 / 纏住時狂按：每按一下少 0.15 秒 */
@@ -76,7 +76,7 @@ export function struggle(pl: Player) { const S = pl.sx; if (!S) return;
   if (S.frozen > 0) { S.frozen = Math.max(0, S.frozen - .15); for (let i = 0; i < 4; i++) G.parts.push({ x: pl.x + rr(-7, 7), y: pl.y - rr(2, 18), vx: rr(-50, 50), vy: -rr(20, 70), life: .4, max: .4, col: pick(['#ffffff', '#d8f0ff']), s: 1, g: 300 }); }
   else if (S.root > 0) { S.root = Math.max(0, S.root - .15); for (let i = 0; i < 3; i++) G.parts.push({ x: pl.x + rr(-6, 6), y: pl.y - rr(0, 4), vx: rr(-40, 40), vy: -rr(20, 50), life: .35, max: .35, col: pick(['#a8c870', '#6a8a3a']), s: 1, g: 300 }); }
 }
-/* 瞬移：把身上的火滾掉一半 */
+/* 翻滾：把身上的火滾掉一半 */
 export function rollOut(pl: Player) { const S = pl.sx; if (S && S.burn > 0) S.burn *= .5; }
 
 /* ---- 畫在角色身上（角色畫完之後呼叫） ---- */

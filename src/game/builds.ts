@@ -1,7 +1,8 @@
 /* ================= 流派：改變打法的規則 =================
    基礎（每個人都有）
-     · 瞬移要付得起體力才閃得出去；閃完 0.32 秒內不能再閃（提早 0.2 秒內按的會記住，時間到自動閃）
-     · 完美閃避：瞬移開始後 0.15 秒內本來會被打中（瞬移的無敵時間共 0.3 秒，後半段只是普通閃過） → 時間變慢一下、體力退回、1.5 秒內下一擊必定暴擊
+     · 翻滾要付得起體力才滾得出去；滾 0.3 秒（前 0.22 秒無敵），滾完要站穩一下才能動（負重越重越久，data/gear.ts 的 roll）；
+       還沒站穩時按的翻滾記 0.2 秒，時間到自動滾
+     · 完美閃避：翻滾開始後 0.15 秒內本來會被打中（後面那段無敵只是普通閃過） → 時間變慢一下、體力退回、1.5 秒內下一擊必定暴擊
    流派核心（獨特飾品，data/uniques.ts 的 UG，放在野外地標旁的寶箱：world/secrets.ts 的 FIELD）
      閃避 afterimage  殘影之紗：完美閃避時原地留下殘影，0.5 秒後爆炸
      反傷 rage        怒棘之心：被打中累積怒氣，下一擊一次打回去
@@ -10,7 +11,7 @@
      重擊 quake       巨人的心臟：蓄滿的一擊放出震波、震暈小怪
      異常 spread      瘟疫之瓶：刻印發作時傳染給旁邊的怪（寫在 game/weaponFx.ts，因為要用到各種累積值）
    能力值也各接一個流派（data/attrs.ts 的 PERK，加進 tfx）：體魄 → 吸血（回血 +%）、耐力 → 反傷（反擊 +%）、力量 → 重擊（蓄力）、
-     敏捷 → 閃避（瞬移省體力）、智識 → 異常（刻印 +%）、幸運 → 暴擊（暴擊率 + 看不到的暴擊傷害）。暴擊流的獨特武器：蠍尾短刀（連鎖，game/signatures.ts）
+     敏捷 → 閃避（翻滾省體力）、智識 → 異常（刻印 +%）、幸運 → 暴擊（暴擊率 + 看不到的暴擊傷害）。暴擊流的獨特武器：蠍尾短刀（連鎖，game/signatures.ts）
    combat.ts 只在幾個地方呼叫這裡（tryDodge、hurtPlayer、calcDmg、damageEnemy、releaseCharge），規則都在這個檔案。 */
 import { G } from '../core/state';
 import { TAU, pick, rr } from '../core/util';
@@ -19,26 +20,27 @@ import { toast } from '../ui/hud';
 import type { Enemy, Player } from '../types';
 import { healMul, retalMul } from '../data/attrs';
 
-export const DODGE_CD = .32, PD_WIN = .15;                             // 瞬移的後搖、完美閃避的判定時間（秒）
+export const ROLL_T = .3, ROLL_IF = .22, PD_WIN = .15;                 // 翻滾：滾多久、前幾秒無敵、完美閃避的判定時間（秒）。滾完還要站穩（data/gear.ts 負重的 roll）
+export const WOLF_T = .14, WOLF_CD = .32;                               // 騎星狼往前撲：衝多久、多久能再撲（沒有站穩的時間）
 type Hooks = { aoe: (pl: Player, cx: number, cy: number, rad: number, mult: number, opts?: any) => void; shake: (m: number, t: number) => void;
   quakeFx: (x: number, y: number, R: number) => void; dodge: (pl: Player) => void };
 let H: Hooks;
 export function bindBuilds(h: Hooks) { H = h; }                         // combat.ts 開機時接上（避免互相 import）
 const T = (pl: Player) => pl.tfx || {};
 
-/* ---------- 瞬移：體力不夠 / 還在後搖 ---------- */
+/* ---------- 翻滾：體力不夠 / 還沒站穩 ---------- */
 let tipNoSt = false;
 export function canDodge(pl: Player, cost: number) {
-  if (G.time < (pl.dodgeReady || 0)) { pl.dodgeBuf = G.time + .2; return false; }    // 後搖中按的：記 0.2 秒，時間到自動閃
+  if (G.time < (pl.dodgeReady || 0)) { pl.dodgeBuf = G.time + .2; return false; }    // 還沒站穩就按的：記 0.2 秒，時間到自動滾
   if (pl.st < cost) { if (pl === G.me) noStamina(); return false; }
   return true;
 }
 function noStamina() {                                                   // 體力條閃紅 + 悶悶的一聲
   const bar = document.getElementById('stBar')?.parentElement; if (bar) { bar.classList.remove('empty'); void bar.offsetWidth; bar.classList.add('empty'); }
-  sfx.noSt(); if (!tipNoSt) { tipNoSt = true; toast('體力不夠，瞬移不出去', '#8ad0ff'); }
+  sfx.noSt(); if (!tipNoSt) { tipNoSt = true; toast('體力不夠，滾不出去', '#8ad0ff'); }
 }
-export function dodgeStarted(pl: Player, cost: number) {
-  pl.dodgeReady = G.time + DODGE_CD; pl.dodgeAt = G.time; pl.dodgeX = pl.x; pl.dodgeY = pl.y; pl.dodgeCost = cost; pl.pdDone = false; pl.dodgeBuf = 0;
+export function dodgeStarted(pl: Player, cost: number, cd: number) {
+  pl.dodgeReady = G.time + cd; pl.dodgeAt = G.time; pl.dodgeX = pl.x; pl.dodgeY = pl.y; pl.dodgeCost = cost; pl.pdDone = false; pl.dodgeBuf = 0;
 }
 
 /* ---------- 完美閃避（hurtPlayer 遇到無敵時間時呼叫）---------- */
@@ -56,7 +58,7 @@ export function iframeHit(pl: Player) {
   for (let i = 0; i < 16; i++) { const a = rr(0, TAU), v = rr(40, 110); G.parts.push({ x, y: y - 10, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rr(.3, .55), max: .55, col: pick(['#ffffff', '#e8dcff', '#b49cff']), star: rr(.8, 2), drag: 4 }); }
   sfx.perfect();
   if (T(pl).afterimage) decoys.push({ pl, x, y, t: .5, mult: T(pl).afterimage / 100 });   // 閃避流：殘影 0.5 秒後爆炸
-  if (pl === G.me && !tipPd) { tipPd = true; toast('看破！攻擊打到前一瞬間瞬移：體力退回，下一擊必定暴擊', '#e8dcff', true); }
+  if (pl === G.me && !tipPd) { tipPd = true; toast('看破！攻擊打到前一瞬間翻滾：體力退回，下一擊必定暴擊', '#e8dcff', true); }
 }
 /* calcDmg：完美閃避後的下一擊必定暴擊（用掉就沒了） */
 export function forcedCrit(pl: Player) { if (G.time < (pl.critNext || 0)) { pl.critNext = 0; return true; } return false; }
@@ -120,7 +122,7 @@ export function fullCharge(pl: Player) {
 export function tickBuilds(dt: number) {
   if (decoys.length) tickDecoys(dt);
   for (const pl of G.players) {
-    if (pl.dodgeBuf && G.time >= (pl.dodgeReady || 0)) { const b = pl.dodgeBuf; pl.dodgeBuf = 0; if (G.time <= b) H.dodge(pl); }   // 後搖中按的瞬移
+    if (pl.dodgeBuf && G.time >= (pl.dodgeReady || 0)) { const b = pl.dodgeBuf; pl.dodgeBuf = 0; if (G.time <= b) H.dodge(pl); }   // 還沒站穩時按的翻滾
     if (pl.rage > 0) { if (G.time > pl.rageT || pl.dead) pl.rage = 0;        // 怒氣 6 秒沒用掉就消失
       else if (Math.random() < dt * (8 + 30 * rageFrac(pl))) G.parts.push({ x: pl.x + rr(-6, 6), y: pl.y - rr(0, 14), vx: rr(-5, 5), vy: -rr(20, 45), life: .4, max: .4, col: pick(['#ff5a3a', '#ffb040', '#c8201a']), star: rr(.6, 1.4), drag: 1 }); }   // 身上冒紅光，怒氣越多越旺
   }

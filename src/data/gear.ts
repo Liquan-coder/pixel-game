@@ -18,7 +18,7 @@ export const EFF: Record<string, (v: number) => string> = {
   aspd: v => '攻擊速度 +' + v + '%',
   atkPct: v => '攻擊力 +' + v + '%',
   guard: v => '受到的傷害 -' + v + '%',
-  dodgeAtk: v => '瞬移後 1.5 秒內，下一擊傷害 +' + v + '%',
+  dodgeAtk: v => '翻滾後 1.5 秒內，下一擊傷害 +' + v + '%',
   killHeal: v => '打倒敵人時回復 ' + v + '% 生命',
   charge: v => '蓄力速度 +' + v + '%',
   fxBuild: v => '刻印效果（出血、凍傷的累積、燃燒機率，雷鳴的冷卻更短）+' + v + '%',
@@ -30,7 +30,7 @@ export const EFF: Record<string, (v: number) => string> = {
   thorns: v => '反傷：被打中時，把 ' + v + '% 的傷害還給打你的人',
   evade: v => v + '% 機率完全閃開一次攻擊',
   /* 流派飾品：不是加數字，是改變打法（只有獨特版，藏在野外 / 王城的密室） */
-  dodgeCut: v => '瞬移穿過敵人時，順手砍他一刀（攻擊力 ' + v + '%）',
+  dodgeCut: v => '翻滾穿過敵人時，順手砍他一刀（攻擊力 ' + v + '%）',
   bloodSkill: v => '技能冷卻中也能放：改花 ' + v + '% 生命（不會因此倒下）',
   counter: v => '被打中後 2 秒內，下一擊必定暴擊、傷害 +' + v + '%',
   /* 流派核心（game/builds.ts；spread 在 game/weaponFx.ts） */
@@ -46,29 +46,29 @@ export const EFF: Record<string, (v: number) => string> = {
 };
 export const effLines = (e: Record<string, number> | undefined) => e ? Object.keys(e).filter(k => EFF[k]).map(k => EFF[k](e[k])) : [];
 
-/* ---- 重量（負重）：武器 + 防具的重量 ÷ 負重上限 → 四段。只影響走路和體力回復，瞬移不受影響
+/* ---- 重量（負重）：武器 + 防具的重量 ÷ 負重上限 → 四段。影響走路、體力回復、翻滾完站穩要多久
    負重上限 = 25 + (耐力 − 5) × 0.4：耐力跟其他能力值一樣是 ×2.5 的尺度（LV_K），所以每 2.5 點耐力上限 +1
    想拿重武器、穿重甲，就要點耐力（用剛好穿得上的耐力算）：輕武器配鎖甲是沉重、不會超重；斧 / 大劍 / 戰鎚配鎖甲一開始是超重，
    戰鎚 + 鎖甲要耐力 79 才回到普通、短刀 + 鎖甲要 22。飾品沒有重量。 */
 export const W_WEIGHT: Record<string, number> = { dagger: 2, rapier: 2.5, elfrapier: 2.5, bow: 3, elfbow: 3, staff: 3, elfblades: 3.5, sword: 4.5, katana: 4.5, wolfblade: 5,
   crescent: 5, spear: 6, twinblade: 6.5, scythe: 8, axe: 10, darkmoon: 13, greatsword: 15, hammer: 18 };
 export const A_WEIGHT = { light: 3, medium: 10, heavy: 20 };              // 防具照類型：法袍 / 皮甲 / 鎖甲
-export const LOAD_TIERS = [                                              // max = 負重比例上限；mv = 走路速度；st = 體力回復
-  { max: .3, n: '輕盈', mv: 1.06, st: 1, d: '走路 +6%', c: '#8ad0ff' },
-  { max: .7, n: '普通', mv: 1, st: 1, d: '走路、體力回復都正常', c: '#c8e8a0' },
-  { max: 1, n: '沉重', mv: .88, st: .8, d: '走路 −12%、體力回復 −20%', c: '#ffb060' },
-  { max: Infinity, n: '超重', mv: .7, st: .6, d: '走路 −30%、體力回復 −40%', c: '#ff6a5a' },
+export const LOAD_TIERS = [                                              // max = 負重比例上限；mv = 走路速度；st = 體力回復；roll = 翻滾完站穩要幾秒（這段時間不能動、不能出手）
+  { max: .3, n: '輕盈', mv: 1.06, st: 1, roll: .1, d: '走路 +6%、翻滾完很快站穩', c: '#8ad0ff' },
+  { max: .7, n: '普通', mv: 1, st: 1, roll: .15, d: '走路、體力回復、翻滾都正常', c: '#c8e8a0' },
+  { max: 1, n: '沉重', mv: .88, st: .8, roll: .25, d: '走路 −12%、體力回復 −20%、翻滾完站穩比較慢', c: '#ffb060' },
+  { max: Infinity, n: '超重', mv: .7, st: .6, roll: .4, d: '走路 −30%、體力回復 −40%、翻滾完要愣一下', c: '#ff6a5a' },
 ];
 export const loadCap = (end: number) => 25 + ((end ?? 5) - 5) * .4;
 export const loadTier = (load: number, cap: number) => LOAD_TIERS.findIndex(T => load / cap <= T.max + 1e-9);
 export const fmtW = (w: number) => (Math.round(w * 10) / 10).toString();   // 重量顯示：2.5、12
 
 /* ---- 防具三類：輕的好閃躲、重的耐打 ----
-   def / hp = +0 時的防禦和生命；dodgeSt = 瞬移體力（基本 20）多 / 少多少；dodgeMul = 瞬移距離；poise = 被打不會被擊退 */
+   def / hp = +0 時的防禦和生命；dodgeSt = 翻滾體力（基本 20）多 / 少多少；dodgeMul = 翻滾距離；poise = 被打不會被擊退 */
 export const ACLS = {
-  light:  { n: '輕甲', def: 4, hp: 14, dodgeSt: -6, dodgeMul: 1.1, cdr: 6, poise: false, d: '瞬移省體力、距離遠，技能冷卻 -6%；防禦低' },
+  light:  { n: '輕甲', def: 4, hp: 14, dodgeSt: -6, dodgeMul: 1.1, cdr: 6, poise: false, d: '翻滾省體力、滾得遠，技能冷卻 -6%；防禦低' },
   medium: { n: '中甲', def: 8, hp: 8, dodgeSt: 0, dodgeMul: 1, cdr: 0, poise: false, d: '攻守平均' },
-  heavy:  { n: '重甲', def: 13, hp: 0, dodgeSt: 8, dodgeMul: .82, cdr: 0, poise: true, d: '防禦高、被打不會被擊退；瞬移多花體力、距離短' },
+  heavy:  { n: '重甲', def: 13, hp: 0, dodgeSt: 8, dodgeMul: .82, cdr: 0, poise: true, d: '防禦高、被打不會被擊退；翻滾多花體力、滾得近' },
 };
 export type ACls = keyof typeof ACLS;
 export const ACLS_OF: Record<string, ACls> = { robe: 'light', leather: 'medium', mail: 'heavy' };   // type = 圖示（法袍 / 皮甲 / 鎖甲）

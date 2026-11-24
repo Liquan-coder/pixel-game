@@ -54,7 +54,7 @@ export const sfx = {
   zap: () => { tone(1900, .06, 'square', .03, -1400); noiseHit(.08, .1, 5000); tone(1400, .05, 'square', .02, -900, .05); },      // 劈啪電聲
   iceBreak: () => { noiseHit(.16, .12, 5200); [2637, 1976, 3136].forEach((f, i) => tone(f, .07, 'triangle', .022, -400, i * .03)); },      // 冰晶碎掉的「喀啦」
   thunder: () => { noiseHit(.3, .22, 3000); tone(1800, .08, 'square', .03, -1500); tone(90, .35, 'sawtooth', .06, -50, .04); noiseHit(.25, .14, 400); },   // 落雷：「啪」一聲 + 低低的轟
-  noSt: () => { tone(160, .1, 'square', .03, -40); },                                                                            // 體力不夠瞬移：悶悶的一聲
+  noSt: () => { tone(160, .1, 'square', .03, -40); },                                                                            // 體力不夠翻滾：悶悶的一聲
   perfect: () => { [1568, 2093, 2637].forEach((f, i) => tone(f, .18, 'triangle', .035, 0, i * .035)); noiseHit(.12, .06, 6000); },   // 完美閃避：清亮的「叮鈴」
   wind: () => { noiseHit(.3, .16, 700); noiseHit(.3, .1, 2200); tone(180, .6, 'sawtooth', .02, 120); },                       // 沙暴：「呼——」
   splash: () => { noiseHit(.3, .14, 1800); tone(300, .2, 'sine', .03, -150); },                                             // 潮汐：水浪

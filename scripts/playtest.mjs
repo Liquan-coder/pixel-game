@@ -43,7 +43,7 @@ const pageScript = async () => {
   const { canSee } = await imp('game/collision');   // 用命名空間讀，才會拿到最新的 rbs
   const { damageEnemy, hurtPlayer } = await imp('game/combat');
   const { serialize, applySave, save, loadSave } = await imp('game/save');
-  const { startGame } = await imp('main');
+  const { startGame, revealHere } = await imp('main');
   const menus = await imp('ui/menus');
   const shop = await imp('ui/shop');
   const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies'), status: await imp('game/status'), bt: await imp('game/bossTuning'), ai3: await imp('world/bossAI3'), puz2: await imp('world/puz2'), coll: await imp('game/collision'), pause: await imp('ui/pause'), puz: await imp('world/puzzles'), mech: await imp('world/bossMech'), statues: await imp('world/statues'), sight: await imp('world/sight'), ending: await imp('world/ending'), secrets: await imp('world/secrets'), cb: await imp('game/combat'), dboss: await imp('world/dungeonBoss') };
@@ -85,14 +85,14 @@ const pageScript = async () => {
 
   run('開始新遊戲', () => { startGame(false); step(30); });
 
-  for (const type of Object.keys(WT)) run(`武器 ${type}：普攻/蓄力/技能/瞬移/喝藥`, () => {
+  for (const type of Object.keys(WT)) run(`武器 ${type}：普攻/蓄力/技能/翻滾/喝藥`, () => {
     G.me.weapon = makeItem(type, 5, 3); G.me.weapon.slot = 'weapon'; recalc(G.me);
     const e = G.enemies.filter(e => !e.dead && !e.rb).sort((a, b) => Math.hypot(a.x - G.me.x, a.y - G.me.y) - Math.hypot(b.x - G.me.x, b.y - G.me.y))[0];
     tp(e.x - 14, e.y);
     pressed.atk = true; step(25, { god: true });
     held.atk = true; step(70, { god: true }); held.atk = false; step(15, { god: true });
     G.me.skillCd = 0; pressed.skill = true; step(60, { god: true });
-    input.mx = 1; pressed.dodge = true; step(25, { god: true }); input.mx = 0;
+    input.mx = 1; pressed.dodge = true; step(45, { god: true }); input.mx = 0;   // 滾 0.3 秒 + 站穩（超重最久 0.4 秒）
     G.me.hp = 10; G.me.pot = Math.max(1, G.me.pot); pressed.pot = true; for (let k = 0; k < 60; k++) { G.me.iframe = 1; step(1); }   // 喝藥時不能被怪打死（不然測不到回血）
     if (G.me.hp <= 10) throw new Error('喝藥水沒有回血（hp ' + G.me.hp + '）');
     if (type === 'elfbow') {                                          // 連發弓：按住一直射、不蓄力
@@ -655,6 +655,23 @@ const pageScript = async () => {
     tp(d.exX, d.exY); step(1); imp0.input.enterDoor(); step(2);
   });
 
+  run('地城的小地圖：只揭開沿著地板走 10 步以內的地方，牆後面的路不會先出現', () => {
+    const M = await0.map, D = imp0.dg, I = (x, y) => y * M.MW + x; let hidden = 0, where = '';
+    for (const d of D.DUNGEONS) {                                        // 一座一座試：入口是大競技場的看不出牆有沒有擋住 → 至少要有一座揭開時被牆擋住
+      tp(d.ent[0] * 16 + 8, (d.ent[1] + 1) * 16 + 10); step(1); imp0.input.enterDoor(); step(2);
+      const px = Math.floor(G.me.x / 16), py = Math.floor(G.me.y / 16);
+      for (let y = py - 20; y <= py + 20; y++) for (let x = px - 20; x <= px + 20; x++) M.explored[I(x, y)] = 0;
+      revealHere(); let far = 0, h = 0;
+      for (let y = py - 20; y <= py + 20; y++) for (let x = px - 20; x <= px + 20; x++) { const fl = M.WALKABLE(M.map[I(x, y)]), r2 = (x - px) ** 2 + (y - py) ** 2;
+        if (M.explored[I(x, y)] && fl && r2 > 132) far++;                 // 走 10 步 + 順便畫的旁邊一圈（直線最遠約 11.4 格）
+        if (!M.explored[I(x, y)] && fl && r2 <= 64 && !await0.coll.canSee(x * 16 + 8, y * 16 + 2, G.me.x, G.me.y - 6)) h++; }   // 8 格內、隔著牆（要繞路）的地板沒揭開 = 對
+      if (!M.explored[I(px, py)]) throw new Error(d.name + '：站的地方沒有揭開'); if (far) throw new Error(d.name + '：揭開了 11.5 格以外的地板（' + far + ' 格）');
+      tp(d.exX, d.exY); step(1); imp0.input.enterDoor(); step(2);
+      if (h) { hidden = h; where = d.name; break; } }
+    if (!hidden) throw new Error('每座地城入口都看不出牆有擋住揭開');
+    log.push('  ' + where + '：8 格內隔著牆、還沒揭開的地板 ' + hidden + ' 格');
+  });
+
   run('異常狀態：冰凍 / 暈眩不能動、狂按掙脫、中毒扣血、出血爆發、目盲、封印', () => {
     const ST = await0.status; setMenu(null); G.enemies = []; ST.clearStatus(G.me); G.me.hp = G.me.maxHp;
     G.me.iframe = 0; hurtPlayer(G.me, 1, G.me.x + 5, G.me.y, { frost: 120 }); G.me.kx = G.me.ky = 0; const x0 = G.me.x;   // 擊退不算
@@ -938,13 +955,13 @@ const pageScript = async () => {
     G.me.tfx = {}; recalc(G.me); G.enemies = [];
   });
 
-  run('流派飾品：月影之鈴（瞬移砍人）、血契之戒（冷卻中花血放技能）、守光騎士的誓言（被打後必暴擊）', () => {
+  run('流派飾品：月影之鈴（翻滾砍人）、血契之戒（冷卻中花血放技能）、守光騎士的誓言（被打後必暴擊）', () => {
     const E = await0.enemies, C = await0.cb; G.enemies = []; setMenu(null);
     for (const k of ['shadowbell', 'bloodpact', 'knightoath']) if (!await0.uq.UG[k]) throw new Error('沒有 ' + k);
-    // 月影之鈴：朝敵人瞬移，穿過去 → 牠被砍一刀
+    // 月影之鈴：朝敵人翻滾，穿過去 → 牠被砍一刀
     const e = E.makeEnemy('skel', 1, G.me.x + 30, G.me.y, { alive: true, timer: 0 }); e.hp = e.maxHp = 99999; G.enemies.push(e);
     G.me.tfx = { dodgeCut: 120 }; G.me.st = G.me.maxSt; G.me.face = 0; input.mx = 1; input.my = 0; C.tryDodge(G.me); const h = e.hp; step(12, { god: true }); input.mx = 0;
-    if (!(e.hp < h)) throw new Error('月影之鈴：瞬移穿過敵人沒有砍到');
+    if (!(e.hp < h)) throw new Error('月影之鈴：翻滾穿過敵人沒有砍到');
     // 血契之戒：冷卻中 → 花 10% 生命放技能；沒戴 → 放不出來
     G.me.tfx = {}; G.me.hp = G.me.maxHp; G.me.skillCd = 5; G.me.skillLock = 0; C.trySkill(G.me); if (G.me.hp !== G.me.maxHp) throw new Error('沒戴血契之戒，冷卻中也花了血');
     step(40, { god: true }); G.me.tfx = { bloodSkill: 10 }; G.me.skillCd = 5; G.me.hp = G.me.maxHp; C.trySkill(G.me);
@@ -957,7 +974,7 @@ const pageScript = async () => {
     G.me.tfx = {}; recalc(G.me); G.me.hp = G.me.maxHp; G.enemies = [];
   });
 
-  run('流派核心：瞬移後搖 / 體力、完美閃避、殘影、怒氣、渴血、暴擊減冷卻、震波、瘟疫傳染', () => {
+  run('流派核心：翻滾站穩 / 體力、完美閃避、殘影、怒氣、渴血、暴擊減冷卻、震波、瘟疫傳染', () => {
     const E = await0.enemies, C = await0.cb, FX = await0.fx; G.enemies = []; setMenu(null);
     { const camp = CAMPS.find(c => c.id === 'start'), open = (x, y) => [-50, -25, 0, 25, 50].every(dx => [-15, 0, 15].every(dy => !await0.coll.collides(x + dx, y + dy, G.me.r + 2)));   // 找一塊空地（前面的測試可能把人留在牆邊：隔著牆會打不到）
       let p = null; for (let r = 60; r < 400 && !p; r += 20) for (let a = 0; a < 6.28 && !p; a += .5) { const x = camp.x + Math.cos(a) * r, y = camp.y + Math.sin(a) * r; if (open(x, y)) p = [x, y]; }
@@ -966,20 +983,30 @@ const pageScript = async () => {
       if (!await0.chests.CHESTS.some(c => c.ug === k)) throw new Error(k + ' 沒有放進野外的寶箱'); }
     const mk = (kind, dx, dy) => { const e = E.makeEnemy(kind, 1, G.me.x + dx, G.me.y + dy, { alive: true, timer: 0 }); e.hp = e.maxHp = 99999; e.stun = 99; G.enemies.push(e); return e; };
     const e = mk('skel', 24, 0); G.me.tfx = {}; G.me.weapon = await0.items.makeWeapon('sword', 0); recalc(G.me); G.me.tfx = {};
-    // 瞬移：體力不夠閃不出去；閃完 0.32 秒內不能再閃，但按了會記住，時間到自動閃
-    G.me.dodgeReady = 0; G.me.st = 5; C.tryDodge(G.me); if (G.me.dodge > 0) throw new Error('體力 5 還瞬移得出去');
-    G.me.st = G.me.maxSt; C.tryDodge(G.me); if (!(G.me.dodge > 0)) throw new Error('體力滿的時候瞬移不出去');
-    step(10); const st1 = G.me.st; C.tryDodge(G.me); if (G.me.st !== st1) throw new Error('後搖中又瞬移了一次');
-    step(15); if (!(G.me.st < st1)) throw new Error('後搖中按的瞬移，時間到沒有自動閃');
+    // 翻滾：體力不夠滾不出去；滾 0.3 秒、前 0.22 秒無敵；滾完要站穩（不能走、不能攻擊），還沒站穩時按的會記住，時間到自動滾
+    G.me.loadTier = 1;                                                   // 普通：站穩 0.15 秒
+    G.me.dodgeReady = 0; G.me.st = 5; C.tryDodge(G.me); if (G.me.dodge > 0) throw new Error('體力 5 還滾得出去');
+    G.me.st = G.me.maxSt; C.tryDodge(G.me); if (!(G.me.dodge > 0)) throw new Error('體力滿的時候滾不出去');
+    if (!(G.me.iframe > .2 && G.me.iframe < .25)) throw new Error('翻滾的無敵時間不是 0.22 秒：' + G.me.iframe);
+    step(19); if (!(G.me.dodge === 0 && G.me.rollRec > 0)) throw new Error('滾完沒有站穩的時間：dodge=' + G.me.dodge + ' rollRec=' + G.me.rollRec);
+    G.me.atkCd = 0; if (C.tryAttack(G.me)) throw new Error('還沒站穩就能攻擊');
+    { G.me.kx = G.me.ky = 0; const x0 = G.me.x, y0 = G.me.y; input.mx = 1; step(1); input.mx = 0; if (Math.hypot(G.me.x - x0, G.me.y - y0) > .01) throw new Error('還沒站穩就能走：' + (G.me.x - x0).toFixed(2) + ',' + (G.me.y - y0).toFixed(2) + ' rollRec=' + G.me.rollRec + ' kx=' + G.me.kx + ' dodge=' + G.me.dodge + ' e=' + Math.round(e.x - G.me.x)); }
+    const st1 = G.me.st; C.tryDodge(G.me); if (G.me.st !== st1) throw new Error('還沒站穩又滾了一次');
+    step(15); if (!(G.me.st < st1)) throw new Error('還沒站穩時按的翻滾，時間到沒有自動滾');
+    step(40);
+    // 負重越重，站穩越久：輕盈 0.1 秒、超重 0.4 秒
+    for (const [t, want] of [[0, .1], [3, .4]]) { G.me.loadTier = t; G.me.dodgeReady = 0; G.me.st = G.me.maxSt; C.tryDodge(G.me);
+      if (G.me.rollRecD !== want) throw new Error('負重第 ' + t + ' 段的站穩時間應該是 ' + want + '：' + G.me.rollRecD); step(60); }
+    recalc(G.me);
     step(30);
-    // 完美閃避：瞬移後 0.2 秒內被打 → 沒受傷、體力退回、下一擊必定暴擊
+    // 完美閃避：翻滾後 0.15 秒內被打 → 沒受傷、體力退回、下一擊必定暴擊
     G.me.st = G.me.maxSt; G.me.iframe = 0; G.me.dodgeReady = 0; G.me.drink = 0; G.me.dash = null; C.tryDodge(G.me); const st2 = G.me.st, hp2 = G.me.hp; G.hitCtx = e.hc; hurtPlayer(G.me, 10, e.x, e.y); G.hitCtx = null;
     if (G.me.hp !== hp2 || G.me.st <= st2 || !(G.me.critNext > G.time)) throw new Error('完美閃避沒有觸發');
     G.me.crit = 0; const n0 = G.nums.length; damageEnemy(G.me, e, 1, G.me.x, G.me.y); if (!G.nums.slice(n0).some(n => n.big) || G.me.critNext) throw new Error('完美閃避後的下一擊沒有暴擊');
     step(40, { god: true });
     // 殘影之紗：完美閃避 → 0.5 秒後原地爆炸
-    G.me.tfx = { afterimage: 150 }; G.me.st = G.me.maxSt; G.me.iframe = 0; G.me.x = e.x - 20; G.me.y = e.y; G.me.face = Math.PI; input.mx = input.my = 0; G.me.dodgeReady = 0; G.me.drink = 0; G.me.dash = null; G.me.ride = false; G.slowT = 0; C.tryDodge(G.me);   // 清掉會擋住瞬移的狀態（前面的測試可能留下）
-    if (!(G.me.dodge > 0)) throw new Error('殘影之紗：瞬移沒有出去'); G.hitCtx = e.hc; hurtPlayer(G.me, 10, e.x, e.y); G.hitCtx = null;
+    G.me.tfx = { afterimage: 150 }; G.me.st = G.me.maxSt; G.me.iframe = 0; G.me.x = e.x - 20; G.me.y = e.y; G.me.face = Math.PI; input.mx = input.my = 0; G.me.dodgeReady = 0; G.me.drink = 0; G.me.dash = null; G.me.ride = false; G.slowT = 0; C.tryDodge(G.me);   // 清掉會擋住翻滾的狀態（前面的測試可能留下）
+    if (!(G.me.dodge > 0)) throw new Error('殘影之紗：翻滾沒有出去'); G.hitCtx = e.hc; hurtPlayer(G.me, 10, e.x, e.y); G.hitCtx = null;
     const h3 = e.hp; step(40, { god: true }); if (!(e.hp < h3)) throw new Error('殘影之紗：殘影沒有爆炸');
     // 怒棘之心：被打中存怒氣 → 下一擊多打
     G.me.tfx = { rage: 150 }; G.me.iframe = 0; G.me.hp = G.me.maxHp; G.hitCtx = e.hc; hurtPlayer(G.me, 40, e.x, e.y); G.hitCtx = null;
@@ -1022,7 +1049,7 @@ const pageScript = async () => {
     Object.assign(G.me, { weapon: keep.w, armor: keep.a, end: keep.end, str: keep.str }); recalc(G.me); G.me.st = G.me.maxSt;
   });
 
-  run('能力值的流派副效果：幸運 → 暴擊、體魄 → 回血、耐力 → 反擊、力量 → 蓄力、敏捷 → 瞬移體力、智識 → 刻印', () => {
+  run('能力值的流派副效果：幸運 → 暴擊、體魄 → 回血、耐力 → 反擊、力量 → 蓄力、敏捷 → 翻滾體力、智識 → 刻印', () => {
     const I = await0.items, keep = { w: G.me.weapon, a: ['vit', 'end', 'str', 'dex', 'int', 'luk'].map(k => G.me[k]) }; setMenu(null);
     G.me.weapon = I.makeWeapon('dagger'); for (const k of ['vit', 'end', 'str', 'dex', 'int', 'luk']) G.me[k] = 5; recalc(G.me);
     const c0 = G.me.crit, m0 = G.me.critMul, t0 = { ...G.me.tfx };
@@ -1030,10 +1057,10 @@ const pageScript = async () => {
     const near = (a, b) => Math.abs(a - b) < .6;
     if (G.me.crit - c0 !== 11) throw new Error('幸運 40 應該 +11% 暴擊率，現在 +' + (G.me.crit - c0));
     if (Math.abs(G.me.critMul - m0 - .42) > .011) throw new Error('幸運 40 應該 +0.42 暴擊傷害，現在 +' + (G.me.critMul - m0).toFixed(2));
-    for (const [k, v, n] of [['heal', 21, '體魄 → 回血'], ['retal', 28, '耐力 → 反擊'], ['charge', 28, '力量 → 蓄力'], ['chargeDmg', 21, '力量 → 蓄滿一擊'], ['dodgeSave', 21, '敏捷 → 瞬移體力'], ['fxBuild', 21, '智識 → 刻印']])
+    for (const [k, v, n] of [['heal', 21, '體魄 → 回血'], ['retal', 28, '耐力 → 反擊'], ['charge', 28, '力量 → 蓄力'], ['chargeDmg', 21, '力量 → 蓄滿一擊'], ['dodgeSave', 21, '敏捷 → 翻滾體力'], ['fxBuild', 21, '智識 → 刻印']])
       if (!near(T[k] - (t0[k] || 0), v)) throw new Error(n + '：40 點應該 +' + v + '%，現在 +' + (T[k] - (t0[k] || 0)).toFixed(1));
     { const dodgeCost = dex => { G.me.dex = dex; recalc(G.me); G.me.dodge = 0; G.me.drink = 0; G.me.dash = null; G.me.dodgeReady = 0; G.me.st = G.me.maxSt; const st0 = G.me.st; await0.cb.tryDodge(G.me); G.me.dodge = 0; G.me.dodgeReady = 0; return st0 - G.me.st; };
-      const c5 = dodgeCost(5), c40 = dodgeCost(40); if (!(c40 < c5 * .85)) throw new Error('敏捷 40 瞬移沒有省體力：' + c5 + ' → ' + c40); }   // 省 21%
+      const c5 = dodgeCost(5), c40 = dodgeCost(40); if (!(c40 < c5 * .85)) throw new Error('敏捷 40 翻滾沒有省體力：' + c5 + ' → ' + c40); }   // 省 21%
     G.me.weapon = keep.w; ['vit', 'end', 'str', 'dex', 'int', 'luk'].forEach((k, i) => G.me[k] = keep.a[i]); recalc(G.me);
   });
 
@@ -1121,30 +1148,30 @@ const pageScript = async () => {
     G.me.weapon = keep; G.me.str = G.me.dex = G.me.int = 5; recalc(G.me); G.enemies = []; G.projs = []; G.me.sigShield = 0; G.me.hp = G.me.maxHp;
   });
 
-  run('星狼（坐騎）：打倒狼王才叫得出來、按住瞬移 1 秒呼喚（不會先閃一下，短按放開才瞬移）、跑得比較快、騎著瞬移 = 往前撲、按攻擊跳下來、被打摔下來、城鎮 / 地城騎不進去', () => {
+  run('星狼（坐騎）：打倒狼王才叫得出來、按住翻滾 1 秒呼喚（不會先閃一下，短按放開才翻滾）、跑得比較快、騎著翻滾 = 往前撲、按攻擊跳下來、被打摔下來、城鎮 / 地城騎不進去', () => {
     const MT = imp0.mount, Q = await0.quest, M = await0.map, keep = G.bossDead, keepLab = G.lab; setMenu(null); G.enemies = []; G.lab = false;
     const camp = CAMPS.find(c => c.id === 'start'); tp(camp.x, camp.y + 16); G.me.ride = false; G.me.rideT = 0; step(2);
-    // 像真的按鍵一樣：按下去那一格 pressed + held，按住 n 格再放開；回傳這段時間有沒有瞬移
+    // 像真的按鍵一樣：按下去那一格 pressed + held，按住 n 格再放開；回傳這段時間有沒有翻滾
     const hold = n => { let dodged = false; pressed.dodge = true; held.dodge = true; for (let i = 0; i < n; i++) { step(1); if (G.me.dodge > 0 && !G.me.ride) dodged = true; } held.dodge = false; step(1); if (G.me.dodge > 0 && !G.me.ride) dodged = true; step(20); return dodged; };
     G.bossDead = false; hold(140); if (G.me.ride) throw new Error('還沒打倒狼王就叫得出星狼');
     G.bossDead = true; Q.flags.delete('starwolf'); tp(camp.x, camp.y + 16); G.me.st = G.me.maxSt;
-    // 有星狼之後瞬移改成放開才發動：短按 → 放開那一下閃；按住呼喚 → 不會先閃一下
-    pressed.dodge = true; held.dodge = true; step(1); if (G.me.dodge > 0) throw new Error('有星狼之後，瞬移鍵一按下去就閃了（要放開才閃）');
-    step(4); held.dodge = false; step(1); if (!(G.me.dodge > 0)) throw new Error('短按瞬移鍵放開沒有瞬移'); step(30);
+    // 有星狼之後翻滾改成放開才發動：短按 → 放開那一下閃；按住呼喚 → 不會先閃一下
+    pressed.dodge = true; held.dodge = true; step(1); if (G.me.dodge > 0) throw new Error('有星狼之後，翻滾鍵一按下去就閃了（要放開才閃）');
+    step(4); held.dodge = false; step(1); if (!(G.me.dodge > 0)) throw new Error('短按翻滾鍵放開沒有翻滾'); step(30);
     tp(camp.x, camp.y + 16); G.me.st = G.me.maxSt;
-    if (hold(40)) throw new Error('按住呼喚星狼的時候先瞬移了一下'); if (G.me.ride) throw new Error('只按住 0.6 秒就叫出來了（要 1 秒）');
-    if (hold(65)) throw new Error('按住呼喚星狼的時候先瞬移了一下'); if (!G.me.ride) throw new Error('按住瞬移鍵 1 秒沒有叫出星狼');
+    if (hold(40)) throw new Error('按住呼喚星狼的時候先翻滾了一下'); if (G.me.ride) throw new Error('只按住 0.6 秒就叫出來了（要 1 秒）');
+    if (hold(65)) throw new Error('按住呼喚星狼的時候先翻滾了一下'); if (!G.me.ride) throw new Error('按住翻滾鍵 1 秒沒有叫出星狼');
     hold(35); if (!G.me.ride) throw new Error('騎著按住 0.5 秒就下來了（要 1 秒）'); hold(70); if (G.me.ride) throw new Error('騎著按住 1 秒沒有讓星狼回去'); hold(65);
     step(250); if (!Q.flags.has('starwolf')) throw new Error('第一次見到星狼的提示沒有出現');
     // 速度：找一個 140 px 內沒有障礙的方向，走路 vs 騎狼各跑 30 格
     const dirs = [[1, 0], [-1, 0], [0, -1], [0, 1]], free = d => { for (let t = 0; t <= 140; t += 4) if (await0.coll.collides(camp.x + d[0] * t, camp.y + 16 + d[1] * t, G.me.r + 2)) return false; return true; };
     const d = dirs.find(free); if (!d) throw new Error('營火四周找不到空地測速度');
     const go = () => { tp(camp.x, camp.y + 16); G.me.kx = G.me.ky = 0; input.mx = d[0]; input.my = d[1]; step(30); input.mx = input.my = 0; return Math.hypot(G.me.x - camp.x, G.me.y - camp.y - 16); };
-    const dash = () => { tp(camp.x, camp.y + 16); G.me.kx = G.me.ky = 0; G.me.st = G.me.maxSt; G.me.dodgeReady = 0; input.mx = d[0]; input.my = d[1]; pressed.dodge = true; step(1); input.mx = input.my = 0; step(14); return Math.hypot(G.me.x - camp.x, G.me.y - camp.y - 16); };
-    const dR = go(), dD = dash(); if (!G.me.ride) throw new Error('騎著按瞬移就跳下來了（應該是星狼往前撲）');
+    const dash = () => { tp(camp.x, camp.y + 16); G.me.kx = G.me.ky = 0; G.me.st = G.me.maxSt; G.me.dodgeReady = 0; input.mx = d[0]; input.my = d[1]; pressed.dodge = true; step(1); input.mx = input.my = 0; step(24); return Math.hypot(G.me.x - camp.x, G.me.y - camp.y - 16); };
+    const dR = go(), dD = dash(); if (!G.me.ride) throw new Error('騎著按翻滾就跳下來了（應該是星狼往前撲）');
     MT.dismount(G.me); step(40); const dW = go(), dB = dash();
     if (!(dR > dW * 1.5)) throw new Error('騎星狼沒有比較快：騎 ' + dR.toFixed(1) + ' / 走 ' + dW.toFixed(1));
-    if (!(dD > 12 && dD < dB * .8)) throw new Error('星狼往前撲的距離不對（要比瞬移短）：撲 ' + dD.toFixed(1) + ' / 瞬移 ' + dB.toFixed(1));
+    if (!(dD > 12 && dD < dB * .9)) throw new Error('星狼往前撲的距離不對（要比翻滾短）：撲 ' + dD.toFixed(1) + ' / 翻滾 ' + dB.toFixed(1));
     // 按攻擊 → 先跳下來，這一下照常揮（電腦的 R 鍵也能叫）
     step(30); tp(camp.x, camp.y + 16); pressed.mount = true; step(2); if (!G.me.ride) throw new Error('按 R 沒騎上去');
     G.me.atkCd = 0; pressed.atk = true; step(1); if (G.me.ride || !(G.me.swing || G.me.atkCd > 0)) throw new Error('騎著按攻擊：應該跳下來並且揮刀');
@@ -1275,7 +1302,12 @@ const pageScript = async () => {
       tp(bad.x, bad.y + 2); const h = G.me.hp; step(60); if (!(G.me.hp < h) || Math.hypot(G.me.x - st.back.x, G.me.y - st.back.y) > 6) throw new Error('踩爛的蘑菇沒有掉下去'); leave(p.d); out.push('蘑菇'); }
     // 黑暗迷宮：在裡面畫面會變黑
     { const p = P('sunkgrotto', 'maze'), st = p.m.maze; enter(p.d); const pr = st.pearls[0] || { x: st.r.x * 16 + 8, y: st.r.y * 16 + 8 }; tp(pr.x, pr.y + 2); step(2);
-      if (!PU.puzzleDark(G.me)) throw new Error('迷宮裡沒有變黑'); leave(p.d); out.push('迷宮'); }
+      if (!PU.puzzleDark(G.me)) throw new Error('迷宮裡沒有變黑');
+      { const M = await0.map, px = Math.floor(G.me.x / 16), py = Math.floor(G.me.y / 16);   // 小地圖：迷宮裡只揭開身邊 3 格，迷宮的形狀要走過才看得到
+        for (let y = py - 20; y <= py + 20; y++) for (let x = px - 20; x <= px + 20; x++) M.explored[y * M.MW + x] = 0;
+        revealHere(); let far = 0; for (let y = py - 20; y <= py + 20; y++) for (let x = px - 20; x <= px + 20; x++) if (M.explored[y * M.MW + x] && M.WALKABLE(M.map[y * M.MW + x]) && (x - px) ** 2 + (y - py) ** 2 > 16) far++;
+        if (!M.explored[py * M.MW + px]) throw new Error('迷宮裡站的地方沒有揭開'); if (far) throw new Error('迷宮裡小地圖揭開了 3 格以外的路（' + far + ' 格）'); }
+      leave(p.d); out.push('迷宮'); }
     // 潛行：被亡衛看到 → 鐘響、拉桿鎖住；沒被看到 → 拉下開門
     { const p = P('undercroft', 'stealth'), st = p.m.stealth; enter(p.d); const g = st.gs[0];
       g.i = 0; g.x = g.pts[0].x; g.y = g.pts[0].y; g.wait = 0; g.spd = 0; st.alarm = 0; step(1);   // 亡衛停在起點、面向下一個點：結果不再看運氣

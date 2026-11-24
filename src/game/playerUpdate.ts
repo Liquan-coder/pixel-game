@@ -12,9 +12,9 @@ import { puzzleMove } from '../world/puzzles';
 import { dungeonAt } from '../world/dungeons';
 import { clearStatus, locked, moveMul, rollOut, rooted, silenced, struggle, tickStatus } from './status';
 import { LOAD_TIERS } from '../data/gear';
-import { BOW_MIN, blinkFx, bowShot, busy, damageEnemy, dodgeCut, downPlayer, releaseCharge, stopCharge, targets, tryAttack, tryDodge, tryPot, trySkill, updFlip, updateCharge } from './combat';
+import { BOW_MIN, bowShot, busy, damageEnemy, dodgeCut, downPlayer, releaseCharge, stopCharge, targets, tryAttack, tryDodge, tryPot, trySkill, updFlip, updateCharge } from './combat';
 import { burst, shake } from './worldUpdate';
-import { STARC } from '../render/fx';
+import { STARC, dustPuff } from '../render/fx';
 import { flashHp, hideBanner, showArea, toast } from '../ui/hud';
 import { save } from './save';
 import { CALL_SHOW, RIDE_SPD, dismount, hasWolf, toggleMount, updateMount } from './mount';
@@ -40,6 +40,7 @@ export function updatePlayer(pl: Player, dt) {
   if (pl.stDelay > 0) pl.stDelay -= dt; else if (!pl.charging) pl.st = Math.min(pl.maxSt, pl.st + (pl.drink > 0 ? 15 : 48) * LOAD_TIERS[pl.loadTier ?? 1].st * dt);   // 蓄力時體力不會回（不然蓄力等於免費）；太重回得慢（data/gear.ts 的負重）
   if (pl.swing) { const s = pl.swing; s.t += dt; if (s.t >= s.d) { if (s.anim) { const g = s.f + s.r1 * s.sd; pl.wFrom = s.ranged ? g : Math.atan2(Math.sin(g) * s.sy, Math.cos(g)); pl.wRec = pl.wRecD = s.back; pl.wTy = s.ty; pl.wRot = Math.sign(s.r1 - (s.rs ?? s.r0)) * s.sd; } pl.swing = null; } }
   if (pl.wRec > 0) pl.wRec -= dt;
+  if (pl.rollRec > 0) { pl.rollRec -= dt; if (pl.rollRec <= 0) pl.rollRec = 0; }   // 翻滾完站穩中：不能走、不能出手（combat.ts 的 busy）
   if (Math.abs(pl.kx) + Math.abs(pl.ky) > 2) { moveEnt(pl, pl.kx * dt, pl.ky * dt); const k = Math.pow(0.001, dt); pl.kx *= k; pl.ky *= k; } else pl.kx = pl.ky = 0;
   if (pl.tfx && pl.tfx.regen && pl.hp > 0 && pl.hp < pl.maxHp) pl.hp = Math.min(pl.maxHp, pl.hp + pl.maxHp * pl.tfx.regen / 100 * dt * healMul(pl));   // 飾品：慢慢回血
   if (pl.healGlow > 0) pl.healGlow -= dt;
@@ -70,29 +71,31 @@ export function updatePlayer(pl: Player, dt) {
         G.parts.push({ x:pl.x, y:pl.y - 4, vx:Math.cos(a) * s, vy:Math.sin(a) * s * .5, life:.35, max:.35, col:pick(STARC), star:rr(1, 2), drag:5 }); }
     }
   } else if (pl.dodge > 0) {
-    pl.dodge -= dt; const ox = pl.x, oy = pl.y; moveEnt(pl, pl.dvx * dt, pl.dvy * dt);   // 隱身移動，只留下一道細光和星屑
+    const q = pl.rollD ? pl.dodge / pl.rollD : 1;                       // 翻滾：1 → 0。一開始滾得快、最後慢下來（平均 = 1 倍）
+    const v = pl.rollD ? .4 + 1.2 * q : 1;
+    pl.dodge -= dt; moveEnt(pl, pl.dvx * v * dt, pl.dvy * v * dt);
     dodgeCut(pl);                                                       // 月影之鈴：穿過的敵人被砍一刀
-    G.fx.push({ k:'aline', x:ox, y:oy - 8 + rr(-5, 5), a:Math.atan2(pl.y - oy, pl.x - ox), len:Math.hypot(pl.x - ox, pl.y - oy) + 4, t:0, d:.16, col:'#d8c8ff' });
-    if (Math.random() < .7) G.parts.push({ x:pl.x + rr(-4, 4), y:pl.y - rr(2, 16), vx:rr(-15, 15), vy:rr(-20, 0), life:rr(.25, .45), max:.45, col:pick(STARC), star:rr(.6, 1.8), drag:3 });
-    if (pl.dodge <= 0) { pl.dodge = 0; if (!pl.ride) { blinkFx(pl, pl.x, pl.y, false); sfx.blinkIn(); } }   // 歸零：停在負數的話 !pl.dodge 會一直是 false → pl.moving 永遠 false（凝視石像抓不到人、受傷不閃爍）
+    if (pl.rollD) { if (Math.random() < .45) G.ghosts.push({ x:pl.x, y:pl.y, flip:pl.flip, life:.16, max:.16, col:'w', rot:(1 - q) * TAU * (pl.flip ? -1 : 1) });   // 跟著轉的淡白殘影
+      if (Math.random() < .3) dustPuff(pl.x, pl.y, 1, 14); }
+    if (pl.dodge <= 0) { pl.dodge = 0; if (pl.rollD) { pl.rollRec = pl.rollRecD || 0; dustPuff(pl.x, pl.y, 4, 20); } }   // 歸零：停在負數的話 !pl.dodge 會一直是 false → pl.moving 永遠 false（凝視石像抓不到人、受傷不閃爍）。落地揚塵，開始站穩
   } else if (puzzleMove(pl, dt)) {                                      // 機關接手移動：冰面滑行、被蘑菇彈飛（world/puzzles.ts）
-  } else if (m > .05 && !locked(pl) && !rooted(pl)) {
+  } else if (m > .05 && !locked(pl) && !rooted(pl) && !(pl.rollRec > 0)) {
     const spd = 84 * moveMul(pl) * (pl.drink > 0 ? .45 : 1) * (pl.skillLock > 0 ? .25 : 1) * (pl.swing ? .6 : 1) * (pl.charging ? .45 : 1) * (pl.ride ? RIDE_SPD : LOAD_TIERS[pl.loadTier ?? 1].mv) * (pl.rideT > CALL_SHOW ? .5 : 1) * (map[(pl.y / TS | 0) * MW + (pl.x / TS | 0)] === ROAD ? 1.12 : 1);
     moveEnt(pl, input.mx * spd * dt, input.my * spd * dt);
     if (pl.aimLock <= 0) { pl.face = Math.atan2(input.my, input.mx); updFlip(pl); }
   }
-  pl.moving = m > .05 && !pl.dodge && !locked(pl) && !rooted(pl);
+  pl.moving = m > .05 && !pl.dodge && !(pl.rollRec > 0) && !locked(pl) && !rooted(pl);
   if (pl.moving) pl.anim += dt;
   updateMount(pl, dt);                                                 // 星狼：呼喚、奔跑步伐、走進城鎮 / 地城自動下來
 
-  if (locked(pl) || (rooted(pl) && pressed.dodge)) {                  // 冰凍 / 暈眩：什麼都不能做；被冰住 / 纏住時狂按攻擊或瞬移可以提早掙脫
+  if (locked(pl) || (rooted(pl) && pressed.dodge)) {                  // 冰凍 / 暈眩：什麼都不能做；被冰住 / 纏住時狂按攻擊或翻滾可以提早掙脫
     if (pressed.atk || pressed.dodge) struggle(pl);
     if (locked(pl)) { stopCharge(pl); pl.atkBuf = 0; pl.chargeArm = false; pressed.atk = pressed.dodge = pressed.skill = pressed.pot = false; }
     else pressed.dodge = false;
   }
   if (pressed.skill && silenced(pl)) { pressed.skill = false; if (pl === G.me && G.time - (pl.silT || -9) > 1.2) { pl.silT = G.time; toast('被封印了，暫時不能用技能', '#c8a8ff'); } }
   if (pressed.mount) toggleMount(pl);
-  if (pl.ride && (pressed.atk || pressed.skill || pressed.pot)) dismount(pl);   // 騎著按攻擊 / 技能 / 喝藥：先跳下來，這一下照常做（瞬移 = 星狼往前撲）
+  if (pl.ride && (pressed.atk || pressed.skill || pressed.pot)) dismount(pl);   // 騎著按攻擊 / 技能 / 喝藥：先跳下來，這一下照常做（翻滾 = 星狼往前撲）
   // 點一下 = 普通攻擊；按住 = 蓄力，放開放招。
   // 按下去的當下先不出手，等「放開」或「按滿 0.22 秒」才決定是哪一種 → 按住蓄力時不會先多揮一刀
   const atkDown = held.atk || keys.atk;
@@ -119,8 +122,8 @@ export function updatePlayer(pl: Player, dt) {
     else { pl.chargeHold += dt; if (drawBow ? pl.atkCd <= 0 && !busy(pl) : pl.chargeHold > .22 && !busy(pl) && pl.st > 0) { pl.charging = true; pl.charge = 0; pl.chargeLv = 0; } }   // 蓄力弓一按就開始拉
   }
   }
-  /* 瞬移：還沒有星狼 → 一按就閃。有星狼之後「按住 = 呼喚」，所以改成放開才閃（跟攻擊的點一下 / 按住同一個道理）：
-     很快放開（呼喚的圈還沒出來）→ 瞬移；按到圈出來了 → 這次是在呼喚，放開也不閃 */
+  /* 翻滾：還沒有星狼 → 一按就閃。有星狼之後「按住 = 呼喚」，所以改成放開才閃（跟攻擊的點一下 / 按住同一個道理）：
+     很快放開（呼喚的圈還沒出來）→ 翻滾；按到圈出來了 → 這次是在呼喚，放開也不閃 */
   const dodgeNow = () => { tryDodge(pl); if (pl.dodge > 0) rollOut(pl); };
   if (!hasWolf()) { pl.dodgeArm = false; if (pressed.dodge) dodgeNow(); }
   else {
@@ -163,7 +166,7 @@ export function nearCamp(pl: Player) {
   return null;
 }
 export function restoreWorld() {                                       // 營火休息/重生：所有玩家補滿，世界重置
-  for (const pl of G.players) { pl.hp = pl.maxHp; pl.st = pl.maxSt; pl.pot = G.potMax; pl.timers = []; pl.dash = null; pl.dodge = 0; clearStatus(pl); }
+  for (const pl of G.players) { pl.hp = pl.maxHp; pl.st = pl.maxSt; pl.pot = G.potMax; pl.timers = []; pl.dash = null; pl.dodge = 0; pl.rollRec = 0; clearStatus(pl); }
   G.projs = []; G.drops = G.drops.filter(d => d.item.rarity >= 2); respawnAll(); resetBoss(); resetRegionBosses();
 }
 export function placeAtCamp(pl: Player, id) {

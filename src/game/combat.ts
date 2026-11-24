@@ -3,7 +3,7 @@ import { G } from '../core/state';
 import { TAU, angDiff, pick, rr } from '../core/util';
 import { ANIM, HAND_R, HSY, REACH, STYLE, WLEN } from '../art/hero';
 import { BEH, RAR, WT } from '../data/items';
-import { ACLS } from '../data/gear';
+import { ACLS, LOAD_TIERS } from '../data/gear';
 import { rbs, regionBossDie } from '../world/regionBoss';
 import { input } from './player';
 import { applyFx, type FX } from './status';
@@ -12,7 +12,7 @@ import { sfx } from '../core/audio';
 import { killEnemy } from './enemies';
 import { bossDie } from './boss';
 import { burst, hitSpark, quakeFx, shake } from './worldUpdate';
-import { STARC } from '../render/fx';
+import { STARC, dustPuff } from '../render/fx';
 import { bumpPot, showBanner, toast } from '../ui/hud';
 import type { Enemy } from '../types';
 import { WOLF_DASH, dismount, wolfDashFx } from './mount';
@@ -20,7 +20,7 @@ import { SEALC, bindFx, bindMove, fxOf, markMul, onHit, onKill, starShot } from 
 export { impactMove } from './weaponFx';
 import { bindSig, sigBlock, sigCrit, sigHit, sigKill, sigPre, sigSlam, sigSwing } from './signatures';
 import { UQSIG } from '../data/uniques';
-import { bindBuilds, buildHit, canDodge, dodgeStarted, forcedCrit, fullCharge, iframeHit, playerHurt } from './builds';
+import { ROLL_IF, ROLL_T, WOLF_CD, WOLF_T, bindBuilds, buildHit, canDodge, dodgeStarted, forcedCrit, fullCharge, iframeHit, playerHurt } from './builds';
 import './bossTuning';                                                   // Boss 的傷害倍率和獎勵（平衡用）
 import type { Player } from '../types';
 import { CRIT_BASE, healMul, retalMul } from '../data/attrs';
@@ -41,7 +41,7 @@ function calcDmg(pl: Player, mult, cb = 0) {                                   /
   let v = (pl.atkPow || pl.weapon.atk) * mult * rr(.9, 1.1);           // atkPow = 武器攻擊 × 能力值加成（recalc 算好的）
   const T = pl.tfx || {};
   if (T.lowHp && pl.hp < pl.maxHp * .35) v *= 1 + T.lowHp / 100;            // 飾品：低血量時加攻
-  if (T.dodgeAtk && G.time < (pl.dodgeAtkT || 0)) { v *= 1 + T.dodgeAtk / 100; pl.dodgeAtkT = 0; }   // 飾品：瞬移後的下一擊
+  if (T.dodgeAtk && G.time < (pl.dodgeAtkT || 0)) { v *= 1 + T.dodgeAtk / 100; pl.dodgeAtkT = 0; }   // 飾品：翻滾後的下一擊
   const ctr = T.counter && G.time < (pl.counterT || 0); if (ctr) { v *= 1 + T.counter / 100 * retalMul(pl); pl.counterT = 0; }   // 反擊之誓：被打中後的下一擊
   const sure = ctr || forcedCrit(pl), crit = sure || Math.random() * 100 < pl.crit + cb + sigCrit(pl);   // sigCrit：蠍尾短刀的連鎖
   if (crit) v *= sureMul(pl);   // forcedCrit：完美閃避後的下一擊（game/builds.ts）
@@ -116,7 +116,7 @@ function tipFx(e: Enemy) {                                               // 槍�
 export function aoeHit(pl: Player, cx, cy, rad, mult, opts?) {
   for (const e of targets(pl)) if (Math.hypot(e.x - cx, e.y - cy) - e.r <= rad) damageEnemy(pl, e, mult, cx, cy, opts);
 }
-export const busy = (pl: Player) => pl.dodge > 0 || pl.drink > 0 || pl.skillLock > 0 || pl.dash || pl.dead;
+export const busy = (pl: Player) => pl.dodge > 0 || pl.rollRec > 0 || pl.drink > 0 || pl.skillLock > 0 || pl.dash || pl.dead;
 /* ---- 普通攻擊：三段連擊，每一下留下新月刀光 ---- */
 export const WFX = {                                                         // 外層光 / 中層 / 白芯
   sword: ['#4a6ae0', '#a8c0ff', '#ffffff'], dagger: ['#7a4ae0', '#d0b8ff', '#ffffff'], axe: ['#c8401e', '#ffb040', '#fff6d0'],
@@ -158,7 +158,7 @@ function swingSmear(pl: Player, s, type, cols, fin) {                           
   smearFx(pl, s.f + s.rs * s.sd, s.f + s.r1 * s.sd, flat ? Rv + 3 : Rv, wv * (flat ? 1.3 : 1), s.sw * .75, cols, .08, s.wu + s.sw * .25, s.sy);
 }
 export function tryAttack(pl: Player) {
-  if (pl.atkCd > 0 || busy(pl) || G.time < (pl.wheelT || 0)) return false;   // 普攻不耗體力（體力只用在瞬移和蓄力）；雙頭刀風車轉的時候不能普攻
+  if (pl.atkCd > 0 || busy(pl) || G.time < (pl.wheelT || 0)) return false;   // 普攻不耗體力（體力只用在翻滾和蓄力）；雙頭刀風車轉的時候不能普攻
   const type = pl.weapon.type, W = WT[type], cols = wcols(pl, type), A = ANIM[type] || ANIM.sword;
   /* 戰鎚、戰斧沒有三連擊：戰鎚每一下都舉高往下砸；戰斧左右來回橫掃，連續砍中越砍越快（最多快 30%），停下來就重來
      雙頭刀是四連擊（第四下整支轉一圈） */
@@ -576,7 +576,7 @@ export function trySkill(pl: Player) {
         else { const nx = pl.x + Math.cos(pl.face) * 40, ny = pl.y + Math.sin(pl.face) * 40; trail(pl.x, pl.y, nx, ny); moveEnt(pl, nx - pl.x, ny - pl.y); }
         sfx.swing(); } });
       break;
-    case 'arrowrain': {                                               // 箭雨：往天上射，前方一塊地落下 10 支箭（是子彈，瞬移也不會取消）
+    case 'arrowrain': {                                               // 箭雨：往天上射，前方一塊地落下 10 支箭（是子彈，翻滾也不會取消）
       const t = nearestTarget(pl, 200); autoFace(pl, 200);
       const cx = t ? t.x : pl.x + Math.cos(pl.face) * 90, cy = t ? t.y : pl.y + Math.sin(pl.face) * 90;
       pl.swing = { t:0, d:.25, ranged:true, ty:'bow' }; pl.skillLock = .25;
@@ -636,16 +636,18 @@ export function trySkill(pl: Player) {
   }
 }
 function trail(x0, y0, x1, y1) { for (let i = 0; i <= 10; i++) { const k = i / 10; G.parts.push({ x:x0 + (x1 - x0) * k, y:y0 - 6 + (y1 - y0) * k, vx:rr(-8, 8), vy:rr(-8, 8), life:.35, max:.35, col: i % 2 ? '#b49cff' : '#e8e2ff', s:2 }); } }
-export function tryDodge(pl: Player) {                                                // 瞬移：消失、極快地移動一小段、在落點閃現
+export function tryDodge(pl: Player) {                                                // 翻滾：往前滾一段，前 0.22 秒無敵；滾完要站穩一下（負重越重越久）。騎著星狼 = 狼往前撲
   if (pl.dodge > 0 || pl.drink > 0 || pl.dash || pl.dead) return;
-  const C = ACLS[pl.acls] || ACLS.medium, cost = Math.round((20 + C.dodgeSt) * (1 - ((pl.tfx && pl.tfx.dodgeSave) || 0) / 100));   // 敏捷：瞬移省體力        // 防具類型：輕甲省體力、閃得遠；重甲相反
-  if (!canDodge(pl, cost)) return;                                       // 體力要付得起、閃完 0.32 秒內不能再閃（game/builds.ts）
-  stopCharge(pl); spendSt(pl, cost); dodgeStarted(pl, cost); const m = Math.hypot(input.mx, input.my);
-  const a = m > .2 ? Math.atan2(input.my, input.mx) : pl.face, sp = 520 * C.dodgeMul * (pl.ride ? WOLF_DASH : 1);   // 騎著星狼：往前撲，距離短一點
-  pl.dodge = .14; pl.cutSet = null; pl.iframe = Math.max(pl.iframe, .3); pl.dvx = Math.cos(a) * sp; pl.dvy = Math.sin(a) * sp;
+  const C = ACLS[pl.acls] || ACLS.medium, cost = Math.round((20 + C.dodgeSt) * (1 - ((pl.tfx && pl.tfx.dodgeSave) || 0) / 100));   // 敏捷：翻滾省體力        // 防具類型：輕甲省體力、閃得遠；重甲相反
+  if (!canDodge(pl, cost)) return;                                       // 體力要付得起、還沒站穩不能再滾（game/builds.ts）
+  const rec = pl.ride ? 0 : LOAD_TIERS[pl.loadTier ?? 1].roll, dur = pl.ride ? WOLF_T : ROLL_T;
+  stopCharge(pl); spendSt(pl, cost); dodgeStarted(pl, cost, pl.ride ? WOLF_CD : dur + rec); const m = Math.hypot(input.mx, input.my);
+  const a = m > .2 ? Math.atan2(input.my, input.mx) : pl.face, sp = pl.ride ? 520 * C.dodgeMul * WOLF_DASH : 185 * C.dodgeMul;   // 翻滾約 55px（中甲）；騎著星狼：往前撲
+  pl.dodge = dur; pl.rollD = pl.ride ? 0 : dur; pl.rollRecD = rec; pl.cutSet = null; pl.iframe = Math.max(pl.iframe, pl.ride ? .3 : ROLL_IF); pl.dvx = Math.cos(a) * sp; pl.dvy = Math.sin(a) * sp;
+  if (!pl.ride) { pl.face = a; updFlip(pl); }                            // 往哪邊滾就面向哪邊
   if (pl.tfx && pl.tfx.dodgeAtk) pl.dodgeAtkT = G.time + 1.5; pl.skillLock = 0; pl.timers = []; pl.lunge = null; pl.wheelT = 0;
   if (pl.swing && pl.swing.anim && pl.swing.t < pl.swing.wu) { pl.swing = null; for (let i = G.fx.length - 1; i >= 0; i--) if (G.fx[i].k === 'smear' && G.fx[i].follow === pl && G.fx[i].t < (G.fx[i].delay || 0)) G.fx.splice(i, 1); }   // 預備中翻滾 = 取消這一刀
-  if (pl.ride) wolfDashFx(pl); else { blinkFx(pl, pl.x, pl.y, true); sfx.blink(); }
+  if (pl.ride) wolfDashFx(pl); else { dustPuff(pl.x, pl.y, 5, 24); sfx.dodge(); }   // 起跳揚塵
 }
 export function tryPot(pl: Player) {
   if (pl.pot <= 0 || busy(pl)) { if (pl.pot <= 0) toast('藥水用完了，回營火休息可以補滿', '#ff8a8a'); return; }
@@ -656,7 +658,7 @@ export function tryPot(pl: Player) {
 export function hurtPlayer(pl: Player, v, sx, sy, extra?: FX) {
   if (pl.dead) return false;
   if (!canSee(sx, sy - 6, pl.x, pl.y - 6)) return false;                 // 隔著牆打不到你
-  if (pl.iframe > 0) { iframeHit(pl); return false; }                   // 無敵中：剛瞬移的話 = 完美閃避（game/builds.ts）
+  if (pl.iframe > 0) { iframeHit(pl); return false; }                   // 無敵中：剛翻滾的話 = 完美閃避（game/builds.ts）
   if (sigBlock(pl)) return false;                                        // 王城近衛劍的護盾擋下這一下
   const T0 = pl.tfx || {};
   if (T0.evade && Math.random() * 100 < Math.min(40, T0.evade)) {         // 閃避流：有機率完全閃開（最多 40%），閃開後 0.25 秒不會再被打
@@ -686,7 +688,7 @@ export function downPlayer(pl: Player) {                                 // 倒�
 }
 
 
-/* 月影之鈴：瞬移的時候，穿過的敵人各被砍一刀（每次瞬移每隻最多一次）。game/playerUpdate.ts 在瞬移移動中每幀呼叫 */
+/* 月影之鈴：翻滾的時候，穿過的敵人各被砍一刀（每次翻滾每隻最多一次）。game/playerUpdate.ts 在翻滾移動中每幀呼叫 */
 export function dodgeCut(pl: Player) {
   const v = pl.tfx && pl.tfx.dodgeCut; if (!v) return;
   const hit: Set<any> = pl.cutSet || (pl.cutSet = new Set());

@@ -149,8 +149,17 @@ function edgeMir(pl: Player, msw, dir) {
   else if (pl.wRec > 0 && pl.wRot) rot = pl.wRot;                    // 收招時維持剛剛那一下的方向，不會突然翻面
   return rot > 0;
 }
+/* 翻滾中：整個人縮小一點、繞著身體中心轉一圈，中間稍微離地（武器先收起來不畫） */
+function drawRoll(pl: Player) {
+  const sp = HERO.walk[0], k = HK, h = sp.h * k, q = 1 - pl.dodge / (pl.rollD || 1), flip = pl.flip;
+  drawShadow(pl.x, pl.y + 1, 11);
+  ctx.save(); ctx.translate(snapF(pl.x), snapF(pl.y + 2 - h / 2 + 3 - Math.sin(q * Math.PI) * 3));   // 中心比站著低 3px（縮成一團）
+  ctx.rotate(q * TAU * (flip ? -1 : 1)); ctx.scale(.8, .8);
+  ctx.drawImage(flip ? sp.f : sp.n, -(flip ? HERO_W - 26 : 26) * k, -h / 2, sp.w * k, h);
+  ctx.restore();
+}
 export function drawPlayer(pl: Player) {
-  if (pl.dodge > 0 && !pl.dead && !pl.ride) return;                     // 瞬移中完全隱身（騎著星狼的衝刺看得到：狼往前撲）
+  if (pl.dodge > 0 && !pl.dead && !pl.ride) { if (pl.rollD) drawRoll(pl); return; }   // 翻滾中（騎著星狼的衝刺照常畫：狼往前撲）
   const blink = pl.iframe > 0 && !pl.ride && !pl.dodge && !pl.dash && pl.skillLock <= 0 && !(pl.blinkIn > 0) && Math.floor(G.time * 20) % 2 === 0;
   const fade = pl.dead ? (bodyGone(pl) ? 0 : 1) : 1;                  // 倒下：身體交給碎裂特效去畫（pixelfx disintegrate）
   ctx.globalAlpha = fade;
@@ -177,7 +186,7 @@ export function drawPlayer(pl: Player) {
   const layer = sp => ctx.drawImage(white ? (flip ? sp.wf : sp.wn) : (flip ? sp.f : sp.n), X, Y, sp.w * k, sp.h * k);
   const hand = (cx, cy) => [X + (PX0 + (flip ? HERO_W - cx : cx)) * k, Y + (PY0 + cy) * k];
   const cq = callProgress(pl);
-  if (cq > 0) { const R = ride ? 17 : 14, sy = .45, pulse = cq >= 1 ? 1 : .75 + .25 * Math.sin(G.time * 12);   // 按住瞬移鍵呼喚星狼：腳下的星光圈慢慢畫滿
+  if (cq > 0) { const R = ride ? 17 : 14, sy = .45, pulse = cq >= 1 ? 1 : .75 + .25 * Math.sin(G.time * 12);   // 按住翻滾鍵呼喚星狼：腳下的星光圈慢慢畫滿
     fillArt(pl.x - R - 1, pl.y - R * sy - 1, pl.x + R + 1, pl.y + R * sy + 1, (x, y) => { const dx = x - pl.x, dy = (y - pl.y) / sy, d = Math.sqrt(dx * dx + dy * dy); if (d > R || d < R - 2.4) return 0;
       let v = Math.atan2(dy, dx) + Math.PI / 2; v = (v % TAU + TAU) % TAU; return v / TAU <= cq ? 2 : 1; }, ['rgba(20,10,40,.5)', 'rgba(200,168,255,' + pulse + ')']); }
   if (pl.charging) {                                                    // 蓄力：腳下的環依進度填滿（紫 → 亮紫 → 金）

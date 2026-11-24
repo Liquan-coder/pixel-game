@@ -32,7 +32,7 @@ export function tagProjs(n0: number) { for (let i = n0; i < G.projs.length; i++)
 function updateProjectiles(dt) {
   for (let i = G.projs.length - 1; i >= 0; i--) {
     const p = G.projs[i];
-    if (p.home && p.owner === 'e') { const tg = nearestPlayer(p.x, p.y);         // 追蹤彈：慢慢轉向最近的玩家（轉得不快，繞圈或瞬移就甩得掉）
+    if (p.home && p.owner === 'e') { const tg = nearestPlayer(p.x, p.y);         // 追蹤彈：慢慢轉向最近的玩家（轉得不快，繞圈或翻滾就甩得掉）
       if (tg && !tg.dead) { const sp = Math.hypot(p.vx, p.vy), cur = Math.atan2(p.vy, p.vx), want = Math.atan2(tg.y - 6 - p.y, tg.x - p.x);
         let d = want - cur; d = Math.atan2(Math.sin(d), Math.cos(d)); const a = cur + Math.max(-p.home * dt, Math.min(p.home * dt, d)); p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; } }
     if (p.owner === 'e') bossProjMotion(p, dt);                        // Boss 彈幕：轉彎 / 停住再追 / 結界裡反彈
@@ -239,7 +239,7 @@ export function update(dt) {
   G.hitCtx = null;
   tickWeaponFx(dt, targets(G.me));
   tickBuilds(dt);
-  sigTick(dt);                                                           // 獨特武器：燈魂、螢火蟲、火海、沙暴、暗月光（game/signatures.ts）                                                        // 流派：殘影爆炸、怒氣、後搖中按的瞬移（game/builds.ts）
+  sigTick(dt);                                                           // 獨特武器：燈魂、螢火蟲、火海、沙暴、暗月光（game/signatures.ts）                                                        // 流派：殘影爆炸、怒氣、後搖中按的翻滾（game/builds.ts）
   updatePuzzles(dt);                                                     // 地城的機關（world/puzzles.ts）
   updateSecrets(dt);                                                     // 精靈王城的城門、密室（world/secrets.ts）
   updateNPCs(); updateQuest(); updateBoss(dt); updateRegionBosses(dt); separate(); fenceMobs(); updateProjectiles(dt); updateDrops(dt); updateSpawns(dt);

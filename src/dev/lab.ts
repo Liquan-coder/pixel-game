@@ -61,7 +61,7 @@ const bags = new Set<any>();
 const BUILDS: [string, string][] = [['', '流派：無'], ['ghostveil', '閃避・殘影之紗'], ['ragethorn', '反傷・怒棘之心'], ['thirstfang', '吸血・渴血之牙'], ['plaguevial', '異常・瘟疫之瓶'],
   ['hawkplume', '暴擊・鷹隼之羽'], ['giantheart', '重擊・巨人的心臟'], ['shadowbell', '月影之鈴'], ['bloodpact', '血契之戒'], ['knightoath', '守光騎士的誓言']];
 function setBuild(k: string) { G.me.trinkets[0] = k && UG[k] ? makeUniqueGear(k) : null; recalc(G.me); if (k) toast(UG[k].name + '：' + effLines(UG[k].eff).join('；'), '#c8a8ff', true); }
-/* 會打人的沙包：練完美閃避（攻擊打到前一瞬間瞬移）、存怒氣 */
+/* 會打人的沙包：練完美閃避（攻擊打到前一瞬間翻滾）、存怒氣 */
 function brute() { const [x, y] = near(50); const e = add('skel', x, y); e.maxHp = e.hp = 300; e.dmg = 6; bags.add(e); }
 function sandbag() { const [x, y] = near(55); const e = add('golem', x, y); e.maxHp = e.hp = 300; e.dmg = 1; bags.add(e); }   // 血量正常（出血爆的 15% 才是真的大小），每一幀補滿
 /* 鐵匠：背包補上每種刻印各一個、一把沒刻印的長劍、夠用的星砂，然後打開鐵匠的「刻印」分頁 */

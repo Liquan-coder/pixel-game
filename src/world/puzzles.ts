@@ -1,8 +1,8 @@
 /* ================= 地城的機關和謎題 =================
    每座地城有三個解謎區（world/dungeons.ts 的 PUZ 表選機關，world/dungeonLayout.ts 排房間）：
    trap（主路上的陷阱房，走過去就好）
-     spikes  尖刺陷阱：整片尖刺一排一排升起，像浪一樣往前推 → 看準空檔走，或用瞬移（無敵）穿過去
-     crumble 崩塌石橋：整間房變成地底湖 / 熔岩池，只剩一條彎彎曲曲的石頭路；站太久石頭就會裂開掉下去 → 一直走，或瞬移跳過缺口。掉下去：扣血、回到起點
+     spikes  尖刺陷阱：整片尖刺一排一排升起，像浪一樣往前推 → 看準空檔走，或用翻滾（無敵）穿過去
+     crumble 崩塌石橋：整間房變成地底湖 / 熔岩池，只剩一條彎彎曲曲的石頭路；站太久石頭就會裂開掉下去 → 一直走，或翻滾跳過缺口。掉下去：扣血、回到起點
      （其他：潮汐、蛛網、強風、冰面、寒氣、冷卻熔岩、彈跳蘑菇、黑暗迷宮 → puz2.ts / puz3.ts；火輪、滾石、凝視石像、落石、交替石板、幽靈之橋、箭陣 → puz4.ts）
    vault（岔路上的謎題房：解開 → 鐵柵門升起，後面的寶物房有金箱）、boss（Boss 大廳前的謎題房：解開 → 通往 Boss 大廳的鐵柵門升起）
      braziers 火盆：牆上壁畫刻著四個符號的順序，照順序點燃四個火盆。點錯 → 火焰暴走 + 叫出守衛
@@ -201,10 +201,10 @@ export function updatePuzzles(dt: number) {
     for (const c of p.crumb) { if (c.gone > 0) { c.gone -= dt; if (c.gone <= 0) { c.crack = 0; c.on = 0; } } else if (c.crack > 0) { c.crack -= dt; if (c.crack <= 0) { c.gone = 4; sfx.boom(); burst(c.x, c.y, 8, '#6a6478', 60); } } }
     for (const k in p.m) MECHS[k].update?.(p, p.m[k], dt);
     for (const pl of G.players) { if (pl.dead) continue;
-      // 尖刺：站在「升起來」的那格 → 受傷 + 出血（瞬移中無敵，可以直接穿過去）
+      // 尖刺：站在「升起來」的那格 → 受傷 + 出血（翻滾中無敵，可以直接穿過去）
       if (p.spikes.length && spikePhase(p, pl.y) === 'up' && p.spikes.some(s => Math.abs(s.x - pl.x) < 9 && Math.abs(s.y - (pl.y - 2)) < 9)) {
         G.hitCtx = { lv: p.d.lv }; hurtPlayer(pl, Math.round(base(p) * .75), pl.x, pl.y + 3, { bleed: 22 }); G.hitCtx = null; }
-      // 崩塌石橋：站上去 0.3 秒開始裂、0.5 秒後掉下去；掉了的洞 4 秒後長回來。瞬移中可以飛過缺口
+      // 崩塌石橋：站上去 0.3 秒開始裂、0.5 秒後掉下去；掉了的洞 4 秒後長回來。翻滾中可以飛過缺口
       if (p.crumb.length) { const c = p.crumb.find(c => Math.abs(c.x - pl.x) < 8 && Math.abs(c.y - (pl.y - 2)) < 8);
         if (c && c.gone <= 0 && c.crack <= 0 && (c.on += dt) > .3) { c.crack = .5; sfx.hit(); }
         if (c && c.gone > 0 && !(pl.dodge > 0) && !pl.dash) fall(p, pl); }

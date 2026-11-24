@@ -52,11 +52,12 @@ export interface Player {
   def: number; defRed: number; crit: number; ls: number; aspd: number; cdr: number; atkPow?: number;
   tfx?: Record<string, number>;   // 防具 + 飾品的效果加總（data/gear.ts 的 EFF）
   acls?: string;                  // 身上防具的類型：'light' | 'medium' | 'heavy'
-  dodgeAtkT?: number;             // 「瞬移後下一擊加傷」到什麼時候（G.time）
+  dodgeAtkT?: number;             // 「翻滾後下一擊加傷」到什麼時候（G.time）
   counterT?: number;              // 反擊之誓：被打中後「下一擊必定暴擊」到什麼時候（G.time）
   // 流派（game/builds.ts）
-  dodgeReady?: number; dodgeBuf?: number;          // 下一次能瞬移的時間、後搖中按的瞬移（記到什麼時候）
-  dodgeAt?: number; dodgeX?: number; dodgeY?: number; dodgeCost?: number; pdDone?: boolean;   // 這次瞬移：開始時間、起點、花了多少體力、完美閃避觸發過了沒
+  dodgeReady?: number; dodgeBuf?: number;          // 下一次能翻滾的時間、還沒站穩時按的翻滾（記到什麼時候）
+  rollD?: number; rollRec?: number; rollRecD?: number;   // 這次翻滾總共滾幾秒（0 = 騎狼往前撲）、還要站穩幾秒、這次要站穩多久
+  dodgeAt?: number; dodgeX?: number; dodgeY?: number; dodgeCost?: number; pdDone?: boolean;   // 這次翻滾：開始時間、起點、花了多少體力、完美閃避觸發過了沒
   critMul?: number;               // 暴擊傷害倍率（×1.8 + 幸運，data/attrs.ts 的 CRIT_BASE；recalc 算好）。不顯示給玩家看
   critNext?: number;              // 完美閃避後「下一擊必定暴擊」到什麼時候
   rage?: number; rageT?: number;  // 反傷流：累積的怒氣、到什麼時候消失
@@ -67,7 +68,7 @@ export interface Player {
   gravCd?: number; echoC?: number; echoT?: number; markE?: Enemy | null; sealRdy?: boolean;   // 引力刻印的冷卻、迴響刻印數到第幾下、標記刻印標著哪一隻
   // 獨特武器的招牌（game/signatures.ts）：近衛之盾到什麼時候、狼群的層數、鍛打的熱度、王之箭數到第幾箭……
   sigShield?: number; chain?: number; chainT?: number; hunt?: number; huntT?: number; emT?: number; heat?: number; heatHit?: number; royalN?: number; flyT?: number;              // 蓄力弓放開得太早：自動拉到 0.3 秒再射（game/playerUpdate.ts）   // 吸血流的回血數字（合在一起顯示）、暴擊流上一次減冷卻的時間
-  cutSet?: Set<any> | null;       // 月影之鈴：這次瞬移已經砍過的敵人
+  cutSet?: Set<any> | null;       // 月影之鈴：這次翻滾已經砍過的敵人
   healT0?: number; healN?: number; // 鐮刀收割：這一次技能已經回了幾次血
 
   // 倒數計時（秒），大於 0 代表還在冷卻/持續中
@@ -83,16 +84,16 @@ export interface Player {
 
   // 星狼（坐騎，game/mount.ts）
   ride?: boolean;                     // 正騎著
-  rideT?: number;                     // 按住瞬移鍵呼喚：已經按住幾秒（滿 1 秒叫出來）
-  callLock?: boolean;                 // 叫完 / 被打斷：要先放開瞬移鍵才會重新數
-  dodgeArm?: boolean; dodgeHold?: number;   // 有星狼之後瞬移改成放開才發動：按下去了、還沒決定是瞬移還是呼喚 / 已經按住幾秒
+  rideT?: number;                     // 按住翻滾鍵呼喚：已經按住幾秒（滿 1 秒叫出來）
+  callLock?: boolean;                 // 叫完 / 被打斷：要先放開翻滾鍵才會重新數
+  dodgeArm?: boolean; dodgeHold?: number;   // 有星狼之後翻滾改成放開才發動：按下去了、還沒決定是翻滾還是呼喚 / 已經按住幾秒
   rideIn?: number;                    // 剛騎上：星狼從白光裡浮現還剩幾秒
   rideDrop?: number;                  // 剛跳下來：人從狼背落到地上還剩幾秒
   rideRun?: number;                   // 奔跑步伐進度 0～1（挑奔跑動畫的哪一格）
 
   // 速度
   kx: number; ky: number;         // 被擊退
-  dvx: number; dvy: number;       // 瞬移
+  dvx: number; dvy: number;       // 翻滾
 
   // 動作狀態（戰鬥中才會出現）
   swing: any; dash: any; lunge?: any;              // 形狀依武器不同，先用 any
