@@ -1006,17 +1006,23 @@ const pageScript = async () => {
     G.me.weapon = keep.w; ['vit', 'end', 'str', 'dex', 'int', 'luk'].forEach((k, i) => G.me[k] = keep.a[i]); recalc(G.me);
   });
 
-  run('暴擊傷害：每種武器不一樣（短刀 ×2.4、戰鎚 ×1.6），保證暴擊至少 ×1.8', () => {
-    const E = await0.enemies, I = await0.items; setMenu(null); G.enemies = []; const keep = G.me.weapon;
-    const avg = (crit) => { G.me.crit = crit; const e = E.makeEnemy('skel', 1, G.me.x + 14, G.me.y, { alive: true, timer: 0 }); e.hp = e.maxHp = 1e9; e.stun = 99; e.dmg = 0; G.enemies = [e];
-      let s = 0; for (let i = 0; i < 40; i++) { const h = e.hp; G.me.critNext = 0; G.me.counterT = 0; G.me.dodgeAtkT = 0; damageEnemy(G.me, e, 1, G.me.x, G.me.y, { proc: true }); s += h - e.hp; } G.enemies = []; return s / 40; };
-    for (const [t, m] of [['dagger', 2.4], ['hammer', 1.6]]) { G.me.weapon = I.makeWeapon(t); recalc(G.me);
-      if (G.me.critMul !== m) throw new Error(t + '：暴擊傷害應該是 ×' + m + '，現在 ×' + G.me.critMul);
-      const r = avg(100) / avg(0); if (Math.abs(r - m) > .12) throw new Error(t + '：暴擊打出來是普通的 ' + r.toFixed(2) + ' 倍，應該是 ' + m); }
-    { G.me.weapon = I.makeWeapon('hammer'); recalc(G.me); const base = avg(0), e = E.makeEnemy('skel', 1, G.me.x + 14, G.me.y, { alive: true, timer: 0 }); e.hp = e.maxHp = 1e9; e.stun = 99; e.dmg = 0; G.enemies = [e];   // 保證暴擊（完美閃避後）至少 ×1.8，就算是戰鎚
-      let s = 0; for (let i = 0; i < 40; i++) { const h = e.hp; G.me.critNext = G.time + 1; damageEnemy(G.me, e, 1, G.me.x, G.me.y, { proc: true }); s += h - e.hp; } G.enemies = [];
-      const r = s / 40 / base; if (Math.abs(r - 1.8) > .12) throw new Error('戰鎚完美閃避後的暴擊是普通的 ' + r.toFixed(2) + ' 倍，應該至少 1.8'); }
-    G.me.weapon = keep; recalc(G.me);
+  run('暴擊傷害：每把武器都 ×1.8，幸運越高越痛，介面上看不到', () => {
+    const E = await0.enemies, I = await0.items; setMenu(null); G.enemies = []; const keep = { w: G.me.weapon, luk: G.me.luk };
+    const avg = (crit, sure = false) => { G.me.crit = crit; const e = E.makeEnemy('skel', 1, G.me.x + 14, G.me.y, { alive: true, timer: 0 }); e.hp = e.maxHp = 1e9; e.stun = 99; e.dmg = 0; G.enemies = [e];
+      let s = 0; for (let i = 0; i < 40; i++) { const h = e.hp; G.me.critNext = sure ? G.time + 1 : 0; G.me.counterT = 0; G.me.dodgeAtkT = 0; damageEnemy(G.me, e, 1, G.me.x, G.me.y, { proc: true }); s += h - e.hp; } G.enemies = []; return s / 40; };
+    G.me.luk = 5;
+    for (const t of ['dagger', 'hammer']) { G.me.weapon = I.makeWeapon(t); recalc(G.me);
+      if (G.me.critMul !== 1.8) throw new Error(t + '：幸運 5 暴擊傷害應該是 ×1.8，現在 ×' + G.me.critMul);
+      const b = avg(0), r = avg(100) / b, r2 = avg(0, true) / b;
+      if (Math.abs(r - 1.8) > .12) throw new Error(t + '：暴擊打出來是普通的 ' + r.toFixed(2) + ' 倍，應該是 1.8');
+      if (Math.abs(r2 - 1.8) > .12) throw new Error(t + '：完美閃避後的暴擊是普通的 ' + r2.toFixed(2) + ' 倍，應該是 1.8'); }
+    G.me.luk = 40; recalc(G.me); { const r = avg(100) / avg(0); if (Math.abs(r - 2.22) > .12) throw new Error('幸運 40 暴擊應該是普通的 2.22 倍，現在 ' + r.toFixed(2)); }
+    // 介面：升級畫面（幸運那一行 + 加點後的變化）和武器卡都不寫暴擊傷害
+    G.me.weapon = I.makeWeapon('dagger'); recalc(G.me); const s0 = G.me.souls; G.me.souls = 1e6; menus.restAt(CAMPS[0]); document.querySelector('#campMenu [data-stat=luk]').click();
+    const camp = document.getElementById('campMenu').innerHTML; setMenu(null);
+    menus.toggleInv(); G.selItem = G.me.weapon.id; menus.renderInv(); const inv = document.getElementById('invMenu')?.innerHTML || document.body.innerHTML; menus.toggleInv();
+    for (const [n, h] of [['升級畫面', camp], ['背包', inv]]) if (/暴擊傷害|×\d\.\d/.test(h)) throw new Error(n + '還看得到暴擊傷害');
+    setMenu(null); G.me.souls = s0; G.me.weapon = keep.w; G.me.luk = keep.luk; recalc(G.me);
   });
 
   run('獨特武器的招牌：17 把各自的能力都會觸發', () => {

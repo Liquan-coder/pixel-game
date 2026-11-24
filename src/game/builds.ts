@@ -10,7 +10,7 @@
      重擊 quake       巨人的心臟：蓄滿的一擊放出震波、震暈小怪
      異常 spread      瘟疫之瓶：刻印發作時傳染給旁邊的怪（寫在 game/weaponFx.ts，因為要用到各種累積值）
    能力值也各接一個流派（data/attrs.ts 的 PERK，加進 tfx）：體魄 → 吸血（回血 +%）、耐力 → 反傷（反擊 +%）、力量 → 重擊（蓄力）、
-     敏捷 → 閃避（瞬移省體力）、智識 → 異常（刻印 +%）、幸運 → 暴擊（暴擊率 + 暴擊傷害）。暴擊流的獨特武器：蠍尾短刀（連鎖，game/signatures.ts）
+     敏捷 → 閃避（瞬移省體力）、智識 → 異常（刻印 +%）、幸運 → 暴擊（暴擊率 + 看不到的暴擊傷害）。暴擊流的獨特武器：蠍尾短刀（連鎖，game/signatures.ts）
    combat.ts 只在幾個地方呼叫這裡（tryDodge、hurtPlayer、calcDmg、damageEnemy、releaseCharge），規則都在這個檔案。 */
 import { G } from '../core/state';
 import { TAU, pick, rr } from '../core/util';

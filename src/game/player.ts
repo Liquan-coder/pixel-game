@@ -3,7 +3,7 @@ import { G } from '../core/state';
 import { $ } from '../core/util';
 import { WT, armorStats, effOf, makeWeapon } from '../data/items';
 import { ACLS, A_WEIGHT, W_WEIGHT, loadCap, loadTier } from '../data/gear';
-import { ATTRS, ATTR_BASE, critMulOf, perks, soft, weaponAtk } from '../data/attrs';
+import { ATTRS, ATTR_BASE, CRIT_BASE, perks, soft, weaponAtk } from '../data/attrs';
 import type { Player } from '../types';
 
 /* ================= STATE ================= */
@@ -59,7 +59,7 @@ export function calcStats(pl: Player, eq) {
   const A = armorStats(eq.armor), C = A ? ACLS[A.cls] : null;
   const def = (A ? A.def : 0) + Math.round(.5 * soft(pl.end));
   return { maxHp: Math.round((100 + 22 * soft(pl.vit) + (a.hp || 0) + (A ? A.hp : 0)) * (1 + (T.hpPct || 0) / 100)), maxSt: Math.round(80 + 8 * soft(pl.end)) + (T.stam || 0),
-    crit: Math.round(5 + (a.crit || 0) + (T.crit || 0) + P.crit), critMul: Math.round((critMulOf(eq.weapon) + P.critDmg) * 100) / 100, ls: (a.lifesteal || 0) / 100,
+    crit: Math.round(5 + (a.crit || 0) + (T.crit || 0) + P.crit), critMul: Math.round((CRIT_BASE + P.critDmg) * 100) / 100, ls: (a.lifesteal || 0) / 100,
     aspd: 1 + ((a.speed || 0) + (T.aspd || 0)) / 100 + Math.min(.15, .006 * soft(pl.dex)),
     cdr: Math.min(.5, ((a.cdr || 0) + (T.cdr || 0) + (C ? C.cdr : 0)) / 100 + Math.min(.15, .006 * soft(pl.int))),
     def, defRed: Math.min(DR_CAP, def / (def + 60)), atk: Math.round(weaponAtk(pl, eq.weapon) * (1 + (T.atkPct || 0) / 100)), tfx: T, acls: A ? A.cls : '',

@@ -57,7 +57,7 @@ export interface Player {
   // 流派（game/builds.ts）
   dodgeReady?: number; dodgeBuf?: number;          // 下一次能瞬移的時間、後搖中按的瞬移（記到什麼時候）
   dodgeAt?: number; dodgeX?: number; dodgeY?: number; dodgeCost?: number; pdDone?: boolean;   // 這次瞬移：開始時間、起點、花了多少體力、完美閃避觸發過了沒
-  critMul?: number;               // 暴擊傷害倍率（看武器，data/attrs.ts 的 WCRIT；recalc 算好）
+  critMul?: number;               // 暴擊傷害倍率（×1.8 + 幸運，data/attrs.ts 的 CRIT_BASE；recalc 算好）。不顯示給玩家看
   critNext?: number;              // 完美閃避後「下一擊必定暴擊」到什麼時候
   rage?: number; rageT?: number;  // 反傷流：累積的怒氣、到什麼時候消失
   thirstAcc?: number; thirstT?: number; ccT?: number;

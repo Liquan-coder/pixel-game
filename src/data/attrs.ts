@@ -15,7 +15,7 @@ export const ATTRS: { k: AttrKey; n: string; d: string }[] = [         // d：�
   { k: 'str', n: '力量', d: '重武器的傷害、蓄力速度和蓄滿一擊' },
   { k: 'dex', n: '敏捷', d: '快武器的傷害、攻速、瞬移省體力' },
   { k: 'int', n: '智識', d: '魔法武器的傷害、技能冷卻、刻印效果' },
-  { k: 'luk', n: '幸運', d: '暴擊率、暴擊傷害、掉素材' },
+  { k: 'luk', n: '幸運', d: '暴擊率、掉素材' },
 ];
 export const ATTR_NAME: Record<AttrKey, string> = Object.fromEntries(ATTRS.map(a => [a.k, a.n])) as any;
 
@@ -24,13 +24,13 @@ export const ATTR_NAME: Record<AttrKey, string> = Object.fromEntries(ATTRS.map(a
 export function soft(v: number) { const x = Math.max(0, v - ATTR_BASE) / LV_K; return Math.min(x, 15) + .6 * Math.max(0, Math.min(x - 15, 20)) + .2 * Math.max(0, x - 35); }
 
 /* ---- 能力值的「流派副效果」：主效果是讓某類武器變痛，副效果各接一個流派（比主效果小，點了順便讓流派更強） ----
-   每一點都照 soft()（遞減點數）算。例：幸運 40 → soft 14 → 暴擊率 +11.2%、暴擊傷害 +0.42（短刀 ×2.4 → ×2.82）
+   每一點都照 soft()（遞減點數）算。例：幸運 40 → soft 14 → 暴擊率 +11.2%（暴擊傷害偷偷 +0.42：×1.8 → ×2.22）
      體魄 → 吸血流：所有回血 +1.5%（吸血、渴血、打倒回血、藥水、鐮刀、每秒回復）
      耐力 → 反傷流：反擊 +2%（怒氣打回去、反傷、守光騎士的誓言）
      力量 → 重擊流：蓄力速度 +2%、蓄滿那一下 +1.5%
      敏捷 → 閃避流：瞬移花的體力 −1.5%（最多 −30%）
      智識 → 異常流：刻印效果 +1.5%（跟飾品的「刻印效果」加在一起）
-     幸運 → 暴擊流：暴擊率 +0.8%（最多 +25%）、暴擊傷害 +0.03 */
+     幸運 → 暴擊流：暴擊率 +0.8%（最多 +25%）、暴擊傷害 +0.03（暴擊傷害不給玩家看：介面上只有暴擊率） */
 export const PERK = { heal: 1.5, retal: 2, charge: 2, chargeDmg: 1.5, dodgeSave: 1.5, dodgeCap: 30, fxBuild: 1.5, crit: .8, critCap: 25, critDmg: .03 };
 export function perks(pl: Player) {
   const s = (k: AttrKey) => soft(pl[k] ?? ATTR_BASE);
@@ -49,15 +49,8 @@ export const WSCALE: Record<string, Partial<Record<AttrKey, number>>> = {
   crescent: { dex: .6, str: .45 }, twinblade: { dex: .8, str: .3 }, darkmoon: { str: .55, int: .6 },
   elfbow: { dex: .8, int: .3 }, elfrapier: { dex: .9, int: .25 }, elfblades: { dex: 1 },
 };
-/* 暴擊傷害：每種武器不一樣。快、準的武器（短刀、細劍、太刀）暴擊打得特別痛 → 適合堆暴擊率；重武器、法杖暴擊比較普通。
-   例：暴擊率 30%、短刀 ×2.4 → 平均每下 ×1.42；同樣 30% 拿戰鎚 ×1.6 → 平均 ×1.18。字母給玩家看：S ≥ 2.3、A ≥ 2.1、B ≥ 1.9、C ≥ 1.75、D 其他 */
-export const WCRIT: Record<string, number> = {
-  dagger: 2.4, rapier: 2.3, elfrapier: 2.3, katana: 2.2, elfblades: 2.2, wolfblade: 2.1,
-  twinblade: 2, crescent: 2, bow: 2, elfbow: 2, spear: 1.9,
-  sword: 1.8, scythe: 1.8, darkmoon: 1.8, greatsword: 1.7, axe: 1.7, hammer: 1.6, staff: 1.6,
-};
-export const critMulOf = (it: Item | null) => (it && WCRIT[it.type]) || 1.8;
-export const critGrade = (m: number) => m >= 2.3 ? 'S' : m >= 2.1 ? 'A' : m >= 1.9 ? 'B' : m >= 1.75 ? 'C' : 'D';
+/* 暴擊傷害：每種武器都一樣（CRIT_BASE），只有幸運會讓它變高（perks 的 critDmg）。不顯示給玩家看：玩家只知道「幸運高，暴擊比較痛」 */
+export const CRIT_BASE = 1.8;
 export const grade = (c: number) => c >= 1 ? 'S' : c >= .75 ? 'A' : c >= .5 ? 'B' : c >= .3 ? 'C' : c > 0 ? 'D' : '-';
 
 /* 武器需求：每種武器固定（不會因為在哪裡撿到而改變，強化也不會提高需求）。

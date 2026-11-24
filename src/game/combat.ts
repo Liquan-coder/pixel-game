@@ -23,7 +23,7 @@ import { UQSIG } from '../data/uniques';
 import { bindBuilds, buildHit, canDodge, dodgeStarted, forcedCrit, fullCharge, iframeHit, playerHurt } from './builds';
 import './bossTuning';                                                   // Boss 的傷害倍率和獎勵（平衡用）
 import type { Player } from '../types';
-import { healMul, retalMul } from '../data/attrs';
+import { CRIT_BASE, healMul, retalMul } from '../data/attrs';
 
 /* ================= PLAYER COMBAT ================= */
 export function targets(pl: Player) { const t = []; for (const e of G.enemies) if (Math.abs(e.x - pl.x) < 300 && Math.abs(e.y - pl.y) < 300) t.push(e); if (G.B && !G.bossDead && G.B.state !== 'sleep' && !(G.B.z > 8)) t.push(G.B);
@@ -35,8 +35,8 @@ function nearestTarget(pl: Player, maxD) { let best = null, bd = maxD; for (cons
 function autoFace(pl: Player, maxD) { const t = nearestTarget(pl, maxD); if (t) pl.face = Math.atan2(t.y - pl.y, t.x - pl.x); pl.aimLock = .3; updFlip(pl); }
 export function updFlip(pl: Player) { const c = Math.cos(pl.face); if (c < -.1) pl.flip = true; else if (c > .1) pl.flip = false; }
 function spendSt(pl: Player, v) { pl.st = Math.max(0, pl.st - v); pl.stDelay = .55; }
-/* 保證暴擊（完美閃避、守光騎士的誓言、居合、背刺…）至少 ×1.8：重武器的暴擊傷害比較低，但這些是「打得好」的獎勵，不該因為拿重武器變小。隨機暴擊才完全照武器 */
-const sureMul = (pl: Player) => Math.max(1.8, pl.critMul || 1.8);
+/* 暴擊傷害：×1.8 + 幸運（data/attrs.ts 的 CRIT_BASE、perks）。隨機暴擊和保證暴擊（完美閃避、居合、背刺…）一樣 */
+const sureMul = (pl: Player) => pl.critMul || CRIT_BASE;
 function calcDmg(pl: Player, mult, cb = 0) {                                   // cb = 額外暴擊率（細劍連刺）
   let v = (pl.atkPow || pl.weapon.atk) * mult * rr(.9, 1.1);           // atkPow = 武器攻擊 × 能力值加成（recalc 算好的）
   const T = pl.tfx || {};
@@ -44,7 +44,7 @@ function calcDmg(pl: Player, mult, cb = 0) {                                   /
   if (T.dodgeAtk && G.time < (pl.dodgeAtkT || 0)) { v *= 1 + T.dodgeAtk / 100; pl.dodgeAtkT = 0; }   // 飾品：瞬移後的下一擊
   const ctr = T.counter && G.time < (pl.counterT || 0); if (ctr) { v *= 1 + T.counter / 100 * retalMul(pl); pl.counterT = 0; }   // 反擊之誓：被打中後的下一擊
   const sure = ctr || forcedCrit(pl), crit = sure || Math.random() * 100 < pl.crit + cb + sigCrit(pl);   // sigCrit：蠍尾短刀的連鎖
-  if (crit) v *= sure ? sureMul(pl) : pl.critMul || 1.8;   // forcedCrit：完美閃避後的下一擊（game/builds.ts）；暴擊傷害看武器（data/attrs.ts 的 WCRIT）
+  if (crit) v *= sureMul(pl);   // forcedCrit：完美閃避後的下一擊（game/builds.ts）
   return { v: Math.max(1, Math.round(v)), crit };
 }
 export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: number, opts: { heavy?: boolean; stun?: number; crit?: boolean; heal?: number; proc?: boolean; cb?: number; kb?: number } = {}) {
