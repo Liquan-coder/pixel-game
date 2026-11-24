@@ -75,8 +75,7 @@ export function updatePlayer(pl: Player, dt) {
     const v = pl.rollD ? .4 + 1.2 * q : 1;
     pl.dodge -= dt; moveEnt(pl, pl.dvx * v * dt, pl.dvy * v * dt);
     dodgeCut(pl);                                                       // 月影之鈴：穿過的敵人被砍一刀
-    if (pl.rollD) { if (Math.random() < .45) G.ghosts.push({ x:pl.x, y:pl.y, flip:pl.flip, life:.16, max:.16, col:'w', rot:(1 - q) * TAU * (pl.flip ? -1 : 1) });   // 跟著轉的淡白殘影
-      if (Math.random() < .3) dustPuff(pl.x, pl.y, 1, 14); }
+    if (pl.rollD && Math.random() < .3) dustPuff(pl.x, pl.y, 1, 14);   // 一路揚起一點塵土（旋風環畫在 render/player.ts 的 drawRoll）
     if (pl.dodge <= 0) { pl.dodge = 0; if (pl.rollD) { pl.rollRec = pl.rollRecD || 0; dustPuff(pl.x, pl.y, 4, 20); } }   // 歸零：停在負數的話 !pl.dodge 會一直是 false → pl.moving 永遠 false（凝視石像抓不到人、受傷不閃爍）。落地揚塵，開始站穩
   } else if (puzzleMove(pl, dt)) {                                      // 機關接手移動：冰面滑行、被蘑菇彈飛（world/puzzles.ts）
   } else if (m > .05 && !locked(pl) && !rooted(pl) && !(pl.rollRec > 0)) {
@@ -122,10 +121,11 @@ export function updatePlayer(pl: Player, dt) {
     else { pl.chargeHold += dt; if (drawBow ? pl.atkCd <= 0 && !busy(pl) : pl.chargeHold > .22 && !busy(pl) && pl.st > 0) { pl.charging = true; pl.charge = 0; pl.chargeLv = 0; } }   // 蓄力弓一按就開始拉
   }
   }
-  /* 翻滾：還沒有星狼 → 一按就閃。有星狼之後「按住 = 呼喚」，所以改成放開才閃（跟攻擊的點一下 / 按住同一個道理）：
-     很快放開（呼喚的圈還沒出來）→ 翻滾；按到圈出來了 → 這次是在呼喚，放開也不閃 */
+  /* 翻滾：還沒有星狼 → 一按就滾。有星狼之後「按住 = 呼喚」：
+     · 有按方向（戰鬥中幾乎都是）→ 一樣一按就滾，不然要等放開，手感會黏
+     · 站著不動 → 放開才滾（跟攻擊的點一下 / 按住同一個道理）：很快放開（呼喚的圈還沒出來）→ 翻滾；按到圈出來了 → 這次是在呼喚，放開也不滾 */
   const dodgeNow = () => { tryDodge(pl); if (pl.dodge > 0) rollOut(pl); };
-  if (!hasWolf()) { pl.dodgeArm = false; if (pressed.dodge) dodgeNow(); }
+  if (!hasWolf() || (pressed.dodge && m > .2 && !pl.ride)) { pl.dodgeArm = false; if (pressed.dodge) dodgeNow(); }
   else {
     if (pressed.dodge) { pl.dodgeArm = true; pl.dodgeHold = 0; }
     if (pl.dodgeArm) {

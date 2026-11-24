@@ -636,7 +636,7 @@ export function trySkill(pl: Player) {
   }
 }
 function trail(x0, y0, x1, y1) { for (let i = 0; i <= 10; i++) { const k = i / 10; G.parts.push({ x:x0 + (x1 - x0) * k, y:y0 - 6 + (y1 - y0) * k, vx:rr(-8, 8), vy:rr(-8, 8), life:.35, max:.35, col: i % 2 ? '#b49cff' : '#e8e2ff', s:2 }); } }
-export function tryDodge(pl: Player) {                                                // 翻滾：往前滾一段，前 0.22 秒無敵；滾完要站穩一下（負重越重越久）。騎著星狼 = 狼往前撲
+export function tryDodge(pl: Player) {                                                // 翻滾：往前滾一段，前 0.26 秒無敵；滾完要站穩一下（負重越重越久）。騎著星狼 = 狼往前撲
   if (pl.dodge > 0 || pl.drink > 0 || pl.dash || pl.dead) return;
   const C = ACLS[pl.acls] || ACLS.medium, cost = Math.round((20 + C.dodgeSt) * (1 - ((pl.tfx && pl.tfx.dodgeSave) || 0) / 100));   // 敏捷：翻滾省體力        // 防具類型：輕甲省體力、閃得遠；重甲相反
   if (!canDodge(pl, cost)) return;                                       // 體力要付得起、還沒站穩不能再滾（game/builds.ts）

@@ -1,8 +1,8 @@
 /* ================= 流派：改變打法的規則 =================
    基礎（每個人都有）
-     · 翻滾要付得起體力才滾得出去；滾 0.3 秒（前 0.22 秒無敵），滾完要站穩一下才能動（負重越重越久，data/gear.ts 的 roll）；
-       還沒站穩時按的翻滾記 0.2 秒，時間到自動滾
-     · 完美閃避：翻滾開始後 0.15 秒內本來會被打中（後面那段無敵只是普通閃過） → 時間變慢一下、體力退回、1.5 秒內下一擊必定暴擊
+     · 翻滾要付得起體力才滾得出去；滾 0.3 秒（前 0.26 秒無敵），滾完要站穩一下才能動（負重越重越久，data/gear.ts 的 roll）；
+       還沒站穩時按的翻滾記 0.3 秒，時間到自動滾
+     · 完美閃避：翻滾開始後 0.18 秒內本來會被打中（後面那段無敵只是普通閃過） → 時間變慢一下、體力退回、1.5 秒內下一擊必定暴擊
    流派核心（獨特飾品，data/uniques.ts 的 UG，放在野外地標旁的寶箱：world/secrets.ts 的 FIELD）
      閃避 afterimage  殘影之紗：完美閃避時原地留下殘影，0.5 秒後爆炸
      反傷 rage        怒棘之心：被打中累積怒氣，下一擊一次打回去
@@ -20,7 +20,7 @@ import { toast } from '../ui/hud';
 import type { Enemy, Player } from '../types';
 import { healMul, retalMul } from '../data/attrs';
 
-export const ROLL_T = .3, ROLL_IF = .22, PD_WIN = .15;                 // 翻滾：滾多久、前幾秒無敵、完美閃避的判定時間（秒）。滾完還要站穩（data/gear.ts 負重的 roll）
+export const ROLL_T = .3, ROLL_IF = .26, PD_WIN = .18;                 // 翻滾：滾多久、前幾秒無敵、完美閃避的判定時間（秒）。滾完還要站穩（data/gear.ts 負重的 roll）
 export const WOLF_T = .14, WOLF_CD = .32;                               // 騎星狼往前撲：衝多久、多久能再撲（沒有站穩的時間）
 type Hooks = { aoe: (pl: Player, cx: number, cy: number, rad: number, mult: number, opts?: any) => void; shake: (m: number, t: number) => void;
   quakeFx: (x: number, y: number, R: number) => void; dodge: (pl: Player) => void };
@@ -31,7 +31,7 @@ const T = (pl: Player) => pl.tfx || {};
 /* ---------- 翻滾：體力不夠 / 還沒站穩 ---------- */
 let tipNoSt = false;
 export function canDodge(pl: Player, cost: number) {
-  if (G.time < (pl.dodgeReady || 0)) { pl.dodgeBuf = G.time + .2; return false; }    // 還沒站穩就按的：記 0.2 秒，時間到自動滾
+  if (G.time < (pl.dodgeReady || 0)) { pl.dodgeBuf = G.time + .3; return false; }    // 還沒站穩就按的：記 0.3 秒，時間到自動滾
   if (pl.st < cost) { if (pl === G.me) noStamina(); return false; }
   return true;
 }

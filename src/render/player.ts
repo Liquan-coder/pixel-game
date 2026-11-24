@@ -149,14 +149,23 @@ function edgeMir(pl: Player, msw, dir) {
   else if (pl.wRec > 0 && pl.wRot) rot = pl.wRot;                    // 收招時維持剛剛那一下的方向，不會突然翻面
   return rot > 0;
 }
-/* 翻滾中：整個人縮小一點、繞著身體中心轉一圈，中間稍微離地（武器先收起來不畫） */
+/* 旋風環的一段弧：一顆一顆 2×2 的像素點，尾巴淡、頭亮。sy = 上下壓扁（畫在地上的環用） */
+function swirlArc(cx: number, cy: number, r: number, sy: number, a0: number, len: number, col: string, alpha: number) {
+  const a1 = ctx.globalAlpha, n = Math.max(4, Math.ceil(r * Math.abs(len) / (HK * 1.5))); ctx.fillStyle = col;
+  for (let i = 0; i < n; i++) { const t = i / n, a = a0 + len * t; ctx.globalAlpha = a1 * alpha * (.25 + .75 * t);
+    ctx.fillRect(snapF(cx + Math.cos(a) * r - HK), snapF(cy + Math.sin(a) * r * sy - HK), HK * 2, HK * 2); }
+  ctx.globalAlpha = a1;
+}
+/* 翻滾中：縮成一團的圖（art/heroRoll.ts），每 1/4 的時間轉 90 度（像素不會糊），外面繞一圈紫 + 金的旋風環；武器收起來不畫 */
 function drawRoll(pl: Player) {
-  const sp = HERO.walk[0], k = HK, h = sp.h * k, q = 1 - pl.dodge / (pl.rollD || 1), flip = pl.flip;
+  const sp = HERO.roll, k = HK, q = 1 - pl.dodge / (pl.rollD || 1), dir = pl.flip ? -1 : 1;
+  const cx = pl.x, cy = pl.y - 8 - Math.sin(q * Math.PI) * 2, spin = q * TAU * 1.5 * dir;   // 中間稍微離地
   drawShadow(pl.x, pl.y + 1, 11);
-  ctx.save(); ctx.translate(snapF(pl.x), snapF(pl.y + 2 - h / 2 + 3 - Math.sin(q * Math.PI) * 3));   // 中心比站著低 3px（縮成一團）
-  ctx.rotate(q * TAU * (flip ? -1 : 1)); ctx.scale(.8, .8);
-  ctx.drawImage(flip ? sp.f : sp.n, -(flip ? HERO_W - 26 : 26) * k, -h / 2, sp.w * k, h);
-  ctx.restore();
+  swirlArc(cx, cy, 11, 1, spin + Math.PI, 2.4 * dir, '#5a46ba', 1);                         // 後面那段環（紫）
+  ctx.save(); ctx.translate(snapF(cx), snapF(cy)); ctx.rotate(Math.min(3, Math.floor(q * 4)) * Math.PI / 2 * dir);
+  ctx.drawImage(pl.flip ? sp.f : sp.n, -sp.w * k / 2, -sp.h * k / 2, sp.w * k, sp.h * k); ctx.restore();
+  swirlArc(cx, cy, 11, 1, spin, 2.2 * dir, '#f0cd87', 1);                                   // 前面那段環（金）
+  swirlArc(cx, cy, 10, 1, spin + .5, 1.6 * dir, '#b49cff', .9);
 }
 export function drawPlayer(pl: Player) {
   if (pl.dodge > 0 && !pl.dead && !pl.ride) { if (pl.rollD) drawRoll(pl); return; }   // 翻滾中（騎著星狼的衝刺照常畫：狼往前撲）
@@ -165,6 +174,8 @@ export function drawPlayer(pl: Player) {
   ctx.globalAlpha = fade;
   const ride = !!pl.ride && !pl.dead, run: WolfAnim = !ride ? null : pl.dodge > 0 || pl.moving ? pl.rideRun || 0 : null;   // 騎著衝刺：狼停在當下那一格滑出去（沒有另外的動作）
   drawShadow(pl.x, pl.y + 1, ride ? 22 : 12);
+  if (pl.rollRec > 0 && pl.rollRecD && !ride) { const t = 1 - pl.rollRec / pl.rollRecD, d = pl.flip ? -1 : 1;   // 剛滾完站穩：腳邊的旋風環散開、淡掉
+    swirlArc(pl.x, pl.y, 9 + t * 5, .4, t * 3 * d, 3.4 * d, '#805db1', 1 - t); swirlArc(pl.x, pl.y, 8 + t * 5, .4, Math.PI + t * 3 * d, 2.2 * d, '#b98b53', .8 * (1 - t)); }
   if (ride) drawMount(pl, run);
   // 騎著：整個人抬到狼背上（跟著步伐一起騰空）；剛跳下來：從狼背落回地上
   const rideY = ride ? wolfRideY(run) : pl.rideDrop > 0 ? RIDE_Y * pl.rideDrop / DROP_T : 0;

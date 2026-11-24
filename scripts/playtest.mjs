@@ -988,11 +988,11 @@ const pageScript = async () => {
       if (!await0.chests.CHESTS.some(c => c.ug === k)) throw new Error(k + ' 沒有放進野外的寶箱'); }
     const mk = (kind, dx, dy) => { const e = E.makeEnemy(kind, 1, G.me.x + dx, G.me.y + dy, { alive: true, timer: 0 }); e.hp = e.maxHp = 99999; e.stun = 99; G.enemies.push(e); return e; };
     const e = mk('skel', 24, 0); G.me.tfx = {}; G.me.weapon = await0.items.makeWeapon('sword', 0); recalc(G.me); G.me.tfx = {};
-    // 翻滾：體力不夠滾不出去；滾 0.3 秒、前 0.22 秒無敵；滾完要站穩（不能走、不能攻擊），還沒站穩時按的會記住，時間到自動滾
+    // 翻滾：體力不夠滾不出去；滾 0.3 秒、前 0.26 秒無敵；滾完要站穩（不能走、不能攻擊），還沒站穩時按的會記住，時間到自動滾
     G.me.loadTier = 1;                                                   // 普通：站穩 0.15 秒
     G.me.dodgeReady = 0; G.me.st = 5; C.tryDodge(G.me); if (G.me.dodge > 0) throw new Error('體力 5 還滾得出去');
     G.me.st = G.me.maxSt; C.tryDodge(G.me); if (!(G.me.dodge > 0)) throw new Error('體力滿的時候滾不出去');
-    if (!(G.me.iframe > .2 && G.me.iframe < .25)) throw new Error('翻滾的無敵時間不是 0.22 秒：' + G.me.iframe);
+    if (!(G.me.iframe > .24 && G.me.iframe < .28)) throw new Error('翻滾的無敵時間不是 0.26 秒：' + G.me.iframe);
     step(19); if (!(G.me.dodge === 0 && G.me.rollRec > 0)) throw new Error('滾完沒有站穩的時間：dodge=' + G.me.dodge + ' rollRec=' + G.me.rollRec);
     G.me.atkCd = 0; if (C.tryAttack(G.me)) throw new Error('還沒站穩就能攻擊');
     { G.me.kx = G.me.ky = 0; const x0 = G.me.x, y0 = G.me.y; input.mx = 1; step(1); input.mx = 0; if (Math.hypot(G.me.x - x0, G.me.y - y0) > .01) throw new Error('還沒站穩就能走：' + (G.me.x - x0).toFixed(2) + ',' + (G.me.y - y0).toFixed(2) + ' rollRec=' + G.me.rollRec + ' kx=' + G.me.kx + ' dodge=' + G.me.dodge + ' e=' + Math.round(e.x - G.me.x)); }
@@ -1004,7 +1004,7 @@ const pageScript = async () => {
       if (G.me.rollRecD !== want) throw new Error('負重第 ' + t + ' 段的站穩時間應該是 ' + want + '：' + G.me.rollRecD); step(60); }
     recalc(G.me);
     step(30);
-    // 完美閃避：翻滾後 0.15 秒內被打 → 沒受傷、體力退回、下一擊必定暴擊
+    // 完美閃避：翻滾後 0.18 秒內被打 → 沒受傷、體力退回、下一擊必定暴擊
     G.me.st = G.me.maxSt; G.me.iframe = 0; G.me.dodgeReady = 0; G.me.drink = 0; G.me.dash = null; C.tryDodge(G.me); const st2 = G.me.st, hp2 = G.me.hp; G.hitCtx = e.hc; hurtPlayer(G.me, 10, e.x, e.y); G.hitCtx = null;
     if (G.me.hp !== hp2 || G.me.st <= st2 || !(G.me.critNext > G.time)) throw new Error('完美閃避沒有觸發');
     G.me.crit = 0; const n0 = G.nums.length; damageEnemy(G.me, e, 1, G.me.x, G.me.y); if (!G.nums.slice(n0).some(n => n.big) || G.me.critNext) throw new Error('完美閃避後的下一擊沒有暴擊');
@@ -1163,6 +1163,9 @@ const pageScript = async () => {
     // 有星狼之後翻滾改成放開才發動：短按 → 放開那一下閃；按住呼喚 → 不會先閃一下
     pressed.dodge = true; held.dodge = true; step(1); if (G.me.dodge > 0) throw new Error('有星狼之後，翻滾鍵一按下去就閃了（要放開才閃）');
     step(4); held.dodge = false; step(1); if (!(G.me.dodge > 0)) throw new Error('短按翻滾鍵放開沒有翻滾'); step(30);
+    // 有按方向（戰鬥中）→ 一按下去就滾，不用等放開
+    G.me.st = G.me.maxSt; input.mx = 1; pressed.dodge = true; held.dodge = true; step(1); input.mx = 0; held.dodge = false;
+    if (!(G.me.dodge > 0)) throw new Error('有星狼、有按方向時，翻滾鍵按下去沒有馬上滾（要等放開，手感會黏）'); step(40);
     tp(camp.x, camp.y + 16); G.me.st = G.me.maxSt;
     if (hold(40)) throw new Error('按住呼喚星狼的時候先翻滾了一下'); if (G.me.ride) throw new Error('只按住 0.6 秒就叫出來了（要 1 秒）');
     if (hold(65)) throw new Error('按住呼喚星狼的時候先翻滾了一下'); if (!G.me.ride) throw new Error('按住翻滾鍵 1 秒沒有叫出星狼');
