@@ -9,7 +9,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const TARGET = { mobGear: [6, 10], bossGear: [5, 8], bossNaked: [3, 4], bossTime: [50, 150], mobKill: [1, 3], under: [2, 4], underTime: [70, 300] };   // under = 比 Boss 低 20 級、穿好裝：被打幾下死 / 打幾秒
+const TARGET = { mobGear: [6, 10], bossGear: [5, 8], bossNaked: [3, 4], bossTime: [50, 150], mobKill: [1, 3], under: [2, 5], underTime: [50, 300] };   // under = 比 Boss 低 20 級、穿好裝：被打幾下死 / 打幾秒（沒有等級差懲罰：只是血和攻擊比較少，所以比同等級多撐一兩下）
 const js = `
 const I = await imp('data/items'), P = await imp('game/player'), BT = await imp('game/bossTuning'), F = await imp('data/forge');
 const pl = P.newPlayer('bal'); const out = [];
@@ -77,9 +77,10 @@ for (const r of rush) console.log([r.name, r.bossLv, r.t, '+' + r.bleedPct + '%'
 // 遊戲平衡性.md 的刀數目標：弱小怪（史萊姆）任何時候 2~3；普通怪初見 4~6、回頭 2~3；遠程 3~5；重型 7~10（回頭 4~6）；精英 12~20（回頭 6~12）
 const KT = { 初見: { slime: [2, 3], lunge: [4, 6], blade: [4, 6], ranged: [3, 5], heavy: [7, 10], el: [12, 20] }, 接近: { slime: [2, 3], lunge: [4, 6], blade: [4, 6], ranged: [3, 5], heavy: [7, 10], el: [12, 20] }, 回頭: { slime: [1, 3], lunge: [2, 3], blade: [2, 3], ranged: [2, 3], heavy: [4, 6], el: [6, 12] } };
 const BN = { slime: '史萊姆', lunge: '衝刺怪', blade: '劍士', ranged: '遠程', heavy: '重型', el: '精英' };
-console.log('\n幾刀砍死（遊戲平衡性.md）：長劍、照文件的強化進度（+1~3 平原森林、+4~6 荒地熔岩、+7~8 雪原沼澤），沒穿裝；怪 = 地區中間的等級');
+console.log('\n幾刀砍死（參考，不標 ✗）：長劍、照遊戲平衡性.md 的強化進度（+1~3 平原森林、+4~6 荒地熔岩、+7~8 雪原沼澤），沒穿裝；怪 = 地區中間的等級');
+console.log('  2026-11-24 使用者試玩覺得現在的手感還行，先不照文件的刀數調。括號裡是文件的目標');
 for (const k of knife) { console.log(k.name + '（怪 ' + k.mid + ' 級）');
-  for (const tag of ['初見', '接近', '回頭']) console.log('  ' + tag + '\t' + k.behs.concat(['el']).map((b, i) => BN[b] + ' ' + ok(k.rows[tag][i], KT[tag][b])).join('\t')); }
+  for (const tag of ['初見', '接近', '回頭']) console.log('  ' + tag + '\t' + k.behs.concat(['el']).map((b, i) => BN[b] + ' ' + k.rows[tag][i] + '（' + KT[tag][b].join('~') + '）').join('\t')); }
 console.log('\n魂晶：一路玩過來（不刷怪），每個地區結束時升到幾級。目標：清一半 + 精英 + Boss ≈ 地區最高等級（-10 ~ +6：後期刻意少一點，要多清或回頭刷；沒算寶箱和地城裡的小怪）');
 console.log(['地區', '設計最高', '清 1/4 + Boss', '清一半 + 精英 + Boss', '全清'].join('\t'));
 soul.forEach((r, i) => console.log([rows[i].name, r.hi, r.q, ok(r.h, [r.hi - 10, r.hi + 6]), r.a].join('\t')));
