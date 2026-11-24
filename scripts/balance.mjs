@@ -53,11 +53,20 @@ for (const [name, lo, hi, up, behs] of REG) { const mid = Math.round((lo + hi) /
     const a = pl.atkPow * (1 + pl.crit / 100 * ((pl.critMul || 1.8) - 1));
     r.rows[tag] = behs.map(b => Math.ceil(I.BEH[b].hp(mid) / a)).concat([Math.ceil(I.BEH[behs.includes('blade') ? 'blade' : 'lunge'].hp(mid) * 4 / a)]); }
   knife.push(r); }
-return { out, rush, knife };`;
+// 魂晶：每個地區的小怪 / 精英 / Boss 一共給多少，清掉一部分會升到幾級（照遊戲裡的 MOB_SOULS、ELITE_SOULS、BOSS_SOULS、lvCost 算）
+const M = await imp('world/map'), EN = await imp('game/enemies'), RB = await imp('world/regionBoss');
+const SR = [12, 25, 37, 50, 62, 75], ri = lv => { const i = SR.findIndex(h => lv < h); return i < 0 ? SR.length - 1 : i; };
+const mob = SR.map(() => 0), eli = SR.map(() => 0), bos = SR.map(() => 0);
+for (const sp of M.spawns) { const K = I.KIND[sp.kind]; if (!K) continue; const s = I.BEH[K.beh].souls(sp.lv); if (sp.elite) eli[ri(sp.lv)] += s * EN.ELITE_SOULS; else mob[ri(sp.lv)] += s * EN.MOB_SOULS; }
+for (const d of Object.values(RB.RBDEF)) bos[ri(d.lv)] += Math.round(d.souls * BT.BOSS_SOULS);
+const cost = [0, 0]; { const q = P.newPlayer('c'); let a = 0; for (let L = 1; L < 120; L++) { q.vit = 5 + L - 1; a += P.lvCost(q); cost[L + 1] = a; } }
+const lvAt = s => { let L = 1; while (L < 119 && cost[L + 1] <= s) L++; return L; };
+let c4 = 0, c2 = 0, c1 = 0; const soul = SR.map((hi, i) => { c4 += mob[i] * .25 + bos[i]; c2 += mob[i] * .5 + eli[i] + bos[i]; c1 += mob[i] + eli[i] + bos[i]; return { hi, q: lvAt(c4), h: lvAt(c2), a: lvAt(c1) }; });
+return { out, rush, knife, soul };`;
 const look = join(process.cwd(), 'scripts', 'look.mjs'), png = join(mkdtempSync(join(tmpdir(), 'bal-')), 'x.png');
 const raw = execFileSync('node', [look, png, js, '480', '300', '1'], { encoding: 'utf8' }).trim().split('\n').filter(l => l.startsWith('{"out"')).pop();
 if (!raw) throw new Error("balance：遊戲裡的計算沒有回傳結果（看上面 look.mjs 的錯誤）");
-const { out: rows, rush, knife } = JSON.parse(raw);
+const { out: rows, rush, knife, soul } = JSON.parse(raw);
 const ok = (v, [a, b]) => (v >= a && v <= b ? '  ' : '✗ ') + v;
 console.log('目標：好裝被小怪打 ' + TARGET.mobGear.join('~') + ' 下死、被 Boss 打 ' + TARGET.bossGear.join('~') + ' 下死；沒裝被 Boss 打 ' + TARGET.bossNaked.join('~') + ' 下死；一直砍 ' + TARGET.mobKill.join('~') + ' 秒砍死小怪；打 Boss ' + TARGET.bossTime.join('~') + ' 秒\n');
 console.log(['地區', '等級', '武器', '防具', '飾品', '生命', '減傷', '一刀', '小怪幾下死', 'Boss一擊', 'Boss幾下死', '沒裝Boss幾下死', '砍死小怪秒數', '打Boss幾秒', '低20級:Boss幾下死', '低20級:打幾秒'].join('\t'));
@@ -71,3 +80,6 @@ const BN = { slime: '史萊姆', lunge: '衝刺怪', blade: '劍士', ranged: '�
 console.log('\n幾刀砍死（遊戲平衡性.md）：長劍、照文件的強化進度（+1~3 平原森林、+4~6 荒地熔岩、+7~8 雪原沼澤），沒穿裝；怪 = 地區中間的等級');
 for (const k of knife) { console.log(k.name + '（怪 ' + k.mid + ' 級）');
   for (const tag of ['初見', '接近', '回頭']) console.log('  ' + tag + '\t' + k.behs.concat(['el']).map((b, i) => BN[b] + ' ' + ok(k.rows[tag][i], KT[tag][b])).join('\t')); }
+console.log('\n魂晶：一路玩過來（不刷怪），每個地區結束時升到幾級。目標：清一半 + 精英 + Boss ≈ 地區最高等級（-10 ~ +6：後期刻意少一點，要多清或回頭刷；沒算寶箱和地城裡的小怪）');
+console.log(['地區', '設計最高', '清 1/4 + Boss', '清一半 + 精英 + Boss', '全清'].join('\t'));
+soul.forEach((r, i) => console.log([rows[i].name, r.hi, r.q, ok(r.h, [r.hi - 10, r.hi + 6]), r.a].join('\t')));

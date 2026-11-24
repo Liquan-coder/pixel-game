@@ -127,12 +127,13 @@ export function updateEnemy(e, dt) {
   }
 }
 export const ELITE_C = '#ff5a5a';                                   // 精英怪的顏色（外框、血條、名字）
-const MOB_PAY = .7;                                                  // 一般小怪給的魂晶和金幣打 7 折（精英怪不變）
+const MOB_PAY = .7;                                                  // 一般小怪給的金幣打 7 折（精英怪不變）
+export const MOB_SOULS = .5, ELITE_SOULS = 3;                       // 魂晶：一般小怪 ×0.5、精英怪 ×3（以前 ×1 / ×5：清一半就超前 10～25 級，見 game/player.ts 的 lvCost）
 export function killEnemy(e, by) {                                     // by = 打死它的玩家
   const i = G.enemies.indexOf(e); if (i >= 0) G.enemies.splice(i, 1);
   if (e.sp) { e.sp.alive = false; e.sp.ent = null; e.sp.hp = 0; e.sp.timer = e.elite ? Infinity : 45; }
   if (e.chest) mimicDown(e);
-  const D = BEH[e.beh], s = Math.round(D.souls(e.lv) * (e.sp ? 1 : .3) * (e.elite ? 5 : MOB_PAY) * (e.soulMul || 1));   // soulMul = 噬魂刻印
+  const D = BEH[e.beh], s = Math.round(D.souls(e.lv) * (e.sp ? 1 : .3) * (e.elite ? ELITE_SOULS : MOB_SOULS) * (e.soulMul || 1));   // soulMul = 噬魂刻印
   dropSouls(e.x, e.y, s, by);
   burst(e.x, e.y - 5, e.elite ? 30 : 14, KIND[e.kind].col, 70); killFx(e);
   sfx.kill();

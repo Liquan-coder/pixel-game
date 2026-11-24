@@ -11,8 +11,8 @@ import { makeUnique, makeUniqueGear } from '../data/items';
 
 /* ---- Boss 血量倍率：每隻 Boss 的血量都乘上這個（區域 / 主線 / 地城 Boss 都算，world/regionBoss.ts 的 makeRB） ---- */
 export const BOSS_HP = 1.6;
-/* ---- Boss 給的魂晶倍率（區域 / 地城 Boss 都算，world/regionBoss.ts 的 regionBossDie）。1 = 表上寫的數字；.6 = 打王不會一次跳好幾級 ---- */
-export const BOSS_SOULS = .6;
+/* ---- Boss 給的魂晶倍率（區域 / 地城 Boss 都算，world/regionBoss.ts 的 regionBossDie）。1 = 表上寫的數字；.42 = 打王不會一次跳好幾級（npm run balance 的「魂晶」表） ---- */
+export const BOSS_SOULS = .42;
 
 
 export const BOSS_K = 1;                                                 // 整體倍率：1 = 跟地城 Boss 一樣痛（.85 = 穿好裝的人能扛 6 下左右，npm run balance）

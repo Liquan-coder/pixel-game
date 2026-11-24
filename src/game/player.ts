@@ -42,10 +42,12 @@ export function nearestPlayer(x, y) {
   return best;
 }
 export const level = (pl: Player) => pl.vit + pl.end + pl.str + pl.dex + pl.int + pl.luk - 29 + (pl.freePts || 0);   // 六種都是 5 的時候是 1 級；用重生水滴洗掉、還沒分配的點數也算
-/* 升一級要多少魂晶：1 級 25，每升一級多 10%（下一級 = 這一級 × 1.1）；過了 30 級改成每級只多 3.5%，後期才不會變成天文數字
-   例：1 級 25、10 級 59、20 級 153、30 級 397、50 級 790、80 級 2215（打同等級的怪：前期 2～3 隻升一級，後期 15 隻左右） */
-export const LV_SOFT = 30;
-export const lvCost = (pl: Player) => { const L = Math.max(1, level(pl)); return Math.round(25 * Math.pow(1.1, Math.min(L, LV_SOFT) - 1) * Math.pow(1.035, Math.max(0, L - LV_SOFT))); };
+/* 升一級要多少魂晶：1 級 50，每升一級多 10%（下一級 = 這一級 × 1.1）；過了 30 級改成每級只多 3.5%，後期才不會變成天文數字
+   例：1 級 50、10 級 118、20 級 306、30 級 794、50 級 1580、80 級 4430
+   魂晶的目標（npm run balance 的「魂晶」表）：一個地區的小怪清一半 + 精英 + Boss ≈ 升到那個地區最高的等級。
+   以前是 25 起跳、小怪魂晶也多一倍，清一半就超前 10～25 級（升級和強化互相推，越玩越簡單） */
+export const LV_SOFT = 30, LV_BASE = 50;
+export const lvCost = (pl: Player) => { const L = Math.max(1, level(pl)); return Math.round(LV_BASE * Math.pow(1.1, Math.min(L, LV_SOFT) - 1) * Math.pow(1.035, Math.max(0, L - LV_SOFT))); };
 export const curEq = (pl: Player) => ({ weapon:pl.weapon, armor:pl.armor, trinkets:pl.trinkets });
 export const DR_CAP = .4;                                               // 防禦減傷最多 40%（穿再重也不會變成打不痛）
 /* 依照裝備算出所有屬性（換裝預覽也用這個）
