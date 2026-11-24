@@ -16,6 +16,8 @@
 | `node scripts/tour.mjs <資料夾> <場景.json>` | 同上，一次截很多張 |
 | `node scripts/dungeonmap.mjs out.png` | 把地城格局畫成一張圖 |
 | `node scripts/worldhash.mjs` | 野外的指紋。改地城前後各跑一次，確認野外沒有被動到 |
+| `scripts/session.sh <名字>` | **開工第一步**：開一個自己的資料夾 `.worktrees/<名字>`（自己的分支、自己的 port），印出試玩網址。`list` 列出、`end <名字>` 收掉 |
+| `scripts/land.sh ['<測試>']` | 在自己的資料夾裡跑：rebase 到最新的 main → 型別檢查 + build（+ `ONLY=` 的 playtest）→ 併進 main（不會 push） |
 | `scripts/cdp.mjs` | 所有腳本共用的 headless Chrome：自動挑 port（多個 session 同時跑不會互撞）、超過 15 分鐘自動結束（`CDP_TIMEOUT=秒數`）、腳本怎麼結束都會關掉 Chrome。新腳本要開 Chrome 就用它 |
 
 ## 程式怎麼跑
@@ -59,7 +61,14 @@
 
 ## Git 和部署
 - push 到 `main` → GitHub Actions 自動 build → 部署到 GitHub Pages。
-- 流程：改完 → 測試（見下面）+ build 通過 → commit → 請使用者在 localhost:5173 試玩 → 使用者說 OK 才 push。
+- **好幾個視窗同時開發：每個視窗在自己的資料夾裡改，不要直接改主資料夾**（共用一個資料夾，commit 會互相帶走、蓋掉別人的改動）：
+  1. 開工：`scripts/session.sh <名字>`（例如 `seals`），之後所有讀寫、指令都在 `.worktrees/<名字>` 裡；開發伺服器照它印的 `npm run dev -- --port <port> --strictPort` 背景跑
+  2. 改完 → 測試（見下面）→ 在自己的資料夾裡 commit（`git commit -a` 就好，裡面只有自己的東西）
+  3. 請使用者在 `localhost:<自己的 port>` 試玩 → 使用者說 OK
+  4. `scripts/land.sh '<相關的測試>'` 併進 main（衝突會停下來，自己解）
+  5. 使用者說可以 push → 在主資料夾（`main`）照下面「push 前」檢查 → `git push`
+  6. 這件事做完就 `scripts/session.sh end <名字>`
+- 主資料夾（`localhost:5173`）= 已經併進 main 的版本，只用來 land、push、試玩整合後的結果。
 - **不用每改一次就測，照這個節奏**：
   | 什麼時候 | 跑什麼 |
   |---|---|
@@ -79,6 +88,6 @@
   - 讀檔先 `grep -n` 找到行號，再用 Read 的 `offset` / `limit` 只讀那一段；不要整個讀。`src/art/bossArt.ts` 這種自動產生的檔案不要讀。
   - 這次對話已經讀過、自己也剛改過的檔案不要重讀（Edit 失敗才需要），要確認就 `git diff` 那幾行。
 - **交給 subagent、只回報結論**：完整 playtest、一次要讀好幾個超過 500 行的檔案、只是要找東西在哪裡。美術截圖不要交出去（要自己看）。
-- **常常有好幾個 session 同時在改這個資料夾。** commit 時只 `git add` 自己改的檔案，也要確認它 import 的東西不是只存在別人還沒 commit 的檔案裡。push 前先在乾淨的 worktree 裡檢查一次 HEAD：
+- push 前在乾淨的 worktree 裡檢查一次 HEAD（主資料夾可能有還沒 land 的東西）：
   `git worktree add --detach <暫存>/clean HEAD` → 連結 `node_modules` → `npx tsc --noEmit && npx vite build && npm run playtest`
 - `docs/` 在 .gitignore 裡：設計筆記寫在那裡，但**永遠不要 commit**（不要 `git add -f`）。
