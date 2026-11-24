@@ -24,8 +24,8 @@ import './game/collision';
 import { initAudio } from './core/audio';
 import { respawnAll } from './game/enemies';
 import { resetBoss } from './game/boss';
-import { dressEntrances } from './world/dungeons';
-import { setupPuzzles } from './world/puzzles';
+import { dressEntrances, dungeonAt } from './world/dungeons';
+import { puzzleDark, setupPuzzles } from './world/puzzles';
 import './world/puz2'; import './world/puz3'; import './world/puz4'; import './world/puz5';                        // 各地城的招牌機關（要在 setupPuzzles 之前登記好）
 import { placeStatues } from './world/statues';
 import { hurtPlayer } from './game/combat';
@@ -73,7 +73,7 @@ function frame(ts) {
   // 選單開著時（營火、背包、商店、地圖、暫停）遊戲停住，後面的畫面幾乎不會變 → 每秒只重畫 5 次（換裝備還是看得到），手機可以休息
   if (G.started && openMenu) { menuDrawT -= dt; if (menuDrawT <= 0) { render(); menuDrawT = .2; } } else { render(); menuDrawT = 0; }
   updateHUD();
-  G.miniT -= dt; if (G.miniT <= 0) { if (G.started) { reveal(); sightReveal(); } renderMini(); if (openMenu === 'map' && mapTab === 'map') renderBigMap(); G.miniT = .2; }   // 地圖開著時也一直更新（主線菱形會閃）
+  G.miniT -= dt; if (G.miniT <= 0) { if (G.started) { revealHere(); sightReveal(); } renderMini(); if (openMenu === 'map' && mapTab === 'map') renderBigMap(); G.miniT = .2; }   // 地圖開著時也一直更新（主線菱形會閃）
   for (const k in pressed) pressed[k] = false;
 }
 
@@ -89,6 +89,8 @@ function boot(data) {
   if (import.meta.env.DEV && new URLSearchParams(location.search).has('test')) import('./dev/test').then(m => m.startTest(startGame));   // 開發用：?test = 地圖全開 + 全部武器（不存檔）
 }
 try { window.claude && window.claude.hot && window.claude.hot.snapshot && window.claude.hot.snapshot(() => ({ save: G.started ? serialize() : null, started: G.started, slot })); } catch (e) {}
+/** 小地圖揭開身邊：地城裡只揭開沿著地板走 10 步以內的地方（黑暗迷宮裡 3 步），野外是半徑 12 的圓（world/minimap.ts 的 reveal） */
+export function revealHere() { reveal(dungeonAt(G.me.x, G.me.y) ? (puzzleDark(G.me) ? 3 : 10) : 0); }
 const H = window.claude && window.claude.hot;
 if (H && H.ready) H.ready(boot); else boot((H && H.data) || {});
 window.__pw = { get P() { return G.me; }, get players() { return G.players; }, get enemies() { return G.enemies; }, get B() { return G.B; }, get drops() { return G.drops; }, input, keys, held, pressed, update, startGame, setMenu, CAMPS, spawns, makeItem, recalc, hurtPlayer, get bossDead() { return G.bossDead; }, get lost() { return G.lost; }, map, reg, ARENA, DOOR, cam, SUBS, toggleMap, bakeChunk, get merchant() { return merchant; }, get coins() { return G.coins; }, makeGear, serialize, applySave, restAt, calcStats, curEq, openShop, renderInv, get rbs() { return rbs; }, RBDEF, SPR, render, get fx() { return G.fx; }, get parts() { return G.parts; }, get bakeCount() { return bakeCount; }, get chunkN() { return chunks.size; }, drawSmear, drawWarp, teleCircle, teleSector, teleLane };

@@ -1,6 +1,6 @@
 import { G } from '../core/state';
 import { $ } from '../core/util';
-import { BIGT, BRIDGE, CLIFF, CRATE, FOG, GRAVE, GROUND, HOUSE, LAVA, MH, MW, PILLAR, RFLOOR, ROAD, ROCK, RWALL, TREE, TS, WATER, explored, map, reg } from './map';
+import { BIGT, BRIDGE, CLIFF, CRATE, FOG, GRAVE, GROUND, HOUSE, LAVA, MH, MW, PILLAR, RFLOOR, ROAD, ROCK, RWALL, TREE, TS, WATER, WALKABLE, explored, map, reg } from './map';
 
 export const mini = $<HTMLCanvasElement>('mini'), mctx = mini.getContext('2d');
 export const miniBase = document.createElement('canvas'); miniBase.width = MW; miniBase.height = MH;
@@ -17,12 +17,22 @@ function paint(g: CanvasRenderingContext2D, only?: Uint8Array) {       // 一次
   for (let i = 0; i < MW * MH; i++) if (!only || only[i]) buf[i] = u32(colOf(i));
   g.putImageData(img, 0, 0);
 }
-export function reveal() {
-  const px = Math.floor(G.me.x / TS), py = Math.floor(G.me.y / TS), R = 12;
-  for (let y = py - R; y <= py + R; y++) for (let x = px - R; x <= px + R; x++) {
-    if (x < 0 || y < 0 || x >= MW || y >= MH || (x - px) ** 2 + (y - py) ** 2 > R * R) continue;
-    const i = y * MW + x; if (!explored[i]) { explored[i] = 1; miniPix(i); }
-  }
+/** 把身邊標成「看過」（小地圖 / 大地圖才畫得出來）。
+    flood = 0：野外，半徑 12 格的圓（不管牆）。
+    flood > 0：地城裡，只揭開沿著地板走 flood 步以內的地方，碰到牆就停（牆本身會畫出來 = 通道的輪廓）→ 牆後面的路、迷宮的形狀要真的走過才會出現在地圖上 */
+export function reveal(flood = 0) {
+  const px = Math.floor(G.me.x / TS), py = Math.floor(G.me.y / TS), see = (i: number) => { if (!explored[i]) { explored[i] = 1; miniPix(i); } };
+  if (!flood) { const R = 12;
+    for (let y = py - R; y <= py + R; y++) for (let x = px - R; x <= px + R; x++) {
+      if (x < 0 || y < 0 || x >= MW || y >= MH || (x - px) ** 2 + (y - py) ** 2 > R * R) continue; see(y * MW + x); }
+    return; }
+  const dist = new Map<number, number>([[py * MW + px, 0]]), q = [py * MW + px];   // 照「要走幾步」算（不是直線距離）：牆後面要繞一大圈才到的路不會揭開
+  for (let h = 0; h < q.length; h++) { const i = q[h], x = i % MW, y = (i / MW) | 0, d = dist.get(i);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= MW || ny >= MH) continue;
+      const j = ny * MW + nx; if (!WALKABLE(map[j])) { see(j); continue; }   // 旁邊的牆都畫（= 通道的輪廓）；地板要真的走得到才畫（不然會從斜角漏出牆另一邊的地板）
+      if (dx && dy || d >= flood || dist.has(j)) continue;               // 只往上下左右走（不從牆角斜著鑽過去）
+      dist.set(j, d + 1); see(j); q.push(j); } }
+  see(py * MW + px);
 }
 export const miniFull = document.createElement('canvas'); miniFull.width = MW; miniFull.height = MH;
 export function bakeFullMap() { paint(miniFull.getContext('2d')); }
