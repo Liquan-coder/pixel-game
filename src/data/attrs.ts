@@ -44,10 +44,10 @@ export const retalMul = (pl: Player) => 1 + ((pl.tfx && pl.tfx.retal) || 0) / 10
 /* 武器加成：每種能力值的係數（加起來大約 1）。字母只是給玩家看的：S ≥ 1、A ≥ .75、B ≥ .5、C ≥ .3、D > 0 */
 export const WSCALE: Record<string, Partial<Record<AttrKey, number>>> = {
   sword: { str: .55, dex: .45 }, dagger: { dex: 1 }, axe: { str: 1.05 }, hammer: { str: 1.2 }, spear: { str: .35, dex: .7 },
-  katana: { dex: .85, str: .25 }, scythe: { dex: .5, int: .55 }, staff: { int: 1.15 }, wolfblade: { dex: .75, str: .35 },
+  katana: { dex: .85, str: .25 }, scythe: { dex: .5, int: .55 }, staff: { int: 1.15 }, wolfblade: { str: .6, dex: .5 },
   bow: { dex: .95 }, greatsword: { str: 1.1, end: .1 }, rapier: { dex: 1.05 },
-  crescent: { dex: .6, str: .45 }, twinblade: { dex: .8, str: .3 }, darkmoon: { str: .55, int: .6 },
-  elfbow: { dex: .8, int: .3 }, elfrapier: { dex: .9, int: .25 }, elfblades: { dex: 1 },
+  crescent: { str: .7, dex: .35 }, twinblade: { dex: .8, str: .3 }, darkmoon: { str: .55, int: .6 },
+  elfbow: { int: .7, dex: .4 }, elfrapier: { int: .55, dex: .55 }, elfblades: { dex: 1 },
 };
 /* 暴擊傷害：每種武器都一樣（CRIT_BASE），只有幸運會讓它變高（perks 的 critDmg）。不顯示給玩家看：玩家只知道「幸運高，暴擊比較痛」 */
 export const CRIT_BASE = 1.8;
@@ -57,10 +57,10 @@ export const grade = (c: number) => c >= 1 ? 'S' : c >= .75 ? 'A' : c >= .5 ? 'B
    起始的長劍是 5/5，剛開始就能拿 */
 const REQW: Record<string, Partial<Record<AttrKey, number>>> = {
   sword: { str: 5, dex: 5 }, dagger: { dex: 8 }, axe: { str: 11 }, spear: { str: 7, dex: 9 }, staff: { int: 9 },
-  katana: { dex: 11, str: 6 }, hammer: { str: 15, end: 8 }, scythe: { dex: 9, int: 9 }, wolfblade: { dex: 12, str: 9 },
+  katana: { dex: 11, str: 6 }, hammer: { str: 15, end: 8 }, scythe: { dex: 9, int: 9 }, wolfblade: { str: 12, dex: 9 },
   bow: { dex: 10 }, greatsword: { str: 16, end: 9 }, rapier: { dex: 12 },
-  crescent: { dex: 12, str: 10 }, twinblade: { dex: 13, str: 8 }, darkmoon: { str: 16, int: 16 },
-  elfbow: { dex: 14, int: 9 }, elfrapier: { dex: 15, int: 8 }, elfblades: { dex: 16 },
+  crescent: { str: 13, dex: 10 }, twinblade: { dex: 13, str: 8 }, darkmoon: { str: 16, int: 16 },
+  elfbow: { int: 15, dex: 10 }, elfrapier: { dex: 12, int: 12 }, elfblades: { dex: 16 },
 };
 /** 獨特武器可以有自己的需求 / 加成（data/uniques.ts 會填進來） */
 export const UQ_REQ: Record<string, Partial<Record<AttrKey, number>>> = {}, UQ_SCALE: Record<string, Partial<Record<AttrKey, number>>> = {};

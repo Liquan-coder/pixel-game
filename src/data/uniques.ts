@@ -20,7 +20,7 @@ export const UQ: Record<string, UniqueDef> = {
     lore: '無名劍士的佩劍。劍柄上纏著一條褪色的髮帶。', from: '翠風平原・無名古墓' },
   tidespear: { type: 'spear', name: '潮音長槍', base: 13, aff: { speed: 8, cdr: 10 }, req: { str: 7, dex: 10 },
     lore: '槍尖是一枚巨大的螺貝，刺出去的時候會發出浪聲。', from: '翠風平原・潮音石窟' },
-  wolfblade: { type: 'wolfblade', name: '狼牙雙刃', base: 14, aff: { crit: 10, lifesteal: 3, speed: 10 }, req: { dex: 12, str: 9 },
+  wolfblade: { type: 'wolfblade', name: '狼牙雙刃', base: 14, aff: { crit: 10, lifesteal: 3, speed: 10 }, req: { str: 12, dex: 9 },
     lore: '灰鬃的兩根獠牙磨成的雙刃，握著時能聽見遠方的狼嚎。', from: '狼王巢穴' },
   emberstaff: { type: 'staff', name: '燼翼法杖', base: 13, aff: { crit: 10, cdr: 15, speed: 10 }, req: { int: 16 }, scale: { int: 1.25 },
     lore: '用巨龍燼翼的翼骨削成，杖頭的餘燼從來沒有熄過。', from: '熔岩高地・燼龍火口' },
@@ -49,16 +49,16 @@ Object.assign(UQ, {
     lore: '巢母的兩根毒牙，用蛛絲綁在同一根骨頭的兩端。轉起來的時候，像一張會咬人的網。', from: '迷霧森林・蛛巢洞窟' },
   scorpfang: { type: 'dagger', name: '蠍尾短刀', base: 14, aff: { crit: 10, speed: 6 }, req: { dex: 14 },   // 暴擊流的第一把獨特武器（同一座地城的金箱是砂眼指環：暴擊率 +10%）
     lore: '風蝕岩窟的巨蠍斷下來的尾刺，毒腺已經乾了。可是被它刺中的地方，還是會一跳一跳地痛。', from: '骸骨荒地・風蝕岩窟' },
-  sandcrescent: { type: 'crescent', name: '沙王的月牙刀', base: 16, aff: { crit: 8, cdr: 10 }, req: { dex: 13, str: 11 },
+  sandcrescent: { type: 'crescent', name: '沙王的月牙刀', base: 16, aff: { crit: 8, cdr: 10 }, req: { str: 13, dex: 10 },
     lore: '沙之王每晚對著月亮祈禱，月亮就把自己的一角借給了他。丟出去的刀，總會回到主人手上。', from: '骸骨荒地・沙埋神殿' },
   darkmoon: { type: 'darkmoon', name: '暗月大劍', base: 23, aff: { crit: 6, cdr: 12 }, req: { str: 16, int: 18 }, scale: { str: .5, int: .7 },
     lore: '霜墓的騎士一直等著光回來。光沒有回來，月亮卻來了——落在他的劍上，再也沒有離開。', from: '霜寒雪原・霜墓' },
 } as Record<string, UniqueDef>);
 /* ================= 精靈武器（精靈王國，world/elfland.ts）：三種都是自己的武器種類 ================= */
 Object.assign(UQ, {
-  elfbow: { type: 'elfbow', name: '精靈王的連發弓', base: 16, aff: { crit: 8, speed: 8 }, req: { dex: 15, int: 10 },
+  elfbow: { type: 'elfbow', name: '精靈王的連發弓', base: 16, aff: { crit: 8, speed: 8 }, req: { int: 15, dex: 10 },
     lore: '弓弦是月光搓成的。精靈王說，他射出的每一支箭，都是一句沒說出口的道歉。', from: '精靈王國・精靈王城' },
-  elfrapier: { type: 'elfrapier', name: '月泉細劍', base: 13, aff: { crit: 10, cdr: 10 }, req: { dex: 15, int: 8 },
+  elfrapier: { type: 'elfrapier', name: '月泉細劍', base: 13, aff: { crit: 10, cdr: 10 }, req: { dex: 12, int: 12 },
     lore: '月泉湖心的島上插著這把劍。劍身映著的月亮，比天上的還要圓。', from: '精靈王國・月泉' },
   elfblades: { type: 'elfblades', name: '螢火雙刀', base: 14, aff: { speed: 10, crit: 6 }, req: { dex: 17 },
     lore: '月蛾女王吞下的螢火，最後凝成了兩把刀。揮起來的時候，刀光像一群飛走的螢火蟲。', from: '精靈王國・螢月禁林' },
