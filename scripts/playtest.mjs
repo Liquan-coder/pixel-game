@@ -1012,8 +1012,11 @@ const pageScript = async () => {
     G.me.st = 0; G.me.stDelay = 0; step(30); const stHeavy = G.me.st;
     G.me.weapon = I.makeWeapon('dagger', 0); G.me.armor = null; recalc(G.me); G.me.st = 0; G.me.stDelay = 0; step(30);
     if (!(stHeavy < G.me.st * .8)) throw new Error('超重體力沒有回得比較慢：' + stHeavy.toFixed(1) + ' vs ' + G.me.st.toFixed(1));
-    G.me.end = 35; recalc(G.me); G.me.weapon = I.makeWeapon('hammer', 0); G.me.armor = I.makeArmor('chain'); recalc(G.me);
-    if (G.me.loadTier > 1) throw new Error('耐力 35 拿戰鎚 + 鎖甲還是太重：' + G.me.load + '/' + G.me.loadCap);
+    G.me.end = 13; recalc(G.me); G.me.weapon = I.makeWeapon('dagger', 0); G.me.armor = I.makeArmor('chain'); recalc(G.me);
+    if (G.me.loadTier !== 2) throw new Error('耐力 13 拿短刀 + 鎖甲應該是沉重（輕武器不會超重）：' + G.me.load + '/' + G.me.loadCap);
+    G.me.weapon = I.makeWeapon('axe', 0); recalc(G.me); if (G.me.loadTier !== 3) throw new Error('耐力 13 拿斧 + 鎖甲應該是超重：' + G.me.load + '/' + G.me.loadCap);
+    G.me.end = 80; G.me.weapon = I.makeWeapon('hammer', 0); recalc(G.me);
+    if (G.me.loadTier > 1) throw new Error('耐力 80 拿戰鎚 + 鎖甲還是太重：' + G.me.load + '/' + G.me.loadCap);
     Object.assign(G.me, { weapon: keep.w, armor: keep.a, end: keep.end, str: keep.str }); recalc(G.me); G.me.st = G.me.maxSt;
   });
 

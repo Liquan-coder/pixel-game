@@ -184,7 +184,7 @@ function statDiff(now, nx) {                                            // 換�
 /* 負重條：三個大數字下面一整排。寫「負重 19 / 30 · 普通」+ 這一段的效果；有預覽時顯示換上後的樣子（變重 = 紅字） */
 function loadBar(now, nx) {
   const v = nx || now, T = LOAD_TIERS[v.loadTier], up = nx && nx.load > now.load + 1e-6, dn = nx && nx.load < now.load - 1e-6, tc = nx && nx.loadTier !== now.loadTier;
-  return '<div class="loadbar"><div class="lh"><small>負重</small><b style="color:' + T.c + '">' + fmtW(v.load) + ' / ' + v.loadCap + ' · ' + T.n + '</b>' +
+  return '<div class="loadbar"><div class="lh"><small>負重</small><b style="color:' + T.c + '">' + fmtW(v.load) + ' / ' + fmtW(v.loadCap) + ' · ' + T.n + '</b>' +
     (up || dn ? '<span class="' + (up ? 'down' : 'up') + '">' + (up ? '▲' : '▼') + fmtW(Math.abs(nx.load - now.load)) + '</span>' : '') + '</div>' +
     '<div class="lt"><i style="width:' + Math.min(100, v.load / v.loadCap * 100) + '%;background:' + T.c + '"></i><u style="left:30%"></u><u style="left:70%"></u></div>' +
     '<div class="ld">' + (tc ? '<span class="' + (up ? 'down' : 'up') + '">' + LOAD_TIERS[now.loadTier].n + ' → ' + T.n + '：</span>' : '') + T.d + (v.loadTier >= 2 ? '　<small>（耐力越高，能背越重）</small>' : '') + '</div></div>';

@@ -46,8 +46,10 @@ export const EFF: Record<string, (v: number) => string> = {
 };
 export const effLines = (e: Record<string, number> | undefined) => e ? Object.keys(e).filter(k => EFF[k]).map(k => EFF[k](e[k])) : [];
 
-/* ---- 重量（負重）：武器 + 防具的重量 ÷ 負重上限（20 + 耐力）→ 四段。只影響走路和體力回復，瞬移不受影響
-   想拿重武器、穿重甲，就要點耐力（長劍 + 皮甲在耐力 5 是普通；戰鎚 + 皮甲在耐力 5 是超重、耐力 20 才回到普通；戰鎚 + 鎖甲要耐力 35）。飾品沒有重量。 */
+/* ---- 重量（負重）：武器 + 防具的重量 ÷ 負重上限 → 四段。只影響走路和體力回復，瞬移不受影響
+   負重上限 = 25 + (耐力 − 5) × 0.4：耐力跟其他能力值一樣是 ×2.5 的尺度（LV_K），所以每 2.5 點耐力上限 +1
+   想拿重武器、穿重甲，就要點耐力（用剛好穿得上的耐力算）：輕武器配鎖甲是沉重、不會超重；斧 / 大劍 / 戰鎚配鎖甲一開始是超重，
+   戰鎚 + 鎖甲要耐力 79 才回到普通、短刀 + 鎖甲要 22。飾品沒有重量。 */
 export const W_WEIGHT: Record<string, number> = { dagger: 2, rapier: 2.5, elfrapier: 2.5, bow: 3, elfbow: 3, staff: 3, elfblades: 3.5, sword: 4.5, katana: 4.5, wolfblade: 5,
   crescent: 5, spear: 6, twinblade: 6.5, scythe: 8, axe: 10, darkmoon: 13, greatsword: 15, hammer: 18 };
 export const A_WEIGHT = { light: 3, medium: 10, heavy: 20 };              // 防具照類型：法袍 / 皮甲 / 鎖甲
@@ -57,7 +59,7 @@ export const LOAD_TIERS = [                                              // max 
   { max: 1, n: '沉重', mv: .88, st: .8, d: '走路 −12%、體力回復 −20%', c: '#ffb060' },
   { max: Infinity, n: '超重', mv: .7, st: .6, d: '走路 −30%、體力回復 −40%', c: '#ff6a5a' },
 ];
-export const loadCap = (end: number) => 20 + (end || 0);
+export const loadCap = (end: number) => 25 + ((end ?? 5) - 5) * .4;
 export const loadTier = (load: number, cap: number) => LOAD_TIERS.findIndex(T => load / cap <= T.max + 1e-9);
 export const fmtW = (w: number) => (Math.round(w * 10) / 10).toString();   // 重量顯示：2.5、12
 
