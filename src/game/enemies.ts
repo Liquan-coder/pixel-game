@@ -127,15 +127,16 @@ export function updateEnemy(e, dt) {
   }
 }
 export const ELITE_C = '#ff5a5a';                                   // 精英怪的顏色（外框、血條、名字）
+const MOB_PAY = .7;                                                  // 一般小怪給的魂晶和金幣打 7 折（精英怪不變）
 export function killEnemy(e, by) {                                     // by = 打死它的玩家
   const i = G.enemies.indexOf(e); if (i >= 0) G.enemies.splice(i, 1);
   if (e.sp) { e.sp.alive = false; e.sp.ent = null; e.sp.hp = 0; e.sp.timer = e.elite ? Infinity : 45; }
   if (e.chest) mimicDown(e);
-  const D = BEH[e.beh], s = Math.round(D.souls(e.lv) * (e.sp ? 1 : .3) * (e.elite ? 5 : 1) * (e.soulMul || 1));   // soulMul = 噬魂刻印
+  const D = BEH[e.beh], s = Math.round(D.souls(e.lv) * (e.sp ? 1 : .3) * (e.elite ? 5 : MOB_PAY) * (e.soulMul || 1));   // soulMul = 噬魂刻印
   dropSouls(e.x, e.y, s, by);
   burst(e.x, e.y - 5, e.elite ? 30 : 14, KIND[e.kind].col, 70); killFx(e);
   sfx.kill();
-  dropGold(e.x, e.y, Math.round((3 + tier(e.lv) * 1.6) * rr(.7, 1.3) * (e.elite ? 8 : 1) * (e.sp ? 1 : .3)));
+  dropGold(e.x, e.y, Math.round((3 + tier(e.lv) * 1.6) * rr(.7, 1.3) * (e.elite ? 8 : MOB_PAY) * (e.sp ? 1 : .3)));
   /* 掉落：小怪主要給魂晶、礦石、藥水；武器很少（主要從地城、Boss、寶箱拿） */
   if (e.sp || e.elite) { const luk = by ? soft(by.luk) : 0, n = e.elite ? 2 + (Math.random() < .5 ? 1 : 0) : Math.random() < .25 + .008 * luk ? 1 : 0;   // 強化素材：這個地區的素材（幸運越高越常掉）
     if (n) dropMat(e.x, e.y, oreForLevel(e.lv), n, by);
