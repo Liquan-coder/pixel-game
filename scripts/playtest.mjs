@@ -464,7 +464,7 @@ const pageScript = async () => {
     G.me.armor = null; G.me.trinkets = [null, null, null, null]; G.me.inv = []; G.me.weapon = makeItem('sword', 0, 0); recalc(G.me); setMenu(null);
   });
 
-  run('刻印效果：出血 / 燃燒 / 寒霜 / 雷鳴 / 噬魂 都會觸發', () => {
+  run('刻印效果：出血 / 燃燒 / 寒霜 / 雷鳴 / 噬魂 / 劇毒 / 衝擊 / 引力 / 標記 / 迴響 / 星辰 都會觸發', () => {
     const FX = await0.fx, items = await0.items, out = [];
     for (const fx of FX.FX_KEYS) {
       G.me.weapon = items.makeWeapon('sword', 3); G.me.weapon.fx = fx; recalc(G.me);
@@ -474,7 +474,21 @@ const pageScript = async () => {
       if (fx === 'shock' && twin) { twin.x = e.x + 20; twin.y = e.y; twin.hp = twin.maxHp = 1e6; }
       let hit = false; const tw0 = twin ? twin.hp : 0;
       for (let i = 0; i < 40 && !hit; i++) { if (fx === 'shock' && twin) { twin.x = e.x + 20; twin.y = e.y; } damageEnemy(G.me, e, 1, G.me.x, G.me.y); step(8, { god: true });   // 第二隻怪會走開 → 每次拉回來
-        hit = fx === 'bleed' ? e.hp < 1e6 - 40 * G.me.atkPow * 1.2 : fx === 'burn' ? e.burnT > 0 : fx === 'frost' ? (e.frostB || 0) === 0 && i > 2 : fx === 'shock' ? !twin || twin.hp < tw0 : true; }
+        hit = fx === 'bleed' ? e.hp < 1e6 - 40 * G.me.atkPow * 1.2 : fx === 'burn' ? e.burnT > 0 : fx === 'frost' ? (e.frostB || 0) === 0 && i > 2 : fx === 'shock' ? !twin || twin.hp < tw0 :
+          fx === 'poison' ? e.psn >= 3 : fx === 'impact' ? e.impT > 0 || e.impB > 0 || G.nums.some(n => /撞擊|震盪/.test(String(n.txt))) : fx === 'gravity' ? G.me.gravCd > G.time : fx === 'mark' ? G.me.markE === e :
+          fx === 'echo' ? G.nums.some(n => String(n.txt).startsWith('迴響')) : true; }
+      if (fx === 'poison') { const h0 = e.hp; step(60, { god: true }); if (!(e.hp < h0)) throw new Error('劇毒：疊了毒卻沒有扣血'); }
+      if (fx === 'impact') { e.impT = G.time + 1; e.impPow = 20; e.impBy = G.me; const h0 = e.hp; FX.impactMove(e, true); if (!(e.hp < h0) || !(e.stun > 0)) throw new Error('衝擊：撞牆沒有受傷 / 暈眩'); }
+      if (fx === 'mark') { const m0 = e.hp; damageEnemy(G.me, e, 1, G.me.x, G.me.y); const d1 = m0 - e.hp; G.me.weapon.fx = 'bleed'; const m1 = e.hp; damageEnemy(G.me, e, 1, G.me.x, G.me.y); G.me.weapon.fx = 'mark';
+        if (!(d1 > m1 - e.hp)) throw new Error('標記：被標記的怪受到的傷害沒有變高 ' + d1 + ' vs ' + (m1 - e.hp)); }
+      if (fx === 'star') { const cb = await0.cb; G.me.st = G.me.maxSt; cb.releaseCharge(G.me, 2); const ss = G.fx.filter(f => f.k === 'sorb' && f.cols && f.cols[1] === '#ff6ab0');
+        if (ss.length !== 3) throw new Error('星辰：蓄滿沒有放出 3 顆星星（' + ss.length + '）'); step(90, { god: true }); if (!ss.some(f => f.o.done && e.hp < 1e6)) throw new Error('星辰：星星沒有飛到敵人身上');
+        const ex = e.x, near = G.enemies.filter(o => o !== e && Math.hypot(o.x - G.me.x, o.y - G.me.y) < 120); for (const o of near) o.x += 400; e.x += 400;   // 蓄力沒砍到怪 → 星星在背後等
+        G.me.st = G.me.maxSt; cb.releaseCharge(G.me, 2); const s2 = G.fx.filter(f => f.k === 'sorb' && f.cols && f.cols[1] === '#ff6ab0' && !f.o.done); step(90, { god: true });
+        if (s2.some(f => f.o.done) || s2.some(f => Math.hypot(f.o.x - G.me.x, f.o.y - G.me.y) > 30)) throw new Error('星辰：沒有怪的時候星星沒有留在背後');
+        e.x = ex; for (const o of near) o.x -= 400; step(60, { god: true }); if (s2.some(f => f.o.done)) throw new Error('星辰：怪靠近（沒打中）星星就自己飛過去了');
+        e.stun = 99; damageEnemy(G.me, e, 1, G.me.x, G.me.y); step(90, { god: true });
+        if (!s2.every(f => f.o.done)) throw new Error('星辰：打中怪以後，背後的星星沒有飛過去'); hit = true; }
       if (fx === 'soul') { G.me.hp = 10; e.hp = 1; damageEnemy(G.me, e, 1, G.me.x, G.me.y); step(2); if (G.me.hp > 10) throw new Error('噬魂：魂還沒飛回來就回血了'); G.me.iframe = 5; step(60); hit = G.me.hp > 10; }   // 魂飛回主角身上才回血
       if (!hit) throw new Error(fx + ' 沒有觸發');
       out.push(fx);

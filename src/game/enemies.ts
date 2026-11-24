@@ -5,7 +5,7 @@ import { BEH, DG, KIND, randomLoot } from '../data/items';
 import { spawns } from '../world/map';
 import { canSee, moveEnt, stepToward } from './collision';
 import { sfx } from '../core/audio';
-import { hurtPlayer } from './combat';
+import { hurtPlayer, impactMove } from './combat';                    // impactMove 是 weaponFx 的，從 combat 轉過來（直接 import weaponFx 會打亂載入順序）
 import { nearestPlayer } from './player';
 import { burst, dropGold, dropMat, dropPot, dropSouls, killFx, quakeFx, shake } from './worldUpdate';
 import { oreForLevel } from '../data/forge';
@@ -75,7 +75,7 @@ function doEnemyAttack(e) {
 }
 export function updateEnemy(e, dt) {
   e.anim += dt; if (e.flash > 0) e.flash -= dt;
-  if (Math.abs(e.kx) + Math.abs(e.ky) > 2) { moveEnt(e, e.kx * dt, e.ky * dt); const k = Math.pow(0.002, dt); e.kx *= k; e.ky *= k; } else { e.kx = e.ky = 0; }
+  if (Math.abs(e.kx) + Math.abs(e.ky) > 2) { const bl = moveEnt(e, e.kx * dt, e.ky * dt); if (e.impT) impactMove(e, bl); const k = Math.pow(0.002, dt); e.kx *= k; e.ky *= k; } else { e.kx = e.ky = 0; }
   if (e.stun > 0) { e.stun -= dt; return; }
   e.tgt = nearestPlayer(e.x, e.y);                                   // 每幀選最近的玩家當目標
   const D = BEH[e.beh], dx = e.tgt.x - e.x, dy = e.tgt.y - e.y, d = Math.hypot(dx, dy), homeD = Math.hypot(e.x - e.hx, e.y - e.hy);

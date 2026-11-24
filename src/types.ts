@@ -64,6 +64,7 @@ export interface Player {
   load?: number; loadCap?: number; loadTier?: number;   // 負重：重量、上限、第幾段（data/gear.ts 的 LOAD_TIERS；recalc 算）
   bowAuto?: boolean;
   shockCd?: number;               // 雷鳴刻印：下一次能劈雷的時間（game/weaponFx.ts）
+  gravCd?: number; echoC?: number; echoT?: number; markE?: Enemy | null; sealRdy?: boolean;   // 引力刻印的冷卻、迴響刻印數到第幾下、標記刻印標著哪一隻
   // 獨特武器的招牌（game/signatures.ts）：近衛之盾到什麼時候、狼群的層數、鍛打的熱度、王之箭數到第幾箭……
   sigShield?: number; chain?: number; chainT?: number; hunt?: number; huntT?: number; emT?: number; heat?: number; heatHit?: number; royalN?: number; flyT?: number;              // 蓄力弓放開得太早：自動拉到 0.3 秒再射（game/playerUpdate.ts）   // 吸血流的回血數字（合在一起顯示）、暴擊流上一次減冷卻的時間
   cutSet?: Set<any> | null;       // 月影之鈴：這次瞬移已經砍過的敵人

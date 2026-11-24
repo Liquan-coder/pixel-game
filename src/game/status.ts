@@ -122,6 +122,12 @@ export const BUILD: Record<string, { rows: string[]; lit: string; hi: string; da
     'xx...xx', 'xxx.xxx', '.xxxxx.', '..xxx..', '.xxxxx.', 'xxx.xxx', 'xx...xx'] },
   blind: { lit: '#d8c898', hi: '#ffffff', dark: '#4a4030', hx: 4, hy: 2, rows: [     // 眼睛
     '..xxxxx..', '.xx.x.xx.', 'xx.xxx.xx', '.xx.x.xx.', '..xxxxx..'] },
+  // 標記刻印：準星（game/weaponFx.ts）
+  mark: { lit: '#ffb070', hi: '#ffffff', dark: '#5a3418', hx: 3, hy: 3, rows: [
+    '...x...', '.xxxxx.', '.x...x.', 'xx.x.xx', '.x...x.', '.xxxxx.', '...x...'] },
+  // 衝擊刻印打不飛的怪（精英、Boss）：累積的震盪 = 裂開的石頭
+  impact: { lit: '#d8b070', hi: '#fff0c8', dark: '#4a3418', hx: 2, hy: 1, rows: [
+    '..xxxx.', '.xx.xxx', 'xxx.xxx', 'xx.xxxx', 'xxx..xx', '.xxx.x.', '..xxxx.'] },
   // 雷鳴：閃電
   shock: { lit: '#ffe85a', hi: '#ffffff', dark: '#5a4a14', hx: 3, hy: 3, rows: [
     '....xxx', '...xxx.', '..xxx..', '.xxxxxx', '....xx.', '...xx..', '..xx...', '.xx....', '.x.....'] },

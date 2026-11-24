@@ -16,7 +16,8 @@ import { STARC } from '../render/fx';
 import { bumpPot, showBanner, toast } from '../ui/hud';
 import type { Enemy } from '../types';
 import { WOLF_DASH, dismount, wolfDashFx } from './mount';
-import { SEALC, bindFx, fxOf, onHit, onKill } from './weaponFx';
+import { SEALC, bindFx, bindMove, fxOf, markMul, onHit, onKill, starShot } from './weaponFx';
+export { impactMove } from './weaponFx';
 import { bindSig, sigBlock, sigCrit, sigHit, sigKill, sigPre, sigSlam, sigSwing } from './signatures';
 import { UQSIG } from '../data/uniques';
 import { bindBuilds, buildHit, canDodge, dodgeStarted, forcedCrit, fullCharge, iframeHit, playerHurt } from './builds';
@@ -57,6 +58,7 @@ export function damageEnemy(pl: Player, e: Enemy, mult: number, sx: number, sy: 
   v = Math.max(1, Math.round(v * (e.mStun > 0 ? 1.5 : 1)));   // Boss 露出破綻時 ×1.5（沒有等級差：越級難是因為怪的血、傷害和招式，不是你打不痛）
   if (opts.crit && !crit) { crit = true; v = Math.round(v * sureMul(pl)); }      // 居合：一定暴擊
   { const sg = sigPre(pl, e, !!opts.proc); if (sg.crit && !crit) { crit = true; v = Math.round(v * sureMul(pl)); } if (sg.mul !== 1) v = Math.round(v * sg.mul); }   // 獨特武器：背刺、蛛網易傷（game/signatures.ts）
+  { const mm = markMul(pl, e); if (mm !== 1) v = Math.round(v * mm); }    // 標記刻印：被標記的那隻受到的傷害變高
   if (opts.heal) { if (G.time - (pl.healT0 || -9) > .6) { pl.healT0 = G.time; pl.healN = 0; }   // 鐮刀收割：打中一隻回一點血，一次技能最多算 3 隻
     if (pl.healN < 3) { pl.healN++; pl.hp = Math.min(pl.maxHp, pl.hp + Math.round(pl.maxHp * opts.heal * (e.boss ? .5 : 1) * healMul(pl))); } }
   v = buildHit(pl, e, v, crit, !!opts.proc);                           // 流派：怒氣、吸血、暴擊減冷卻（game/builds.ts）
@@ -86,7 +88,7 @@ export function rawHit(pl: Player, e: Enemy, v: number, col: string) {
   if (col === '#ffe85a') G.nums.push({ x:e.x + rr(-3, 3), y:e.y - (e.boss ? 26 : 16), txt:String(v), col, t:0, d:.6 });
   finish(pl, e);
 }
-bindFx(rawHit, targets, shake);
+bindFx(rawHit, targets, shake); bindMove(moveEnt);                      // bindMove：引力刻印要拉怪
 bindBuilds({ aoe: aoeHit, shake, quakeFx, dodge: tryDodge });
 bindSig({ damage: damageEnemy, aoe: aoeHit, line: lineHit, shoot: shootArrow, raw: rawHit, targets, shake, quake: quakeFx });
 function meleeHit(pl: Player, range, arcDeg, mult, opts?, fa = pl.face) {   // 回傳打中幾個（戰斧要知道有沒有砍到東西）；fa = 往哪個方向砍（雙頭刀的後半截往背後）
@@ -322,6 +324,7 @@ export function releaseCharge(pl: Player, lv) {
   const type = pl.weapon.type, cols = wcols(pl, type), s = lv >= 2 ? 1.45 * (1 + ((pl.tfx && pl.tfx.chargeDmg) || 0) / 100) : 1;   // 蓄滿：力量讓這一下更痛
   spendSt(pl, lv >= 2 ? 26 : 18); pl.atkCd = .35; pl.combo = 0; pl.comboT = 0; sfx.release(lv);
   if (lv >= 2) fullCharge(pl);                                           // 重擊流：蓄滿放出震波（game/builds.ts）
+  if (fxOf(pl.weapon) === 'star') starShot(pl, lv >= 2 ? 3 : 1);         // 星辰刻印：蓄一段 1 顆、蓄滿 3 顆
   switch (type) {
     case 'sword': {                                                   // 月輪斬：一圈刀光 + 往前飛的新月劍氣
       autoFace(pl, 160); const a = pl.face; pl.spin = .3;

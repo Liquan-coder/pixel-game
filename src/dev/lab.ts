@@ -25,7 +25,7 @@ import { collides } from '../game/collision';
 import { solidT, tileAt } from '../world/gen';
 import { ARENA, TS } from '../world/map';
 
-const SEALS: [string, string][] = [['bleed', '出血'], ['burn', '燃燒'], ['frost', '寒霜'], ['shock', '雷鳴'], ['soul', '噬魂'], ['', '無']];
+const SEALS: [string, string][] = [['bleed', '出血'], ['burn', '燃燒'], ['frost', '寒霜'], ['shock', '雷鳴'], ['soul', '噬魂'], ['poison', '劇毒'], ['impact', '衝擊'], ['gravity', '引力'], ['mark', '標記'], ['echo', '迴響'], ['star', '星辰'], ['', '無']];
 const FOE = { alive: true, timer: 0 };                                  // 假的生怪點：死了不會在這裡重生
 
 export function startLab(startGame: (cont: boolean) => void) {

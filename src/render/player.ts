@@ -6,7 +6,7 @@ import { ANIM, HAND_R, HERO, HERO_H, HERO_W, HSY, PPX, PPY, REACH, STYLE, WLEN, 
 import { drawWeapon } from '../art/weapon';
 import { ICON, WT } from '../data/items';
 import { CH1, CH2, CHC, restAng, wcols } from '../game/combat';
-import { fxOf } from '../game/weaponFx';
+import { SEALC, echoReady, fxOf, sealReady } from '../game/weaponFx';
 import { asn, drawArrow, drawWoodArrow, drawStar, drawWarp, fillArt } from './fx';
 import { camDt } from '../main';
 import type { Player } from '../types';
@@ -73,7 +73,8 @@ function attackParticles(pl: Player, m, phase, gx, gy, ang) {                   
   }
 }
 /* 武器上的刻印：平常拿著就會一直冒刻印的粒子，一眼看得出這把裝了什麼
-   出血 = 刀身滴血、燃燒 = 往上竄的火星、寒霜 = 往下飄的雪、雷鳴 = 一閃一閃的電花、噬魂 = 慢慢飄上去的紫色魂 */
+   出血 = 刀身滴血、燃燒 = 往上竄的火星、寒霜 = 往下飄的雪、雷鳴 = 一閃一閃的電花、噬魂 = 慢慢飄上去的紫色魂
+   劇毒 = 滴綠色毒液、衝擊 = 掉碎石、引力 = 藍色光點被吸進刀身、標記 = 刀尖一閃一閃的橘色準星光、迴響 = 數拍子（越接近第 4 下青光越多）、星辰 = 繞著刀轉的粉紅星屑 */
 function sealAura(pl: Player, gx, gy, ang) {
   const fx = fxOf(pl.weapon); if (!fx) return;
   const L = WLEN[pl.weapon.type] || 8, c = Math.cos(ang), s = Math.sin(ang), along = (u: number) => [gx + c * L * u, gy + s * L * u];
@@ -81,7 +82,34 @@ function sealAura(pl: Player, gx, gy, ang) {
   else if (fx === 'burn') emit(22, () => { const [x, y] = along(rr(.3, 1)); G.parts.push({ x:x + rr(-1, 1), y, vx:rr(-5, 5), vy:-rr(18, 36), life:rr(.25, .45), max:.45, col:pick(['#ffe08a', '#ffa040', '#e8402a']), star:rr(.6, 1.3), drag:1 }); });
   else if (fx === 'frost') emit(9, () => { const [x, y] = along(rr(.3, 1)); G.parts.push({ x:x + rr(-2, 2), y:y + rr(-2, 2), vx:rr(-5, 5), vy:rr(6, 14), life:rr(.5, .8), max:.8, col:pick(['#ffffff', '#d8f0ff', '#9ae0ff']), star:rr(.5, 1.1), drag:1 }); });
   else if (fx === 'shock') emit(10, () => { const [x, y] = along(rr(.3, 1)), a = rr(0, TAU); G.parts.push({ x, y, vx:Math.cos(a) * 60, vy:Math.sin(a) * 60, life:.08, max:.08, col:pick(['#ffffff', '#ffe85a', '#ffe85a']), star:rr(1, 1.8), drag:8 }); });
+  else if (fx === 'poison') emit(9, () => { const [x, y] = along(rr(.3, 1)); G.parts.push({ x, y, vx:rr(-3, 3), vy:rr(2, 8), life:rr(.4, .6), max:.6, col:pick(['#7ac25a', '#3a7a2a', '#d0f0b0']), s:1, g:120 }); });
+  else if (fx === 'impact') emit(7, () => { const [x, y] = along(rr(.5, 1)); G.parts.push({ x, y, vx:rr(-8, 8), vy:rr(-10, 0), life:rr(.35, .5), max:.5, col:pick(['#d8b070', '#a08050', '#6a5030']), s:Math.random() < .3 ? 2 : 1, g:260 }); });
+  else if (fx === 'gravity') emit(16, () => { const [x, y] = along(rr(.3, 1)), a = rr(0, TAU), r = rr(7, 11); G.parts.push({ x:x + Math.cos(a) * r, y:y + Math.sin(a) * r, vx:-Math.cos(a) * r * 5 - Math.sin(a) * 20, vy:-Math.sin(a) * r * 5 + Math.cos(a) * 20, life:.2, max:.2, col:pick(['#6a8aff', '#d0dcff', '#ffffff']), star:rr(.6, 1.2), drag:1 }); });
+  else if (fx === 'mark') emit(6, () => { const [x, y] = along(1); G.parts.push({ x:x + rr(-1, 1), y:y + rr(-1, 1), vx:0, vy:0, life:.25, max:.25, col:pick(['#ffb070', '#ffe8d0']), star:rr(1.2, 2), drag:1 }); });
+  else if (fx === 'echo') emit(3 + echoReady(pl) * 10, () => { const [x, y] = along(rr(.2, 1)); G.parts.push({ x, y, vx:rr(-4, 4), vy:-rr(4, 12), life:rr(.3, .5), max:.5, col:pick(['#7ae8c8', '#1a6a58', '#e0fff4']), star:rr(.5, 1.1), drag:1 }); });   // 拍子越接近第 4 下越多
+  else if (fx === 'star') emit(9, () => { const [x, y] = along(rr(.3, 1)), a = G.time * 6 + rr(0, TAU); G.parts.push({ x:x + Math.cos(a) * 5, y:y + Math.sin(a) * 3, vx:-Math.sin(a) * 18, vy:Math.cos(a) * 10, life:rr(.3, .5), max:.5, col:pick(['#ff9ad0', '#ffc0e0', '#ffffff']), star:rr(.6, 1.4), drag:1 }); });
   else if (fx === 'soul') emit(8, () => { const [x, y] = along(rr(.3, 1)); G.parts.push({ x, y, vx:rr(-4, 4), vy:-rr(8, 16), life:rr(.6, .9), max:.9, col:pick(['#c8a8ff', '#f0e8ff', '#9a6cff']), star:rr(.6, 1.3), drag:.5 }); });
+  sealReadyFx(pl, fx, along);
+}
+/* 「下一刀會觸發」的提示（雷鳴、引力的冷卻好了；迴響數到第 4 拍）：刀身上很明顯的效果。剛準備好的那一瞬間，刀尖再爆一圈光 */
+function sealReadyFx(pl: Player, fx: string, along: (u: number) => number[]) {
+  const ok = sealReady(pl), was = pl.sealRdy; pl.sealRdy = ok; if (!ok) return;
+  const [tx, ty] = along(1), C = SEALC[fx];
+  if (!was) { G.fx.push({ k:'ring', x:tx, y:ty, r0:2, r1:16, t:0, d:.3, col:C[1] }); drawStar(tx, ty, 4, '#ffffff');   // 剛準備好：刀尖亮一下 + 一圈光
+    for (let i = 0; i < 10; i++) { const a = rr(0, TAU), v = rr(30, 70); G.parts.push({ x:tx, y:ty, vx:Math.cos(a) * v, vy:Math.sin(a) * v, life:.35, max:.35, col:pick([C[1], C[2], '#ffffff']), star:rr(.8, 1.6), drag:4 }); } }
+  if (fx === 'shock') {                                                  // 雷鳴：刀身劈啪冒小閃電 + 電花往外噴
+    emit(45, () => { const [x, y] = along(rr(.2, 1)), a = rr(0, TAU), v = rr(40, 90); G.parts.push({ x, y, vx:Math.cos(a) * v, vy:Math.sin(a) * v, life:.1, max:.1, col:pick(['#ffffff', '#ffe85a', '#fff3a0']), star:rr(1, 2), drag:6 }); });
+    emit(7, () => { const [x0, y0] = along(rr(.2, .5)), [x1, y1] = along(rr(.8, 1.1)); G.fx.push({ k:'zap', pts:[[x0, y0], [(x0 + x1) / 2 + rr(-3, 3), (y0 + y1) / 2 + rr(-3, 3)], [x1 + rr(-2, 2), y1 + rr(-2, 2)]], t:0, d:.08, col:'#ffe85a', thin:true }); }); }
+  else if (fx === 'gravity') {                                           // 引力：刀尖一個大的藍色漩渦：深色核心、三條螺旋臂一直轉、外圈光點往內旋
+    emit(70, () => { const a = rr(0, TAU), r = rr(6, 11); G.parts.push({ x:tx + Math.cos(a) * r, y:ty + Math.sin(a) * r * .7, vx:-Math.sin(a) * 80 - Math.cos(a) * r * 3.5, vy:(Math.cos(a) * 80 - Math.sin(a) * r * 3.5) * .7, life:.28, max:.28, col:pick(['#6a8aff', '#6a8aff', '#d0dcff', '#ffffff']), star:rr(.8, 1.7), drag:1 }); });
+    const q = HK * 2.5, cols = ['#3a52d8', '#4a6aff', '#6a8aff', '#8aa4ff', '#c0d0ff', '#ffffff'], a0 = ctx.globalAlpha;   // 三條螺旋臂：每臂 6 點，外圈深藍 → 中心白，一直在轉（半徑 8，比主角的頭小）
+    for (let arm = 0; arm < 3; arm++) for (let k = 0; k < 6; k++) { const r = 8 - k * 1.25, a = G.time * 8 + arm * TAU / 3 + k * .6;
+      const x = snapF(tx + Math.cos(a) * r - q / 2), y = snapF(ty + Math.sin(a) * r * .75 - q / 2);
+      ctx.globalAlpha = a0; ctx.fillStyle = '#141838'; ctx.fillRect(x - HK, y - HK, q + HK * 2, q + HK * 2); ctx.fillStyle = cols[k]; ctx.fillRect(x, y, q, q); }   // 深色外框：亮的地面上也看得到
+    ctx.globalAlpha = a0; drawStar(tx, ty, 2.6 + Math.sin(G.time * 12) * .6, '#1a2050'); drawStar(tx, ty, 1.2, '#d0dcff'); }
+  else if (fx === 'echo') {                                              // 迴響：刀尖一圈一圈往外擴散的聲波
+    if (Math.floor(G.time * 3) !== Math.floor((G.time - camDt) * 3)) G.fx.push({ k:'ring', x:tx, y:ty, r0:2, r1:12, t:0, d:.4, col:'#7ae8c8' });
+    emit(30, () => { const [x, y] = along(rr(.4, 1)); G.parts.push({ x, y, vx:rr(-10, 10), vy:rr(-10, 10), life:.25, max:.25, col:pick(['#ffffff', '#e0fff4', '#7ae8c8']), star:rr(.9, 1.8), drag:2 }); }); }
 }
 function skillParticles(pl: Player, gx, gy, ang) {                                   // 技能持續中的粒子
   const L = WLEN[pl.weapon.type] || 8, tx = gx + Math.cos(ang) * L, ty = gy + Math.sin(ang) * L, wc = wcols(pl, pl.weapon.type);

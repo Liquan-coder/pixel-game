@@ -75,6 +75,9 @@ function sealIcons(e, bottom: number) {
   if (e.frostB > 0) icons.push(['frost', e.frostB / 100]);
   if (e.shockB > 0) icons.push(['shock', e.shockB / 100]);
   if (e.burnT > 0) icons.push(['burn', e.burnT / 3, 2]);
+  if (e.psn > 0) icons.push(['poison', e.psn / 8, 2]);                // 劇毒：亮的部分 = 疊了幾層（最多 8）
+  if (e.impB > 0) icons.push(['impact', e.impB / 100]);
+  if (G.me && G.me.markE === e) icons.push(['mark', 1, 2]);
   buildRow(icons, e.x, bottom);
 }
 const TELE = ['#ff3b3b', '#ff3b3b', '#ffd0d0'];
