@@ -1025,6 +1025,19 @@ const pageScript = async () => {
     setMenu(null); G.me.souls = s0; G.me.weapon = keep.w; G.me.luk = keep.luk; recalc(G.me);
   });
 
+  run('越級打王：出血對 Boss 是 2% 最大血量（最多攻擊力 ×3），也吃等級差', () => {
+    const E = await0.enemies, I = await0.items, BT = await0.bt; setMenu(null); G.enemies = []; const keep = G.me.weapon;
+    G.me.weapon = I.makeWeapon('rapier'); I.attachSeal(G.me.weapon, I.makeSeal('bleed')); recalc(G.me);
+    const e = E.makeEnemy('skel', 80, G.me.x + 14, G.me.y, { alive: true, timer: 0 }); e.boss = true; e.lv = 80; e.hp = e.maxHp = 100000; e.stun = 99; e.dmg = 0; G.enemies = [e];
+    e.bleedB = 99.9; const n0 = G.nums.length; damageEnemy(G.me, e, .01, G.me.x, G.me.y);
+    const t = G.nums.slice(n0).find(n => /^出血/.test(n.txt)); if (!t) throw new Error('出血沒有發作');
+    const want = Math.round(Math.max(G.me.atkPow * .6, Math.min(2000, G.me.atkPow * 3)) * BT.gapDealt(PLAYER.level(G.me), 80));
+    if (Number(t.txt.split(' ')[1]) !== want) throw new Error('出血打 Boss 應該是 min(2%, 攻擊力 ×3) × 等級差 = ' + want + '，現在 ' + t.txt);
+    if (!(want < 1000)) throw new Error('低等級打 80 級的王，出血還是太痛：' + want);
+    if (!(BT.gapDealt(30, 52) < .6 && BT.gapTaken(52, 30) > 1.5)) throw new Error('30 級打 52 級的王，等級差太小：打牠 ×' + BT.gapDealt(30, 52).toFixed(2) + '、被打 ×' + BT.gapTaken(52, 30).toFixed(2));
+    G.enemies = []; G.me.weapon = keep; recalc(G.me);
+  });
+
   run('獨特武器的招牌：17 把各自的能力都會觸發', () => {
     const E = await0.enemies, C = await0.cb, I = await0.items, out = []; setMenu(null); G.enemies = [];
     { const camp = CAMPS.find(c => c.id === 'start'), open = (x, y) => [-60, -30, 0, 30, 60].every(dx => [-30, 0, 30].every(dy => !await0.coll.collides(x + dx, y + dy, G.me.r + 2)));

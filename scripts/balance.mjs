@@ -30,11 +30,29 @@ for (const [name, L, wUp, aUp, nT, bossLv] of TIERS) {
   const u = { boss: Math.ceil(pl.maxHp / hit(bossRaw * BT.gapTaken(bossLv, lvOf()))), bossT: Math.round(bossHp / (avg() * BT.gapDealt(lvOf(), bossLv) / I.WT.sword.cd / pl.aspd * .5)) };
   out.push({ name, L, wUp, aUp, nT, bossRaw: Math.round(bossRaw), g, n, u });
 }
-return out;`;
+// 越級打王：30 級、出血細劍 +2（敏捷流）、骸骨荒地的好裝，去打每一個地區的 Boss（細劍每刺同一隻暴擊率 +12%，算平均 +36%）
+const FX = await imp('game/weaponFx'), BTD = BT.gapDealt, lv30 = 30, pts = lv30 - 1, rush = [];
+pl.vit = 5 + Math.round(pts * .35); pl.dex = 5 + Math.round(pts * .4); pl.end = 5 + (pts - Math.round(pts * .35) - Math.round(pts * .4)); pl.str = pl.int = pl.luk = 5;
+pl.weapon = I.makeWeapon('rapier', 2); I.attachSeal(pl.weapon, I.makeSeal('bleed'));
+pl.armor = I.makeArmor('hunter', 3); pl.trinkets = ['iron', 'life', 'might'].map(k => I.makeTrinket(k)).concat([null]); P.recalc(pl);
+const hit = (raw) => Math.max(1, Math.round(raw * (1 - pl.defRed)));
+for (const [name, , , , , bossLv] of TIERS) {
+  const hp = { 15: 950, 25: 1700, 35: 2600, 52: 4200, 62: 5600, 75: 7000 }[bossLv] * BT.BOSS_HP, gap = BTD(lv30, bossLv), c = Math.min(1, (pl.crit + 36) / 100);
+  const hps = pl.aspd / I.WT.rapier.cd, B = I.WT.rapier.cd / FX.SPD_REF;
+  const normal = pl.atkPow * gap * (1 + c * ((pl.critMul || 1.8) - 1));
+  const popEvery = 100 / ((22 + 15 * c) * B), pop = Math.max(pl.atkPow * .6, Math.min(hp * .02, pl.atkPow * 3)) * gap;   // 跟 weaponFx.ts 的 pop 一樣
+  const dps = (normal + pop / popEvery) * hps;
+  rush.push({ name, bossLv, t: Math.round(hp / (dps * .5)), bleedPct: Math.round(pop / popEvery / normal * 100), hits: Math.ceil(pl.maxHp / hit(38 * BT.bossMul(bossLv) * BT.gapTaken(bossLv, lv30))) });
+}
+return { out, rush };`;
 const look = join(process.cwd(), 'scripts', 'look.mjs'), png = join(mkdtempSync(join(tmpdir(), 'bal-')), 'x.png');
-const raw = execFileSync('node', [look, png, js, '480', '300', '1'], { encoding: 'utf8' }).trim().split('\n').filter(l => l.startsWith('[')).pop();
-const rows = JSON.parse(raw);
+const raw = execFileSync('node', [look, png, js, '480', '300', '1'], { encoding: 'utf8' }).trim().split('\n').filter(l => l.startsWith('{"out"')).pop();
+if (!raw) throw new Error("balance：遊戲裡的計算沒有回傳結果（看上面 look.mjs 的錯誤）");
+const { out: rows, rush } = JSON.parse(raw);
 const ok = (v, [a, b]) => (v >= a && v <= b ? '  ' : '✗ ') + v;
 console.log('目標：好裝被小怪打 ' + TARGET.mobGear.join('~') + ' 下死、被 Boss 打 ' + TARGET.bossGear.join('~') + ' 下死；沒裝被 Boss 打 ' + TARGET.bossNaked.join('~') + ' 下死；一直砍 ' + TARGET.mobKill.join('~') + ' 秒砍死小怪；打 Boss ' + TARGET.bossTime.join('~') + ' 秒\n');
 console.log(['地區', '等級', '武器', '防具', '飾品', '生命', '減傷', '一刀', '小怪幾下死', 'Boss一擊', 'Boss幾下死', '沒裝Boss幾下死', '砍死小怪秒數', '打Boss幾秒', '低20級:Boss幾下死', '低20級:打幾秒'].join('\t'));
 for (const r of rows) console.log([r.name, r.L, '+' + r.wUp, '+' + r.aUp, r.nT, r.g.hp, r.g.dr + '%', r.g.atk, ok(r.g.mob, TARGET.mobGear), r.bossRaw, ok(r.g.boss, TARGET.bossGear), ok(r.n.boss, TARGET.bossNaked), ok(r.g.kill, TARGET.mobKill), ok(r.g.bossT, TARGET.bossTime), ok(r.u.boss, TARGET.under), ok(r.u.bossT, TARGET.underTime)].join('\t'));
+console.log('\n越級打王：30 級、出血細劍 +2，打每個地區的 Boss（目標：比自己高 20 級以上的王要打很久、被打 2~3 下就死）');
+console.log(['地區', 'Boss等級', '打Boss幾秒', '出血比普通攻擊多幾%', 'Boss幾下死'].join('\t'));
+for (const r of rush) console.log([r.name, r.bossLv, r.t, '+' + r.bleedPct + '%', r.hits].join('\t'));

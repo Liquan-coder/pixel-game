@@ -24,7 +24,7 @@ import { EXTRA_STATES, extraStates, startExtra } from './bossAI3';
 import { drawMore } from './bossAI4';
 import { REXTRA } from './dungeonBoss';
 import { DB_FX, RB_FX } from '../data/ailments';
-import { BOSS_HP } from '../game/bossTuning';
+import { BOSS_HP, BOSS_SOULS } from '../game/bossTuning';
 import { fragNotice } from './statues';
 
 export const RBDEF: Record<string, any> = {
@@ -134,7 +134,7 @@ export function regionBossDie(e, by) {                                  // by = 
   G.hitStop = Math.max(G.hitStop, .4); G.fx.push({ k:'flash', col:'#ffffff', a:.7, t:0, d:.6 });
   for (const dl of [0, .12, .24]) G.fx.push({ k:'warp', x:e.x, y:e.y, r0:6, r1:90, th:5, delay:dl, t:0, d:.6 + dl, col:dl ? '#f2c14e' : d.aura[0] });
   for (let i = 0; i < 40; i++) G.parts.push({ x:e.x + rr(-12, 12), y:e.y - rr(0, 24), vx:rr(-15, 15), vy:-rr(40, 140), life:rr(.7, 1.4), max:1.4, col:pick(d.aura.concat(['#f2c14e', '#b49cff'])), star:rr(1, 3), drag:1 });
-  dropSouls(e.x, e.y, d.souls, by);
+  dropSouls(e.x, e.y, Math.round(d.souls * BOSS_SOULS), by);   // Boss 魂晶倍率（bossTuning.ts）
   const it = d.reward(); dropItem(it, e.x, e.y); dropGold(e.x, e.y, d.gold);
   dropMat(e.x, e.y, oreForLevel(d.lv), 3, by); if (d.star !== false) dropMat(e.x, e.y, 'ore4', 1, by); dropMat(e.x, e.y, 'umat', 1, by);       // 每隻 Boss 一顆黯星石（獨特武器強化，data/forge.ts）； Boss 一定掉素材；區域 Boss 和 20 級以上的地城 Boss 還有一顆強化 +10 用的隕星之心
   if (['queen', 'general', 'yeti'].includes(d.id)) { G.me.tears = (G.me.tears || 0) + 1; setTimeout(() => toast('得到「重生水滴」：拿給城鎮的修女，就能重新分配能力值', '#9ae8ff', true), 5000); }   // 這三隻各給一顆
