@@ -45,11 +45,12 @@ export const AFFIX = {
   cdr:{n:'技能冷卻縮短',r:[8,20],u:'%'}, hp:{n:'生命上限',r:[10,30],u:''}, def:{n:'防禦',r:[2,5],u:''}, st:{n:'體力上限',r:[6,14],u:''}};
 export const DG = 3;                                                       // 判定寬容：腳要踩進紅線內 3px 才算被打到
 export const BEH = {
-  slime:{hp:l=>28+10*tier(l),dmg:l=>5+2*tier(l),spd:30,r:6,aggro:80,reach:16,wind:.4,cd:1.1,souls:l=>4+3*tier(l)},
-  lunge:{hp:l=>40+13*tier(l),dmg:l=>8+2.5*tier(l),spd:60,r:7,aggro:100,reach:46,wind:.45,cd:1.5,souls:l=>6+4*tier(l)},
-  blade:{hp:l=>40+13*tier(l),dmg:l=>8+2.5*tier(l),spd:50,r:7,aggro:100,reach:22,wind:.5,cd:1.5,souls:l=>6+4*tier(l)},   // 骷髏：跛腳走得慢，走到面前原地揮劍（不衝刺）
-  heavy:{hp:l=>80+20*tier(l),dmg:l=>12+3*tier(l),spd:24,r:9,aggro:85,reach:28,wind:.7,cd:1.8,souls:l=>10+6*tier(l),heavy:true},
-  ranged:{hp:l=>45+13*tier(l),dmg:l=>9+2.6*tier(l),spd:30,r:7,aggro:125,reach:150,wind:.45,cd:2,souls:l=>9+6*tier(l)},
+  /* see = 走多近才會發現你（不惹牠、不靠近，牠就不會過來）；aggro = 追你的時候，你跑到 aggro × 1.5 以外就放棄 */
+  slime:{hp:l=>28+10*tier(l),dmg:l=>5+2*tier(l),spd:30,r:6,see:45,aggro:80,reach:16,wind:.4,cd:1.1,souls:l=>4+3*tier(l)},
+  lunge:{hp:l=>40+13*tier(l),dmg:l=>8+2.5*tier(l),spd:60,r:7,see:55,aggro:100,reach:46,wind:.45,cd:1.5,souls:l=>6+4*tier(l)},
+  blade:{hp:l=>40+13*tier(l),dmg:l=>8+2.5*tier(l),spd:50,r:7,see:50,aggro:100,reach:22,wind:.5,cd:1.5,souls:l=>6+4*tier(l)},   // 骷髏：跛腳走得慢，走到面前原地揮劍（不衝刺）
+  heavy:{hp:l=>80+20*tier(l),dmg:l=>12+3*tier(l),spd:24,r:9,see:45,aggro:85,reach:28,wind:.7,cd:1.8,souls:l=>10+6*tier(l),heavy:true},
+  ranged:{hp:l=>45+13*tier(l),dmg:l=>9+2.6*tier(l),spd:30,r:7,see:55,aggro:125,reach:150,wind:.45,cd:2,souls:l=>9+6*tier(l)},
 };
 export const KIND = {
   slime:{beh:'slime',name:'史萊姆',col:'#5ad06a'}, slimeM:{beh:'slime',name:'熔岩史萊姆',col:'#e8743b'},

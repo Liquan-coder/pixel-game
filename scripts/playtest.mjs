@@ -631,7 +631,7 @@ const pageScript = async () => {
       const open = [-1, 0, 1].every(oy => [-1, 0, 1].every(ox => M.WALKABLE(M.map[i + oy * M.MW + ox])));   // 周圍一圈都是地板：怪不會被牆推到看得到的地方
       if (open && !canSee(Math.floor(x / 16) * 16 + 8, Math.floor(y / 16) * 16 + 2, px, py - 6)) wall = [Math.floor(x / 16) * 16 + 8, Math.floor(y / 16) * 16 + 8]; }
     if (!wall) throw new Error('找不到隔著牆的位置');
-    const e = E.makeEnemy('wolf', 1, wall[0], wall[1], { alive: true, timer: 0 }); e.aggro = 200; G.enemies = [e]; step(10, { god: true });
+    const e = E.makeEnemy('wolf', 1, wall[0], wall[1], { alive: true, timer: 0 }); e.see = 200; G.enemies = [e]; step(10, { god: true });
     if (e.state !== 'idle') throw new Error('隔著牆的怪看到你了：' + e.state + ' e=' + Math.round(e.x - G.me.x) + ',' + Math.round(e.y - G.me.y) + ' start=' + Math.round(wall[0] - px) + ',' + Math.round(wall[1] - py) + ' see=' + canSee(e.x, e.y - 6, G.me.x, G.me.y - 6) + ' me=' + Math.round(G.me.x - px) + ',' + Math.round(G.me.y - py) + ' dead=' + G.me.dead);
     e.state = 'chase'; step(150, { god: true });
     if (e.state === 'chase' && !canSee(e.x, e.y - 6, G.me.x, G.me.y - 6)) throw new Error('看不到你還一直追');

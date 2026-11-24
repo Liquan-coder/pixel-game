@@ -23,7 +23,7 @@ export function makeEnemy(kind: string, lv: number, x: number, y: number, sp?): 
   const hp = Math.round(D.hp(lv) * (el ? 4 : 1));
   const e: Enemy = { kind, beh:K.beh, lv, sp, x, y, hx: x, hy: y, r: D.r + (el ? 1 : 0), hp, maxHp: hp, dmg: Math.round(D.dmg(lv) * (el ? 1.35 : 1)), spd: D.spd * (el ? 1.1 : 1),
     state:'idle', t: rr(0, 2), flip: Math.random() < .5, flash:0, kx:0, ky:0, stun:0, atkCd:0, anim: Math.random() * 10,
-    wx: x, wy: y, aim:0, leash: sp ? (el ? 300 : 230) : 600, aggro: D.aggro + (el ? 30 : 0), elite: !!el, ename: sp && sp.ename, announced:false,
+    wx: x, wy: y, aim:0, leash: sp ? (el ? 300 : 230) : 600, aggro: D.aggro + (el ? 30 : 0), see: D.see + (el ? 15 : 0), elite: !!el, ename: sp && sp.ename, announced:false,
     hc: { lv, fx: mobFx(kind, !!el), src: null } };                    // 打中你時：異常狀態（data/ailments.ts）；src = 自己（反傷用）
   e.hc.src = e; return e;
 }
@@ -83,9 +83,9 @@ export function updateEnemy(e, dt) {
   switch (e.state) {
     case 'idle':
       e.t -= dt;
-      if (e.t <= 0) { e.t = rr(1.5, 3.5); const a = rr(0, TAU), r = rr(8, 40); e.wx = e.hx + Math.cos(a) * r; e.wy = e.hy + Math.sin(a) * r; }
+      if (e.t <= 0) { e.t = rr(1.5, 3.5); const a = rr(0, TAU), r = rr(8, 24); e.wx = e.hx + Math.cos(a) * r; e.wy = e.hy + Math.sin(a) * r; }   // 只在家附近晃，不會晃到路上
       stepToward(e, e.wx, e.wy, e.spd * .35, dt);
-      if (!e.tgt.dead && d < e.aggro && canSee(e.x, e.y - 6, e.tgt.x, e.tgt.y - 6)) { e.state = 'chase'; e.blind = 0; G.nums.push({ x:e.x, y:e.y - 20, txt:'!', col:'#ffd04a', t:0, d:.6 });
+      if (!e.tgt.dead && d < e.see && canSee(e.x, e.y - 6, e.tgt.x, e.tgt.y - 6)) { e.state = 'chase'; e.blind = 0; G.nums.push({ x:e.x, y:e.y - 20, txt:'!', col:'#ffd04a', t:0, d:.6 });
         if (e.elite && !e.announced) { e.announced = true; toast('精英敵人：' + e.ename, ELITE_C); } }
       break;
     case 'chase':

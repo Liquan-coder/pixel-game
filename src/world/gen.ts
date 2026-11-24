@@ -169,7 +169,12 @@ export function genWorld() {
   const grid = new Map<number, any[]>(), gk = (tx, ty) => ((tx >> 3) << 12) | (ty >> 3);   // 8×8 格一桶，查「附近有沒有怪」比較快
   const near = (tx, ty, d) => { for (let gy = (ty - d) >> 3; gy <= (ty + d) >> 3; gy++) for (let gx = (tx - d) >> 3; gx <= (tx + d) >> 3; gx++) for (const s of grid.get((gx << 12) | gy) || []) if (Math.hypot(s.tx - tx, s.ty - ty) < d) return true; return false; };
   const put = sp => { spawns.push(sp); const k = gk(sp.tx, sp.ty); (grid.get(k) || grid.set(k, []).get(k)).push(sp); };
-  const ok = (tx, ty) => { const i = I(tx, ty); if (!reach[i] || reg[i] === 4 || !(map[i] === GROUND || map[i] === ROAD || map[i] === RFLOOR)) return false;
+  /* 路旁 5 格內不放怪：沿著路走不會被擋（怪只在家附近 24px 內晃，要走到 45~55px 內才會發現你） */
+  const RD = 5, nearRoad = new Uint8Array(MW * MH);
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) { const t = map[I(x, y)]; if (t !== ROAD && t !== BRIDGE) continue;
+    for (let oy = -RD; oy <= RD; oy++) for (let ox = -RD; ox <= RD; ox++) { const X = x + ox, Y = y + oy;
+      if (X >= 0 && Y >= 0 && X < MW && Y < MH && ox * ox + oy * oy <= RD * RD) nearRoad[I(X, Y)] = 1; } }
+  const ok = (tx, ty) => { const i = I(tx, ty); if (!reach[i] || nearRoad[i] || reg[i] === 4 || !(map[i] === GROUND || map[i] === ROAD || map[i] === RFLOOR)) return false;
     for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) if (!WALKABLE(map[I(tx + dx, ty + dy)])) return false;
     if (tx >= ARENA.x0 - 3 && tx <= ARENA.x1 + 3 && ty >= ARENA.y0 - 3 && ty <= ARENA.y1 + 3) return false;
     for (const c of CAMPS) if (Math.abs(c.tx - tx) < 10 && Math.hypot(c.tx - tx, c.ty - ty) < 10) return false;
