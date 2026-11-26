@@ -36,7 +36,7 @@ export function canDodge(pl: Player, cost: number) {
   return true;
 }
 function noStamina() {                                                   // 體力條閃紅 + 悶悶的一聲
-  const bar = document.getElementById('stBar')?.parentElement; if (bar) { bar.classList.remove('empty'); void bar.offsetWidth; bar.classList.add('empty'); }
+  const bar = document.getElementById('stBar')?.parentElement; if (bar) { bar.classList.remove('noSt'); void bar.offsetWidth; bar.classList.add('noSt'); }
   sfx.noSt(); if (!tipNoSt) { tipNoSt = true; toast('體力不夠，滾不出去', '#8ad0ff'); }
 }
 export function dodgeStarted(pl: Player, cost: number, cd: number) {
