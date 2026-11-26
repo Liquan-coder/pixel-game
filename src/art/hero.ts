@@ -1,6 +1,6 @@
 import { TAU } from '../core/util';
 import { makeSprite } from './sprite';
-import { HERO_ROLL } from './heroRoll';
+import { HERO_ROLL_FRAMES } from './heroRoll';
 
 export const HERO_PAL = {"o":"#0a0610","a":"#3c2c61","b":"#1e1638","c":"#dabbe4","d":"#805db1","e":"#483a83","f":"#b98b53","g":"#af8cc3","h":"#3d374b","i":"#312051","j":"#817acd","k":"#6c6376","l":"#5a46ba","m":"#e4c9ef","n":"#4b4457","p":"#f0cd87","q":"#897a9a","r":"#7a5aa5","s":"#0e0a1d","t":"#5a417e","u":"#413467","v":"#4d3070","w":"#493e76","x":"#67549b","y":"#b9b6f1","z":"#402462","A":"#2a1f47","B":"#c89b61","C":"#39245a"};
 export const HERO_W = 57, HERO_H = 66;
@@ -302,7 +302,7 @@ export const STYLE = {
 export const HERO = {
   walk: [heroLegs(0, 0), heroLegs(-2, 1), heroLegs(0, 0), heroLegs(1, -2)],
   hand: makeSprite(HERO_HAND.map(r => r.padEnd(HERO_W, '.')), HERO_PAL),
-  roll: makeSprite([...HERO_ROLL, ''], HERO_PAL),                      // 補成偶數高：轉 90 度時中心才會落在像素格上                                // 翻滾：縮成一團（art/heroRoll.ts）
+  roll: HERO_ROLL_FRAMES.map(r => makeSprite(r, HERO_PAL)),            // 翻滾六格（0~3 翻滾中、4~5 站穩期間起身，art/heroRoll.ts）
   ride: makeSprite(heroLegRows(0, 0).map((r, y) => y < 60 ? r : r.slice(0, 21) + '.....' + r.slice(26)), HERO_PAL),   // 騎在星狼上：只剩前面那條腿垂在狼的身側（後面那條被狼擋住）
 };
 for (const t in ANIM) for (const k in ANIM[t].P) heroPose(...(ANIM[t].P[k] as Parameters<typeof heroPose>));

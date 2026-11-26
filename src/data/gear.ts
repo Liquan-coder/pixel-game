@@ -53,11 +53,11 @@ export const effLines = (e: Record<string, number> | undefined) => e ? Object.ke
 export const W_WEIGHT: Record<string, number> = { dagger: 2, rapier: 2.5, elfrapier: 2.5, bow: 3, elfbow: 3, staff: 3, elfblades: 3.5, sword: 4.5, katana: 4.5, wolfblade: 5,
   crescent: 5, spear: 6, twinblade: 6.5, scythe: 8, axe: 10, darkmoon: 13, greatsword: 15, hammer: 18 };
 export const A_WEIGHT = { light: 3, medium: 10, heavy: 20 };              // 防具照類型：法袍 / 皮甲 / 鎖甲
-export const LOAD_TIERS = [                                              // max = 負重比例上限；mv = 走路速度；st = 體力回復；roll = 翻滾完站穩要幾秒（這段時間不能動、不能出手）
-  { max: .3, n: '輕盈', mv: 1.06, st: 1, roll: .1, d: '走路 +6%、翻滾完很快站穩', c: '#8ad0ff' },
-  { max: .7, n: '普通', mv: 1, st: 1, roll: .15, d: '走路、體力回復、翻滾都正常', c: '#c8e8a0' },
-  { max: 1, n: '沉重', mv: .88, st: .8, roll: .25, d: '走路 −12%、體力回復 −20%、翻滾完站穩比較慢', c: '#ffb060' },
-  { max: Infinity, n: '超重', mv: .7, st: .6, roll: .4, d: '走路 −30%、體力回復 −40%、翻滾完要愣一下', c: '#ff6a5a' },
+export const LOAD_TIERS = [                                              // max = 負重比例上限；mv = 走路速度；st = 體力回復；roll = 翻滾完站穩要幾秒；rollSpd = 翻滾速度倍率；rollT = 翻滾本身要幾秒（整套動作會隨負重一起放慢）
+  { max: .3, n: '輕盈', mv: 1.06, st: 1, roll: .1, rollSpd: 1.22, rollT: .24, d: '走路 +6%、翻滾輕快且很快站穩', c: '#8ad0ff' },
+  { max: .7, n: '普通', mv: 1, st: 1, roll: .15, rollSpd: 1, rollT: .3, d: '走路、體力回復、翻滾都正常', c: '#c8e8a0' },
+  { max: 1, n: '沉重', mv: .88, st: .8, roll: .25, rollSpd: .74, rollT: .38, d: '走路 −12%、體力回復 −20%、翻滾偏慢且站穩久', c: '#ffb060' },
+  { max: Infinity, n: '超重', mv: .7, st: .6, roll: .4, rollSpd: .52, rollT: .48, d: '走路 −30%、體力回復 −40%、翻滾笨重且站穩要愣一下', c: '#ff6a5a' },
 ];
 export const loadCap = (end: number) => 25 + ((end ?? 5) - 5) * .4;
 export const loadTier = (load: number, cap: number) => LOAD_TIERS.findIndex(T => load / cap <= T.max + 1e-9);

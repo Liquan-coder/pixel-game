@@ -149,23 +149,46 @@ function edgeMir(pl: Player, msw, dir) {
   else if (pl.wRec > 0 && pl.wRot) rot = pl.wRot;                    // 收招時維持剛剛那一下的方向，不會突然翻面
   return rot > 0;
 }
-/* 旋風環的一段弧：一顆一顆 2×2 的像素點，尾巴淡、頭亮。sy = 上下壓扁（畫在地上的環用） */
-function swirlArc(cx: number, cy: number, r: number, sy: number, a0: number, len: number, col: string, alpha: number) {
-  const a1 = ctx.globalAlpha, n = Math.max(4, Math.ceil(r * Math.abs(len) / (HK * 1.5))); ctx.fillStyle = col;
-  for (let i = 0; i < n; i++) { const t = i / n, a = a0 + len * t; ctx.globalAlpha = a1 * alpha * (.25 + .75 * t);
-    ctx.fillRect(snapF(cx + Math.cos(a) * r - HK), snapF(cy + Math.sin(a) * r * sy - HK), HK * 2, HK * 2); }
+/* 六格無縫前滾翻：0~3 在翻滾移動期間播放（前傾起滾 → 壓肩下滾 → 倒立背滾 → 甩腳翻正），4~5 在站穩硬直期間起身（隨負重同步快慢） */
+export const rollFrameIdx = (q: number) => q < .2 ? 0 : q < .45 ? 1 : q < .75 ? 2 : 3;
+export const rollLift = (q: number) => q >= .45 && q < .75 ? Math.sin((q - .45) / .3 * Math.PI) * 1.3 : q >= .75 ? Math.sin((q - .75) / .25 * Math.PI) * 1.6 : 0;
+/* 漸粗收尖的風弧（可選外緣亮芯）：只用來畫局部風切與落地氣流，不把角色包成圓球 */
+function swirlArc(cx: number, cy: number, r0: number, r1: number, sy: number, a0: number, len: number, col: string, alpha: number, wMax = 3, hi?: string) {
+  const a1 = ctx.globalAlpha, rAvg = (r0 + r1) / 2, n = Math.max(6, Math.ceil(rAvg * Math.abs(len) / (HK * 1.1)));
+  ctx.fillStyle = col;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, a = a0 + len * t, r = r0 + (r1 - r0) * t;
+    const w = Math.max(1, Math.round(wMax * Math.sin(Math.pow(t, .72) * Math.PI * .92)));
+    const px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r * sy, sz = w * HK;
+    ctx.globalAlpha = a1 * alpha * (.15 + .85 * Math.pow(t, .7));
+    ctx.fillRect(snapF(px - sz / 2), snapF(py - sz / 2), sz, sz);
+  }
+  if (hi) {
+    ctx.fillStyle = hi;
+    for (let i = Math.floor(n * .48); i <= n; i++) {
+      const t = i / n, a = a0 + len * t, r = r0 + (r1 - r0) * t + HK * .4;
+      ctx.globalAlpha = a1 * alpha * ((t - .48) / .52);
+      ctx.fillRect(snapF(cx + Math.cos(a) * r - HK / 2), snapF(cy + Math.sin(a) * r * sy - HK / 2), HK, HK);
+    }
+  }
   ctx.globalAlpha = a1;
 }
-/* 翻滾中：縮成一團的圖（art/heroRoll.ts），每 1/4 的時間轉 90 度（像素不會糊），外面繞一圈紫 + 金的旋風環；武器收起來不畫 */
+/* 翻滾中：純像素六格前滾翻的前四格（不縮成圓球、不旋轉糊邊）；武器收起來不畫 */
 function drawRoll(pl: Player) {
-  const sp = HERO.roll, k = HK, q = 1 - pl.dodge / (pl.rollD || 1), dir = pl.flip ? -1 : 1;
-  const cx = pl.x, cy = pl.y - 8 - Math.sin(q * Math.PI) * 2, spin = q * TAU * 1.5 * dir;   // 中間稍微離地
-  drawShadow(pl.x, pl.y + 1, 11);
-  swirlArc(cx, cy, 11, 1, spin + Math.PI, 2.4 * dir, '#5a46ba', 1);                         // 後面那段環（紫）
-  ctx.save(); ctx.translate(snapF(cx), snapF(cy)); ctx.rotate(Math.min(3, Math.floor(q * 4)) * Math.PI / 2 * dir);
-  ctx.drawImage(pl.flip ? sp.f : sp.n, -sp.w * k / 2, -sp.h * k / 2, sp.w * k, sp.h * k); ctx.restore();
-  swirlArc(cx, cy, 11, 1, spin, 2.2 * dir, '#f0cd87', 1);                                   // 前面那段環（金）
-  swirlArc(cx, cy, 10, 1, spin + .5, 1.6 * dir, '#b49cff', .9);
+  const q = 1 - pl.dodge / (pl.rollD || 1), fi = rollFrameIdx(q), sp = HERO.roll[fi], k = HK, dir = pl.flip ? -1 : 1, lift = rollLift(q);
+  const X = snapF(pl.x - sp.w * k / 2), Y = snapF(pl.y + 2 - lift - sp.h * k);
+  drawShadow(pl.x, pl.y + 1, fi === 0 ? 14 : 13);
+  if (fi === 2) {                                                         // 倒立背滾：在靴子與背部上方掃出一道開放式紫金翻滾風弧
+    const u = (q - .45) / .3, cy = pl.y - 8 - lift;
+    const a0 = pl.flip ? -Math.PI * .12 - u * 1.1 : -Math.PI * .88 + u * 1.1;
+    swirlArc(pl.x - dir * 1.5, cy, 9.5, 12.2, .85, a0, 1.3 * dir, '#8a6ae0', .85, 3, '#e8dcff');
+    swirlArc(pl.x - dir * .5, cy, 8.8, 11, .85, a0 + .35 * dir, 1.0 * dir, '#f0cd87', .95, 2.5, '#fff8dc');
+  } else if (fi === 3) {                                                  // 甩腳翻正：身後補一道輕快收尾風切
+    const u = (q - .75) / .25, cy = pl.y - 9 - lift;
+    const a0 = pl.flip ? .15 - u * .8 : Math.PI - .15 + u * .8;
+    swirlArc(pl.x - dir * 2, cy, 9.5, 11.8, .85, a0, 1.15 * dir, '#b49cff', .8 * (1 - u * .35), 2.5, '#fff8dc');
+  }
+  ctx.drawImage(pl.flip ? sp.f : sp.n, X, Y, sp.w * k, sp.h * k);
 }
 export function drawPlayer(pl: Player) {
   if (pl.dodge > 0 && !pl.dead && !pl.ride) { if (pl.rollD) drawRoll(pl); return; }   // 翻滾中（騎著星狼的衝刺照常畫：狼往前撲）
@@ -174,8 +197,13 @@ export function drawPlayer(pl: Player) {
   ctx.globalAlpha = fade;
   const ride = !!pl.ride && !pl.dead, run: WolfAnim = !ride ? null : pl.dodge > 0 || pl.moving ? pl.rideRun || 0 : null;   // 騎著衝刺：狼停在當下那一格滑出去（沒有另外的動作）
   drawShadow(pl.x, pl.y + 1, ride ? 22 : 12);
-  if (pl.rollRec > 0 && pl.rollRecD && !ride) { const t = 1 - pl.rollRec / pl.rollRecD, d = pl.flip ? -1 : 1;   // 剛滾完站穩：腳邊的旋風環散開、淡掉
-    swirlArc(pl.x, pl.y, 9 + t * 5, .4, t * 3 * d, 3.4 * d, '#805db1', 1 - t); swirlArc(pl.x, pl.y, 8 + t * 5, .4, Math.PI + t * 3 * d, 2.2 * d, '#b98b53', .8 * (1 - t)); }
+  if (pl.rollRec > 0 && pl.rollRecD && !ride && !pl.dead) {             // 站穩收勢：依負重硬直時間播放 4（翻正帶起）→ 5（站穩），重負重時會慢動作起身，動作跟硬直完全對齊
+    const t = 1 - pl.rollRec / pl.rollRecD, d = pl.flip ? -1 : 1, a0 = pl.flip ? -.2 : Math.PI + .2, sp = HERO.roll[t < .55 ? 4 : 5], k = HK;
+    swirlArc(pl.x - d * 2, pl.y + 1, 7 + t * 5, 10 + t * 7, .36, a0, -1.5 * d, '#805db1', (1 - t) * .9, 2.5, '#d8c8ff');
+    swirlArc(pl.x - d * 1, pl.y + 1, 6 + t * 4, 9 + t * 6, .36, a0 - .25 * d, -1.1 * d, '#f0cd87', (1 - t) * .8, 2, '#fff8dc');
+    ctx.drawImage(pl.flip ? sp.f : sp.n, snapF(pl.x - sp.w * k / 2), snapF(pl.y + 2 - sp.h * k), sp.w * k, sp.h * k);
+    ctx.globalAlpha = 1; return;
+  }
   if (ride) drawMount(pl, run);
   // 騎著：整個人抬到狼背上（跟著步伐一起騰空）；剛跳下來：從狼背落回地上
   const rideY = ride ? wolfRideY(run) : pl.rideDrop > 0 ? RIDE_Y * pl.rideDrop / DROP_T : 0;

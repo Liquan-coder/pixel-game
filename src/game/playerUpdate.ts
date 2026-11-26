@@ -15,6 +15,7 @@ import { LOAD_TIERS } from '../data/gear';
 import { BOW_MIN, bowShot, busy, damageEnemy, dodgeCut, downPlayer, releaseCharge, stopCharge, targets, tryAttack, tryDodge, tryPot, trySkill, updFlip, updateCharge } from './combat';
 import { burst, shake } from './worldUpdate';
 import { STARC, dustPuff } from '../render/fx';
+import { rollFrameIdx, rollLift } from '../render/player';
 import { flashHp, hideBanner, showArea, toast } from '../ui/hud';
 import { save } from './save';
 import { CALL_SHOW, RIDE_SPD, dismount, hasWolf, toggleMount, updateMount } from './mount';
@@ -71,12 +72,23 @@ export function updatePlayer(pl: Player, dt) {
         G.parts.push({ x:pl.x, y:pl.y - 4, vx:Math.cos(a) * s, vy:Math.sin(a) * s * .5, life:.35, max:.35, col:pick(STARC), star:rr(1, 2), drag:5 }); }
     }
   } else if (pl.dodge > 0) {
-    const q = pl.rollD ? pl.dodge / pl.rollD : 1;                       // 翻滾：1 → 0。一開始滾得快、最後慢下來（平均 = 1 倍）
+    const prevQ = pl.rollD ? 1 - pl.dodge / pl.rollD : 0;               // 翻滾進度：0 → 1（跟幀率無關地觸發殘影與風線）
+    const q = pl.rollD ? pl.dodge / pl.rollD : 1;                       // 剩餘比例：1 → 0。一開始滾得快、最後慢下來（平均 = 1 倍）
     const v = pl.rollD ? .4 + 1.2 * q : 1;
     pl.dodge -= dt; moveEnt(pl, pl.dvx * v * dt, pl.dvy * v * dt);
+    const curQ = pl.rollD ? 1 - Math.max(0, pl.dodge) / pl.rollD : 0;
     dodgeCut(pl);                                                       // 月影之鈴：穿過的敵人被砍一刀
-    if (pl.rollD && Math.random() < .3) dustPuff(pl.x, pl.y, 1, 14);   // 一路揚起一點塵土（旋風環畫在 render/player.ts 的 drawRoll）
-    if (pl.dodge <= 0) { pl.dodge = 0; if (pl.rollD) { pl.rollRec = pl.rollRecD || 0; dustPuff(pl.x, pl.y, 4, 20); } }   // 歸零：停在負數的話 !pl.dodge 會一直是 false → pl.moving 永遠 false（凝視石像抓不到人、受傷不閃爍）。落地揚塵，開始站穩
+    if (pl.rollD) {
+      const back = Math.atan2(-pl.dvy, -pl.dvx);
+      for (const th of [.35, .68]) if (prevQ < th && curQ >= th)        // 2 個節點留下當下翻滾姿勢的淡紫殘影
+        G.ghosts.push({ x:pl.x, y:pl.y + 2 - rollLift(curQ), flip:pl.flip, fi:rollFrameIdx(curQ), life:.13, max:.13, col:'roll' });
+      for (const th of [.24, .54]) if (prevQ < th && curQ >= th) {      // 途中兩道拖尾風線 + 小星屑，加強前進速度感
+        G.fx.push({ k:'aline', x:pl.x + rr(-3, 3), y:pl.y - 7 + rr(-5, 5), a:back + rr(-.1, .1), len:rr(7, 12), t:0, d:.11, col:th < .4 ? '#e8dcff' : '#f0cd87' });
+        G.parts.push({ x:pl.x + rr(-3, 3), y:pl.y - rr(4, 12), vx:Math.cos(back) * rr(20, 45), vy:Math.sin(back) * rr(20, 45) * .7, life:.24, max:.24, col:pick(['#e8dcff', '#b49cff', '#f0cd87']), star:rr(.7, 1.3), drag:4 });
+      }
+      if (Math.random() < dt * 16) dustPuff(pl.x, pl.y, 1, 14);         // 一路揚起一點塵土
+    }
+    if (pl.dodge <= 0) { pl.dodge = 0; if (pl.rollD) { pl.rollRec = pl.rollRecD || 0; dustPuff(pl.x, pl.y, (pl.loadTier ?? 1) >= 2 ? 8 : 5, (pl.loadTier ?? 1) >= 2 ? 32 : 26); } }   // 歸零：重負重落地揚塵更明顯，開始站穩
   } else if (puzzleMove(pl, dt)) {                                      // 機關接手移動：冰面滑行、被蘑菇彈飛（world/puzzles.ts）
   } else if (m > .05 && !locked(pl) && !rooted(pl) && !(pl.rollRec > 0)) {
     const spd = 84 * moveMul(pl) * (pl.drink > 0 ? .45 : 1) * (pl.skillLock > 0 ? .25 : 1) * (pl.swing ? .6 : 1) * (pl.charging ? .45 : 1) * (pl.ride ? RIDE_SPD : LOAD_TIERS[pl.loadTier ?? 1].mv) * (pl.rideT > CALL_SHOW ? .5 : 1) * (map[(pl.y / TS | 0) * MW + (pl.x / TS | 0)] === ROAD ? 1.12 : 1);

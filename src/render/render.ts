@@ -98,9 +98,13 @@ export function render() {
   for (const c of G.coins) if (vis(c.x, c.y)) list.push({ y:c.y, f:() => drawCoin(c) });
   drawChests(L, vis, addLight, list); drawNPCs(vis, list); drawTablets(vis, list, L, addLight); drawDoors(vis, list, L, addLight); drawPuzzles(vis, list, L, addLight); drawStatues(vis, list, L, addLight); drawAltar(vis, list, L, addLight); drawSecrets(vis, list, L, addLight);
   if (merchant && vis(merchant.x, merchant.y, 60)) { list.push({ y:merchant.y, f:drawMerchant }); addLight(L, merchant.x - 5, merchant.y - 10, 46 + Math.sin(G.time * 6) * 2, 1); }
-  // 殘影：衝刺是紫色剪影（最新的疊白光），翻滾是會跟著轉的淡白剪影
+  // 殘影：衝刺是紫色剪影（最新的疊白光），翻滾是會跟著轉的縮成一團紫白剪影
   for (const g of G.ghosts) { const k = g.life / g.max, sp = HERO.walk[0], w = sp.w * HK, h = sp.h * HK;
     if (g.col === 'wolf') { ctx.globalAlpha = .55 * k; drawWolf(g.x, g.y + 2, g.flip, g.run ?? 0, 'p'); continue; }   // 騎著星狼衝刺：紫色的狼殘影（跟狼停在同一格）
+    if (g.col === 'roll') { const rs = HERO.roll[g.fi ?? 2], rw = rs.w * HK, rh = rs.h * HK, rx = snapF(g.x - rw / 2), ry = snapF(g.y - rh);
+      ctx.globalAlpha = .28 * k; ctx.drawImage(g.flip ? rs.f : rs.n, rx, ry, rw, rh);
+      ctx.globalAlpha = .16 * k; ctx.drawImage(g.flip ? rs.pf : rs.pn, rx, ry, rw, rh);
+      continue; }
     if (g.col === 'glitch') { ctx.globalAlpha = .85 * k; heroSlices(sp, snapF(g.x - (g.flip ? HERO_W - 26 : 26) * HK), snapF(g.y + 2 - h), g.flip, HK, (1 - k) * 12 + 1, k > .6); continue; }
     ctx.save(); ctx.translate(snapF(g.x), snapF(g.y + 2 - h / 2));
     if (g.rot !== undefined) { ctx.rotate(g.rot); ctx.scale(.85, .85); }

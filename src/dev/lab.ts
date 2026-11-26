@@ -18,7 +18,7 @@ import { RBDEF, rbs, reviveRB } from '../world/regionBoss';
 import { resetBoss, reviveWolf } from '../game/boss';
 import { makeUnique, makeUniqueGear } from '../data/items';
 import { UG, UQ, UQSIG } from '../data/uniques';
-import { effLines } from '../data/gear';
+import { LOAD_TIERS, effLines } from '../data/gear';
 import { toast } from '../ui/hud';
 import { openAll } from './test';
 import { collides } from '../game/collision';
@@ -39,9 +39,10 @@ export function startLab(startGame: (cont: boolean) => void) {
   panel();
 }
 
+let labLoad = -1;                                                       // -1 = 照裝備自動算；0~3 = 強制負重段位（方便在 ?lab 測輕盈 / 普通 / 沉重 / 超重翻滾）
 /* 打不死：每一幀補滿血、體力、藥水；真的倒下了（一擊超過最大生命）就馬上扶起來 */
 function god() {
-  const tick = () => { const pl = G.me; if (pl) { if (pl.dead) pl.dead = false; pl.hp = pl.maxHp; pl.st = pl.maxSt; pl.pot = Math.max(pl.pot, 3); } for (const e of bags) if (e.hp > 0) e.hp = e.maxHp; else bags.delete(e); requestAnimationFrame(tick); };
+  const tick = () => { const pl = G.me; if (pl) { if (pl.dead) pl.dead = false; pl.hp = pl.maxHp; pl.st = pl.maxSt; pl.pot = Math.max(pl.pot, 3); if (labLoad >= 0) pl.loadTier = labLoad; } for (const e of bags) if (e.hp > 0) e.hp = e.maxHp; else bags.delete(e); requestAnimationFrame(tick); };
   tick();
 }
 
@@ -130,6 +131,7 @@ function panel() {
   <button type="button" tabindex="-1" data-a="clear">清掉怪</button>
   <span class="sep"></span>
   <select class="b" tabindex="-1">${BUILDS.map(([k, n]) => `<option value="${k}">${n}</option>`).join('')}</select>
+  <select class="ld" tabindex="-1"><option value="-1">負重：自動</option>${LOAD_TIERS.map((T, i) => `<option value="${i}">負重：${T.n}（滾速 ${Math.round(T.rollSpd * 100)}% / 硬直 ${T.roll}s）</option>`).join('')}</select>
   <select tabindex="-1" class="boss"><option value="">去 Boss 前…</option>${(() => { const L = bossList(), G2 = ['主線 Boss', '區域 Boss', '地城 Boss'];
     return G2.map(g => `<optgroup label="${g}">` + L.filter(b => b.group === g).map(b => `<option value="${b.id}">${b.name}</option>`).join('') + '</optgroup>').join(''); })()}</select>
   <span class="sep"></span>
@@ -147,6 +149,7 @@ function panel() {
   });
   const sel = bar.querySelector<HTMLSelectElement>('select.w'); sel.addEventListener('change', () => { setWeapon(sel.value, fxOf(G.me.weapon) || ''); sel.blur(); });
   const bs = bar.querySelector<HTMLSelectElement>('select.b'); bs.addEventListener('change', () => { setBuild(bs.value); bs.blur(); });
+  const lds = bar.querySelector<HTMLSelectElement>('select.ld'); lds.addEventListener('change', () => { labLoad = Number(lds.value); if (labLoad < 0) { recalc(G.me); toast('負重恢復依裝備計算（目前：' + LOAD_TIERS[G.me.loadTier ?? 1].n + '）', '#c8a8ff'); } else { G.me.loadTier = labLoad; const T = LOAD_TIERS[labLoad]; toast('負重強制切為「' + T.n + '」：' + T.d + '（站穩 ' + T.roll + ' 秒）', T.c, true); } lds.blur(); });
   const bo = bar.querySelector<HTMLSelectElement>('select.boss'); bo.addEventListener('change', () => { if (bo.value) toBoss(bo.value); bo.value = ''; bo.blur(); });   // 選完回到「去 Boss 前…」，同一隻可以再選一次
   refresh();
 }

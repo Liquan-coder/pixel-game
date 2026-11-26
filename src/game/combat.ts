@@ -640,14 +640,21 @@ export function tryDodge(pl: Player) {                                          
   if (pl.dodge > 0 || pl.drink > 0 || pl.dash || pl.dead) return;
   const C = ACLS[pl.acls] || ACLS.medium, cost = Math.round((20 + C.dodgeSt) * (1 - ((pl.tfx && pl.tfx.dodgeSave) || 0) / 100));   // 敏捷：翻滾省體力        // 防具類型：輕甲省體力、閃得遠；重甲相反
   if (!canDodge(pl, cost)) return;                                       // 體力要付得起、還沒站穩不能再滾（game/builds.ts）
-  const rec = pl.ride ? 0 : LOAD_TIERS[pl.loadTier ?? 1].roll, dur = pl.ride ? WOLF_T : ROLL_T;
+  const LT = LOAD_TIERS[pl.loadTier ?? 1];
+  const rec = pl.ride ? 0 : LT.roll, dur = pl.ride ? WOLF_T : LT.rollT;
   stopCharge(pl); spendSt(pl, cost); dodgeStarted(pl, cost, pl.ride ? WOLF_CD : dur + rec); const m = Math.hypot(input.mx, input.my);
-  const a = m > .2 ? Math.atan2(input.my, input.mx) : pl.face, sp = pl.ride ? 520 * C.dodgeMul * WOLF_DASH : 185 * C.dodgeMul;   // 翻滾約 55px（中甲）；騎著星狼：往前撲
+  const a = m > .2 ? Math.atan2(input.my, input.mx) : pl.face, sp = pl.ride ? 520 * C.dodgeMul * WOLF_DASH : 185 * C.dodgeMul * LT.rollSpd;   // 負重越重：翻滾越慢且滾得越短；騎著星狼：往前撲
   pl.dodge = dur; pl.rollD = pl.ride ? 0 : dur; pl.rollRecD = rec; pl.cutSet = null; pl.iframe = Math.max(pl.iframe, pl.ride ? .3 : ROLL_IF); pl.dvx = Math.cos(a) * sp; pl.dvy = Math.sin(a) * sp;
   if (!pl.ride) { pl.face = a; updFlip(pl); }                            // 往哪邊滾就面向哪邊
   if (pl.tfx && pl.tfx.dodgeAtk) pl.dodgeAtkT = G.time + 1.5; pl.skillLock = 0; pl.timers = []; pl.lunge = null; pl.wheelT = 0;
   if (pl.swing && pl.swing.anim && pl.swing.t < pl.swing.wu) { pl.swing = null; for (let i = G.fx.length - 1; i >= 0; i--) if (G.fx[i].k === 'smear' && G.fx[i].follow === pl && G.fx[i].t < (G.fx[i].delay || 0)) G.fx.splice(i, 1); }   // 預備中翻滾 = 取消這一刀
-  if (pl.ride) wolfDashFx(pl); else { dustPuff(pl.x, pl.y, 5, 24); sfx.dodge(); }   // 起跳揚塵
+  if (pl.ride) wolfDashFx(pl); else {                                    // 起跳：往反方向踢起揚塵 + 俐落風線 + 小星光
+    const back = a + Math.PI;
+    for (let i = 0; i < 6; i++) { const da = back + rr(-.7, .7), v = rr(18, 46); G.parts.push({ x:pl.x + rr(-3, 3), y:pl.y + rr(-1, 1), vx:Math.cos(da) * v, vy:Math.sin(da) * v * .6 - rr(4, 14), life:rr(.22, .38), max:.38, col:pick(['#b8a888', '#8a7a64', '#d8ccb0']), s:1, g:45, drag:3.5 }); }
+    for (let i = 0; i < 3; i++) G.fx.push({ k:'aline', x:pl.x + rr(-4, 4), y:pl.y - 5 + rr(-5, 5), a:back + rr(-.12, .12), len:rr(9, 15), t:0, d:.13, col:i === 0 ? '#f0cd87' : '#e8dcff' });
+    for (let i = 0; i < 2; i++) { const da = back + rr(-.6, .6), v = rr(22, 52); G.parts.push({ x:pl.x + rr(-3, 3), y:pl.y - rr(4, 11), vx:Math.cos(da) * v, vy:Math.sin(da) * v * .7, life:rr(.18, .3), max:.3, col:i ? '#f0cd87' : '#e8dcff', star:rr(.7, 1.3), drag:4 }); }
+    sfx.dodge();
+  }
 }
 export function tryPot(pl: Player) {
   if (pl.pot <= 0 || busy(pl)) { if (pl.pot <= 0) toast('藥水用完了，回營火休息可以補滿', '#ff8a8a'); return; }

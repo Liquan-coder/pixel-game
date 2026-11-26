@@ -999,9 +999,10 @@ const pageScript = async () => {
     const st1 = G.me.st; C.tryDodge(G.me); if (G.me.st !== st1) throw new Error('還沒站穩又滾了一次');
     step(15); if (!(G.me.st < st1)) throw new Error('還沒站穩時按的翻滾，時間到沒有自動滾');
     step(40);
-    // 負重越重，站穩越久：輕盈 0.1 秒、超重 0.4 秒
-    for (const [t, want] of [[0, .1], [3, .4]]) { G.me.loadTier = t; G.me.dodgeReady = 0; G.me.st = G.me.maxSt; C.tryDodge(G.me);
-      if (G.me.rollRecD !== want) throw new Error('負重第 ' + t + ' 段的站穩時間應該是 ' + want + '：' + G.me.rollRecD); step(60); }
+    // 負重越重，翻滾越慢、站穩也越久：輕盈 0.24s 滾 + 0.1s 站穩、超重 0.48s 滾 + 0.4s 站穩
+    for (const [t, wantRec, wantDur] of [[0, .1, .24], [3, .4, .48]]) { G.me.loadTier = t; G.me.dodgeReady = 0; G.me.st = G.me.maxSt; C.tryDodge(G.me);
+      if (G.me.rollRecD !== wantRec) throw new Error('負重第 ' + t + ' 段的站穩時間應該是 ' + wantRec + '：' + G.me.rollRecD);
+      if (Math.abs(G.me.rollD - wantDur) > .001) throw new Error('負重第 ' + t + ' 段的翻滾時間應該是 ' + wantDur + '：' + G.me.rollD); step(60); }
     recalc(G.me);
     step(30);
     // 完美閃避：翻滾後 0.18 秒內被打 → 沒受傷、體力退回、下一擊必定暴擊
