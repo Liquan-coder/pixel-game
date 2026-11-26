@@ -65,10 +65,14 @@
   1. 開工：`scripts/session.sh <名字>`（例如 `seals`），之後所有讀寫、指令都在 `.worktrees/<名字>` 裡；開發伺服器照它印的 `npm run dev -- --port <port> --strictPort` 背景跑
   2. 改完 → 測試（見下面）→ 在自己的資料夾裡 commit（`git commit -a` 就好，裡面只有自己的東西）
   3. 請使用者在 `localhost:<自己的 port>` 試玩 → 使用者說 OK
+     - **叫使用者試玩前，先確認伺服器送的是新程式**：`curl -s localhost:<port>/src/<改過的檔案>.ts | grep <新加的字>`。`scripts/look.mjs` 每次自己開新的伺服器，它看到新東西不代表使用者那台也是新的
+     - 送的是舊檔案 → 重開伺服器：`npm run dev -- --port <port> --strictPort --force`
+     - 改了 `vite.config.js` 也要重開伺服器才會生效
   4. `scripts/land.sh '<相關的測試>'` 併進 main（衝突會停下來，自己解）
   5. 使用者說可以 push → 在主資料夾（`main`）照下面「push 前」檢查 → `git push`
   6. 這件事做完就 `scripts/session.sh end <名字>`
 - 主資料夾（`localhost:5173`）= 已經併進 main 的版本，只用來 land、push、試玩整合後的結果。
+- `vite.config.js` 的 `watch.ignored` 只忽略**主資料夾底下的** `.worktrees`（用絕對路徑）。不要寫成 `'**/.worktrees/**'`：worktree 自己的路徑裡也有 `.worktrees`，它的伺服器會連自己的改動都看不到，使用者重新整理也還是舊的（2026-11-27 踩過）。
 - **不用每改一次就測，照這個節奏**：
   | 什麼時候 | 跑什麼 |
   |---|---|
