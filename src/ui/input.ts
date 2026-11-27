@@ -1,5 +1,5 @@
 import { G } from '../core/state';
-import { iso } from '../render/isoState';
+import { iso, three } from '../render/isoState';
 import { $ } from '../core/util';
 import { held, input, joy, keys, pressed } from '../game/player';
 import { initAudio } from '../core/audio';
@@ -67,7 +67,7 @@ export function readInput() {
   let mx = (keys.right ? 1 : 0) - (keys.left ? 1 : 0), my = (keys.down ? 1 : 0) - (keys.up ? 1 : 0);
   const jm = Math.hypot(joy.dx, joy.dy); if (jm > .18) { mx += joy.dx; my += joy.dy; }
   const m = Math.hypot(mx, my); if (m > 1) { mx /= m; my /= m; }
-  if (iso.on && iso.mode === 'dia') { const r = Math.SQRT1_2, wx = (mx + my) * r, wy = (my - mx) * r; mx = wx; my = wy; }   // 斜視角 demo：推「上」= 往畫面上方走（世界的左上）
+  if ((iso.on && iso.mode === 'dia') || three.on) { const r = Math.SQRT1_2, wx = (mx + my) * r, wy = (my - mx) * r; mx = wx; my = wy; }   // 斜視角 demo：推「上」= 往畫面上方走（世界的左上）
   input.mx = mx; input.my = my;
   if (pressed.inv) toggleInv();
   if (pressed.map) toggleMap();

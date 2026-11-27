@@ -34,7 +34,8 @@ import { drawPfx } from './pfx';
 import { drawSandstorm } from './sand';
 import { drawLost, drawLostBeam } from './lostMark';
 import { gZ } from '../world/elev';
-import { perf } from './isoState';
+import { perf, three } from './isoState';
+import { captureEnts, drawThree } from './three3d';
 import { dep, drawIsoGround, flat, iso, isoCam, isoWorldList, scrAng, sX, sY, upright } from './iso';
 
 export const view = { x: 0, y: 0 };                                  // 畫面左上角在世界的哪裡（給 HTML 介面對齊用）
@@ -51,13 +52,15 @@ function renderInner() {
   const maxX = Math.max(0, MW * TS - LW), maxY = Math.max(0, MH * TS - LH);
   view.x = clamp(cam.x, 0, maxX); view.y = clamp(cam.y, 0, maxY);
   const cx = snapF(clamp(cam.x + sx, 0, maxX)), cy = snapF(clamp(cam.y + sy, 0, maxY));   // 對齊實體像素，跟角色同一個格子，畫面不會一格一格跳
-  ctx.fillStyle = '#07060b'; ctx.fillRect(0, 0, LW, LH);
-  if (iso.on) { isoCam(sx, sy, ck); drawIsoGround(); ctx.setTransform(F, 0, 0, F, 0, 0); }   // 斜視角 demo（render/iso.ts）
+  const T3 = three.on && !iso.on;                                         // three.js 模式（render/three3d.ts）：2D 畫布只畫「貼在地上的東西」，地形和角色交給 3D
+  if (T3) ctx.clearRect(0, 0, LW, LH); else { ctx.fillStyle = '#07060b'; ctx.fillRect(0, 0, LW, LH); }
+  if (T3) {}
+  else if (iso.on) { isoCam(sx, sy, ck); drawIsoGround(); ctx.setTransform(F, 0, 0, F, 0, 0); }   // 斜視角 demo（render/iso.ts）
   else for (let gy = Math.floor(cy / CPX); gy <= Math.floor((cy + LH) / CPX); gy++) for (let gx = Math.floor(cx / CPX); gx <= Math.floor((cx + LW) / CPX); gx++) {
     if (gx < 0 || gy < 0 || gx * CH >= MW || gy * CH >= MH) continue;
     ctx.drawImage(getChunk(gx, gy), gx * CPX - cx, gy * CPX - cy, CPX, CPX);
   }
-  if (!iso.on) prefetchChunks(cx, cy);
+  if (!iso.on && !T3) prefetchChunks(cx, cy);
   ctx.save(); if (iso.on) flat(); else ctx.translate(-cx, -cy);
   const vis = iso.on ? (x, y, m = 40) => { const px = sX(x, y), py = sY(x, y); return px > -m && px < LW + m && py > -m && py < LH + m * 2; }
     : (x, y, m = 40) => x > cx - m && x < cx + LW + m && y > cy - m && y < cy + LH + m;
@@ -70,16 +73,16 @@ function renderInner() {
     if (t === WATER) { const ph = (x * 7 + y * 13) % 20, k = Math.floor(G.time * 3 + ph) % 20; if (k < 3) { const q = HK; ctx.fillStyle = '#b8dcff'; ctx.fillRect(x * TS + (ph % 11) + k, y * TS + 5 + (ph % 7), 7 * q, q); ctx.fillStyle = '#ffffff'; ctx.fillRect(x * TS + (ph % 11) + k + 2 * q, y * TS + 5 + (ph % 7), 2 * q, q); } }
     else if (t === LAVA) { lavaT.push(x, y); const ph = (x * 5 + y * 11) % 17, k = Math.floor(G.time * 2 + ph) % 17; if (k < 2) { const q = HK, bx = x * TS + 4 + (ph % 7), by = y * TS + 6 + (ph % 5) - k; ctx.fillStyle = '#ffd27a'; ctx.fillRect(bx, by, 5 * q, 4 * q); ctx.fillStyle = '#fff4c0'; ctx.fillRect(bx + q, by + q, 2 * q, q); ctx.fillStyle = '#b03c18'; ctx.fillRect(bx + 2 * q, by + 2 * q, 2 * q, q); } }
   }
-  for (const t of torches) if (vis(t.x, t.y, 80)) { if (iso.on) upright(t.x, t.y); flame(t.x, t.y, 4, t.ph); addLight(L, t.x, t.y + 4, 74 + Math.sin(G.time * 11 + t.ph) * 3, 1); }
+  for (const t of torches) if (vis(t.x, t.y, 80)) { if (iso.on) upright(t.x, t.y); if (!T3) flame(t.x, t.y, 4, t.ph); addLight(L, t.x, t.y + 4, 74 + Math.sin(G.time * 11 + t.ph) * 3, 1); }
   for (const s of glows) if (vis(s.x, s.y, 50)) {
     const p = .5 + .5 * Math.sin(G.time * 2 + s.ph), x = Math.round(s.x), y = Math.round(s.y);
-    if (iso.on) upright(s.x, s.y); drawArtSprite(GLOW_SP[p > .5 ? 1 : 0], s.x, s.y + 1);
+    if (iso.on) upright(s.x, s.y); if (!T3) drawArtSprite(GLOW_SP[p > .5 ? 1 : 0], s.x, s.y + 1);
     addLight(L, s.x, s.y - 2, 34 + p * 6, 2);
   }
   for (const b of braziers) if (vis(b.x, b.y, 80)) {
     const x = Math.round(b.x), y = Math.round(b.y);
-    if (iso.on) upright(x, y); drawShadow(x, y + 1, 12); drawArtSprite(BRAZ_SP, x, y + 1);
-    flame(x - 2.5, y - 6, 5, 4); flame(x + 2.5, y - 6, 6, 5); flame(x, y - 6.5, 9, 6);
+    if (iso.on) upright(x, y); if (!T3) { drawShadow(x, y + 1, 12); drawArtSprite(BRAZ_SP, x, y + 1);
+    flame(x - 2.5, y - 6, 5, 4); flame(x + 2.5, y - 6, 6, 5); flame(x, y - 6.5, 9, 6); }
     addLight(L, b.x, b.y - 8, 68 + Math.sin(G.time * 10 + b.x) * 3, 1);
   }
   if (iso.on) flat();
@@ -127,7 +130,10 @@ function renderInner() {
     if (pl.dash) addLight(L, pl.x, pl.y - 8, 50, 3);
     list.push({ x:pl.x, y:pl.y, o:pl, f:() => { drawPlayer(pl); drawStatus(pl); } });   // 身上的冰塊、星星、藤蔓、累積條（game/status.ts）
   }
-  if (iso.on) {                                                          // 斜視角：依 x + y 排前後；有腳底座標的站著畫，沒有的貼在地上
+  if (T3) {                                                             // three.js：有腳底座標的擷取成 3D 紙片，其他的貼在地上
+    const up = list.filter(it => it.x !== undefined); list.sort((a, b) => a.y - b.y); for (const it of list) if (it.x === undefined) it.f();
+    captureEnts(up);
+  } else if (iso.on) {                                                          // 斜視角：依 x + y 排前後；有腳底座標的站著畫，沒有的貼在地上
     for (const it of list) it.k = it.x !== undefined ? dep(it.x, it.y) + (it.o?.z || gZ(it.x, it.y)) + 2 : dep(G.me.x, it.y);   // 站在高台上 → 排在高台那幾格後面（腳才不會被地面蓋住）
     isoWorldList(list); list.sort((a, b) => a.k - b.k);
     for (const it of list) { if (it.y === undefined) { it.f(); continue; } if (it.x === undefined) { flat(); it.f(); continue; } isoUp(it); }
@@ -170,6 +176,7 @@ function renderInner() {
       G.parts.push({ x:mx + rr(-3, 3), y:my + rr(-3, 3), vx:rr(10, 30), vy:-rr(20, 60), life:.3, max:.3, col:pick(f.cols ? [f.cols[1], f.cols[2], '#5a5054'] : ['#ffb040', '#ff6a2a', '#5a5054']), s:2 }); addLight(L, mx, my, 40, 1); }
     else if (f.k === 'rghost') { const rg = rigOf(f.kind), sp = rg ? rg.body : SPR[f.kind], w = sp.w, h = sp.h, fl = rg?.spec.mirror ? !f.flip : f.flip; /* 有骨架的 Boss：殘影只畫身體 */ ctx.globalAlpha = .45 * (1 - k); ctx.drawImage(fl ? sp.rf : sp.rn, snapF(f.x - w / 2), snapF(f.y + 2 - h), w, h); }
     else if (f.k === 'bghost') { const sp = SPR.boss, w = sp.w, h = sp.h; ctx.globalAlpha = .5 * (1 - k); ctx.drawImage(f.flip ? sp.rf : sp.rn, snapF(f.x - w / 2), snapF(f.y + 2 - h), w, h); }
+    else if (f.k === 'flash' && T3) continue;
     else if (f.k === 'flash') { ctx.globalAlpha = f.a * (1 - k); ctx.fillStyle = f.col; if (iso.on) { ctx.setTransform(F, 0, 0, F, 0, 0); ctx.fillRect(0, 0, LW, LH); flat(); } else ctx.fillRect(cx, cy, LW, LH); }
     else if (f.k === 'arc') drawSmear({ x:f.x, y:f.y, a0:f.a - f.arc / 2, a1:f.a + f.arc / 2, r:f.r, w:Math.min(12, f.r * .3), sw:f.d * .35, hold:f.d * .65, t:f.t, cols:fxCols(f.col), sy:.8 });
     else if (f.k === 'ring') { if (f.delay) ctx.globalAlpha = 1; drawWarp({ x:f.x, y:f.y, r0:f.r0, r1:f.r1, th:3, sy:.6, col:f.col, t:f.t, d:f.d, delay:f.delay }, k);
@@ -206,6 +213,12 @@ function renderInner() {
 
   const RG = regionLook(regAt(G.me.x, G.me.y));                       // 主線 Boss 倒下的地區，天色亮一點（game/quest.ts）
   light.amb += (RG.amb - light.amb) * .03; for (let k = 0; k < 3; k++) light.t[k] += (RG.tint[k] - light.t[k]) * .03;
+  if (T3) {                                                             // three.js：傷害數字畫在地面貼花上，然後交給 3D 畫整個畫面
+    if (SET.nums) for (const n of G.nums) { const k = n.t / n.d, rise = 1 - (1 - Math.min(1, k * 2.2)) ** 2; ctx.globalAlpha = k > .7 ? Math.max(0, 1 - (k - .7) / .3) : 1; drawNum(n.txt, n.x - cx, n.y - cy - rise * 10, n.col, n.big ? 4 / 3 : 1); }
+    ctx.globalAlpha = 1;
+    drawThree(cx, cy, L, light.amb, light.t, G.region);
+    return;
+  }
   if (G.region === 'forest' || light.amb > .25) {
     for (let i = 0; i < 5 && G.region === 'forest'; i++) { const span = LW + 160; const mx = ((i * 137 + G.time * (6 + i * 2) * (i % 2 ? 1 : -1) - cx * .3) % span + span) % span - 80, my = ((i * 61 - cy * .3) % LH + LH) % LH;
       const g = ctx.createRadialGradient(mx, my, 0, mx, my, 80); g.addColorStop(0, 'rgba(205,220,225,.1)'); g.addColorStop(1, 'rgba(205,220,225,0)'); ctx.fillStyle = g; ctx.fillRect(mx - 80, my - 80, 160, 160); }

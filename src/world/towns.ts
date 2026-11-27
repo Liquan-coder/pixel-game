@@ -134,7 +134,7 @@ export function updateNPCs() {
 }
 export function drawNPCs(vis, list) {
   for (const n of NPCS) { if (!vis(n.x, n.y)) continue;
-    list.push({ y: n.y, f: () => { const bob = Math.floor(G.time * 2 + n.dx) % 2 ? HK : 0, c = ART[n.look];
+    list.push({ x: n.x, y: n.y, f: () => { const bob = Math.floor(G.time * 2 + n.dx) % 2 ? HK : 0, c = ART[n.look];
       drawShadow(n.x, n.y + 1, 10);
       drawFlip(c, n.x, n.y + 3 - bob, n.flip);
       if (n.look === 'carto' && fragsHeld().length) drawScroll(n.x, n.y - 30 + Math.sin(G.time * 4) * 1.5); } }); }   // 身上有殘頁：製圖師頭上浮一張小地圖

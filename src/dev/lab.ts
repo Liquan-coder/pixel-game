@@ -6,7 +6,8 @@
    · **不會存檔**（G.lab = true 時 game/save.ts 的 save / clearSave 什麼都不做），你的存檔格完全不動
    只有開發模式（npm run dev）才會載入這個檔案（main.ts 用 import.meta.env.DEV 判斷），上線的版本裡沒有它。 */
 import { G } from '../core/state';
-import { iso, perf } from '../render/isoState';
+import { iso, perf, three } from '../render/isoState';
+import { setThreeVisible } from '../render/three3d';
 import { rr } from '../core/util';
 import { INV_MAX, WT, makeSeal, makeWeapon } from '../data/items';
 import { SEAL_COST } from '../data/forge';
@@ -55,7 +56,7 @@ function setWeapon(type: string, fx: string) {
 const near = (d: number) => { const a = rr(0, Math.PI * 2); return [G.me.x + Math.cos(a) * d, G.me.y + Math.sin(a) * d]; };
 function add(kind: string, x: number, y: number, sp = FOE) { const e = makeEnemy(kind, 3, x, y, sp); G.enemies.push(e); return e; }
 /* 一群小怪擠在一起：雷鳴要旁邊有別的怪才會跳電；噬魂要打死才看得到魂飛回來 */
-const ISON = () => '視角：' + (!iso.on ? '俯視' : iso.mode === 'dia' ? '45°' : '正面');
+const ISON = () => '視角：' + (three.on ? '3D' : !iso.on ? '俯視' : iso.mode === 'dia' ? '45°' : '正面');
 function pack() { const [cx, cy] = near(70); for (let i = 0; i < 5; i++) add(i % 2 ? 'wolf' : 'slime', cx + rr(-14, 14), cy + rr(-14, 14)); }
 function elite() { const [x, y] = near(70); add('skel', x, y, { ...FOE, elite: true } as any); }
 /* 沙包：打不死（每一幀補滿血），用來看累積圖示慢慢變滿、爆發、凍成冰塊、身上一直燒 */
@@ -152,7 +153,8 @@ function panel() {
     if (b.dataset.fx !== undefined && !G.me.weapon.uq) setWeapon(G.me.weapon.type, b.dataset.fx);   // 獨特武器不能裝刻印
     const a = b.dataset.a;
     if (a === 'pack') pack(); else if (a === 'elite') elite(); else if (a === 'bag') sandbag(); else if (a === 'brute') brute(); else if (a === 'clear') clearFoes(); else if (a === 'smith') smith();
-    else if (a === 'iso') { if (!iso.on) { iso.on = true; iso.mode = 'dia'; } else if (iso.mode === 'dia') iso.mode = 'front'; else iso.on = false;   // 俯視 → 45° → 正面 → 俯視
+    else if (a === 'iso') { if (three.on) three.on = false; else if (!iso.on) { iso.on = true; iso.mode = 'dia'; } else if (iso.mode === 'dia') iso.mode = 'front'; else { iso.on = false; three.on = true; }   // 俯視 → 45° → 正面 → 3D → 俯視
+      setThreeVisible(three.on);
       iso.init = false; b.classList.toggle('on', iso.on); b.textContent = ISON(); toast('視角：' + ISON().replace('視角：', ''), '#c8a8ff'); }
     else if (a === 'min') { bar.classList.toggle('min'); b.textContent = bar.classList.contains('min') ? '＋' : '－'; }
   });

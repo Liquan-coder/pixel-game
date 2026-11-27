@@ -112,7 +112,7 @@ export function readTablet(t) {
 $('loreMenu').addEventListener('click', e => { const b = (e.target as HTMLElement).closest('button'); if (b && b.hasAttribute('data-close')) setMenu(null); });
 export function drawTablets(vis, list, L, addLight) {
   for (const t of TAB) { if (!vis(t.x, t.y)) continue;
-    list.push({ y: t.y, f: () => { drawShadow(t.x, t.y + 1, 9); drawArtSprite(STONE, t.x, t.y + 3);
+    list.push({ x: t.x, y: t.y, f: () => { drawShadow(t.x, t.y + 1, 9); drawArtSprite(STONE, t.x, t.y + 3);
       if (!loreRead.has(t.id)) { const k = (G.time * .8 + t.tx) % 1; ctx.globalAlpha = 1 - k; ctx.fillStyle = '#9ac8ff'; ctx.fillRect(snapF(t.x - HK), snapF(t.y - 14 - k * 8), HK * 2, HK * 2); ctx.globalAlpha = 1; } } });
     addLight(L, t.x, t.y - 6, loreRead.has(t.id) ? 14 : 22, 2); }
 }

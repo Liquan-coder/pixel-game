@@ -123,7 +123,7 @@ const ART = starStatue();                                           // 鑿刻風
 export function drawStatues(vis, list, L, addLight) {
   for (const s of STATUES) { if (!vis(s.x, s.y, 240)) continue; const lit = statueLit(s), orbX = s.x + (STATUE_ORB[0] - STATUE_W / 2) * HK, orbY = s.y + 2 - (STATUE_H - STATUE_ORB[1]) * HK;   // 舉起來的那顆星星
     if (!flags.has('seen:s' + s.k) && vis(s.x, s.y, -20)) flags.add('seen:s' + s.k);                     // 在畫面上看到了 → 地圖上記下來
-    list.push({ y: s.y, f: () => { drawShadow(s.x, s.y + 1, 22); drawArtSprite(ART, s.x, s.y + 2);
+    list.push({ x: s.x, y: s.y, f: () => { drawShadow(s.x, s.y + 1, 22); drawArtSprite(ART, s.x, s.y + 2);
       const p = .6 + .4 * Math.sin(G.time * 3 + s.k);
       ctx.globalAlpha = lit ? 1 : .35 + .25 * p; ctx.fillStyle = lit ? '#ffe38a' : '#8a84a0';                       // 捧著的星星
       for (const [dx, dy, w, h] of [[-1, -3, 2, 6], [-3, -1, 6, 2], [-.5, -.5, 1, 1]]) ctx.fillRect(snapF(orbX + dx), snapF(orbY + dy), w, h);

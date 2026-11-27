@@ -85,7 +85,7 @@ export function drawAltar(vis, list, L, addLight) {
   if (el && !el.hidden && openMenu !== 'end') el.hidden = true;          // 按 Esc / 開別的選單 → 結局畫面跟著關掉
   if (!ALTAR.placed || !vis(ALTAR.x, ALTAR.y, 260)) return;
   const n = cores(), ready = endingReady(), done = endingsSeen().length > 0, x = ALTAR.x, y = ALTAR.y, top = y + 2 - 72 * HK + 26 * HK;
-  list.push({ y, f: () => { drawShadow(x, y + 1, 18); drawArtSprite(ART, x, y + 2);
+  list.push({ x, y, f: () => { drawShadow(x, y + 1, 18); drawArtSprite(ART, x, y + 2);
     const t = G.time * (ready ? .9 : .25), cy = top - 7;
     ctx.globalAlpha = .85; ctx.strokeStyle = ready ? '#f2c14e' : '#8a7a5a'; ctx.lineWidth = HK * 2;
     for (const [rx, ry, ph] of [[8, 3, 0], [7, 7, t], [3.5, 8, -t]] as const) { ctx.beginPath(); ctx.ellipse(x, cy, Math.abs(rx * Math.cos(ph)) + 1, ry, 0, 0, TAU); ctx.stroke(); }   // 渾天儀的三個環

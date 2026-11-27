@@ -472,3 +472,16 @@ export function bakeObjectHD(g, tx, ty, x, y) {
   else if (t === BIGT && tileAt(tx - 1, ty) !== BIGT && tileAt(tx, ty + 1) !== BIGT) {
     const B = r === 8 ? SCN.bigE : SCN.big; shadowEll(g, x + TA, y + TA - 2, 70, 10, .3); g.drawImage(B, Math.round(x + TA - B.width / 2), Math.round(y + TA + 4 - B.height)); }
 }
+
+/** three.js 模式（render/three3d.ts）用：這一格的物件畫出來是哪一張圖。key 一樣 = 圖一樣，可以共用貼圖；沒有物件（或不是房子 / 大樹的錨點格）回傳 null */
+export function objectKey(tx: number, ty: number): string | null {
+  const i = ty * MW + tx, t = map[i], r = reg[i], h = hash2(tx, ty), jx = Math.round((h - .5) * 8);
+  if (t === TREE) return 'T' + r + '_' + Math.floor(h * SCN.trees[r].length) + '_' + jx;
+  if (t === ROCK) return 'R' + r + '_' + ((tx + ty) & 1);
+  if (t === PILLAR) return 'P' + r;
+  if (t === CRATE) return 'C';
+  if (t === GRAVE) return 'G' + ((tx + ty) & 1);
+  if (t === HOUSE) { const k = HOUSES.findIndex(h => h.tx === tx && h.ty + h.h - 1 === ty); return k >= 0 ? 'H' + k : null; }
+  if (t === BIGT && tileAt(tx - 1, ty) !== BIGT && tileAt(tx, ty + 1) !== BIGT) return 'B' + (r === 8 ? 'e' : '');
+  return null;
+}

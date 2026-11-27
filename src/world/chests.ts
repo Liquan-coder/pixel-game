@@ -156,9 +156,9 @@ export function drawChests(L, vis, addLight, list) {
       for (let i = 0; i < 22 + c.tier * 8; i++) G.parts.push({ x: c.x + rr(-7, 7), y: c.y - rr(0, 10), vx: rr(-20, 20), vy: -rr(20, 60), life: rr(.5, 1), max: 1, col: pick(cols), star: rr(.6, 1.8), drag: 2 });
       G.fx.push({ k: 'warp', x: c.x, y: c.y - 4, r0: 4, r1: 22, th: 2, delay: 0, t: 0, d: .35, col: cols[1] }); }
     const T = c.tier, closed = !c.opened, seal = closed && sealed(c);
-    if (seal) { list.push({ y: c.y, f: () => drawSealed(c) }); addLight(L, c.x, c.y - 6, 22, 3); continue; }
+    if (seal) { list.push({ x: c.x, y: c.y, f: () => drawSealed(c) }); addLight(L, c.x, c.y - 6, 22, 3); continue; }
     if (closed && T === 2) list.push({ y: c.y - 30, f: () => drawBeam(c) });
-    list.push({ y: c.y, f: () => {
+    list.push({ x: c.x, y: c.y, f: () => {
       const fade = c.opened && c.t > VANISH ? 1 - (c.t - VANISH) / (GONE - VANISH) : 1;
       if (closed && T) drawGround(c, T === 2 ? '#ffd04a' : '#7ac0ff', T === 2 ? 15 : 12);
       ctx.globalAlpha = fade; drawShadow(c.x, c.y + 1, 14);
