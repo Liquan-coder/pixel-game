@@ -54,7 +54,7 @@ function renderInner() {
   view.x = clamp(cam.x, 0, maxX); view.y = clamp(cam.y, 0, maxY);
   const cx = snapF(clamp(cam.x + sx, 0, maxX)), cy = snapF(clamp(cam.y + sy, 0, maxY));   // 對齊實體像素，跟角色同一個格子，畫面不會一格一格跳
   const T3 = three.on && !iso.on;                                         // three.js 模式（render/three3d.ts）：2D 畫布只畫「貼在地上的東西」，地形和角色交給 3D
-  if (T3) { ctx.clearRect(0, 0, LW, LH); threeCam(); } else { ctx.fillStyle = '#07060b'; ctx.fillRect(0, 0, LW, LH); }
+  if (T3) { ctx.clearRect(0, 0, LW, LH); threeCam(cam.x + LW / 2 + sx, cam.y + 8 + LH / 2 + sy); } else   // 原本的平滑鏡頭 + 震動 { ctx.fillStyle = '#07060b'; ctx.fillRect(0, 0, LW, LH); }
   if (T3) {}
   else if (iso.on) { isoCam(sx, sy, ck); drawIsoGround(); ctx.setTransform(F, 0, 0, F, 0, 0); }   // 斜視角 demo（render/iso.ts）
   else for (let gy = Math.floor(cy / CPX); gy <= Math.floor((cy + LH) / CPX); gy++) for (let gx = Math.floor(cx / CPX); gx <= Math.floor((cx + LW) / CPX); gx++) {

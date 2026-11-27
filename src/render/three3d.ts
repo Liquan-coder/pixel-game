@@ -204,12 +204,12 @@ export const ov = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };                // 世�
 const tmp = new THREE.Vector3();
 function scr(x: number, y: number) { tmp.set(x * U, 0, y * U).project(cam); return [(tmp.x + 1) / 2 * LW, (1 - tmp.y) / 2 * LH]; }
 export const ovX = (x: number, y: number) => ov.a * x + ov.c * y + ov.e, ovY = (x: number, y: number) => ov.b * x + ov.d * y + ov.f;
-/** 每一幀最先呼叫：鏡頭跟著玩家（對齊像素格子），算出 2D 疊圖的變換 */
-export function threeCam() {
+/** 每一幀最先呼叫：鏡頭對準 (wx, wy)（render.ts 傳原本平滑跟隨的鏡頭中心 + 震動），對齊像素格子，算出 2D 疊圖的變換 */
+export function threeCam(wx: number, wy: number) {
   if (!ready) init();
   const me = G.me, W = Math.round(LW * RS), H = Math.round(LH * RS);  // 畫面大小跟著原本的鏡頭範圍（LW × LH 世界像素）
   if (renderer.domElement.width !== W || renderer.domElement.height !== H) { renderer.setSize(W, H, false); cam.left = -LW * U / 2; cam.right = LW * U / 2; cam.top = LH * U / 2; cam.bottom = -LH * U / 2; cam.updateProjectionMatrix(); }
-  const T = snapV(new THREE.Vector3(me.x * U, .5, me.y * U));          // 鏡頭對準的點對齊像素格子：整個世界跟著整數像素移動，不會閃
+  const T = snapV(new THREE.Vector3(wx * U, .5, wy * U));              // 鏡頭對準的點對齊像素格子：整個世界跟著整數像素移動，不會閃。用平滑的鏡頭：第三段往前踏一步時世界不會跟著跳
   cam.position.copy(T).addScaledVector(CB, DIST); cam.updateMatrixWorld();
   const o = scr(0, 0), px1 = scr(100, 0), py1 = scr(0, 100);
   ov.a = (px1[0] - o[0]) / 100; ov.b = (px1[1] - o[1]) / 100; ov.c = (py1[0] - o[0]) / 100; ov.d = (py1[1] - o[1]) / 100; ov.e = o[0]; ov.f = o[1];
