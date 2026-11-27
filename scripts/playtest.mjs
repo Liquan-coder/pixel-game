@@ -48,7 +48,7 @@ const pageScript = async () => {
   const shop = await imp('ui/shop');
   const await0 = { chests: await imp('world/chests'), towns: await imp('world/towns'), quest: await imp('game/quest'), story: await imp('data/story'), map: await imp('world/map'), forge: await imp('data/forge'), fx: await imp('game/weaponFx'), items: await imp('data/items'), uq: await imp('data/uniques'), enemies: await imp('game/enemies'), status: await imp('game/status'), bt: await imp('game/bossTuning'), ai3: await imp('world/bossAI3'), puz2: await imp('world/puz2'), coll: await imp('game/collision'), pause: await imp('ui/pause'), puz: await imp('world/puzzles'), mech: await imp('world/bossMech'), statues: await imp('world/statues'), sight: await imp('world/sight'), ending: await imp('world/ending'), secrets: await imp('world/secrets'), cb: await imp('game/combat'), dboss: await imp('world/dungeonBoss') };
 
-  const imp0 = { pu: await imp('game/playerUpdate'), ai4: await imp('world/bossAI4'), status: await imp('game/status'), combat: await imp('game/combat'), dgb: await imp('world/dungeonBoss'), rig: await imp('art/bossRig'), anim: await imp('render/bossAnim'), save: await imp('game/save'), map: await imp('render/map'), dg: await imp('world/dungeons'), mount: await imp('game/mount'), input: await imp('ui/interact'), inp: await imp('ui/input'), hud: await imp('ui/hud'), title: await imp('ui/title') };
+  const imp0 = { pu: await imp('game/playerUpdate'), ai4: await imp('world/bossAI4'), status: await imp('game/status'), combat: await imp('game/combat'), dgb: await imp('world/dungeonBoss'), rig: await imp('art/bossRig'), anim: await imp('render/bossAnim'), save: await imp('game/save'), map: await imp('render/map'), dg: await imp('world/dungeons'), mount: await imp('game/mount'), input: await imp('ui/interact'), inp: await imp('ui/input'), hud: await imp('ui/hud'), title: await imp('ui/title'), iso: await imp('render/isoState'), t3: await imp('render/three3d') };
   const step = (n, opts = {}) => {
     for (let i = 0; i < n; i++) {
       if (opts.god && G.me) { G.me.hp = G.me.maxHp; G.me.st = G.me.maxSt; }
@@ -1483,6 +1483,23 @@ const pageScript = async () => {
     if (!G.lost || Math.hypot(G.lost.x - sx, G.lost.y - sy) > 1 || Math.hypot(G.lost.x - d.x, G.lost.y - d.y) < d.R + 8) throw new Error('死在 ' + d.short + ' 的結界裡，那包沒有放在外面：' + JSON.stringify(G.lost));
     log.push('  死在' + d.short + '的結界裡：那包在結界外 ' + Math.round(Math.hypot(G.lost.x - d.x, G.lost.y - d.y) - d.R) + ' px');
     G.lost = null;
+  });
+
+  run('3D 模式（three.js）：畫布對齊、效能計有數字、戰鬥移動不報錯', () => {
+    const { three, perf } = imp0.iso, { setThreeVisible } = imp0.t3;
+    three.on = true; setThreeVisible(true);
+    try {
+      perf.gl = 0; perf.calls = 0; perf.ents = 0;
+      input.mx = .6; input.my = .4; pressed.atk = true;
+      step(30, { god: true, atkEvery: 12 });
+      input.mx = 0; input.my = 0;
+      const cv = document.getElementById('cv'), cv3 = document.getElementById('cv3');
+      if (!cv3) throw new Error('沒有建立 #cv3 畫布');
+      if (cv3.style.width !== cv.style.width || cv3.style.height !== cv.style.height) throw new Error(`畫布尺寸沒對齊：cv3=${cv3.style.width}x${cv3.style.height} cv=${cv.style.width}x${cv.style.height}`);
+      if (!(perf.gl > 0)) throw new Error('perf.gl 沒有更新（一直是 0）');
+      if (!(perf.ents > 0) || !(perf.calls > 0)) throw new Error(`3D 沒有畫出東西：ents=${perf.ents} calls=${perf.calls}`);
+      log.push(`  3D：gl=${perf.gl.toFixed(2)}ms calls=${perf.calls} ents=${perf.ents} up=${perf.up.toFixed(4)}MB`);
+    } finally { three.on = false; setThreeVisible(false); }
   });
 
   const T = times.reduce((a, t) => a + t[1], 0);
