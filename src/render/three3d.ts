@@ -108,62 +108,94 @@ function placeBill(list: THREE.Mesh[], idx: number, tex: THREE.Texture, w: numbe
   return m;
 }
 
-/* ---------- 角色、怪：每一幀照原本的畫法畫到 2D 畫布角落，再複製進大圖（一張大圖只上傳一次） ----------
-   Mac 的 Chrome 把 2D 畫布搬進 3D 要繞回 CPU（約 1MB / 1ms），所以格子只開剛好裝得下的大小，大圖照當下的數量調整 */
-type Atlas = { S: number; fx: number; fy: number; cols: number; c: HTMLCanvasElement; g: CanvasRenderingContext2D; tex: THREE.CanvasTexture | null; n: number; pos: number[]; meshes: THREE.Mesh[] };
-const mkAtlas = (S: number, fx: number, fy: number, cols: number): Atlas => { const c = document.createElement('canvas'); return { S, fx, fy, cols, c, g: c.getContext('2d'), tex: null, n: 0, pos: [], meshes: [] }; };
-const SMALL = mkAtlas(72, 36, 58, 6), BIG = mkAtlas(160, 80, 140, 3);   // 一般角色 72×72 世界像素（腳底在 (36, 58)）；Boss 160×160
-const keep = document.createElement('canvas');
-let entCount = 0;
-/** render.ts 呼叫：把有腳底座標的東西（角色、怪、掉落物、營火…）擷取進大圖。2D 畫布上已經畫的東西先存起來，擷取完再放回去 */
+/* ---------- 角色、怪：攔截原本的畫法，直接變成 3D 的小方塊（不用每幀上傳圖） ----------
+   畫角色的程式幾乎只用 drawImage（貼一張事先畫好的圖）和 fillRect（色塊）。畫角色的時候把這兩個指令換掉：
+   不真的畫，而是記下「哪張圖、四個角在哪、透明度」，在 3D 裡用同一個位置畫出來。
+   每張圖只在第一次出現時上傳（走路的每一格、每把武器、每隻怪），之後每一幀只送位置 → 幾十 KB，不是幾百 MB。
+   攔不到的指令（少數的路徑、文字）照常畫在疊在上面的 2D 畫布，位置一樣對得上 */
+type Batch = { pos: number[]; uv: number[]; col: number[]; idx: number[]; tex: THREE.Texture; add: boolean };
+const texOf = new WeakMap<object, THREE.Texture>();
+const WHITE = (() => { const t = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); t.needsUpdate = true; return t; })();
+let batches = new Map<THREE.Texture, Batch>(), addBatches = new Map<THREE.Texture, Batch>();
+let entCount = 0, upBytes = 0;
+const cur = { x: 0, y: 0, ox: 0, oy: 0, q: 0, foot: new THREE.Vector3() };
+function texFor(img: any) {
+  let t = texOf.get(img); if (t) return t;
+  t = px(new THREE.CanvasTexture(img)); texOf.set(img, t); upBytes += (img.width * img.height * 4) || 0;   // 第一次見到這張圖：上傳一次
+  return t;
+}
+function cssColor(s: string): number[] | null {                         // '#rrggbb' 或 'rgba(r, g, b, a)' → [r, g, b, a]（0~1）
+  if (s[0] === '#' && s.length === 7) return [parseInt(s.slice(1, 3), 16) / 255, parseInt(s.slice(3, 5), 16) / 255, parseInt(s.slice(5, 7), 16) / 255, 1];
+  const m = s.match(/rgba?\(([^)]+)\)/); if (!m) return null; const v = m[1].split(',').map(Number); return [v[0] / 255, v[1] / 255, v[2] / 255, v.length > 3 ? v[3] : 1];
+}
+/** 一個四邊形：四個角是「這次 drawImage / fillRect 在 2D 畫布上的位置」，換成 3D 裡角色紙片上的位置 */
+function addQuad(tex: THREE.Texture, w: number, h: number, u0: number, v0: number, u1: number, v1: number, col: number[]) {
+  const m = ctx.getTransform(), add = ctx.globalCompositeOperation === 'lighter';
+  const map = add ? addBatches : batches; let B = map.get(tex);
+  if (!B) map.set(tex, B = { pos: [], uv: [], col: [], idx: [], tex, add });
+  const o = B.pos.length / 3, z = cur.q++ * .004;                         // 後畫的稍微往鏡頭靠：同一個角色身上的順序不會亂
+  for (const [x, y] of [[0, 0], [w, 0], [w, h], [0, h]]) {
+    const sx = (m.a * x + m.c * y + m.e) / F - cur.ox, sy = (m.b * x + m.d * y + m.f) / F - cur.oy;   // 相對腳底（世界像素，往下 = 正）
+    const p = cur.foot.clone().addScaledVector(CR, sx * U).addScaledVector(CU, -sy * U).addScaledVector(CB, z);
+    B.pos.push(p.x, p.y, p.z);
+  }
+  B.uv.push(u0, 1 - v0, u1, 1 - v0, u1, 1 - v1, u0, 1 - v1);
+  for (let k = 0; k < 4; k++) B.col.push(col[0], col[1], col[2], col[3] * ctx.globalAlpha);
+  B.idx.push(o, o + 2, o + 1, o, o + 3, o + 2);
+}
+const realFill = (x: number, y: number, w: number, h: number) => CanvasRenderingContext2D.prototype.fillRect.call(ctx, x, y, w, h);   // 原本的 fillRect（攔截時蓋在 ctx 自己身上，原本的還在 prototype）
+function shimDraw(img: any, ...a: number[]) {
+  const W = img.width, H = img.height; if (!W || !H) return;
+  let sx = 0, sy = 0, sw = W, sh = H, dx: number, dy: number, dw: number, dh: number;
+  if (a.length === 2) { dx = a[0]; dy = a[1]; dw = W; dh = H; } else if (a.length === 4) { dx = a[0]; dy = a[1]; dw = a[2]; dh = a[3]; } else { [sx, sy, sw, sh, dx, dy, dw, dh] = a; }
+  ctx.save(); ctx.translate(dx, dy);
+  addQuad(texFor(img), dw, dh, sx / W, sy / H, (sx + sw) / W, (sy + sh) / H, [1, 1, 1, 1]);
+  ctx.restore();
+}
+function shimFill(x: number, y: number, w: number, h: number) {
+  const c = typeof ctx.fillStyle === 'string' ? cssColor(ctx.fillStyle) : null;
+  if (!c) return realFill(x, y, w, h);                                    // 漸層之類的：照常畫在 2D 疊圖
+  ctx.save(); ctx.translate(x, y); addQuad(WHITE, w, h, 0, 0, 1, 1, c); ctx.restore();
+}
+/** render.ts 呼叫：畫有腳底座標的東西（角色、怪、掉落物、營火…）。2D 疊圖的變換先設成「腳底在畫面上的位置」，攔不到的指令也會畫在對的地方 */
 export function captureEnts(items: any[]) {
   if (!ready) init();
-  const t0 = performance.now();
+  const t0 = performance.now(); batches = new Map(); addBatches = new Map(); entCount = 0; cur.q = 0;
   items.sort((a, b) => a.y - b.y);
-  const isBig = (it: any) => it.o && (it.o === G.B || rbs.includes(it.o));
-  const groups: [Atlas, any[]][] = [[SMALL, items.filter(it => !isBig(it)).slice(0, 48)], [BIG, items.filter(isBig).slice(0, 6)]];
-  if (keep.width !== cv.width || keep.height !== cv.height) { keep.width = cv.width; keep.height = cv.height; }
-  const kg = keep.getContext('2d'); kg.clearRect(0, 0, keep.width, keep.height); kg.drawImage(cv, 0, 0);
-  ctx.save(); entCount = 0;
-  for (const [A, list] of groups) {
-    const n = list.length, cols = Math.max(1, Math.min(n, A.cols)), rows = Math.max(1, Math.ceil(n / A.cols)), P = A.S * F;
-    A.n = n; if (!n) continue;
-    if (A.c.width !== cols * P || A.c.height !== rows * P) { A.c.width = cols * P; A.c.height = rows * P; A.tex?.dispose(); A.tex = px(new THREE.CanvasTexture(A.c)); }
-    else A.g.clearRect(0, 0, A.c.width, A.c.height);
-    for (let k = 0; k < n; k++) { const it = list[k];
-      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, P, P);
-      ctx.setTransform(F, 0, 0, F, Math.round(F * (A.fx - it.x)), Math.round(F * (A.fy - it.y)));
+  ctx.save();
+  (ctx as any).drawImage = shimDraw; (ctx as any).fillRect = shimFill;
+  try {
+    for (const it of items) {
+      cur.x = it.x; cur.y = it.y; cur.ox = ovX(it.x, it.y); cur.oy = ovY(it.x, it.y);
+      snapV(cur.foot.set(it.x * U, 0, it.y * U).addScaledVector(CB, 1.2));   // 往鏡頭推一點：頭不會插進後面的牆
+      ctx.setTransform(F, 0, 0, F, Math.round(F * (cur.ox - it.x)), Math.round(F * (cur.oy - it.y)));
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
       const o = it.o, f0 = o?.face, fl0 = o?.flip;
       if (o) {                                                            // 面向、左右翻面換成「畫面上的方向」（鏡頭斜 45°）
         if (typeof f0 === 'number') o.face = scrAng(f0);
         if (G.players.includes(o)) { const c = Math.cos(o.face); if (c < -.1) o.flip = true; else if (c > .1) o.flip = false; }
         else { const wd = G.me.x - o.x, sd = (G.me.x - G.me.y) - (o.x - o.y); if (wd * sd < 0) o.flip = !o.flip; }
       }
-      it.f();
-      if (o) { o.face = f0; o.flip = fl0; }
-      A.g.drawImage(cv, 0, 0, P, P, (k % cols) * P, Math.floor(k / cols) * P, P, P);
-      A.pos[2 * k] = it.x; A.pos[2 * k + 1] = it.y;
+      try { it.f(); } finally { if (o) { o.face = f0; o.flip = fl0; } }
+      entCount++;
     }
-    A.tex.needsUpdate = true; entCount += n;
-  }
-  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); ctx.drawImage(keep, 0, 0);
-  ctx.restore();                                                          // 換回原本的變換（後面還要畫刀光、子彈）
+  } finally { delete (ctx as any).drawImage; delete (ctx as any).fillRect; ctx.restore(); }   // 拿掉攔截 → 回到 prototype 上原本的方法
   perf.f.cap = performance.now() - t0; perf.cap += (perf.f.cap - perf.cap) * .05; perf.ents = entCount;
 }
+const pool: THREE.Mesh[] = [];
 function placeEnts() {
-  for (const A of [SMALL, BIG]) {
-    const P = A.S * F, cols = Math.max(1, Math.min(A.n, A.cols)), AW = A.c.width, AH = A.c.height;
-    for (let k = 0; k < A.n; k++) {
-      let m = A.meshes[k];
-      if (!m) { m = new THREE.Mesh(quadGeo, new THREE.MeshLambertMaterial({ transparent: true, alphaTest: .5, side: THREE.DoubleSide, premultipliedAlpha: true })); scene.add(m); A.meshes[k] = m; }
-      const mat = m.material as THREE.MeshLambertMaterial;
-      if (!mat.map || mat.map.source !== A.tex.source) { mat.map = A.tex.clone(); mat.needsUpdate = true; }   // clone 共用同一份圖：整張大圖只上傳一次
-      mat.map.repeat.set(P / AW, P / AH); mat.map.offset.set((k % cols) * P / AW, 1 - (Math.floor(k / cols) + 1) * P / AH);
-      m.visible = true; m.scale.set(A.S * U, A.S * U, 1); m.quaternion.copy(cam.quaternion);
-      snapV(m.position.set(A.pos[2 * k] * U, 0, A.pos[2 * k + 1] * U).addScaledVector(CR, (A.S / 2 - A.fx) * U).addScaledVector(CU, (A.fy - A.S / 2) * U).addScaledVector(CB, 1.2));   // 腳底 → 紙片中心；往鏡頭推一點
-    }
-    for (let k = A.n; k < A.meshes.length; k++) A.meshes[k].visible = false;
+  let k = 0;
+  for (const B of [...batches.values(), ...addBatches.values()]) {
+    let m = pool[k];
+    if (!m) { m = new THREE.Mesh(new THREE.BufferGeometry(), null); m.frustumCulled = false; scene.add(m); pool[k] = m; }
+    const g = m.geometry; g.setAttribute('position', new THREE.Float32BufferAttribute(B.pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(B.uv, 2));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(B.col, 4)); g.setIndex(B.idx); g.computeVertexNormals();
+    const key = (B.add ? 'a' : 'n'); let mat = (m.userData[key + B.tex.id]) as THREE.Material;
+    if (!mat) mat = m.userData[key + B.tex.id] = B.add ? new THREE.MeshBasicMaterial({ map: B.tex, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, premultipliedAlpha: true })
+      : new THREE.MeshLambertMaterial({ map: B.tex, vertexColors: true, transparent: true, alphaTest: .02, side: THREE.DoubleSide, premultipliedAlpha: true });
+    m.material = mat; m.renderOrder = B.add ? 2 : 0; m.visible = true; k++;
   }
+  for (; k < pool.length; k++) pool[k].visible = false;
 }
 
 /* ---------- 疊在 3D 上面的 2D 畫布：預警圈、刀光、子彈、數字（不用上傳，直接蓋在上面） ----------
@@ -231,11 +263,10 @@ export function drawThree(cx: number, cy: number, L: any[], amb: number, tint: n
   pts.forEach((p, i) => { const n = near[i]; if (!n) { p.intensity = 0; return; }
     p.position.set(n.l.x * U, 1.1, n.l.y * U); p.color.setHex(cols[n.l.warm] ?? cols[0]); p.distance = n.l.r * U * 1.6; p.intensity = (n.l.warm ? 3 : 1.5) * (1.2 - day * .6); });
   const t1 = performance.now();
-  for (const A of [SMALL, BIG]) if (A.n && A.tex) renderer.initTexture(A.tex);   // 先上傳大圖（分開計時）
   const t2 = performance.now();
   renderer.render(scene, cam);
   const t3 = performance.now();
-  perf.f.up = t2 - t1; perf.f.gl = t3 - t2; perf.up += (perf.f.up - perf.up) * .05; perf.gl += (perf.f.gl - perf.gl) * .05;
+  perf.f.up = upBytes / 1e6; upBytes = 0; perf.f.gl = t3 - t2; perf.up += (perf.f.up - perf.up) * .05;   // up 改成「這一幀新上傳了幾 MB」 perf.gl += (perf.f.gl - perf.gl) * .05;
   perf.calls = renderer.info.render.calls;
 }
 export function setThreeVisible(on: boolean) { if (!ready) { if (on) init(); else return; } renderer.domElement.style.display = on ? '' : 'none'; }
