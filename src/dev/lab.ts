@@ -6,6 +6,7 @@
    · **不會存檔**（G.lab = true 時 game/save.ts 的 save / clearSave 什麼都不做），你的存檔格完全不動
    只有開發模式（npm run dev）才會載入這個檔案（main.ts 用 import.meta.env.DEV 判斷），上線的版本裡沒有它。 */
 import { G } from '../core/state';
+import { iso } from '../render/isoState';
 import { rr } from '../core/util';
 import { INV_MAX, WT, makeSeal, makeWeapon } from '../data/items';
 import { SEAL_COST } from '../data/forge';
@@ -135,6 +136,7 @@ function panel() {
   <select tabindex="-1" class="boss"><option value="">去 Boss 前…</option>${(() => { const L = bossList(), G2 = ['主線 Boss', '區域 Boss', '地城 Boss'];
     return G2.map(g => `<optgroup label="${g}">` + L.filter(b => b.group === g).map(b => `<option value="${b.id}">${b.name}</option>`).join('') + '</optgroup>').join(''); })()}</select>
   <span class="sep"></span>
+  <button type="button" tabindex="-1" data-a="iso" class="${iso.on ? 'on' : ''}">斜視角</button>
   <button type="button" tabindex="-1" data-a="smith">鐵匠・刻印</button>
   <button type="button" tabindex="-1" data-a="min" class="keep">－</button>`;
   document.body.appendChild(bar);
@@ -145,6 +147,7 @@ function panel() {
     if (b.dataset.fx !== undefined && !G.me.weapon.uq) setWeapon(G.me.weapon.type, b.dataset.fx);   // 獨特武器不能裝刻印
     const a = b.dataset.a;
     if (a === 'pack') pack(); else if (a === 'elite') elite(); else if (a === 'bag') sandbag(); else if (a === 'brute') brute(); else if (a === 'clear') clearFoes(); else if (a === 'smith') smith();
+    else if (a === 'iso') { iso.on = !iso.on; iso.init = false; b.classList.toggle('on', iso.on); toast(iso.on ? '斜視角 demo：開' : '斜視角 demo：關', '#c8a8ff'); }
     else if (a === 'min') { bar.classList.toggle('min'); b.textContent = bar.classList.contains('min') ? '＋' : '－'; }
   });
   const sel = bar.querySelector<HTMLSelectElement>('select.w'); sel.addEventListener('change', () => { setWeapon(sel.value, fxOf(G.me.weapon) || ''); sel.blur(); });
