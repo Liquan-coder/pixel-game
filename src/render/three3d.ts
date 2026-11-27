@@ -122,6 +122,7 @@ const keep = document.createElement('canvas');
 let entCount = 0;
 export function captureEnts(items: any[]) {
   if (!ready) init();
+  const t0 = performance.now();
   if (keep.width !== cv.width || keep.height !== cv.height) { keep.width = cv.width; keep.height = cv.height; }
   const kg = keep.getContext('2d'); kg.clearRect(0, 0, keep.width, keep.height); kg.drawImage(cv, 0, 0);
   const S = CAP * F; entCount = 0;
@@ -141,6 +142,7 @@ export function captureEnts(items: any[]) {
     (e as any).x = it.x; (e as any).y = it.y; entCount++;
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); ctx.drawImage(keep, 0, 0);
+  perf.cap += (performance.now() - t0 - perf.cap) * .05; perf.ents = entCount;
 }
 
 /* ---------- 每一幀 ---------- */
@@ -192,7 +194,13 @@ export function drawThree(cx: number, cy: number, L: any[], amb: number, tint: n
   const near = L.filter(l => l.r > 14).map(l => ({ l, d: (l.x - me.x) ** 2 + (l.y - me.y) ** 2 })).sort((a, b) => a.d - b.d).slice(0, pts.length);
   pts.forEach((p, i) => { const n = near[i]; if (!n) { p.intensity = 0; return; }
     p.position.set(n.l.x * U, 1.1, n.l.y * U); p.color.setHex(cols[n.l.warm] ?? cols[0]); p.distance = n.l.r * U * 1.6; p.intensity = (n.l.warm ? 3 : 1.5) * (1.2 - day * .6); });
+  const t1 = performance.now();
+  for (let i = 0; i < entCount; i++) renderer.initTexture(ents[i].tex);   // 先上傳貼圖（分開計時）
+  renderer.initTexture(decalTex);
+  const t2 = performance.now();
   renderer.render(scene, cam);
+  const t3 = performance.now();
+  perf.up += (t2 - t1 - perf.up) * .05; perf.gl += (t3 - t2 - perf.gl) * .05;
   perf.calls = renderer.info.render.calls;
 }
 export function setThreeVisible(on: boolean) { if (!ready) { if (on) init(); else return; } renderer.domElement.style.display = on ? '' : 'none'; cv.style.visibility = on ? 'hidden' : ''; }
