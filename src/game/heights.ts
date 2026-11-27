@@ -1,5 +1,5 @@
 /* 斜視角 demo：有高度的試驗場（出生營火東邊）。
-   - 高台 28px，南邊有 3 階的階梯（每階 7px，走得上去）
+   - 高台 28px，南邊有 3 階的階梯（每階 7px，走得上去），東邊一座 1 格寬的窄橋通到小平台
    - 從邊緣走出去會掉下來；掉落時按攻擊 = 下落攻擊，落地打周圍一圈
    - 一次跨不上 8px 以上 → 底下的怪只能走階梯上來
    斜視角關掉時整個拆掉（elev 歸零），野外跟原本一樣 */
@@ -19,10 +19,12 @@ const H = 28, saved: [number, number][] = [];
 function build() {
   const c = CAMPS.find(c => c.id === 'start') || CAMPS[0], x0 = c.tx + 5, y0 = c.ty - 5, W = 9, Hh = 7;
   const set = (tx: number, ty: number, h: number, st = 0) => { const i = ty * MW + tx; elev[i] = h; stairs[i] = st; };
-  for (let ty = y0 - 2; ty < y0 + Hh + 6; ty++) for (let tx = x0 - 2; tx < x0 + W + 2; tx++) {   // 整塊清成草地（樹、石頭搬走），拆掉時還原
+  for (let ty = y0 - 2; ty < y0 + Hh + 6; ty++) for (let tx = x0 - 2; tx < x0 + W + 11; tx++) {   // 整塊清成草地（樹、石頭搬走），拆掉時還原
     const i = ty * MW + tx; if (map[i] !== GROUND && map[i] !== ROAD) { saved.push([i, map[i]]); map[i] = GROUND; } }
   for (let ty = y0; ty < y0 + Hh; ty++) for (let tx = x0; tx < x0 + W; tx++) set(tx, ty, H);
   for (let tx = x0 + 1; tx < x0 + W - 1; tx++) set(tx, y0 + 2, H + 14);   // 高台上再一層矮牆（站不上去，要從旁邊繞）
+  for (let tx = x0 + W; tx < x0 + W + 6; tx++) set(tx, y0 + 4, H);        // 窄橋：1 格寬的高架走道（測搖桿會不會走歪掉下去）
+  for (let tx = x0 + W + 6; tx < x0 + W + 9; tx++) for (let ty = y0 + 3; ty < y0 + 6; ty++) set(tx, ty, H);   // 橋的另一頭：小平台
   for (const tx of [x0 + 3, x0 + 4]) for (let k = 0; k < 3; k++) set(tx, y0 + Hh + k, H - 7 * (k + 1), 1);   // 階梯 21 / 14 / 7
   chunks.clear(); gChunks.clear(); hill.on = true;
 }

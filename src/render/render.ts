@@ -34,10 +34,14 @@ import { drawPfx } from './pfx';
 import { drawSandstorm } from './sand';
 import { drawLost, drawLostBeam } from './lostMark';
 import { gZ } from '../world/elev';
-import { drawIsoGround, flat, iso, isoCam, isoWorldList, scrAng, sX, sY, upright } from './iso';
+import { perf } from './isoState';
+import { dep, drawIsoGround, flat, iso, isoCam, isoWorldList, scrAng, sX, sY, upright } from './iso';
 
 export const view = { x: 0, y: 0 };                                  // 畫面左上角在世界的哪裡（給 HTML 介面對齊用）
 export function render() {
+  const t0 = performance.now(); renderInner(); perf.render += (performance.now() - t0 - perf.render) * .05;   // 平均畫一幀多久（?lab 顯示）
+}
+function renderInner() {
   G.frameNo++;
   ctx.setTransform(F, 0, 0, F, 0, 0); ctx.imageSmoothingEnabled = false;
   const shk = G.shakeT > 0 && !G.paused && SET.shake;                  // 暫停（地圖、選單開著）時不震：震動的倒數只在遊戲進行時才會減少
@@ -124,7 +128,7 @@ export function render() {
     list.push({ x:pl.x, y:pl.y, o:pl, f:() => { drawPlayer(pl); drawStatus(pl); } });   // 身上的冰塊、星星、藤蔓、累積條（game/status.ts）
   }
   if (iso.on) {                                                          // 斜視角：依 x + y 排前後；有腳底座標的站著畫，沒有的貼在地上
-    for (const it of list) it.k = it.x !== undefined ? it.x + it.y + (it.o?.z || gZ(it.x, it.y)) + 2 : G.me.x + it.y;   // 站在高台上 → 排在高台那幾格後面（腳才不會被地面蓋住）
+    for (const it of list) it.k = it.x !== undefined ? dep(it.x, it.y) + (it.o?.z || gZ(it.x, it.y)) + 2 : dep(G.me.x, it.y);   // 站在高台上 → 排在高台那幾格後面（腳才不會被地面蓋住）
     isoWorldList(list); list.sort((a, b) => a.k - b.k);
     for (const it of list) { if (it.y === undefined) { it.f(); continue; } if (it.x === undefined) { flat(); it.f(); continue; } isoUp(it); }
     flat();
@@ -248,6 +252,6 @@ function isoUp(it) {
   const f0 = o.face, fl0 = o.flip;
   if (typeof f0 === 'number') o.face = scrAng(f0);
   if (G.players.includes(o)) { const c = Math.cos(o.face); if (c < -.1) o.flip = true; else if (c > .1) o.flip = false; }
-  else { const wd = G.me.x - o.x, sd = (G.me.x - G.me.y) - (o.x - o.y); if (wd * sd < 0) o.flip = !o.flip; }   // 怪：世界上面向玩家 → 畫面上也面向玩家
+  else { const wd = G.me.x - o.x, sd = sX(G.me.x, G.me.y) - sX(o.x, o.y); if (wd * sd < 0) o.flip = !o.flip; }   // 怪：世界上面向玩家 → 畫面上也面向玩家
   it.f(); o.face = f0; o.flip = fl0;
 }

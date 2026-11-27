@@ -6,7 +6,7 @@
    · **不會存檔**（G.lab = true 時 game/save.ts 的 save / clearSave 什麼都不做），你的存檔格完全不動
    只有開發模式（npm run dev）才會載入這個檔案（main.ts 用 import.meta.env.DEV 判斷），上線的版本裡沒有它。 */
 import { G } from '../core/state';
-import { iso } from '../render/isoState';
+import { iso, perf } from '../render/isoState';
 import { rr } from '../core/util';
 import { INV_MAX, WT, makeSeal, makeWeapon } from '../data/items';
 import { SEAL_COST } from '../data/forge';
@@ -55,6 +55,7 @@ function setWeapon(type: string, fx: string) {
 const near = (d: number) => { const a = rr(0, Math.PI * 2); return [G.me.x + Math.cos(a) * d, G.me.y + Math.sin(a) * d]; };
 function add(kind: string, x: number, y: number, sp = FOE) { const e = makeEnemy(kind, 3, x, y, sp); G.enemies.push(e); return e; }
 /* 一群小怪擠在一起：雷鳴要旁邊有別的怪才會跳電；噬魂要打死才看得到魂飛回來 */
+const ISON = () => '視角：' + (!iso.on ? '俯視' : iso.mode === 'dia' ? '45°' : '正面');
 function pack() { const [cx, cy] = near(70); for (let i = 0; i < 5; i++) add(i % 2 ? 'wolf' : 'slime', cx + rr(-14, 14), cy + rr(-14, 14)); }
 function elite() { const [x, y] = near(70); add('skel', x, y, { ...FOE, elite: true } as any); }
 /* 沙包：打不死（每一幀補滿血），用來看累積圖示慢慢變滿、爆發、凍成冰塊、身上一直燒 */
@@ -136,10 +137,14 @@ function panel() {
   <select tabindex="-1" class="boss"><option value="">去 Boss 前…</option>${(() => { const L = bossList(), G2 = ['主線 Boss', '區域 Boss', '地城 Boss'];
     return G2.map(g => `<optgroup label="${g}">` + L.filter(b => b.group === g).map(b => `<option value="${b.id}">${b.name}</option>`).join('') + '</optgroup>').join(''); })()}</select>
   <span class="sep"></span>
-  <button type="button" tabindex="-1" data-a="iso" class="${iso.on ? 'on' : ''}">斜視角</button>
+  <button type="button" tabindex="-1" data-a="iso" class="${iso.on ? 'on' : ''}">${ISON()}</button><span class="perf" style="font-variant-numeric:tabular-nums;opacity:.85"></span>
   <button type="button" tabindex="-1" data-a="smith">鐵匠・刻印</button>
   <button type="button" tabindex="-1" data-a="min" class="keep">－</button>`;
   document.body.appendChild(bar);
+  { const pe = bar.querySelector<HTMLElement>('.perf'); let n = 0, t = performance.now();   // 效能：每秒幾幀、畫一幀幾毫秒（16.7ms = 60 幀的上限）
+    const cnt = () => { n++; requestAnimationFrame(cnt); }; requestAnimationFrame(cnt);
+    setInterval(() => { const now = performance.now(), fps = n * 1000 / (now - t); n = 0; t = now; const ms = perf.render;
+      pe.textContent = Math.round(fps) + ' 幀 · 畫面 ' + ms.toFixed(1) + 'ms'; pe.style.color = ms > 12 ? '#ff8a8a' : ms > 8 ? '#ffd27a' : '#9affb0'; }, 500); }
   const stop = (ev: Event) => ev.stopPropagation();                    // 點按鈕不要變成搖桿 / 攻擊
   for (const t of ['pointerdown', 'touchstart', 'mousedown']) bar.addEventListener(t, stop);
   bar.addEventListener('click', ev => {
@@ -147,7 +152,8 @@ function panel() {
     if (b.dataset.fx !== undefined && !G.me.weapon.uq) setWeapon(G.me.weapon.type, b.dataset.fx);   // 獨特武器不能裝刻印
     const a = b.dataset.a;
     if (a === 'pack') pack(); else if (a === 'elite') elite(); else if (a === 'bag') sandbag(); else if (a === 'brute') brute(); else if (a === 'clear') clearFoes(); else if (a === 'smith') smith();
-    else if (a === 'iso') { iso.on = !iso.on; iso.init = false; b.classList.toggle('on', iso.on); toast(iso.on ? '斜視角 demo：開' : '斜視角 demo：關', '#c8a8ff'); }
+    else if (a === 'iso') { if (!iso.on) { iso.on = true; iso.mode = 'dia'; } else if (iso.mode === 'dia') iso.mode = 'front'; else iso.on = false;   // 俯視 → 45° → 正面 → 俯視
+      iso.init = false; b.classList.toggle('on', iso.on); b.textContent = ISON(); toast('視角：' + ISON().replace('視角：', ''), '#c8a8ff'); }
     else if (a === 'min') { bar.classList.toggle('min'); b.textContent = bar.classList.contains('min') ? '＋' : '－'; }
   });
   const sel = bar.querySelector<HTMLSelectElement>('select.w'); sel.addEventListener('change', () => { setWeapon(sel.value, fxOf(G.me.weapon) || ''); sel.blur(); });
