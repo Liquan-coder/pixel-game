@@ -12,6 +12,10 @@ only="$1"
 br=$(git rev-parse --abbrev-ref HEAD)
 ROOT="$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)"
 [ "${br}" != main ] || { echo "✗ 要在 .worktrees/<名字> 裡跑（現在在 main）"; exit 1; }
+[ ! -f .session-hold ] || { echo "✗ ${br} 是大家共用的基底分支，不能直接併進 main（要不要併、什麼時候併，由使用者決定）"; exit 1; }
+base=$(cat .session-base 2>/dev/null || echo main)                       # 從哪個分支開出來的，就併回哪裡
+TGT="${ROOT}"; [ "${base}" = main ] || TGT="${ROOT}/.worktrees/${base}"   # 那個分支放在哪個資料夾
+[ -d "${TGT}" ] || { echo "✗ 找不到 ${base} 的資料夾（${TGT}）"; exit 1; }
 if [ -n "$(git status --porcelain)" ]; then echo "✗ 還有沒 commit 的改動："; git status --short; exit 1; fi
 
 check() {
@@ -25,17 +29,17 @@ check() {
 }
 
 for try in 1 2 3; do
-  if ! git merge-base --is-ancestor main HEAD; then
-    echo "… rebase 到最新的 main"
-    git rebase -q main || { echo "✗ rebase 有衝突：改好 → git add <檔案> → git rebase --continue，再跑一次 scripts/land.sh"; exit 1; }
+  if ! git merge-base --is-ancestor "${base}" HEAD; then
+    echo "… rebase 到最新的 ${base}"
+    git rebase -q "${base}" || { echo "✗ rebase 有衝突：改好 → git add <檔案> → git rebase --continue，再跑一次 scripts/land.sh"; exit 1; }
   fi
   check || exit 1
-  git merge-base --is-ancestor main HEAD || { echo "… 檢查的時候 main 又被更新了，再來一次"; continue; }
-  if git -C "${ROOT}" merge --ff-only -q "${br}"; then
-    echo "✓ 併進 main 了：$(git log --oneline -1 | cut -c1-80)"
+  git merge-base --is-ancestor "${base}" HEAD || { echo "… 檢查的時候 ${base} 又被更新了，再來一次"; continue; }
+  if git -C "${TGT}" merge --ff-only -q "${br}"; then
+    echo "✓ 併進 ${base} 了：$(git log --oneline -1 | cut -c1-80)"
     echo "  收掉這個資料夾：scripts/session.sh end ${br}（還要繼續做別的就留著，下次一樣 commit → land.sh）"
     exit 0
   fi
-  echo "✗ 併不進去：main 的資料夾（${ROOT}）裡有人改了同一個檔案還沒 commit。等他 commit 或請他也改用 worktree"; exit 1
+  echo "✗ 併不進去：${base} 的資料夾（${TGT}）裡有人改了同一個檔案還沒 commit。等他 commit 或請他也改用 worktree"; exit 1
 done
-echo "✗ main 一直被更新，試了 3 次都沒併進去，等一下再跑"; exit 1
+echo "✗ ${base} 一直被更新，試了 3 次都沒併進去，等一下再跑"; exit 1

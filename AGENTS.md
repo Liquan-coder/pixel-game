@@ -3,6 +3,15 @@
 這個專案同時有好幾個 AI agent 在改（Claude、Codex、Antigravity）。
 這份只寫「不要撞車」的規則和使用者定好的產品決定；怎麼設計、怎麼寫，用你自己的判斷。
 
+## 〇、你在 3dtest 分支（2.5D / three.js 試驗）
+- **先讀 `docs/11-28討論.md`**：為什麼做 2.5D、怎麼做的、踩過的效能坑。尤其第四章「攔截畫圖指令」：角色的圖**每張只上傳一次**，不要改成每幀重畫再上傳（Mac 上 1 個角色就要搬 ~10MB/幀）
+- 2.5D **只是畫面**：遊戲邏輯、數值、碰撞全部跟原本一樣，沒有高低差、不會掉下去
+- 主要的程式：`src/render/three3d.ts`（3D 畫面）、`src/render/render.ts`（`T3` 的分支）、`src/render/isoState.ts`
+- 試玩：`?lab&three`（右上角有效能表：fps、新圖 MB、最卡的一幀）
+- **開工**：`scripts/session.sh <名字> 3dtest`（從 3dtest 開，不是從 main）→ 在自己的資料夾改、commit → `scripts/land.sh` 會**併回 3dtest**
+- 不要直接改 `.worktrees/3dtest` 這個資料夾，它是大家併好的版本（使用者在 http://localhost:5175/?lab&three 試玩）
+- **3dtest 不能併進 main**，要不要併由使用者決定
+
 ## 一、一個 agent 一個資料夾（最重要）
 - 開工第一步：`scripts/session.sh <名字>` → 之後所有讀寫、指令都在 `.worktrees/<名字>` 裡
 - **不要直接改主資料夾**（`game/` 本身），那是已經併進 main 的版本

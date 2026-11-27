@@ -8,3 +8,5 @@ shots/
 docs
 .worktrees/
 .session-port
+.session-base
+.session-hold
