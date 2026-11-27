@@ -41,6 +41,21 @@ export function groundChunk(cx, cy) {
   gChunks.set(key, j.c); if (gChunks.size > 40) gChunks.delete(gChunks.keys().next().value);
   return j.c;
 }
+/* 3D 模式（render/three3d.ts）用：一點一點烤，不要一次烤完卡住畫面（一塊要 ~90ms）。
+   want = 想要的區塊（近的在前），每次最多花 budget 毫秒；烤好的才拿得到（groundReady） */
+let gJob: Job | null = null;
+export const groundReady = (cx: number, cy: number) => gChunks.get(cy * 1000 + cx) || null;
+export function groundBake(want: [number, number][], budget: number) {
+  const t0 = performance.now();
+  while (performance.now() - t0 < budget) {
+    if (!gJob) { const nx = want.find(([x, y]) => !gChunks.has(y * 1000 + x)); if (!nx) return; gJob = beginJob(nx[0], nx[1]); }
+    stepJob(gJob);
+    if (gJob.step > CH) {
+      gChunks.set(gJob.cy * 1000 + gJob.cx, gJob.c); gJob = null;
+      if (gChunks.size > 70) { const keep = new Set(want.map(([x, y]) => y * 1000 + x)); for (const k of gChunks.keys()) if (!keep.has(k)) { gChunks.delete(k); if (gChunks.size <= 55) break; } }
+    }
+  }
+}
 export function bakeChunk(cx, cy) {                                       // 一次烤完（如果剛好是背景正在烤的那塊，就接著烤完）
   const j = job && job.cx === cx && job.cy === cy ? job : beginJob(cx, cy); if (j === job) job = null;
   while (!stepJob(j)) {}

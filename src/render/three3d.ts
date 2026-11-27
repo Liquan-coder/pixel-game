@@ -11,7 +11,7 @@ import { G } from '../core/state';
 import { BIGT, CLIFF, HOUSE, HOUSES, LAVA, MH, MW, REGIONS, RWALL, TS, WATER, hgt, map, reg } from '../world/map';
 import { AR, TA } from '../world/gen';
 import { bakeObjectHD, objectKey } from '../world/tileArt';
-import { CH, groundChunk } from '../world/chunks';
+import { CH, groundBake, groundReady } from '../world/chunks';
 import { scrAng } from './iso';
 import { perf, three } from './isoState';
 
@@ -57,6 +57,7 @@ const hOf = (i: number) => { const t = map[i]; return t === RWALL ? 22 : t === C
 const terr = new Map<number, THREE.Mesh>();
 function terrainChunk(gx: number, gy: number) {
   const key = gy * 1000 + gx; let m = terr.get(key); if (m) return m;
+  const tex = groundReady(gx, gy); if (!tex) return null;               // 地面還沒烤好：先不畫（groundBake 會一點一點烤）
   const P: number[] = [], N: number[] = [], UV: number[] = [], I: number[] = [];
   const quad = (a: number[], b: number[], c: number[], d: number[], n: number[], uv: number[][]) => {   // a b c d 逆時針
     const o = P.length / 3; for (const v of [a, b, c, d]) P.push(...v); for (let k = 0; k < 4; k++) N.push(...n); for (const t of uv) UV.push(...t); I.push(o, o + 1, o + 2, o, o + 2, o + 3); };
@@ -76,7 +77,7 @@ function terrainChunk(gx: number, gy: number) {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); g.setIndex(I);
-  m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: px(new THREE.CanvasTexture(groundChunk(gx, gy))) }));
+  m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: px(new THREE.CanvasTexture(tex)) }));
   m.castShadow = m.receiveShadow = true; scene.add(m); terr.set(key, m);
   return m;
 }
@@ -163,7 +164,12 @@ export function drawThree(cx: number, cy: number, L: any[], amb: number, tint: n
   // 地形：玩家周圍 5×5 塊
   const gx0 = Math.floor(me.x / (CH * TS)), gy0 = Math.floor(me.y / (CH * TS));
   for (const m of terr.values()) m.visible = false;
-  for (let gy = gy0 - 2; gy <= gy0 + 2; gy++) for (let gx = gx0 - 2; gx <= gx0 + 2; gx++) if (gx >= 0 && gy >= 0 && gx * CH < MW && gy * CH < MH) terrainChunk(gx, gy).visible = true;
+  const want: [number, number][] = [];                                  // 周圍 7×7 塊，近的先烤；畫面上用到的是中間 5×5
+  for (let gy = gy0 - 3; gy <= gy0 + 3; gy++) for (let gx = gx0 - 3; gx <= gx0 + 3; gx++) if (gx >= 0 && gy >= 0 && gx * CH < MW && gy * CH < MH) want.push([gx, gy]);
+  const pcx = me.x / (CH * TS) - .5, pcy = me.y / (CH * TS) - .5; want.sort((a, b) => Math.hypot(a[0] - pcx, a[1] - pcy) - Math.hypot(b[0] - pcx, b[1] - pcy));
+  const nearMissing = want.slice(0, 9).some(([x, y]) => !groundReady(x, y));
+  groundBake(want, nearMissing ? 12 : 4);                                // 身邊缺地面：多花一點時間補；不缺：每幀 4ms 慢慢預先烤
+  for (const [gx, gy] of want) if (Math.abs(gx - gx0) <= 2 && Math.abs(gy - gy0) <= 2) { const m = terrainChunk(gx, gy); if (m) m.visible = true; }
   if (terr.size > 60) for (const [k, m] of terr) { if (m.visible) continue; m.geometry.dispose(); ((m.material as THREE.MeshLambertMaterial).map)?.dispose(); scene.remove(m); terr.delete(k); if (terr.size <= 40) break; }
   // 物件紙片：玩家周圍 ±26 格
   // 同一張圖的樹 / 石頭合成一次繪圖（InstancedMesh）：森林裡幾百棵樹也只要十幾次
