@@ -34,7 +34,8 @@ function init() {
   renderer = new THREE.WebGLRenderer({ canvas: c3, antialias: false });
   renderer.setPixelRatio(1);
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.BasicShadowMap;   // 硬邊影子：跟像素風比較搭，也比較省
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;                // 不做色彩空間轉換：2D 畫布 → 貼圖可以在顯示卡裡直接複製（轉 sRGB 會讓 Chrome 繞回 CPU，一幀多 26ms）
+  THREE.ColorManagement.enabled = false;
   scene = new THREE.Scene();
   scene.fog = new THREE.Fog(0xaebccc, 48, 95);                            // 鏡頭離目標 40：近處清楚，畫面上方（遠處）淡淡起霧
   cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 200);
@@ -46,11 +47,11 @@ function init() {
   scene.add(sun); scene.add(sun.target);
   for (let i = 0; i < 6; i++) { const p = new THREE.PointLight(0xffa050, 0, 6, 1.5); scene.add(p); pts.push(p); }   // 固定 6 盞，每幀挑最近的光源（燈數固定，shader 不用重編）
   decalTex = new THREE.CanvasTexture(cv); px(decalTex);
-  decal = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: decalTex, transparent: true, depthWrite: false, fog: false }));
+  decal = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: decalTex, transparent: true, depthWrite: false, fog: false, premultipliedAlpha: true }));
   decal.rotation.x = -Math.PI / 2; decal.renderOrder = 1; scene.add(decal);
   ready = true;
 }
-function px<T extends THREE.Texture>(t: T): T { t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.colorSpace = THREE.SRGBColorSpace; return t; }
+function px<T extends THREE.Texture>(t: T): T { t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.colorSpace = THREE.NoColorSpace; t.premultiplyAlpha = true; return t; }   // premultiplyAlpha：畫布本來就是預乘的，不用再轉
 
 /* ---------- 地形：一塊 16×16 格一個網格 ---------- */
 const hOf = (i: number) => { const t = map[i]; return t === RWALL ? 22 : t === CLIFF ? 10 + Math.min(6, hgt[i]) * 5 : t === WATER || t === LAVA ? -3 : 0; };   // 世界像素
@@ -100,7 +101,7 @@ const quadGeo = new THREE.PlaneGeometry(1, 1);
 /** 一張紙片：面向鏡頭，圖上的 (fx, fy) 對齊世界的腳底 (wx, wy)；scale = 1 美術像素幾個 3D 單位 */
 function placeBill(list: THREE.Mesh[], idx: number, tex: THREE.Texture, w: number, h: number, fx: number, fy: number, wx: number, wy: number, scale: number, push = .6) {
   let m = list[idx];
-  if (!m) { m = new THREE.Mesh(quadGeo, new THREE.MeshLambertMaterial({ transparent: true, alphaTest: .5, side: THREE.DoubleSide })); m.receiveShadow = false; scene.add(m); list[idx] = m; }
+  if (!m) { m = new THREE.Mesh(quadGeo, new THREE.MeshLambertMaterial({ transparent: true, alphaTest: .5, side: THREE.DoubleSide, premultipliedAlpha: true })); m.receiveShadow = false; scene.add(m); list[idx] = m; }
   const mat = m.material as THREE.MeshLambertMaterial; if (mat.map !== tex) { mat.map = tex; mat.needsUpdate = true; }
   m.visible = true; m.scale.set(w * scale, h * scale, 1); m.quaternion.copy(cam.quaternion);
   const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion), up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion), back = new THREE.Vector3(0, 0, 1).applyQuaternion(cam.quaternion);
@@ -183,7 +184,7 @@ export function drawThree(cx: number, cy: number, L: any[], amb: number, tint: n
   for (const [k, g] of groups) {
     const b = bills.get(k), n = g.length / 2; let e = inst.get(k);
     if (!e || e.cap < n) { if (e) { scene.remove(e.m); e.m.dispose(); }
-      const cap = Math.max(16, 2 ** Math.ceil(Math.log2(n))), m = new THREE.InstancedMesh(quadGeo, new THREE.MeshLambertMaterial({ map: b.tex, transparent: true, alphaTest: .5, side: THREE.DoubleSide }), cap);
+      const cap = Math.max(16, 2 ** Math.ceil(Math.log2(n))), m = new THREE.InstancedMesh(quadGeo, new THREE.MeshLambertMaterial({ map: b.tex, transparent: true, alphaTest: .5, side: THREE.DoubleSide, premultipliedAlpha: true }), cap);
       m.frustumCulled = false; scene.add(m); inst.set(k, e = { m, cap }); }
     const s = U / AR, dx = (b.w / 2 - b.fx) * s, dy = (b.fy - b.h / 2) * s; sc3.set(b.w * s, b.h * s, 1);
     for (let j = 0; j < n; j++) { const p = snapV(new THREE.Vector3((g[2 * j] * TS + 8) * U, 0, (g[2 * j + 1] * TS + 16) * U).addScaledVector(CR, dx).addScaledVector(CU, dy).addScaledVector(CB, .3));
