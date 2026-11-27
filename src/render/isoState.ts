@@ -3,5 +3,5 @@
    網址：?iso = 45°，?iso=front = 正面 */
 const q = new URLSearchParams(location.search).get('iso');
 export const iso = { on: q !== null, mode: (q === 'front' ? 'front' : 'dia') as 'dia' | 'front', ox: 0, oy: 0, px: 0, py: 0, init: false };
-export const perf = { render: 0 };                                     // 畫一幀平均花幾毫秒（?lab 顯示）
+export const perf = { render: 0, calls: 0 };                                     // 畫一幀平均花幾毫秒（?lab 顯示）
 export const three = { on: new URLSearchParams(location.search).has('three') };   // three.js 模式（render/three3d.ts）

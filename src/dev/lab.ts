@@ -145,7 +145,7 @@ function panel() {
   { const pe = bar.querySelector<HTMLElement>('.perf'); let n = 0, t = performance.now();   // 效能：每秒幾幀、畫一幀幾毫秒（16.7ms = 60 幀的上限）
     const cnt = () => { n++; requestAnimationFrame(cnt); }; requestAnimationFrame(cnt);
     setInterval(() => { const now = performance.now(), fps = n * 1000 / (now - t); n = 0; t = now; const ms = perf.render;
-      pe.textContent = Math.round(fps) + ' 幀 · 畫面 ' + ms.toFixed(1) + 'ms'; pe.style.color = ms > 12 ? '#ff8a8a' : ms > 8 ? '#ffd27a' : '#9affb0'; }, 500); }
+      pe.textContent = Math.round(fps) + ' 幀 · 畫面 ' + ms.toFixed(1) + 'ms' + (perf.calls ? ' · 繪圖 ' + perf.calls + ' 次' : ''); pe.style.color = ms > 12 ? '#ff8a8a' : ms > 8 ? '#ffd27a' : '#9affb0'; }, 500); }
   const stop = (ev: Event) => ev.stopPropagation();                    // 點按鈕不要變成搖桿 / 攻擊
   for (const t of ['pointerdown', 'touchstart', 'mousedown']) bar.addEventListener(t, stop);
   bar.addEventListener('click', ev => {

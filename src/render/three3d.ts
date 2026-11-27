@@ -13,36 +13,41 @@ import { AR, TA } from '../world/gen';
 import { bakeObjectHD, objectKey } from '../world/tileArt';
 import { CH, groundChunk } from '../world/chunks';
 import { scrAng } from './iso';
-import { three } from './isoState';
+import { perf, three } from './isoState';
 
 const U = 1 / TS;                                                      // 世界像素 → 3D 單位
-const YAW = Math.PI / 4, PITCH = 50 * Math.PI / 180, DIST = 26;          // 鏡頭：斜 45°、往下看 50°
-let renderer: THREE.WebGLRenderer, scene: THREE.Scene, cam: THREE.PerspectiveCamera;
+const YAW = Math.PI / 4, PITCH = 50 * Math.PI / 180, DIST = 40;          // 鏡頭：斜 45°、往下看 50°
+/* 像素感：3D 用低解析度畫（1 個畫面像素 = 1 個美術像素 = 1/3 世界像素），再用 CSS 放大成方塊；
+   鏡頭是正交的（沒有透視，遠近一樣大），而且鏡頭和紙片的位置都對齊到像素格子 → 走路時畫面不會閃 */
+const RS = 3, RP = U / RS;                                             // RS = 1 世界像素畫成幾個畫面像素；RP = 1 畫面像素是幾個 3D 單位
+const CR = new THREE.Vector3(), CU = new THREE.Vector3(), CB = new THREE.Vector3();   // 鏡頭的右、上、後方向
+function snapV(v: THREE.Vector3) { const r = Math.round(v.dot(CR) / RP) * RP, u = Math.round(v.dot(CU) / RP) * RP, b = v.dot(CB); return v.copy(CR).multiplyScalar(r).addScaledVector(CU, u).addScaledVector(CB, b); }
+let renderer: THREE.WebGLRenderer, scene: THREE.Scene, cam: THREE.OrthographicCamera;
 let sun: THREE.DirectionalLight, hemi: THREE.HemisphereLight, decal: THREE.Mesh, decalTex: THREE.CanvasTexture;
 const pts: THREE.PointLight[] = [];
 let ready = false;
 
 function init() {
   const c3 = document.createElement('canvas'); c3.id = 'cv3';
-  c3.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:0;pointer-events:none';
+  c3.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:0;pointer-events:none;image-rendering:pixelated';
   cv.parentElement.insertBefore(c3, cv.nextSibling);
   renderer = new THREE.WebGLRenderer({ canvas: c3, antialias: false });
-  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.setPixelRatio(1);
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.BasicShadowMap;   // 硬邊影子：跟像素風比較搭，也比較省
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0xaebccc, 30, 70);
-  cam = new THREE.PerspectiveCamera(30, 16 / 9, 1, 200);
+  scene.fog = new THREE.Fog(0xaebccc, 48, 95);                            // 鏡頭離目標 40：近處清楚，畫面上方（遠處）淡淡起霧
+  cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 200);
+  cam.position.set(Math.sin(YAW) * Math.cos(PITCH), Math.sin(PITCH), Math.cos(YAW) * Math.cos(PITCH)); cam.lookAt(0, 0, 0); cam.updateMatrixWorld();
+  CR.set(1, 0, 0).applyQuaternion(cam.quaternion); CU.set(0, 1, 0).applyQuaternion(cam.quaternion); CB.set(0, 0, 1).applyQuaternion(cam.quaternion);
   hemi = new THREE.HemisphereLight(0xdfe8ff, 0x46503a, 1.6); scene.add(hemi);
   sun = new THREE.DirectionalLight(0xfff2dc, 2.2); sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = sc.bottom = -30; sc.right = sc.top = 30; sc.near = 1; sc.far = 120; sun.shadow.bias = -.0008;
+  sun.shadow.mapSize.set(1024, 1024); const sc = sun.shadow.camera; sc.left = sc.bottom = -22; sc.right = sc.top = 22; sc.near = 1; sc.far = 120; sun.shadow.bias = -.0008;
   scene.add(sun); scene.add(sun.target);
-  for (let i = 0; i < 8; i++) { const p = new THREE.PointLight(0xffa050, 0, 6, 1.5); scene.add(p); pts.push(p); }   // 固定 8 盞，每幀挑最近的光源（燈數固定，shader 不用重編）
+  for (let i = 0; i < 6; i++) { const p = new THREE.PointLight(0xffa050, 0, 6, 1.5); scene.add(p); pts.push(p); }   // 固定 6 盞，每幀挑最近的光源（燈數固定，shader 不用重編）
   decalTex = new THREE.CanvasTexture(cv); px(decalTex);
   decal = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: decalTex, transparent: true, depthWrite: false, fog: false }));
   decal.rotation.x = -Math.PI / 2; decal.renderOrder = 1; scene.add(decal);
-  const fit = () => { renderer.setSize(innerWidth, innerHeight, false); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); };
-  addEventListener('resize', fit); fit();
   ready = true;
 }
 function px<T extends THREE.Texture>(t: T): T { t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.colorSpace = THREE.SRGBColorSpace; return t; }
@@ -89,9 +94,8 @@ function objBill(tx: number, ty: number, key: string): Bill {
   b = { tex: px(new THREE.CanvasTexture(c)), w: cw, h: chh, fx: ox + TA / 2, fy: oy + TA }; bills.set(key, b);
   return b;
 }
-const objMeshes: THREE.Mesh[] = [];
+const inst = new Map<string, { m: THREE.InstancedMesh; cap: number }>();
 const quadGeo = new THREE.PlaneGeometry(1, 1);
-let objUsed = 0;
 /** 一張紙片：面向鏡頭，圖上的 (fx, fy) 對齊世界的腳底 (wx, wy)；scale = 1 美術像素幾個 3D 單位 */
 function placeBill(list: THREE.Mesh[], idx: number, tex: THREE.Texture, w: number, h: number, fx: number, fy: number, wx: number, wy: number, scale: number, push = .6) {
   let m = list[idx];
@@ -100,7 +104,7 @@ function placeBill(list: THREE.Mesh[], idx: number, tex: THREE.Texture, w: numbe
   m.visible = true; m.scale.set(w * scale, h * scale, 1); m.quaternion.copy(cam.quaternion);
   const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion), up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion), back = new THREE.Vector3(0, 0, 1).applyQuaternion(cam.quaternion);
   const dx = (w / 2 - fx) * scale, dy = (fy - h / 2) * scale;           // 腳底 → 紙片中心
-  m.position.set(wx * U, 0, wy * U).addScaledVector(right, dx).addScaledVector(up, dy).addScaledVector(back, push);   // 往鏡頭推一點：頭不會插進後面的牆
+  snapV(m.position.set(wx * U, 0, wy * U).addScaledVector(right, dx).addScaledVector(up, dy).addScaledVector(back, push));   // 往鏡頭推一點：頭不會插進後面的牆；對齊像素格子
   return m;
 }
 
@@ -144,8 +148,10 @@ const v3 = new THREE.Vector3();
 export function drawThree(cx: number, cy: number, L: any[], amb: number, tint: number[], regionKey: string) {
   if (!ready) init();
   const me = G.me, tx = me.x * U, tz = me.y * U;
-  cam.position.set(tx + Math.sin(YAW) * Math.cos(PITCH) * DIST, Math.sin(PITCH) * DIST, tz + Math.cos(YAW) * Math.cos(PITCH) * DIST);
-  cam.lookAt(tx, .5, tz); cam.updateMatrixWorld();
+  const W = Math.round(LW * RS), H = Math.round(LH * RS);               // 畫面大小跟著原本的鏡頭範圍（LW × LH 世界像素）
+  if (renderer.domElement.width !== W || renderer.domElement.height !== H) { renderer.setSize(W, H, false); cam.left = -LW * U / 2; cam.right = LW * U / 2; cam.top = LH * U / 2; cam.bottom = -LH * U / 2; cam.updateProjectionMatrix(); }
+  const T = snapV(new THREE.Vector3(tx, .5, tz));                       // 鏡頭對準的點對齊像素格子：整個世界跟著整數像素移動，不會閃
+  cam.position.copy(T).addScaledVector(CB, DIST); cam.updateMatrixWorld();
   // 天色：地區越暗（amb 大），太陽越弱、霧越接近地區的色調
   const day = Math.max(.15, 1 - amb * 1.6);
   sun.intensity = 2.4 * day; hemi.intensity = .5 + 1.2 * day;
@@ -158,12 +164,24 @@ export function drawThree(cx: number, cy: number, L: any[], amb: number, tint: n
   for (let gy = gy0 - 2; gy <= gy0 + 2; gy++) for (let gx = gx0 - 2; gx <= gx0 + 2; gx++) if (gx >= 0 && gy >= 0 && gx * CH < MW && gy * CH < MH) terrainChunk(gx, gy).visible = true;
   if (terr.size > 60) for (const [k, m] of terr) { if (m.visible) continue; m.geometry.dispose(); ((m.material as THREE.MeshLambertMaterial).map)?.dispose(); scene.remove(m); terr.delete(k); if (terr.size <= 40) break; }
   // 物件紙片：玩家周圍 ±26 格
-  objUsed = 0; const R = 26, ptx = Math.floor(me.x / TS), pty = Math.floor(me.y / TS);
-  for (let y = Math.max(0, pty - R); y <= Math.min(MH - 1, pty + R); y++) for (let x = Math.max(0, ptx - R); x <= Math.min(MW - 1, ptx + R); x++) {
+  // 同一張圖的樹 / 石頭合成一次繪圖（InstancedMesh）：森林裡幾百棵樹也只要十幾次
+  const R = 20, ptx = Math.floor(me.x / TS), pty = Math.floor(me.y / TS), groups = new Map<string, number[]>();
+  for (let y = Math.max(0, pty - R); y <= Math.min(MH - 1, pty + R + 4); y++) for (let x = Math.max(0, ptx - R); x <= Math.min(MW - 1, ptx + R); x++) {
     const k = objectKey(x, y); if (!k) continue;
-    const b = objBill(x, y, k); placeBill(objMeshes, objUsed++, b.tex, b.w, b.h, b.fx, b.fy, x * TS + 8, y * TS + 16, U / AR, .3);
+    objBill(x, y, k); let g = groups.get(k); if (!g) groups.set(k, g = []); g.push(x, y);
   }
-  for (let i = objUsed; i < objMeshes.length; i++) objMeshes[i].visible = false;
+  for (const [k, e] of inst) if (!groups.has(k)) e.m.count = 0;
+  const mtx = new THREE.Matrix4(), sc3 = new THREE.Vector3();
+  for (const [k, g] of groups) {
+    const b = bills.get(k), n = g.length / 2; let e = inst.get(k);
+    if (!e || e.cap < n) { if (e) { scene.remove(e.m); e.m.dispose(); }
+      const cap = Math.max(16, 2 ** Math.ceil(Math.log2(n))), m = new THREE.InstancedMesh(quadGeo, new THREE.MeshLambertMaterial({ map: b.tex, transparent: true, alphaTest: .5, side: THREE.DoubleSide }), cap);
+      m.frustumCulled = false; scene.add(m); inst.set(k, e = { m, cap }); }
+    const s = U / AR, dx = (b.w / 2 - b.fx) * s, dy = (b.fy - b.h / 2) * s; sc3.set(b.w * s, b.h * s, 1);
+    for (let j = 0; j < n; j++) { const p = snapV(new THREE.Vector3((g[2 * j] * TS + 8) * U, 0, (g[2 * j + 1] * TS + 16) * U).addScaledVector(CR, dx).addScaledVector(CU, dy).addScaledVector(CB, .3));
+      e.m.setMatrixAt(j, mtx.compose(p, cam.quaternion, sc3)); }
+    e.m.count = n; e.m.instanceMatrix.needsUpdate = true;
+  }
   // 角色紙片（擷取範圍 CAP 世界像素 = CAP·F 貼圖像素）
   for (let i = 0; i < entCount; i++) { const e = ents[i] as any; placeBill(entMeshes, i, e.tex, CAP * F, CAP * F, 64 * F, 112 * F, e.x, e.y, U / F, 1.2); }
   for (let i = entCount; i < entMeshes.length; i++) entMeshes[i].visible = false;
@@ -175,6 +193,7 @@ export function drawThree(cx: number, cy: number, L: any[], amb: number, tint: n
   pts.forEach((p, i) => { const n = near[i]; if (!n) { p.intensity = 0; return; }
     p.position.set(n.l.x * U, 1.1, n.l.y * U); p.color.setHex(cols[n.l.warm] ?? cols[0]); p.distance = n.l.r * U * 1.6; p.intensity = (n.l.warm ? 3 : 1.5) * (1.2 - day * .6); });
   renderer.render(scene, cam);
+  perf.calls = renderer.info.render.calls;
 }
 export function setThreeVisible(on: boolean) { if (!ready) { if (on) init(); else return; } renderer.domElement.style.display = on ? '' : 'none'; cv.style.visibility = on ? 'hidden' : ''; }
 export { three };
