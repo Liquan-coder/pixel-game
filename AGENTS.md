@@ -4,7 +4,10 @@
 這份只寫「不要撞車」的規則和使用者定好的產品決定；怎麼設計、怎麼寫，用你自己的判斷。
 
 ## 一、一個 agent 一個資料夾（最重要）
-- 開工第一步：`scripts/session.sh <名字>` → 之後所有讀寫、指令都在 `.worktrees/<名字>` 裡
+- **3D / 2.5D 修改一律走 `3dtest` 分支**（把它當成 3D 版的 `main`，不要動主資料夾的 `main`）：
+  - 開工：`.worktrees/3dtest/scripts/session.sh <名字> 3dtest` → 在自己的資料夾改、commit → `scripts/land.sh` 併回 `3dtest`
+  - 不要直接改 `.worktrees/3dtest`（那是大家併好的試玩版，詳細規則看 `.worktrees/3dtest/AGENTS.md` 和 `docs/11-28討論.md`）
+- 2D / 一般 `main` 修改開工第一步：`scripts/session.sh <名字>` → 之後所有讀寫、指令都在 `.worktrees/<名字>` 裡
 - **不要直接改主資料夾**（`game/` 本身），那是已經併進 main 的版本
 - 試玩：照 session.sh 印的 `npm run dev -- --port <port> --strictPort` 開自己的伺服器
 - 做完：在自己的資料夾 commit → `scripts/land.sh '<相關的測試>'` 併進 main（不會 push）
