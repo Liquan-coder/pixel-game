@@ -1,6 +1,7 @@
 import { clamp } from '../core/util';
 import { ARENA, BIGT, CAMPS, CLIFF, CRATE, GRAVE, HOUSE, MH, MW, PILLAR, PROPS, ROCK, RWALL, TREE, TS, reg } from '../world/map';
 import { solidT, tileAt } from '../world/gen';
+import { STEP, elev, hill } from '../world/elev';
 
 /* ================= COLLISION ================= */
 /* 碰撞：障礙物是「圓角方塊」—— 露在外面的角磨圓（樹、石頭幾乎是圓的），撞到時沿著表面滑開，不會卡死 */
@@ -26,7 +27,7 @@ function pushOut(e) {                                                   // 把�
   for (let it = 0; it < 4; it++) {
     let best = null;
     const x0 = Math.floor((e.x - r) / TS), x1 = Math.floor((e.x + r) / TS), y0 = Math.floor((e.y - r) / TS), y1 = Math.floor((e.y + r) / TS);
-    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) { const t = tileAt(tx, ty); if (!solidT(t)) continue;
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) { const t = tileAt(tx, ty); if (!solidT(t) && !(hill.on && elev[ty * MW + tx] > (e.z || 0) + STEP)) continue;   // 斜視角試驗場：比腳下高太多的格子也是牆
       const p = tilePen(e.x, e.y, r, tx, ty, t); if (p && p[0] > 0 && (!best || p[0] > best[0])) best = p; }
     for (const c of CAMPS) { if (Math.abs(e.x - c.x) > 20) continue; const dx = e.x - c.x, dy = e.y - c.y, d = Math.hypot(dx, dy), pen = r + 5 - d;
       if (pen > 0 && d > 1e-4 && (!best || pen > best[0])) best = [pen, dx / d, dy / d]; }

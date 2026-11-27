@@ -41,6 +41,7 @@ import { merchant, openShop, placeMerchant } from './ui/shop';
 import { mapTab, renderInv, restAt, toggleMap } from './ui/menus';
 import { readInput } from './ui/input';
 import './ui/pause';
+import './game/heights';                                                // 斜視角 demo 的高度試驗場（要在其他 game 模組之後）
 import { CHESTS, genChests } from './world/chests';
 import { placeTablets, resetQuest } from './game/quest';
 import { applySave, clearSave, loadSave, placeFromSave, save, serialize, setSlot, slot } from './game/save';

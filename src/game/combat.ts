@@ -8,6 +8,7 @@ import { rbs, regionBossDie } from '../world/regionBoss';
 import { input } from './player';
 import { applyFx, type FX } from './status';
 import { canSee, collides, moveEnt } from './collision';
+import { gZ, hill } from '../world/elev';
 import { sfx } from '../core/audio';
 import { killEnemy } from './enemies';
 import { bossDie } from './boss';
@@ -665,6 +666,7 @@ export function tryPot(pl: Player) {
 export function hurtPlayer(pl: Player, v, sx, sy, extra?: FX) {
   if (pl.dead) return false;
   if (!canSee(sx, sy - 6, pl.x, pl.y - 6)) return false;                 // 隔著牆打不到你
+  if (hill.on && Math.abs((pl.z || 0) - gZ(sx, sy)) > 14) return false;   // 斜視角試驗場：高低差太大打不到（站在高台上，底下的近戰怪碰不到你）
   if (pl.iframe > 0) { iframeHit(pl); return false; }                   // 無敵中：剛翻滾的話 = 完美閃避（game/builds.ts）
   if (sigBlock(pl)) return false;                                        // 王城近衛劍的護盾擋下這一下
   const T0 = pl.tfx || {};

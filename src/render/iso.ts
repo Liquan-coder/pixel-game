@@ -9,6 +9,7 @@ import { BIGT, CLIFF, CRATE, GRAVE, HOUSE, MH, MW, PILLAR, REGIONS, ROCK, RWALL,
 import { AR, TA } from '../world/gen';
 import { bakeObjectHD } from '../world/tileArt';
 import { CH, CPX, groundChunk } from '../world/chunks';
+import { elev, gZ, stairs } from '../world/elev';
 
 export const K = Math.SQRT1_2;
 import { iso } from './isoState';
@@ -19,7 +20,7 @@ const snap = (v: number) => Math.round(v * F) / F;
 
 /** 鏡頭跟著玩家（在斜視角的畫面座標裡平滑移動） */
 export function isoCam(shx: number, shy: number, ck: number) {
-  const me = G.me, tx = (me.x - me.y) * K, ty = (me.x + me.y) * K / 2 - 8;
+  const me = G.me, tx = (me.x - me.y) * K, ty = (me.x + me.y) * K / 2 - 8 - (me.z || 0);
   if (!iso.init || Math.hypot(tx - iso.px, ty - iso.py) > 400) { iso.px = tx; iso.py = ty; iso.init = true; }   // 傳送 / 剛打開：直接跳過去
   iso.px += (tx - iso.px) * ck; iso.py += (ty - iso.py) * ck;
   iso.ox = snap(LW / 2 - iso.px + shx); iso.oy = snap(LH / 2 - iso.py + shy);
@@ -27,7 +28,7 @@ export function isoCam(shx: number, shy: number, ck: number) {
 /** 整層斜轉：之後用世界座標畫的東西都會貼在地上 */
 export function flat() { ctx.setTransform(F * K, F * K / 2, -F * K, F * K / 2, F * iso.ox, F * iso.oy); }
 /** 站著畫：(ax, ay) 這個點移到斜視角的位置，圖本身不變形 */
-export function upright(ax: number, ay: number) { ctx.setTransform(F, 0, 0, F, Math.round(F * (sX(ax, ay) - ax)), Math.round(F * (sY(ax, ay) - ay))); }
+export function upright(ax: number, ay: number, z = gZ(ax, ay)) { ctx.setTransform(F, 0, 0, F, Math.round(F * (sX(ax, ay) - ax)), Math.round(F * (sY(ax, ay) - ay - z))); }   // z = 離地多高（預設站在這一格的地面上）
 /** 世界方向 → 畫面方向的角度（武器、面向用） */
 export const scrAng = (a: number) => Math.atan2((Math.cos(a) + Math.sin(a)) / 2, Math.cos(a) - Math.sin(a));
 
@@ -54,27 +55,28 @@ const WALLC: Record<string, string[]> = {
   lava: ['#6a3a30', '#4a2824', '#341c1a'], den: ['#5a4a58', '#3e3240', '#2c2430'], snow: ['#e8f0fa', '#aab8cc', '#8494aa'],
   swamp: ['#4a5a3e', '#36402e', '#262e22'], dungeon: ['#5a5070', '#3e3654', '#2c2640'], elf: ['#c8d0ec', '#8e96b8', '#6c7494'],
 };
+const STAIRC = ['#a8a4b4', '#7c7890', '#5e5a70'];                    // 階梯：石頭色
 const OBJ = new Set([TREE, ROCK, PILLAR, CRATE, GRAVE, HOUSE, BIGT]);
 const isBlock = (t: number) => t === CLIFF || t === RWALL;
-const hOf = (i: number) => { const t = map[i]; return t === RWALL ? 22 : t === CLIFF ? 10 + Math.min(6, hgt[i]) * 5 : 0; };   // 方塊多高（山越裡面越高）
+const hOf = (i: number) => { const t = map[i]; return t === RWALL ? 22 : t === CLIFF ? 10 + Math.min(6, hgt[i]) * 5 : elev[i]; };   // elev = 試驗場的高台、階梯   // 方塊多高（山越裡面越高）
 
 /** 把這一畫面的方塊、樹、房子放進要排序的清單（k = 深度：x + y 越大越靠前） */
 export function isoWorldList(list: any[]) {
-  const b = worldBox(30), me = G.me, mk = me.x + me.y, mx = sX(me.x, me.y), my = sY(me.x, me.y);
+  const b = worldBox(30), me = G.me, mz = me.z || 0, mk = me.x + me.y + mz, mx = sX(me.x, me.y), my = sY(me.x, me.y) - mz;
   const tx0 = Math.max(0, Math.floor(b.x0 / TS)), tx1 = Math.min(MW - 1, Math.floor(b.x1 / TS)), ty0 = Math.max(0, Math.floor(b.y0 / TS)), ty1 = Math.min(MH - 1, Math.floor(b.y1 / TS));
   for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
     const i = ty * MW + tx, t = map[i];
-    if (!OBJ.has(t) && !isBlock(t)) continue;
+    if (!OBJ.has(t) && !isBlock(t) && !elev[i]) continue;
     const cx = tx * TS + TS / 2, cy = ty * TS + TS / 2, px = sX(cx, cy), py = sY(cx, cy);
     if (px < -60 || px > LW + 60 || py < -40 || py > LH + 220) continue;
-    const k = cx + cy, big = t === HOUSE || t === BIGT;
+    const k = cx + cy + (elev[i] ? 1 : 0), big = t === HOUSE || t === BIGT;
     // 擋在玩家前面、而且畫出來會蓋到主角 → 變半透明，才看得到自己（主角大約佔畫面上 mx±9、my−28 ~ my）
     const h = hOf(i), top = isBlock(t) ? py - h - 8 : py - (big ? 150 : t === TREE ? 50 : 26), half = big ? 70 : isBlock(t) ? 12 : 14;
-    const fade = k > mk && Math.abs(px - mx) < half + 9 && top < my && py + 8 > my - 28 ? .38 : 1;
-    if (isBlock(t)) {
-      const C = WALLC[REGIONS[reg[i]]?.key] || WALLC.dungeon;
+    const fade = k > mk && (!elev[i] || h > mz + 4) && Math.abs(px - mx) < half + 9 && top < my && py + 8 > my - 28 ? .38 : 1;
+    if (isBlock(t) || elev[i]) {
+      const C = stairs[i] ? STAIRC : WALLC[REGIONS[reg[i]]?.key] || WALLC.dungeon;
       const openS = hOf(i + MW) < h, openE = hOf(i + 1) < h;            // 只畫看得到的那兩面（南、東）；旁邊的方塊比較矮才露出來
-      list.push({ k, f: () => drawBlock(tx, ty, h, C, openS ? hOf(i + MW) : -1, openE ? hOf(i + 1) : -1, fade) });
+      list.push({ k, f: () => drawBlock(tx, ty, h, C, openS ? hOf(i + MW) : -1, openE ? hOf(i + 1) : -1, fade, !!stairs[i]) });
     } else list.push({ k: t === HOUSE ? k - TS : k, f: () => {
       const ax = cx, ay = ty * TS + TS;                                  // 腳底 = 這一格的下緣中間
       ctx.globalAlpha = fade;
@@ -86,7 +88,7 @@ export function isoWorldList(list: any[]) {
 }
 
 /* 一格方塊：側面 = 純色 + 每 5px 一條深色岩層線；頂面 = 原本這一格的地形圖，往上抬 h */
-function drawBlock(tx: number, ty: number, h: number, C: string[], hS: number, hE: number, a: number) {
+function drawBlock(tx: number, ty: number, h: number, C: string[], hS: number, hE: number, a: number, plain = false) {
   ctx.setTransform(F, 0, 0, F, 0, 0); ctx.globalAlpha = a;
   const x0 = tx * TS, y0 = ty * TS, x1 = x0 + TS, y1 = y0 + TS, P = (x: number, y: number, z: number) => [sX(x, y), sY(x, y) - z];
   const poly = (pts: number[][], c: string) => { ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (const p of pts) ctx.lineTo(p[0], p[1]); ctx.closePath(); ctx.fill(); };
@@ -97,6 +99,7 @@ function drawBlock(tx: number, ty: number, h: number, C: string[], hS: number, h
   };
   if (hS >= 0) face(x0, y1, x1, y1, hS, C[1]);                              // 南面（畫面左下）
   if (hE >= 0) face(x1, y1, x1, y0, hE, C[2]);                              // 東面（畫面右下）
+  if (plain) { poly([P(x0, y0, h), P(x1, y0, h), P(x1, y1, h), P(x0, y1, h)], C[0]); poly([P(x0, y1, h), P(x1, y1, h), P(x1, y1, h - 1), P(x0, y1, h - 1)], 'rgba(255,255,255,.25)'); ctx.globalAlpha = 1; return; }   // 階梯：素色頂面 + 前緣亮線
   const gx = Math.floor(tx / CH), gy = Math.floor(ty / CH);
   ctx.setTransform(F * K, F * K / 2, -F * K, F * K / 2, F * iso.ox, F * (iso.oy - h));
   ctx.drawImage(groundChunk(gx, gy), (tx - gx * CH) * TA, (ty - gy * CH) * TA, TA, TA, x0, y0, TS + .4, TS + .4);

@@ -35,6 +35,7 @@ export interface Player {
   face: number;                   // 面向角度（弧度）
   flip: boolean; anim: number; moving: boolean;
   leanX?: number; leanY?: number;
+  z?: number; vz?: number; air?: boolean; plunge?: boolean;   // 斜視角 demo 的高度（game/heights.ts）：腳下多高、往下掉的速度、在空中、下落攻擊
 
   // 數值
   hp: number; maxHp: number; st: number; maxSt: number; stDelay: number;
@@ -114,6 +115,7 @@ export interface Player {
  *  欄位很多、而且每種 AI 會自己加欄位，所以先只寫共通的，其餘用 [key: string]: any 放行。 */
 export interface Enemy {
   x: number; y: number; r: number;
+  z?: number; vz?: number; air?: boolean;   // 斜視角 demo 的高度（game/heights.ts）
   hp: number; maxHp: number;
   kind: string;
   state: string;                  // 狀態機目前的狀態：'idle'、'chase'、'biteWind'…

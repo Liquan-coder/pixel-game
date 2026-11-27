@@ -33,6 +33,7 @@ import { camDt } from '../main';
 import { drawPfx } from './pfx';
 import { drawSandstorm } from './sand';
 import { drawLost, drawLostBeam } from './lostMark';
+import { gZ } from '../world/elev';
 import { drawIsoGround, flat, iso, isoCam, isoWorldList, scrAng, sX, sY, upright } from './iso';
 
 export const view = { x: 0, y: 0 };                                  // 畫面左上角在世界的哪裡（給 HTML 介面對齊用）
@@ -123,7 +124,7 @@ export function render() {
     list.push({ x:pl.x, y:pl.y, o:pl, f:() => { drawPlayer(pl); drawStatus(pl); } });   // 身上的冰塊、星星、藤蔓、累積條（game/status.ts）
   }
   if (iso.on) {                                                          // 斜視角：依 x + y 排前後；有腳底座標的站著畫，沒有的貼在地上
-    for (const it of list) it.k = it.x !== undefined ? it.x + it.y : G.me.x + it.y;
+    for (const it of list) it.k = it.x !== undefined ? it.x + it.y + (it.o?.z || gZ(it.x, it.y)) + 2 : G.me.x + it.y;   // 站在高台上 → 排在高台那幾格後面（腳才不會被地面蓋住）
     isoWorldList(list); list.sort((a, b) => a.k - b.k);
     for (const it of list) { if (it.y === undefined) { it.f(); continue; } if (it.x === undefined) { flat(); it.f(); continue; } isoUp(it); }
     flat();
@@ -197,7 +198,7 @@ export function render() {
   ctx.restore();
   // 斜視角：光源換成畫面座標；跟著玩家的效果（目盲、黑暗迷宮、倒下碎光）用「玩家在畫面上的位置」反推 cx / cy
   const lcx = iso.on ? 0 : cx, lcy = iso.on ? 0 : cy, mcx = iso.on ? G.me.x - sX(G.me.x, G.me.y) : cx, mcy = iso.on ? G.me.y - sY(G.me.x, G.me.y) : cy;
-  if (iso.on) for (const l of L) { const x = sX(l.x, l.y); l.y = sY(l.x, l.y); l.x = x; }
+  if (iso.on) for (const l of L) { const x = sX(l.x, l.y); l.y = sY(l.x, l.y) - gZ(l.x, l.y + 8); l.x = x; }   // 高台上的光跟著抬高
 
   const RG = regionLook(regAt(G.me.x, G.me.y));                       // 主線 Boss 倒下的地區，天色亮一點（game/quest.ts）
   light.amb += (RG.amb - light.amb) * .03; for (let k = 0; k < 3; k++) light.t[k] += (RG.tint[k] - light.t[k]) * .03;
@@ -229,7 +230,7 @@ export function render() {
     const k = n.t / n.d, rise = 1 - (1 - Math.min(1, k * 2.2)) ** 2, pop = k < .12 ? 1 + (1 - k / .12) * .6 : 1;
     const sc = (n.big ? 4 / 3 : 1) * (pop > 1.3 ? 4 / 3 : 1);           // 剛出來時大一號，再縮回來（只用 1/3 的倍數，像素才不會糊）
     ctx.globalAlpha = k > .7 ? Math.max(0, 1 - (k - .7) / .3) : 1;
-    drawNum(n.txt, iso.on ? sX(n.x, n.y) : n.x - cx, (iso.on ? sY(n.x, n.y) : n.y - cy) - rise * 10, n.col, sc);
+    drawNum(n.txt, iso.on ? sX(n.x, n.y) : n.x - cx, (iso.on ? sY(n.x, n.y) - gZ(n.x, n.y + 8) : n.y - cy) - rise * 10, n.col, sc);
   }
   ctx.globalAlpha = 1;
   if (G.me.healGlow > 0) { const a = Math.min(1, G.me.healGlow / .7) * .32, g = ctx.createRadialGradient(LW / 2, LH / 2, Math.min(LW, LH) * .35, LW / 2, LH / 2, Math.max(LW, LH) * .7);   // 回血：畫面四周亮一圈綠
@@ -241,7 +242,9 @@ export function render() {
 
 /* 斜視角：角色站著畫。面向角度 / 左右翻面先換成「畫面上的方向」，畫完換回來（遊戲邏輯還是用世界方向） */
 function isoUp(it) {
-  upright(it.x, it.y); const o = it.o; if (!o) { it.f(); return; }
+  const o = it.o, g = gZ(it.x, it.y);
+  if (o && (o.z ?? g) > g + 1) { upright(it.x, it.y, g); ctx.globalAlpha = .35; ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(it.x, it.y, 7, 3, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1; }   // 在空中：地上留一個影子
+  upright(it.x, it.y, o?.z ?? g); if (!o) { it.f(); return; }
   const f0 = o.face, fl0 = o.flip;
   if (typeof f0 === 'number') o.face = scrAng(f0);
   if (G.players.includes(o)) { const c = Math.cos(o.face); if (c < -.1) o.flip = true; else if (c > .1) o.flip = false; }

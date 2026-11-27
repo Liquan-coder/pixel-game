@@ -34,7 +34,7 @@ function stepJob(j: Job) {                                                // 做
 }
 let job: Job | null = null;
 /* 斜視角 demo（render/iso.ts）用：只有地面像素的區塊（樹、房子另外站著畫） */
-const gChunks = new Map<number, HTMLCanvasElement>();
+export const gChunks = new Map<number, HTMLCanvasElement>();
 export function groundChunk(cx, cy) {
   const key = cy * 1000 + cx; let c = gChunks.get(key); if (c) return c;
   const j = beginJob(cx, cy); while (j.step <= CH) stepJob(j);

@@ -230,8 +230,10 @@ export function updateMotes(dt) {
     if (m.t > m.life || m.col !== M.col || m.x < cam.x - 20 || m.x > cam.x + LW + 20 || m.y < cam.y - 20 || m.y > cam.y + LH + 20) G.motes.splice(i, 1); }
 }
 
+export const preUpdate: ((dt: number) => void)[] = [];                  // 每一格最先跑（game/heights.ts 的高度、掉落）
 export function update(dt) {
   G.time += dt;
+  for (const f of preUpdate) f(dt);
   for (const pl of G.players) updatePlayer(pl, dt);
   const near = e => G.players.some(pl => Math.abs(e.x - pl.x) < 520 && Math.abs(e.y - pl.y) < 380);   // 只更新任何玩家附近的怪
   for (let i = G.enemies.length - 1; i >= 0; i--) { const e = G.enemies[i]; if (!near(e)) continue;
