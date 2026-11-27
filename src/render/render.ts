@@ -40,7 +40,8 @@ import { dep, drawIsoGround, flat, iso, isoCam, isoWorldList, scrAng, sX, sY, up
 
 export const view = { x: 0, y: 0 };                                  // 畫面左上角在世界的哪裡（給 HTML 介面對齊用）
 export function render() {
-  const t0 = performance.now(); renderInner(); perf.render += (performance.now() - t0 - perf.render) * .05;   // 平均畫一幀多久（?lab 顯示）
+  const t0 = performance.now(); perf.f.cap = perf.f.up = perf.f.gl = 0; renderInner(); const ms = performance.now() - t0; perf.render += (ms - perf.render) * .05;   // 平均畫一幀多久（?lab 顯示）
+  if (ms > perf.worst.ms) perf.worst = { ms, cap: perf.f.cap, up: perf.f.up, gl: perf.f.gl, ents: perf.ents, lights: perf.lights };   // 最卡的一幀（?lab 每 2 秒歸零）
 }
 function renderInner() {
   G.frameNo++;

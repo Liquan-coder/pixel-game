@@ -144,8 +144,10 @@ function panel() {
   document.body.appendChild(bar);
   { const pe = bar.querySelector<HTMLElement>('.perf'); let n = 0, t = performance.now();   // 效能：每秒幾幀、畫一幀幾毫秒（16.7ms = 60 幀的上限）
     const cnt = () => { n++; requestAnimationFrame(cnt); }; requestAnimationFrame(cnt);
+    let wn = 0;
     setInterval(() => { const now = performance.now(), fps = n * 1000 / (now - t); n = 0; t = now; const ms = perf.render;
-      pe.textContent = Math.round(fps) + ' 幀 · 畫面 ' + ms.toFixed(1) + 'ms' + (perf.calls ? ' · 繪圖 ' + perf.calls + ' 次 · 擷取 ' + perf.cap.toFixed(1) + ' / 上傳 ' + perf.up.toFixed(1) + ' / 3D ' + perf.gl.toFixed(1) + 'ms（' + perf.ents + ' 個）' : ''); pe.style.color = ms > 12 ? '#ff8a8a' : ms > 8 ? '#ffd27a' : '#9affb0'; }, 500); }
+      pe.textContent = Math.round(fps) + ' 幀 · 畫面 ' + ms.toFixed(1) + 'ms' + (perf.calls ? ' · 繪圖 ' + perf.calls + ' 次 · 擷取 ' + perf.cap.toFixed(1) + ' / 上傳 ' + perf.up.toFixed(1) + ' / 3D ' + perf.gl.toFixed(1) + 'ms（' + perf.ents + ' 個）' : ''); const w = perf.worst; if (perf.calls) pe.textContent += ' ｜ 最卡 ' + w.ms.toFixed(0) + 'ms（擷取 ' + w.cap.toFixed(0) + ' / 上傳 ' + w.up.toFixed(0) + ' / 3D ' + w.gl.toFixed(0) + '，' + w.ents + ' 個、光 ' + w.lights + '）'; if (++wn % 4 === 0) perf.worst = { ms: 0, cap: 0, up: 0, gl: 0, ents: 0, lights: 0 };
+      pe.style.color = ms > 12 ? '#ff8a8a' : ms > 8 ? '#ffd27a' : '#9affb0'; }, 500); }
   const stop = (ev: Event) => ev.stopPropagation();                    // 點按鈕不要變成搖桿 / 攻擊
   for (const t of ['pointerdown', 'touchstart', 'mousedown']) bar.addEventListener(t, stop);
   bar.addEventListener('click', ev => {

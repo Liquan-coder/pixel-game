@@ -141,7 +141,7 @@ export function captureEnts(items: any[]) {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); ctx.drawImage(keep, 0, 0);
   ctx.restore();                                                          // 換回原本的變換（後面還要畫刀光、子彈）
   if (atlasTex) atlasTex.needsUpdate = true;
-  perf.cap += (performance.now() - t0 - perf.cap) * .05; perf.ents = entCount;
+  perf.f.cap = performance.now() - t0; perf.cap += (perf.f.cap - perf.cap) * .05; perf.ents = entCount;
 }
 function placeEnts() {
   const S = CAP * F, AW = atlas.width, AH = atlas.height;
@@ -217,6 +217,7 @@ export function drawThree(cx: number, cy: number, L: any[], amb: number, tint: n
   placeEnts();
   // 點光源：挑離玩家最近的 8 個暖光（營火、火把、子彈）
   const cols = [0xfff0d8, 0xff9040, 0x5af0dc, 0xaa96ff, 0xffd75a, 0xebf0ff, 0x6eff8c];
+  perf.lights = L.length;
   const near = L.filter(l => l.r > 14).map(l => ({ l, d: (l.x - me.x) ** 2 + (l.y - me.y) ** 2 })).sort((a, b) => a.d - b.d).slice(0, pts.length);
   pts.forEach((p, i) => { const n = near[i]; if (!n) { p.intensity = 0; return; }
     p.position.set(n.l.x * U, 1.1, n.l.y * U); p.color.setHex(cols[n.l.warm] ?? cols[0]); p.distance = n.l.r * U * 1.6; p.intensity = (n.l.warm ? 3 : 1.5) * (1.2 - day * .6); });
@@ -225,7 +226,7 @@ export function drawThree(cx: number, cy: number, L: any[], amb: number, tint: n
   const t2 = performance.now();
   renderer.render(scene, cam);
   const t3 = performance.now();
-  perf.up += (t2 - t1 - perf.up) * .05; perf.gl += (t3 - t2 - perf.gl) * .05;
+  perf.f.up = t2 - t1; perf.f.gl = t3 - t2; perf.up += (perf.f.up - perf.up) * .05; perf.gl += (perf.f.gl - perf.gl) * .05;
   perf.calls = renderer.info.render.calls;
 }
 export function setThreeVisible(on: boolean) { if (!ready) { if (on) init(); else return; } renderer.domElement.style.display = on ? '' : 'none'; }
