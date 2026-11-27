@@ -35,7 +35,7 @@ import { drawSandstorm } from './sand';
 import { drawLost, drawLostBeam } from './lostMark';
 import { gZ } from '../world/elev';
 import { perf, three } from './isoState';
-import { captureEnts, drawThree } from './three3d';
+import { captureEnts, drawThree, ov, ovX, ovY, threeCam } from './three3d';
 import { dep, drawIsoGround, flat, iso, isoCam, isoWorldList, scrAng, sX, sY, upright } from './iso';
 
 export const view = { x: 0, y: 0 };                                  // 畫面左上角在世界的哪裡（給 HTML 介面對齊用）
@@ -53,7 +53,7 @@ function renderInner() {
   view.x = clamp(cam.x, 0, maxX); view.y = clamp(cam.y, 0, maxY);
   const cx = snapF(clamp(cam.x + sx, 0, maxX)), cy = snapF(clamp(cam.y + sy, 0, maxY));   // 對齊實體像素，跟角色同一個格子，畫面不會一格一格跳
   const T3 = three.on && !iso.on;                                         // three.js 模式（render/three3d.ts）：2D 畫布只畫「貼在地上的東西」，地形和角色交給 3D
-  if (T3) ctx.clearRect(0, 0, LW, LH); else { ctx.fillStyle = '#07060b'; ctx.fillRect(0, 0, LW, LH); }
+  if (T3) { ctx.clearRect(0, 0, LW, LH); threeCam(); } else { ctx.fillStyle = '#07060b'; ctx.fillRect(0, 0, LW, LH); }
   if (T3) {}
   else if (iso.on) { isoCam(sx, sy, ck); drawIsoGround(); ctx.setTransform(F, 0, 0, F, 0, 0); }   // 斜視角 demo（render/iso.ts）
   else for (let gy = Math.floor(cy / CPX); gy <= Math.floor((cy + LH) / CPX); gy++) for (let gx = Math.floor(cx / CPX); gx <= Math.floor((cx + LW) / CPX); gx++) {
@@ -61,8 +61,8 @@ function renderInner() {
     ctx.drawImage(getChunk(gx, gy), gx * CPX - cx, gy * CPX - cy, CPX, CPX);
   }
   if (!iso.on && !T3) prefetchChunks(cx, cy);
-  ctx.save(); if (iso.on) flat(); else ctx.translate(-cx, -cy);
-  const vis = iso.on ? (x, y, m = 40) => { const px = sX(x, y), py = sY(x, y); return px > -m && px < LW + m && py > -m && py < LH + m * 2; }
+  ctx.save(); if (T3) ctx.setTransform(F * ov.a, F * ov.b, F * ov.c, F * ov.d, F * ov.e, F * ov.f); else if (iso.on) flat(); else ctx.translate(-cx, -cy);   // 3D：2D 畫布照鏡頭斜轉，貼在地上
+  const vis = T3 ? (x, y, m = 40) => { const px = ovX(x, y), py = ovY(x, y); return px > -m && px < LW + m && py > -m && py < LH + m * 2; } : iso.on ? (x, y, m = 40) => { const px = sX(x, y), py = sY(x, y); return px > -m && px < LW + m && py > -m && py < LH + m * 2; }
     : (x, y, m = 40) => x > cx - m && x < cx + LW + m && y > cy - m && y < cy + LH + m;
   const L = [];
   addLight(L, G.me.x, G.me.y - 8, 112 + Math.sin(G.time * 9) * 2, 0);
@@ -214,7 +214,7 @@ function renderInner() {
   const RG = regionLook(regAt(G.me.x, G.me.y));                       // 主線 Boss 倒下的地區，天色亮一點（game/quest.ts）
   light.amb += (RG.amb - light.amb) * .03; for (let k = 0; k < 3; k++) light.t[k] += (RG.tint[k] - light.t[k]) * .03;
   if (T3) {                                                             // three.js：傷害數字畫在地面貼花上，然後交給 3D 畫整個畫面
-    if (SET.nums) for (const n of G.nums) { const k = n.t / n.d, rise = 1 - (1 - Math.min(1, k * 2.2)) ** 2; ctx.globalAlpha = k > .7 ? Math.max(0, 1 - (k - .7) / .3) : 1; drawNum(n.txt, n.x - cx, n.y - cy - rise * 10, n.col, n.big ? 4 / 3 : 1); }
+    if (SET.nums) for (const n of G.nums) { const k = n.t / n.d, rise = 1 - (1 - Math.min(1, k * 2.2)) ** 2; ctx.globalAlpha = k > .7 ? Math.max(0, 1 - (k - .7) / .3) : 1; drawNum(n.txt, ovX(n.x, n.y), ovY(n.x, n.y) - rise * 10, n.col, n.big ? 4 / 3 : 1); }
     ctx.globalAlpha = 1;
     drawThree(cx, cy, L, light.amb, light.t, G.region);
     return;

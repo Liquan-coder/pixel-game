@@ -23,14 +23,14 @@ const RS = 3, RP = U / RS;                                             // RS = 1
 const CR = new THREE.Vector3(), CU = new THREE.Vector3(), CB = new THREE.Vector3();   // 鏡頭的右、上、後方向
 function snapV(v: THREE.Vector3) { const r = Math.round(v.dot(CR) / RP) * RP, u = Math.round(v.dot(CU) / RP) * RP, b = v.dot(CB); return v.copy(CR).multiplyScalar(r).addScaledVector(CU, u).addScaledVector(CB, b); }
 let renderer: THREE.WebGLRenderer, scene: THREE.Scene, cam: THREE.OrthographicCamera;
-let sun: THREE.DirectionalLight, hemi: THREE.HemisphereLight, decal: THREE.Mesh, decalTex: THREE.CanvasTexture;
+let sun: THREE.DirectionalLight, hemi: THREE.HemisphereLight;
 const pts: THREE.PointLight[] = [];
 let ready = false;
 
 function init() {
   const c3 = document.createElement('canvas'); c3.id = 'cv3';
   c3.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:0;pointer-events:none;image-rendering:pixelated';
-  cv.parentElement.insertBefore(c3, cv.nextSibling);
+  cv.parentElement.insertBefore(c3, cv);                                 // 3D 在下面，2D 畫布（預警圈、刀光、數字）疊在上面
   renderer = new THREE.WebGLRenderer({ canvas: c3, antialias: false });
   renderer.setPixelRatio(1);
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.BasicShadowMap;   // 硬邊影子：跟像素風比較搭，也比較省
@@ -46,9 +46,6 @@ function init() {
   sun.shadow.mapSize.set(1024, 1024); const sc = sun.shadow.camera; sc.left = sc.bottom = -22; sc.right = sc.top = 22; sc.near = 1; sc.far = 120; sun.shadow.bias = -.0008;
   scene.add(sun); scene.add(sun.target);
   for (let i = 0; i < 6; i++) { const p = new THREE.PointLight(0xffa050, 0, 6, 1.5); scene.add(p); pts.push(p); }   // 固定 6 盞，每幀挑最近的光源（燈數固定，shader 不用重編）
-  decalTex = new THREE.CanvasTexture(cv); px(decalTex);
-  decal = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: decalTex, transparent: true, depthWrite: false, fog: false, premultipliedAlpha: true }));
-  decal.rotation.x = -Math.PI / 2; decal.renderOrder = 1; scene.add(decal);
   ready = true;
 }
 function px<T extends THREE.Texture>(t: T): T { t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.colorSpace = THREE.NoColorSpace; t.premultiplyAlpha = true; return t; }   // premultiplyAlpha：畫布本來就是預乘的，不用再轉
@@ -110,26 +107,24 @@ function placeBill(list: THREE.Mesh[], idx: number, tex: THREE.Texture, w: numbe
   return m;
 }
 
-/* ---------- 角色、怪：每一幀照原本的畫法畫到 2D 畫布角落，再複製成貼圖 ---------- */
-const CAP = 128;                                                       // 擷取範圍（世界像素）：腳底在 (64, 112)
-type Ent = { c: HTMLCanvasElement; g: CanvasRenderingContext2D; tex: THREE.CanvasTexture };
-const ents: Ent[] = [], entMeshes: THREE.Mesh[] = [];
-function entSlot(k: number) {
-  let e = ents[k]; const S = CAP * F;
-  if (!e || e.c.width !== S) { const c = document.createElement('canvas'); c.width = c.height = S; e = ents[k] = { c, g: c.getContext('2d'), tex: px(new THREE.CanvasTexture(c)) }; }
-  return e;
-}
-/** render.ts 呼叫：把有腳底座標的東西（角色、怪、掉落物、營火…）擷取成貼圖。2D 畫布上已經畫的東西先存起來，擷取完再放回去 */
-const keep = document.createElement('canvas');
+/* ---------- 角色、怪：每一幀照原本的畫法畫到 2D 畫布角落，再複製進「同一張大圖」（只上傳一次） ---------- */
+const CAP = 128, COLS = 6;                                             // 每格 128 世界像素（腳底在 (64, 112)），一排 6 格
+const atlas = document.createElement('canvas'), ag = atlas.getContext('2d');
+let atlasTex: THREE.CanvasTexture | null = null;
+const entMeshes: THREE.Mesh[] = [], entPos: number[] = [];
 let entCount = 0;
+const keep = document.createElement('canvas');
+/** render.ts 呼叫：把有腳底座標的東西（角色、怪、掉落物、營火…）擷取進大圖。2D 畫布上已經畫的東西先存起來，擷取完再放回去 */
 export function captureEnts(items: any[]) {
   if (!ready) init();
-  const t0 = performance.now();
+  const t0 = performance.now(), S = CAP * F;
+  items.sort((a, b) => a.y - b.y);
+  const n = Math.min(items.length, COLS * 8), rows = Math.max(1, Math.ceil(n / COLS));
+  if (atlas.width !== COLS * S || atlas.height < rows * S) { atlas.width = COLS * S; atlas.height = Math.max(atlas.height, rows * S); atlasTex?.dispose(); atlasTex = px(new THREE.CanvasTexture(atlas)); for (const m of entMeshes) { (m.material as THREE.MeshLambertMaterial).map = null; } }
   if (keep.width !== cv.width || keep.height !== cv.height) { keep.width = cv.width; keep.height = cv.height; }
   const kg = keep.getContext('2d'); kg.clearRect(0, 0, keep.width, keep.height); kg.drawImage(cv, 0, 0);
-  const S = CAP * F; entCount = 0;
-  items.sort((a, b) => a.y - b.y);
-  for (const it of items) {
+  ctx.save(); ag.clearRect(0, 0, atlas.width, rows * S); entCount = 0;
+  for (let k = 0; k < n; k++) { const it = items[k];
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, S, S);
     ctx.setTransform(F, 0, 0, F, Math.round(F * (64 - it.x)), Math.round(F * (112 - it.y)));
     const o = it.o, f0 = o?.face, fl0 = o?.flip;
@@ -140,11 +135,43 @@ export function captureEnts(items: any[]) {
     }
     it.f();
     if (o) { o.face = f0; o.flip = fl0; }
-    const e = entSlot(entCount); e.g.clearRect(0, 0, S, S); e.g.drawImage(cv, 0, 0, S, S, 0, 0, S, S); e.tex.needsUpdate = true;
-    (e as any).x = it.x; (e as any).y = it.y; entCount++;
+    ag.drawImage(cv, 0, 0, S, S, (k % COLS) * S, Math.floor(k / COLS) * S, S, S);
+    entPos[2 * k] = it.x; entPos[2 * k + 1] = it.y; entCount++;
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); ctx.drawImage(keep, 0, 0);
+  ctx.restore();                                                          // 換回原本的變換（後面還要畫刀光、子彈）
+  if (atlasTex) atlasTex.needsUpdate = true;
   perf.cap += (performance.now() - t0 - perf.cap) * .05; perf.ents = entCount;
+}
+function placeEnts() {
+  const S = CAP * F, AW = atlas.width, AH = atlas.height;
+  for (let k = 0; k < entCount; k++) {
+    let m = entMeshes[k];
+    if (!m) { m = new THREE.Mesh(quadGeo, new THREE.MeshLambertMaterial({ transparent: true, alphaTest: .5, side: THREE.DoubleSide, premultipliedAlpha: true })); scene.add(m); entMeshes[k] = m; }
+    const mat = m.material as THREE.MeshLambertMaterial;
+    if (!mat.map || mat.map.source !== atlasTex.source) { mat.map = atlasTex.clone(); mat.needsUpdate = true; }   // clone 共用同一份圖：整張大圖只上傳一次
+    mat.map.repeat.set(S / AW, S / AH); mat.map.offset.set((k % COLS) * S / AW, 1 - (Math.floor(k / COLS) + 1) * S / AH);
+    m.visible = true; m.scale.set(CAP * U, CAP * U, 1); m.quaternion.copy(cam.quaternion);
+    snapV(m.position.set(entPos[2 * k] * U, 0, entPos[2 * k + 1] * U).addScaledVector(CU, (112 - CAP / 2) * U).addScaledVector(CB, 1.2));   // 腳底 → 紙片中心；往鏡頭推一點
+  }
+  for (let k = entCount; k < entMeshes.length; k++) entMeshes[k].visible = false;
+}
+
+/* ---------- 疊在 3D 上面的 2D 畫布：預警圈、刀光、子彈、數字（不用上傳，直接蓋在上面） ----------
+   鏡頭沒有透視 → 地面到畫面是「斜轉 + 壓扁」的固定變換，2D 用 setTransform 就能精確貼在地上 */
+export const ov = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };                // 世界像素 → 畫面（世界像素為單位）的變換
+const tmp = new THREE.Vector3();
+function scr(x: number, y: number) { tmp.set(x * U, 0, y * U).project(cam); return [(tmp.x + 1) / 2 * LW, (1 - tmp.y) / 2 * LH]; }
+export const ovX = (x: number, y: number) => ov.a * x + ov.c * y + ov.e, ovY = (x: number, y: number) => ov.b * x + ov.d * y + ov.f;
+/** 每一幀最先呼叫：鏡頭跟著玩家（對齊像素格子），算出 2D 疊圖的變換 */
+export function threeCam() {
+  if (!ready) init();
+  const me = G.me, W = Math.round(LW * RS), H = Math.round(LH * RS);  // 畫面大小跟著原本的鏡頭範圍（LW × LH 世界像素）
+  if (renderer.domElement.width !== W || renderer.domElement.height !== H) { renderer.setSize(W, H, false); cam.left = -LW * U / 2; cam.right = LW * U / 2; cam.top = LH * U / 2; cam.bottom = -LH * U / 2; cam.updateProjectionMatrix(); }
+  const T = snapV(new THREE.Vector3(me.x * U, .5, me.y * U));          // 鏡頭對準的點對齊像素格子：整個世界跟著整數像素移動，不會閃
+  cam.position.copy(T).addScaledVector(CB, DIST); cam.updateMatrixWorld();
+  const o = scr(0, 0), px1 = scr(100, 0), py1 = scr(0, 100);
+  ov.a = (px1[0] - o[0]) / 100; ov.b = (px1[1] - o[1]) / 100; ov.c = (py1[0] - o[0]) / 100; ov.d = (py1[1] - o[1]) / 100; ov.e = o[0]; ov.f = o[1];
 }
 
 /* ---------- 每一幀 ---------- */
@@ -152,10 +179,6 @@ const v3 = new THREE.Vector3();
 export function drawThree(cx: number, cy: number, L: any[], amb: number, tint: number[], regionKey: string) {
   if (!ready) init();
   const me = G.me, tx = me.x * U, tz = me.y * U;
-  const W = Math.round(LW * RS), H = Math.round(LH * RS);               // 畫面大小跟著原本的鏡頭範圍（LW × LH 世界像素）
-  if (renderer.domElement.width !== W || renderer.domElement.height !== H) { renderer.setSize(W, H, false); cam.left = -LW * U / 2; cam.right = LW * U / 2; cam.top = LH * U / 2; cam.bottom = -LH * U / 2; cam.updateProjectionMatrix(); }
-  const T = snapV(new THREE.Vector3(tx, .5, tz));                       // 鏡頭對準的點對齊像素格子：整個世界跟著整數像素移動，不會閃
-  cam.position.copy(T).addScaledVector(CB, DIST); cam.updateMatrixWorld();
   // 天色：地區越暗（amb 大），太陽越弱、霧越接近地區的色調
   const day = Math.max(.15, 1 - amb * 1.6);
   sun.intensity = 2.4 * day; hemi.intensity = .5 + 1.2 * day;
@@ -191,24 +214,19 @@ export function drawThree(cx: number, cy: number, L: any[], amb: number, tint: n
       e.m.setMatrixAt(j, mtx.compose(p, cam.quaternion, sc3)); }
     e.m.count = n; e.m.instanceMatrix.needsUpdate = true;
   }
-  // 角色紙片（擷取範圍 CAP 世界像素 = CAP·F 貼圖像素）
-  for (let i = 0; i < entCount; i++) { const e = ents[i] as any; placeBill(entMeshes, i, e.tex, CAP * F, CAP * F, 64 * F, 112 * F, e.x, e.y, U / F, 1.2); }
-  for (let i = entCount; i < entMeshes.length; i++) entMeshes[i].visible = false;
-  // 地面貼花：2D 畫布（俯視，範圍 cx ~ cx+LW、cy ~ cy+LH）
-  decalTex.needsUpdate = true; decal.scale.set(LW * U, LH * U, 1); decal.position.set((cx + LW / 2) * U, .03, (cy + LH / 2) * U);
+  placeEnts();
   // 點光源：挑離玩家最近的 8 個暖光（營火、火把、子彈）
   const cols = [0xfff0d8, 0xff9040, 0x5af0dc, 0xaa96ff, 0xffd75a, 0xebf0ff, 0x6eff8c];
   const near = L.filter(l => l.r > 14).map(l => ({ l, d: (l.x - me.x) ** 2 + (l.y - me.y) ** 2 })).sort((a, b) => a.d - b.d).slice(0, pts.length);
   pts.forEach((p, i) => { const n = near[i]; if (!n) { p.intensity = 0; return; }
     p.position.set(n.l.x * U, 1.1, n.l.y * U); p.color.setHex(cols[n.l.warm] ?? cols[0]); p.distance = n.l.r * U * 1.6; p.intensity = (n.l.warm ? 3 : 1.5) * (1.2 - day * .6); });
   const t1 = performance.now();
-  for (let i = 0; i < entCount; i++) renderer.initTexture(ents[i].tex);   // 先上傳貼圖（分開計時）
-  renderer.initTexture(decalTex);
+  if (atlasTex && entCount) renderer.initTexture(atlasTex);             // 先上傳大圖（分開計時）
   const t2 = performance.now();
   renderer.render(scene, cam);
   const t3 = performance.now();
   perf.up += (t2 - t1 - perf.up) * .05; perf.gl += (t3 - t2 - perf.gl) * .05;
   perf.calls = renderer.info.render.calls;
 }
-export function setThreeVisible(on: boolean) { if (!ready) { if (on) init(); else return; } renderer.domElement.style.display = on ? '' : 'none'; cv.style.visibility = on ? 'hidden' : ''; }
+export function setThreeVisible(on: boolean) { if (!ready) { if (on) init(); else return; } renderer.domElement.style.display = on ? '' : 'none'; }
 export { three };
