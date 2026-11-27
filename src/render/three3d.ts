@@ -13,6 +13,7 @@ import { AR, TA } from '../world/gen';
 import { bakeObjectHD, objectKey } from '../world/tileArt';
 import { CH, groundBake, groundReady } from '../world/chunks';
 import { scrAng } from './iso';
+import { rbs } from '../world/regionBoss';
 import { perf, three } from './isoState';
 
 const U = 1 / TS;                                                      // 世界像素 → 3D 單位
@@ -107,54 +108,62 @@ function placeBill(list: THREE.Mesh[], idx: number, tex: THREE.Texture, w: numbe
   return m;
 }
 
-/* ---------- 角色、怪：每一幀照原本的畫法畫到 2D 畫布角落，再複製進「同一張大圖」（只上傳一次） ---------- */
-const CAP = 128, COLS = 6;                                             // 每格 128 世界像素（腳底在 (64, 112)），一排 6 格
-const atlas = document.createElement('canvas'), ag = atlas.getContext('2d');
-let atlasTex: THREE.CanvasTexture | null = null;
-const entMeshes: THREE.Mesh[] = [], entPos: number[] = [];
-let entCount = 0;
+/* ---------- 角色、怪：每一幀照原本的畫法畫到 2D 畫布角落，再複製進大圖（一張大圖只上傳一次） ----------
+   Mac 的 Chrome 把 2D 畫布搬進 3D 要繞回 CPU（約 1MB / 1ms），所以格子只開剛好裝得下的大小，大圖照當下的數量調整 */
+type Atlas = { S: number; fx: number; fy: number; cols: number; c: HTMLCanvasElement; g: CanvasRenderingContext2D; tex: THREE.CanvasTexture | null; n: number; pos: number[]; meshes: THREE.Mesh[] };
+const mkAtlas = (S: number, fx: number, fy: number, cols: number): Atlas => { const c = document.createElement('canvas'); return { S, fx, fy, cols, c, g: c.getContext('2d'), tex: null, n: 0, pos: [], meshes: [] }; };
+const SMALL = mkAtlas(72, 36, 58, 6), BIG = mkAtlas(160, 80, 140, 3);   // 一般角色 72×72 世界像素（腳底在 (36, 58)）；Boss 160×160
 const keep = document.createElement('canvas');
+let entCount = 0;
 /** render.ts 呼叫：把有腳底座標的東西（角色、怪、掉落物、營火…）擷取進大圖。2D 畫布上已經畫的東西先存起來，擷取完再放回去 */
 export function captureEnts(items: any[]) {
   if (!ready) init();
-  const t0 = performance.now(), S = CAP * F;
+  const t0 = performance.now();
   items.sort((a, b) => a.y - b.y);
-  const n = Math.min(items.length, COLS * 8), rows = Math.max(1, Math.ceil(n / COLS));
-  if (atlas.width !== COLS * S || atlas.height < rows * S) { atlas.width = COLS * S; atlas.height = Math.max(atlas.height, rows * S); atlasTex?.dispose(); atlasTex = px(new THREE.CanvasTexture(atlas)); for (const m of entMeshes) { (m.material as THREE.MeshLambertMaterial).map = null; } }
+  const isBig = (it: any) => it.o && (it.o === G.B || rbs.includes(it.o));
+  const groups: [Atlas, any[]][] = [[SMALL, items.filter(it => !isBig(it)).slice(0, 48)], [BIG, items.filter(isBig).slice(0, 6)]];
   if (keep.width !== cv.width || keep.height !== cv.height) { keep.width = cv.width; keep.height = cv.height; }
   const kg = keep.getContext('2d'); kg.clearRect(0, 0, keep.width, keep.height); kg.drawImage(cv, 0, 0);
-  ctx.save(); ag.clearRect(0, 0, atlas.width, rows * S); entCount = 0;
-  for (let k = 0; k < n; k++) { const it = items[k];
-    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, S, S);
-    ctx.setTransform(F, 0, 0, F, Math.round(F * (64 - it.x)), Math.round(F * (112 - it.y)));
-    const o = it.o, f0 = o?.face, fl0 = o?.flip;
-    if (o) {                                                              // 面向、左右翻面換成「畫面上的方向」（鏡頭斜 45°）
-      if (typeof f0 === 'number') o.face = scrAng(f0);
-      if (G.players.includes(o)) { const c = Math.cos(o.face); if (c < -.1) o.flip = true; else if (c > .1) o.flip = false; }
-      else { const wd = G.me.x - o.x, sd = (G.me.x - G.me.y) - (o.x - o.y); if (wd * sd < 0) o.flip = !o.flip; }
+  ctx.save(); entCount = 0;
+  for (const [A, list] of groups) {
+    const n = list.length, cols = Math.max(1, Math.min(n, A.cols)), rows = Math.max(1, Math.ceil(n / A.cols)), P = A.S * F;
+    A.n = n; if (!n) continue;
+    if (A.c.width !== cols * P || A.c.height !== rows * P) { A.c.width = cols * P; A.c.height = rows * P; A.tex?.dispose(); A.tex = px(new THREE.CanvasTexture(A.c)); }
+    else A.g.clearRect(0, 0, A.c.width, A.c.height);
+    for (let k = 0; k < n; k++) { const it = list[k];
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, P, P);
+      ctx.setTransform(F, 0, 0, F, Math.round(F * (A.fx - it.x)), Math.round(F * (A.fy - it.y)));
+      const o = it.o, f0 = o?.face, fl0 = o?.flip;
+      if (o) {                                                            // 面向、左右翻面換成「畫面上的方向」（鏡頭斜 45°）
+        if (typeof f0 === 'number') o.face = scrAng(f0);
+        if (G.players.includes(o)) { const c = Math.cos(o.face); if (c < -.1) o.flip = true; else if (c > .1) o.flip = false; }
+        else { const wd = G.me.x - o.x, sd = (G.me.x - G.me.y) - (o.x - o.y); if (wd * sd < 0) o.flip = !o.flip; }
+      }
+      it.f();
+      if (o) { o.face = f0; o.flip = fl0; }
+      A.g.drawImage(cv, 0, 0, P, P, (k % cols) * P, Math.floor(k / cols) * P, P, P);
+      A.pos[2 * k] = it.x; A.pos[2 * k + 1] = it.y;
     }
-    it.f();
-    if (o) { o.face = f0; o.flip = fl0; }
-    ag.drawImage(cv, 0, 0, S, S, (k % COLS) * S, Math.floor(k / COLS) * S, S, S);
-    entPos[2 * k] = it.x; entPos[2 * k + 1] = it.y; entCount++;
+    A.tex.needsUpdate = true; entCount += n;
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); ctx.drawImage(keep, 0, 0);
   ctx.restore();                                                          // 換回原本的變換（後面還要畫刀光、子彈）
-  if (atlasTex) atlasTex.needsUpdate = true;
   perf.f.cap = performance.now() - t0; perf.cap += (perf.f.cap - perf.cap) * .05; perf.ents = entCount;
 }
 function placeEnts() {
-  const S = CAP * F, AW = atlas.width, AH = atlas.height;
-  for (let k = 0; k < entCount; k++) {
-    let m = entMeshes[k];
-    if (!m) { m = new THREE.Mesh(quadGeo, new THREE.MeshLambertMaterial({ transparent: true, alphaTest: .5, side: THREE.DoubleSide, premultipliedAlpha: true })); scene.add(m); entMeshes[k] = m; }
-    const mat = m.material as THREE.MeshLambertMaterial;
-    if (!mat.map || mat.map.source !== atlasTex.source) { mat.map = atlasTex.clone(); mat.needsUpdate = true; }   // clone 共用同一份圖：整張大圖只上傳一次
-    mat.map.repeat.set(S / AW, S / AH); mat.map.offset.set((k % COLS) * S / AW, 1 - (Math.floor(k / COLS) + 1) * S / AH);
-    m.visible = true; m.scale.set(CAP * U, CAP * U, 1); m.quaternion.copy(cam.quaternion);
-    snapV(m.position.set(entPos[2 * k] * U, 0, entPos[2 * k + 1] * U).addScaledVector(CU, (112 - CAP / 2) * U).addScaledVector(CB, 1.2));   // 腳底 → 紙片中心；往鏡頭推一點
+  for (const A of [SMALL, BIG]) {
+    const P = A.S * F, cols = Math.max(1, Math.min(A.n, A.cols)), AW = A.c.width, AH = A.c.height;
+    for (let k = 0; k < A.n; k++) {
+      let m = A.meshes[k];
+      if (!m) { m = new THREE.Mesh(quadGeo, new THREE.MeshLambertMaterial({ transparent: true, alphaTest: .5, side: THREE.DoubleSide, premultipliedAlpha: true })); scene.add(m); A.meshes[k] = m; }
+      const mat = m.material as THREE.MeshLambertMaterial;
+      if (!mat.map || mat.map.source !== A.tex.source) { mat.map = A.tex.clone(); mat.needsUpdate = true; }   // clone 共用同一份圖：整張大圖只上傳一次
+      mat.map.repeat.set(P / AW, P / AH); mat.map.offset.set((k % cols) * P / AW, 1 - (Math.floor(k / cols) + 1) * P / AH);
+      m.visible = true; m.scale.set(A.S * U, A.S * U, 1); m.quaternion.copy(cam.quaternion);
+      snapV(m.position.set(A.pos[2 * k] * U, 0, A.pos[2 * k + 1] * U).addScaledVector(CR, (A.S / 2 - A.fx) * U).addScaledVector(CU, (A.fy - A.S / 2) * U).addScaledVector(CB, 1.2));   // 腳底 → 紙片中心；往鏡頭推一點
+    }
+    for (let k = A.n; k < A.meshes.length; k++) A.meshes[k].visible = false;
   }
-  for (let k = entCount; k < entMeshes.length; k++) entMeshes[k].visible = false;
 }
 
 /* ---------- 疊在 3D 上面的 2D 畫布：預警圈、刀光、子彈、數字（不用上傳，直接蓋在上面） ----------
@@ -222,7 +231,7 @@ export function drawThree(cx: number, cy: number, L: any[], amb: number, tint: n
   pts.forEach((p, i) => { const n = near[i]; if (!n) { p.intensity = 0; return; }
     p.position.set(n.l.x * U, 1.1, n.l.y * U); p.color.setHex(cols[n.l.warm] ?? cols[0]); p.distance = n.l.r * U * 1.6; p.intensity = (n.l.warm ? 3 : 1.5) * (1.2 - day * .6); });
   const t1 = performance.now();
-  if (atlasTex && entCount) renderer.initTexture(atlasTex);             // 先上傳大圖（分開計時）
+  for (const A of [SMALL, BIG]) if (A.n && A.tex) renderer.initTexture(A.tex);   // 先上傳大圖（分開計時）
   const t2 = performance.now();
   renderer.render(scene, cam);
   const t3 = performance.now();
